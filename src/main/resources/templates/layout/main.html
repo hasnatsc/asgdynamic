@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="|ASG Dynamic | ${title ?: 'Home'}|">ASG Dynamic</title>
+
+    <!-- CSRF for AJAX: Spring Security CSRF stays enabled. -->
+    <meta name="_csrf" th:content="${_csrf?.token}">
+    <meta name="_csrf_header" th:content="${_csrf?.headerName}">
+
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+
+<header class="bg-white border-b border-slate-200">
+    <div class="mx-auto max-w-screen-2xl px-4 h-14 flex items-center gap-4">
+        <a th:href="@{/}" class="font-semibold tracking-tight">
+            <span class="text-brand-600">ASG</span> DYNAMIC
+        </a>
+
+        <!--
+          Operating context. In the legacy system changing either of these forced a
+          logout; here it is a plain POST that updates the session in place.
+        -->
+        <form th:action="@{/context/switch}" method="post"
+              class="flex items-center gap-2 text-sm text-slate-600">
+            <span class="hidden sm:inline"
+                  th:text="${operatingContext.businessUnitName} ?: 'No business unit'">Unit</span>
+            <span class="text-slate-300">/</span>
+            <span class="hidden sm:inline"
+                  th:text="${operatingContext.storeName} ?: 'No store'">Store</span>
+        </form>
+
+        <nav class="ml-auto flex items-center gap-3 text-sm">
+            <a th:href="@{/menu}" class="hover:text-brand-600">Menu</a>
+            <span sec:authentication="name" class="text-slate-500"></span>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn-ghost">Sign out</button>
+            </form>
+        </nav>
+    </div>
+</header>
+
+<main class="mx-auto max-w-screen-2xl px-4 py-6">
+    <div th:replace="${content}">Page content goes here.</div>
+</main>
+
+<script th:src="@{/js/app.js}" defer></script>
+</body>
+</html>

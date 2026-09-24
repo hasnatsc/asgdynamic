@@ -1,0 +1,2936 @@
+{
+ "hsMenuSearchId": {
+  "pages": [
+   "accDashboard",
+   "accounts",
+   "accountsPeriod",
+   "accountsPolicy",
+   "allBookingReport",
+   "allProductionOrderReport",
+   "analysisDISPO",
+   "approvalReport",
+   "approvalSetup",
+   "bank",
+   "bnkAccounts",
+   "booking",
+   "bookingReport",
+   "bookingRevision",
+   "businessUnit",
+   "ciClosing",
+   "ciIssuing",
+   "ciPayment",
+   "ciRealization",
+   "ciReceiving",
+   "comCustomer",
+   "comDashboard",
+   "comDocName",
+   "comTermsAndConditions",
+   "commercialCostHead",
+   "consumptionSpr",
+   "crmDashboard",
+   "currencyConversion",
+   "customer",
+   "deliveryOrder",
+   "department",
+   "designation",
+   "directIssue",
+   "directReceive",
+   "dispoAcknowledgement",
+   "documentApproval",
+   "dyeingReceive",
+   "dyeingWoByPro",
+   "dyesChemical",
+   "employee",
+   "employeeShift",
+   "expCiReceive",
+   "expCiReport",
+   "expLcReceive",
+   "expLcReceiveRevision",
+   "expLcReport",
+   "expPiReceive",
+   "expPiReceiveRevision",
+   "expPiReport",
+   "exportPi",
+   "fabricsComposition",
+   "fabricsDelivery",
+   "fabricsDeliveryReport",
+   "fabricsDirectMrr",
+   "fabricsProductionReport",
+   "fabricsTransfer",
+   "fabricsTransferIssue",
+   "fabricsTransferReceive",
+   "fiberItem",
+   "finishedFabrics",
+   "genericName",
+   "globalArea",
+   "globalCity",
+   "globalCountries",
+   "globalCurrency",
+   "globalRegion",
+   "goodsDelivery",
+   "goodsReceiptNote",
+   "hrmDashboard",
+   "hsCode",
+   "impLcIssue",
+   "impLcRevision",
+   "importGRN",
+   "importPi",
+   "importPiReceive",
+   "importPiRevision",
+   "importPurchaseOrder",
+   "invDashboard",
+   "inventoryItem",
+   "inventoryPeriod",
+   "inventoryStore",
+   "inventoryTransfer",
+   "inventoryTransferIssue",
+   "inventoryTransferReceive",
+   "itElectronicsFa",
+   "itemBrand",
+   "itemCategory",
+   "itemLedgerReport",
+   "itemModel",
+   "lCTermsCondition",
+   "lcClosing",
+   "lcIssuing",
+   "localAgent",
+   "machine",
+   "marketingGroup",
+   "monthlyStockReport",
+   "mroItem",
+   "organization",
+   "pITermsCondition",
+   "plnDashboard",
+   "prdDashboard",
+   "proDeliveryType",
+   "proPiDeliverySchedule",
+   "proPiDeliveryScheduleReport",
+   "proPiDeliveryScheduleRevision",
+   "productionOrder",
+   "productionOrderReport",
+   "productionOrderRevision",
+   "purDashboard",
+   "purchaseOrder",
+   "rawMatConsumption",
+   "rawMatIssue",
+   "requestmap",
+   "rndDashboard",
+   "role",
+   "routCard",
+   "selvage",
+   "slsDashboard",
+   "slsTermsAndConditions",
+   "sprDirGeneral",
+   "sprGeneral",
+   "sprReport",
+   "srIssue",
+   "srReport",
+   "stockReport",
+   "storePurchaseRequisition",
+   "storeRequisition",
+   "supplier",
+   "termsAndConditions",
+   "textileIssue",
+   "textileReceive",
+   "textileWoByPro",
+   "unitsOfMeasure",
+   "user",
+   "userRole",
+   "yarnComposition",
+   "yarnConsumption",
+   "yarnCount",
+   "yarnFiber",
+   "yarnItem",
+   "yarnPly",
+   "yarnType"
+  ],
+  "count": 161,
+  "options": {
+   "/user/index": "User",
+   "/role/index": "Role",
+   "/requestmap/index": "Url Mapping",
+   "/userRole/index": "Assign Role",
+   "/menu/index": "Menu",
+   "/approvalSetup/index": "Approval Setup",
+   "/documentApproval/index": "Document Approval",
+   "/approvalReport/index": "Approval Report",
+   "/accDashboard/index": "Accounts Dashboard",
+   "/comDashboard/index": "Commercial Dashboard",
+   "/crmDashboard/index": "CRM Dashboard",
+   "/invDashboard/index": "Inventory Dashboard",
+   "/plnDashboard/index": "Planning Dashboard",
+   "/prdDashboard/index": "Production Dashboard",
+   "/purDashboard/index": "Purchase Dashboard",
+   "/rndDashboard/index": "RND Dashboard",
+   "/slsDashboard/index": "Sales Dashboard",
+   "/hrmDashboard/index": "HRM Dashboard",
+   "/currencyConversion/index": "Currency Conversion",
+   "/organization/index": "Organization",
+   "/businessUnit/index": "Business Unit",
+   "/unitsOfMeasure/index": "Item Unit",
+   "/globalCurrency/index": "Currency",
+   "/bank/index": "Bank",
+   "/bnkAccounts/index": "Bnk Accounts",
+   "/termsAndConditions/index": "Terms &amp; Conditions",
+   "/globalCountries/index": "Country",
+   "/globalRegion/index": "Region",
+   "/globalCity/index": "City",
+   "/globalArea/index": "Area",
+   "/employee/index": "Employee",
+   "/designation/index": "Designation",
+   "/department/index": "Department",
+   "/employeeShift/index": "Employee Shift",
+   "/accounts/index": "Chart Of Accounts",
+   "/accountsPeriod/index": "Period",
+   "/accountsPolicy/index": "Accounts Policy",
+   "/receiveVoucher/index": "Receive Voucher",
+   "/paymentVoucher/index": "Payment Voucher",
+   "/journalVoucher/index": "Journal Voucher",
+   "/contraVoucher/index": "Contra Voucher",
+   "/expenseVoucher/index": "Expense Voucher",
+   "/voucherApproval/index": "Voucher Approval",
+   "/balanceSheet/index": "Balance Sheet",
+   "/dayBook/index": "Day Book",
+   "/incomeStatement/index": "Income Statement",
+   "/ledgerBalance/index": "Ledger Balance",
+   "/partyBalance/index": "Party Balance",
+   "/trialBalance/index": "Trial Balance",
+   "/itemCategory/index": "Item Category",
+   "/inventoryPeriod/index": "Period",
+   "/inventoryStore/index": "Item Store",
+   "/machine/index": "Machine",
+   "/genericName/index": "Generic Name",
+   "/itemModel/index": "Model",
+   "/itemBrand/index": "Brand",
+   "/fabricsComposition/index": "Fabrics Composition",
+   "/hsCode/index": "HS Code",
+   "/yarnType/index": "Yarn Type",
+   "/yarnCount/index": "Yarn Count",
+   "/yarnPly/index": "Yarn Ply",
+   "/yarnFiber/index": "Yarn Fiber",
+   "/yarnComposition/index": "Yarn Composition",
+   "/inventoryItem/index": "General Item",
+   "/fiberItem/index": "Fiber Item",
+   "/yarnItem/index": "Yarn Item",
+   "/dyesChemical/index": "Dyes Chemical",
+   "/itElectronicsFa/index": "IT &amp; Electrical FA Item",
+   "/finishedFabrics/index": "Finished Fabrics",
+   "/mroItem/index": "MRO Item",
+   "/goodsReceiptNote/index": "MRR",
+   "/sprGeneral/index": "SR TO SPR",
+   "/sprDirGeneral/index": "Direct SPR",
+   "/storeRequisition/index": "Store Requisition(SR)",
+   "/srIssue/index": "Item Issue Against SR",
+   "/goodsDelivery/index": "Goods Delivery",
+   "/directIssue/index": "Direct Issue",
+   "/directReceive/index": "Direct Receive",
+   "/receiptIntoStores/index": "Receipt Into Stores",
+   "/purchaseReturn/index": "Purchase Return",
+   "/salesReturn/index": "Sales Return",
+   "/inventoryTransfer/index": "Transfer Request",
+   "/inventoryTransferIssue/index": "Transfer Issue",
+   "/inventoryTransferReceive/index": "Transfer Receive",
+   "/fabricsTransfer/index": "Transfer Request",
+   "/fabricsTransferIssue/index": "Transfer Issue",
+   "/fabricsTransferReceive/index": "Transfer Receive",
+   "/textileReceive/index": "Greige Fabrics Received",
+   "/textileIssue/index": "Greige Issue for Processing",
+   "/dyeingReceive/index": "Finish Goods Received",
+   "/fabricsDelivery/index": "Fabrics Delivery",
+   "/fabricsDeliveryReport/index": "Fabrics Delivery Report",
+   "/rawMatIssue/index": "RAW Material Issue",
+   "/fabricsDirectMrr/index": "Finished Fabric Receiving",
+   "/storePurchaseRequisition/index": "Store Purchase Requisition",
+   "/consumptionSpr/index": "Consumption SPR",
+   "/itemLedgerReport/index": "Item Ledger Report",
+   "/monthlyStockReport/index": "Monthly Stock Report",
+   "/stockReport/index": "Transaction Report",
+   "/sprReport/index": "SPR Report",
+   "/srReport/index": "SR Report",
+   "/localAgent/index": "Local Agent",
+   "/supplier/index": "Supplier",
+   "/purchaseOrder/index": "Purchase Order",
+   "/customer/index": "Marketing Customer",
+   "/proDeliveryType/index": "Delivery Type",
+   "/slsTermsAndConditions/index": "Marketing Terms And Conditions",
+   "/marketingGroup/index": "Marketing Group",
+   "/booking/index": "Booking",
+   "/bookingRevision/index": "Booking Revision",
+   "/productionOrder/index": "Bulk Production Order(BPO)",
+   "/productionOrderRevision/index": "Bulk Production Order(BPO) Revision",
+   "/proPiDeliveryScheduleRevision/index": "Request For PI Revision",
+   "/proPiDeliverySchedule/index": "Request For PI",
+   "/deliveryOrder/index": "Delivery Order",
+   "/bookingReport/index": "Booking Report",
+   "/productionOrderReport/index": "BPO Report",
+   "/selvage/index": "Selvage",
+   "/analysisDISPO/index": "DISPO Analysis Update",
+   "/rawMatConsumption/index": "RAW Material Consumption",
+   "/yarnConsumption/index": "Yarn Consumption",
+   "/routCard/index": "Rout Card",
+   "/dispoAcknowledgement/index": "DISPO Acknowledgement",
+   "/textileWoByPro/index": "Weaving WO against BPO",
+   "/dyeingWoByPro/index": "Processing WO against BPO",
+   "/comCustomer/index": "Commercial Customer",
+   "/comDocName/index": "Document Names",
+   "/commercialCostHead/index": "LC Cost Head",
+   "/comTermsAndConditions/index": "Commercial Terms and conditions",
+   "/lCTermsCondition/index": "LC Terms &amp; Condition",
+   "/pITermsCondition/index": "PI Terms &amp; Condition",
+   "/expPiReceive/index": "PI Issuing",
+   "/expPiReceiveRevision/index": "PI Revision",
+   "/expPiReport/index": "PI Report",
+   "/expLcReceive/index": "LC Receiving",
+   "/expLcReceiveRevision/index": "LC Revision",
+   "/expLcReport/index": "LC Report",
+   "/expCiReceive/index": "CI Issuing",
+   "/expCiReport/index": "CI Report",
+   "/exportPi/index": "PI Receiving",
+   "/ciReceiving/index": "CI Receiving",
+   "/ciRealization/index": "CI Realization",
+   "/lcClosing/index": "LC Closing &amp; Post Processing",
+   "/importPurchaseOrder/index": "Purchase Order (Import)",
+   "/impLcIssue/index": "LC Issuing (Import)",
+   "/importGRN/index": "GRN (Import)",
+   "/importPi/index": "Proforma Invoice(Import)",
+   "/importPiReceive/index": "PI Receive (Import)",
+   "/importPiRevision/index": "PI Revision (Import)",
+   "/impLcRevision/index": "LC Revision (Import)",
+   "/lcIssuing/index": "LC Issuing(Import)",
+   "/ciIssuing/index": "CI Issuing(Import)",
+   "/ciPayment/index": "CI Payment(Import)",
+   "/ciClosing/index": "CI Closing(Import)",
+   "/allBookingReport/index": "All Booking",
+   "/allProductionOrderReport/index": "All Production Order",
+   "/fabricsProductionReport/index": "Fabrics Production Report",
+   "/proPiDeliveryScheduleReport/index": "BPO Status Report",
+   "/bookingYd/index": "Yarn Dyed Booking",
+   "/dispoConfigure/index": "Configure DISPO Code",
+   "/dispo/index": "DISPO"
+  }
+ },
+ "periodMonth": {
+  "pages": [
+   "accountsPeriod",
+   "inventoryPeriod"
+  ],
+  "count": 18,
+  "options": {
+   "2023": "2023",
+   "2024": "2024",
+   "2025": "2025",
+   "2026": "2026",
+   "2027": "2027",
+   "2028": "2028",
+   "2029": "2029",
+   "2030": "2030",
+   "2031": "2031",
+   "2032": "2032",
+   "2033": "2033",
+   "2034": "2034",
+   "2035": "2035",
+   "2036": "2036",
+   "2037": "2037",
+   "2038": "2038",
+   "2039": "2039",
+   "2040": "2040"
+  }
+ },
+ "bookingType": {
+  "pages": [
+   "allBookingReport",
+   "allProductionOrderReport",
+   "analysisDISPO",
+   "booking",
+   "bookingReport",
+   "bookingRevision",
+   "productionOrderReport"
+  ],
+  "count": 2,
+  "options": {
+   "Bulk": "Bulk",
+   "Sample": "Sample"
+  }
+ },
+ "specialType": {
+  "pages": [
+   "allBookingReport",
+   "allProductionOrderReport",
+   "booking",
+   "bookingReport",
+   "bookingRevision",
+   "productionOrderReport"
+  ],
+  "count": 3,
+  "options": {
+   "Lungi": "Lungi",
+   "Job_Work": "Job Work",
+   "Export": "Export"
+  }
+ },
+ "currency": {
+  "pages": [
+   "allBookingReport",
+   "allProductionOrderReport",
+   "booking",
+   "bookingReport",
+   "bookingRevision",
+   "currencyConversion",
+   "fabricsDeliveryReport",
+   "importPiReceive",
+   "importPiRevision",
+   "productionOrderReport"
+  ],
+  "count": 4,
+  "options": {
+   "BDT": "BDT",
+   "USD": "USD",
+   "EUR": "EUR",
+   "AUD": "AUD"
+  }
+ },
+ "fabricType": {
+  "pages": [
+   "allBookingReport",
+   "allProductionOrderReport",
+   "analysisDISPO",
+   "bookingReport",
+   "productionOrderReport"
+  ],
+  "count": 18,
+  "options": {
+   "Yarn_Dyed": "Yarn Dyed",
+   "Yarn_Dyed_Print": "Yarn Dyed Print",
+   "Solid_Dyed": "Solid Dyed",
+   "Solid_Dyed_Print": "Solid Dyed Print",
+   "Indigo_Denim": "Indigo Denim",
+   "Indigo_Denim_Spandex": "Indigo Denim Spandex",
+   "Yarn_Dyed_Spandex": "Yarn Dyed Spandex",
+   "Yarn_Dyed_Print_Spandex": "Yarn Dyed Print Spandex",
+   "Solid_Dyed_Spandex": "Solid Dyed Spandex",
+   "Solid_Dyed_Print_Spandex": "Solid Dyed Print Spandex",
+   "Yarn_Dyed_Lungi_Greige": "Yarn Dyed Lungi_Greige",
+   "Greige_Yarn_Dyed": "Greige Yarn Dyed",
+   "Greige_Solid_Dyed": "Greige Solid Dyed",
+   "Greige_Solid_Dyed_Lungi": "Greige Solid Dyed Lungi",
+   "Greige_Yarn_Dyed_Spandex": "Greige Yarn Dyed Spandex",
+   "Greige_Solid_Dyed_Spandex": "Greige Solid Dyed Spandex",
+   "Greige_Indigo_Denim": "Greige Indigo Denim",
+   "Greige_Indigo_Denim_Spandex": "Greige Indigo Denim Spandex"
+  }
+ },
+ "selvedgeEnum": {
+  "pages": [
+   "analysisDISPO"
+  ],
+  "count": 10,
+  "options": {
+   "A0": "As Below",
+   "A5": "5 mm + 5 mm",
+   "A6": "6 mm + 6 mm",
+   "A8": "8 mm + 8 mm",
+   "A10": "10 mm + 10 mm",
+   "A12": "12 mm + 12 mm",
+   "A15": "15 mm + 15 mm",
+   "A20": "20 mm + 20 mm",
+   "A22": "22 mm + 22 mm",
+   "A25": "25 mm + 25 mm"
+  }
+ },
+ "weaveType": {
+  "pages": [
+   "analysisDISPO"
+  ],
+  "count": 13,
+  "options": {
+   "A": "Plain",
+   "A75": "3/1 S Twill",
+   "A750": "3/1 Z Twill",
+   "A85": "2/1 S Twill",
+   "A850": "2/1 Z Twill",
+   "A8": "2/2 S Twill",
+   "A80": "2/2 Z Twill",
+   "A800": "2/2 Matt",
+   "A7": "4/1 Satin",
+   "A95": "Oxford",
+   "A0": "Dobby",
+   "A98": "Rib Stop",
+   "A7500": "3/1 Broken Twill"
+  }
+ },
+ "fabricsComposition": {
+  "pages": [
+   "analysisDISPO"
+  ],
+  "count": 1,
+  "options": {
+   "1": "FCAF00001-50% Cotton 50% Polyester"
+  }
+ },
+ "warpYarnType": {
+  "pages": [
+   "analysisDISPO"
+  ],
+  "count": 2,
+  "options": {
+   "1": "Card",
+   "8": "Combed"
+  }
+ },
+ "weftYarnType": {
+  "pages": [
+   "analysisDISPO"
+  ],
+  "count": 2,
+  "options": {
+   "1": "Card",
+   "8": "Combed"
+  }
+ },
+ "documentUrl": {
+  "pages": [
+   "approvalReport",
+   "documentApproval"
+  ],
+  "count": 17,
+  "options": {
+   "148": "Booking",
+   "150": "Booking Revision",
+   "151": "Bulk Production Order(BPO)",
+   "153": "Bulk Production Order(BPO) Revision",
+   "199": "CI Issuing",
+   "156": "Delivery Order",
+   "232": "GRN (Import)",
+   "231": "LC Issuing (Import)",
+   "196": "LC Receiving",
+   "197": "LC Revision",
+   "193": "PI Issuing",
+   "230": "PI Receive (Import)",
+   "194": "PI Revision",
+   "180": "Processing WO against BPO",
+   "233": "Purchase Order (Import)",
+   "179": "Weaving WO against BPO",
+   "149": "Yarn Dyed Booking"
+  }
+ },
+ "marketingGroup": {
+  "pages": [
+   "approvalReport",
+   "approvalSetup"
+  ],
+  "count": 12,
+  "options": {
+   "12": "Commercial CI - 1",
+   "11": "Commercial LC - 1",
+   "10": "Planning",
+   "9": "Import - Commercial",
+   "8": "Commercial PI - 1",
+   "7": "Tokyo",
+   "6": "Sydney",
+   "5": "San Fransisco",
+   "4": "Munich",
+   "3": "London",
+   "2": "Las Vegas",
+   "1": "Barcelona"
+  }
+ },
+ "approveStatus": {
+  "pages": [
+   "approvalReport",
+   "documentApproval",
+   "fabricsDeliveryReport"
+  ],
+  "count": 6,
+  "options": {
+   "Final_Approval": "Final Approval",
+   "Checker": "Checker",
+   "Approved": "Approved",
+   "Confirm": "Confirm",
+   "Rejected": "Rejected",
+   "Draft": "Draft"
+  }
+ },
+ "documentUrlsSet": {
+  "pages": [
+   "approvalSetup"
+  ],
+  "count": 19,
+  "options": {
+   "148": "Booking",
+   "150": "Booking Revision",
+   "151": "Bulk Production Order(BPO)",
+   "153": "Bulk Production Order(BPO) Revision",
+   "199": "CI Issuing",
+   "156": "Delivery Order",
+   "232": "GRN (Import)",
+   "231": "LC Issuing (Import)",
+   "196": "LC Receiving",
+   "197": "LC Revision",
+   "237": "LC Revision (Import)",
+   "193": "PI Issuing",
+   "230": "PI Receive (Import)",
+   "194": "PI Revision",
+   "236": "PI Revision (Import)",
+   "180": "Processing WO against BPO",
+   "233": "Purchase Order (Import)",
+   "179": "Weaving WO against BPO",
+   "149": "Yarn Dyed Booking"
+  }
+ },
+ "stp_dtlSet_approvalGroup": {
+  "pages": [
+   "approvalSetup"
+  ],
+  "count": 4,
+  "options": {
+   "Maker": "Maker",
+   "Checker": "Checker",
+   "Approval": "Approval",
+   "Final_Approval": "Final Approval"
+  }
+ },
+ "bank": {
+  "pages": [
+   "bnkAccounts",
+   "expPiReceive",
+   "expPiReceiveRevision"
+  ],
+  "count": 49,
+  "options": {
+   "1": "Agrani Bank PLC",
+   "2": "Al-Arafah Islami Bank PLC",
+   "8": "BRAC Bank PLC",
+   "3": "Bangladesh Commerce Bank PLC",
+   "4": "Bangladesh Development Bank PLC",
+   "24": "Bangladesh Krishi Bank",
+   "7": "Bangladesh Small Industries and Commerce Bank PLC",
+   "5": "Bank Al-Falah PLC",
+   "6": "Bank Asia PLC",
+   "9": "City Bank PLC",
+   "10": "Commercial Bank of Ceylon PLC",
+   "11": "Dhaka Bank PLC",
+   "12": "Dutch-Bangla Bank PLC",
+   "13": "Eastern Bank PLC",
+   "14": "Export Import Bank Of Bangladesh PLC",
+   "15": "Farmers Bank PLC",
+   "16": "First Security Islami Bank PLC",
+   "17": "Habib Bank Ltd.",
+   "19": "ICB Islamic Bank PLC",
+   "20": "International Finance Invest and Commerce Bank PLC",
+   "21": "Islami Bank Bangladesh PLC",
+   "22": "Jamuna Bank PLC",
+   "23": "Janata Bank PLC",
+   "25": "Meghna Bank PLC",
+   "26": "Mercantile Bank PLC",
+   "27": "Midland Bank PLC",
+   "28": "Mutual Trust Bank PLC",
+   "32": "NRB Bank PLC",
+   "29": "National Bank PLC",
+   "30": "National Bank of Pakistan",
+   "31": "National Credit & Commerce Bank PLC",
+   "33": "One Bank PLC",
+   "35": "Prime Bank PLC",
+   "36": "Pubali Bank PLC",
+   "37": "Rajshahi Krishi Unnayan Bank",
+   "38": "Rupali Bank PLC",
+   "39": "Shahjalal Islami Bank PLC",
+   "40": "Social Islami Bank PLC.",
+   "41": "Sonali Bank PLC",
+   "42": "South Bangla Agriculture and Commerce Bank PLC.",
+   "43": "Southeast Bank PLC",
+   "44": "Standard Bank PLC",
+   "45": "Standard Chartered Bank",
+   "18": "The Hongkong and Shanghai Banking Corporation Limited",
+   "34": "The Premier Bank PLC",
+   "46": "Trust Bank PLC",
+   "47": "Union Bank PLC",
+   "48": "United Commercial Bank PLC",
+   "49": "Uttara Bank PLC"
+  }
+ },
+ "so_dtlSet_fabricsType": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 14,
+  "options": {
+   "B_1": "Yarn Dyed",
+   "B_2": "Yarn Dyed Print",
+   "B_3": "Yarn Dyed Spandex",
+   "B_4": "Yarn Dyed Print Spandex",
+   "B_5": "Yarn Dyed LUNGI (Greige)",
+   "B_6": "Solid Dyed",
+   "B_7": "Solid Dyed Spandex",
+   "B_8": "Solid Dyed Print",
+   "B_9": "Solid Dyed Print Spandex",
+   "B_10": "Greige Yarn Dyed",
+   "B_11": "Greige Yarn Dyed Spandex",
+   "B_12": "Greige Solid Dyed",
+   "B_13": "Greige Solid Dyed Spandex",
+   "B_14": "Greige Solid Dyed (LUNGI)"
+  }
+ },
+ "so_dtlSet_inHouseExport": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 2,
+  "options": {
+   "In_house": "In-house",
+   "Export": "Export"
+  }
+ },
+ "so_dtlSet_fabricsFinishType": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 12,
+  "options": {
+   "FFT_1": "Soft Finish",
+   "FFT_2": "Paper touch/Hard Finish",
+   "FFT_3": "Water repellent Finish",
+   "FFT_4": "ETI/ Wrinkle free Finish",
+   "FFT_5": "Carbon peach Finish",
+   "FFT_6": "Heavy peach Finish",
+   "FFT_7": "Silky Finish",
+   "FFT_8": "Rasin Finish",
+   "FFT_9": "Peach Finish",
+   "FFT_10": "Aero Finish",
+   "FFT_11": "Brush",
+   "FFT_12": "Both Side Peach"
+  }
+ },
+ "so_dtlSet_weaveType": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 18,
+  "options": {
+   "WT_1": "1/1",
+   "WT_2": "2/2",
+   "WT_3": "2/1",
+   "WT_4": "3/1",
+   "WT_5": "4/1",
+   "WT_6": "Dobby : Long Float",
+   "WT_7": "Dobby : Medium Float",
+   "WT_8": "Dobby : Short Float",
+   "WT_9": "5/1",
+   "WT_10": "6/1",
+   "WT_11": "7/1",
+   "WT_12": "1/4",
+   "WT_13": "1/5",
+   "WT_14": "1/6",
+   "WT_15": "1/7",
+   "WT_16": "1/8",
+   "WT_17": "3/2",
+   "WT_18": "4/2"
+  }
+ },
+ "so_dtlSet_weaveStyles": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 14,
+  "options": {
+   "WS_1": "S Twill",
+   "WS_2": "Z Twill",
+   "WS_3": "HBT",
+   "WS_4": "Zig Zag Twill",
+   "WS_5": "Plain",
+   "WS_6": "Oxford",
+   "WS_7": "Matt",
+   "WS_8": "Cavalry Twill",
+   "WS_9": "Long Float",
+   "WS_10": "Medium Float",
+   "WS_11": "Short Float",
+   "WS_12": "Satin",
+   "WS_13": "Ribstop",
+   "WS_14": "Broken Twill"
+  }
+ },
+ "so_dtlSet_lightSource": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 7,
+  "options": {
+   "D65": "D65",
+   "TL83": "TL83",
+   "TL84": "TL84",
+   "UV": "UV",
+   "Filament": "Filament",
+   "CWF": "CWF",
+   "U30LED": "U30LED"
+  }
+ },
+ "so_dtlSet_lightSourceType": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 2,
+  "options": {
+   "Primary": "Primary",
+   "Secondary": "Secondary"
+  }
+ },
+ "so_dtlSet_sampleType": {
+  "pages": [
+   "booking",
+   "bookingRevision"
+  ],
+  "count": 2,
+  "options": {
+   "As_per_Swatch": "As per Swatch",
+   "As_per_Specification": "As per Specification"
+  }
+ },
+ "so_dtlSet_lcTenure": {
+  "pages": [
+   "booking"
+  ],
+  "count": 6,
+  "options": {
+   "T_1": "At Sight",
+   "T_2": "30 Days",
+   "T_3": "60 Days",
+   "T_4": "90 Days",
+   "T_5": "120 Days",
+   "T_6": "150 Days"
+  }
+ },
+ "so_dtlSet_lcPaymentType": {
+  "pages": [
+   "booking"
+  ],
+  "count": 4,
+  "options": {
+   "LCP_1": "At Sight",
+   "LCP_2": "Date of delivery",
+   "LCP_3": "Date of acceptance",
+   "LCP_4": "Negotiation"
+  }
+ },
+ "organization": {
+  "pages": [
+   "businessUnit"
+  ],
+  "count": 2,
+  "options": {
+   "1": "100-Amanat Shah Fabrics Ltd",
+   "2": "200-Hazrat Amanat Shah Spinning Mills Ltd"
+  }
+ },
+ "conditionType": {
+  "pages": [
+   "comDocName",
+   "comTermsAndConditions",
+   "termsAndConditions"
+  ],
+  "count": 6,
+  "options": {
+   "PI": "PI",
+   "CI": "CI",
+   "LC": "LC",
+   "Booking": "Booking",
+   "Sales_Order": "Sales Order",
+   "Proforma_Invoice": "Proforma Invoice"
+  }
+ },
+ "docType": {
+  "pages": [
+   "commercialCostHead"
+  ],
+  "count": 3,
+  "options": {
+   "Lc": "LC",
+   "Pi": "PI",
+   "Ci": "CI"
+  }
+ },
+ "accHead": {
+  "pages": [
+   "commercialCostHead"
+  ],
+  "count": 338,
+  "options": {
+   "132": "AP Accrual Liability (Creditors)",
+   "70": "Accessories (Inventories)",
+   "318": "Accidental expenses (Motor Vehicle expenses)",
+   "128": "Accounts Payable - Suppliers (Creditors)",
+   "81": "Accounts Receivable - Deemed Export (Accounts Receivable)",
+   "80": "Accounts Receivable - Export (Accounts Receivable)",
+   "82": "Accounts Receivable - Local (Accounts Receivable)",
+   "84": "Accounts Receivable - Others (Accounts Receivable)",
+   "83": "Accounts Receivable - Wastage (Accounts Receivable)",
+   "143": "Accrual and Outstanding (Payable for Expenses)",
+   "25": "Accu Depr Building - Commercial (Accumulated Depreciation)",
+   "24": "Accu Depr Building - Factory (Accumulated Depreciation)",
+   "23": "Accu Depr Building - Office (Accumulated Depreciation)",
+   "26": "Accu Depr Building - Utilities (Accumulated Depreciation)",
+   "28": "Accu Depr ETP (Accumulated Depreciation)",
+   "33": "Accu Depr Electric & Other Appliance (Accumulated Depreciation)",
+   "31": "Accu Depr Electrical Installation (Accumulated Depreciation)",
+   "32": "Accu Depr Equipments (Accumulated Depreciation)",
+   "34": "Accu Depr Furniture & Fixture (Accumulated Depreciation)",
+   "27": "Accu Depr Godwon (Accumulated Depreciation)",
+   "29": "Accu Depr Plant & Machineries - Production (Accumulated Depreciation)",
+   "30": "Accu Depr Plant & Machineries - Service (Accumulated Depreciation)",
+   "35": "Accu Depr Vehicles (Car/Van/Truck) (Accumulated Depreciation)",
+   "360": "Adv - Electronic Media (Obsolete Stock - Written Off)",
+   "358": "Adv - Press Media (Obsolete Stock - Written Off)",
+   "96": "Advance Income Tax (AIT) (Advance)",
+   "357": "Advertisement (Obsolete Stock - Written Off)",
+   "220": "Air Freight Charge (Import) (Accessories Expense)",
+   "42": "Amortization of Goodwill (Ammortization of In-Tangible Asset)",
+   "43": "Amortization of Software (Ammortization of In-Tangible Asset)",
+   "41": "Amortization of Trade Marks (Ammortization of In-Tangible Asset)",
+   "64": "Asset Clearing Account (Other Fixed Asset related Accounts)",
+   "223": "BTMA certificate charges (Accessories Expense)",
+   "395": "Bank Charge - Current Account (Bank Charge)",
+   "398": "Bank Charge - FC Held (Bank Charge)",
+   "397": "Bank Charge - Marginal Account (Bank Charge)",
+   "396": "Bank Charge - STD Account (Bank Charge)",
+   "339": "Bank Commissin & Charges (Export related expenses)",
+   "165": "Bank Overdraft (OD) (Short Term Loan)",
+   "362": "Bill Board/Hoading (Obsolete Stock - Written Off)",
+   "133": "Bills Payable - Suppliers (Creditors)",
+   "313": "Board Meeting Expenses (Secretarial Expenses)",
+   "298": "Bonus (Salaries, wages and bonus)",
+   "222": "Brush, singing, sueding & Sletting Expenses (Accessories Expense)",
+   "11": "Building - Commercial (Property, Plant & Equipment)",
+   "10": "Building - Factory (Property, Plant & Equipment)",
+   "9": "Building - Office (Property, Plant & Equipment)",
+   "12": "Building - Utilities (Property, Plant & Equipment)",
+   "326": "Building Maintenance (Repairs & Maintenance)",
+   "335": "C&F Charge (Export related expenses)",
+   "319": "CNG conversion expenses (Motor Vehicle expenses)",
+   "47": "CWIP - Building-Factory (Capital Work in Progress)",
+   "46": "CWIP - Building-Godwon (Capital Work in Progress)",
+   "48": "CWIP - Building-Godwon (Capital Work in Progress)",
+   "51": "CWIP - Electric & Other Appliance (Capital Work in Progress)",
+   "50": "CWIP - Equipments (Capital Work in Progress)",
+   "52": "CWIP - Furniture & Fixture (Capital Work in Progress)",
+   "45": "CWIP - Land & Land Development (Capital Work in Progress)",
+   "49": "CWIP - Plant & Machineries (Capital Work in Progress)",
+   "53": "CWIP - Vehicles (Capital Work in Progress)",
+   "65": "CWIP Clearing Account (Other Fixed Asset related Accounts)",
+   "182": "Capital Reserve (Reserve & Surplus)",
+   "320": "Car Maintenance (Motor Vehicle expenses)",
+   "224": "Carrying Charge (Accessories Expense)",
+   "117": "Cash In Hand - Factory (Cash and Cash Equivalents)",
+   "116": "Cash In Hand - H/O (Cash and Cash Equivalents)",
+   "225": "Ceremonial Expenses (Accessories Expense)",
+   "151": "Commission Payable (Payable for Other Finance)",
+   "226": "Compecting , Stenter & Heat setting Expenses (Accessories Expense)",
+   "288": "Compensation (Accessories Expense)",
+   "331": "Computer maintenance (Repairs & Maintenance)",
+   "94": "Construction Advance (Advance)",
+   "299": "Conveyance Allowances (Salaries, wages and bonus)",
+   "343": "Corporate Membership (Donation & Subscription)",
+   "211": "Cost of Goods Sold (Cost of Goods Sold)",
+   "406": "Cost of Removal of FA Clearing (Profit on Loan)",
+   "227": "Courier Charges (Accessories Expense)",
+   "228": "Crockeries & Utencil (Accessories Expense)",
+   "110": "Current Account (Cash and Cash Equivalents)",
+   "229": "Data center colocation Expenses (Accessories Expense)",
+   "300": "Deduction (Fine) (Salaries, wages and bonus)",
+   "107": "Deferred Expenses (Pre-payments)",
+   "353": "Deferred Expenses - Written Off (Obsolete Stock - Written Off)",
+   "169": "Deferred LC A/C (Deferred Liability)",
+   "356": "Deferred Revenue Expenses Written off (Obsolete Stock - Written Off)",
+   "61": "Deffered Tax Assets (Deferred Expenses)",
+   "171": "Deffered Tax Liabilities (Deferred Liability)",
+   "405": "Depreciation Adjustment (Profit on Loan)",
+   "386": "Depreciation of Building-Factory (Depreciation)",
+   "387": "Depreciation of Building-Godwon (Depreciation)",
+   "385": "Depreciation of Building-Office (Depreciation)",
+   "390": "Depreciation of Electric & Other Appliance (Depreciation)",
+   "389": "Depreciation of Equipments (Depreciation)",
+   "391": "Depreciation of Furniture & Fixture (Depreciation)",
+   "384": "Depreciation of Land & Land Development (Depreciation)",
+   "388": "Depreciation of Plant & Machineries (Depreciation)",
+   "392": "Depreciation of Vehicles (Depreciation)",
+   "230": "Design Output Expenses (Accessories Expense)",
+   "231": "Deying Engyme, Finishing & Dryer Expenses (Accessories Expense)",
+   "218": "Direct Expenses (Accessories Expense)",
+   "314": "Director Fees (Secretarial Expenses)",
+   "206": "Discount Taken (Others)",
+   "345": "Donations (Donation & Subscription)",
+   "232": "Dye Cutting Expenses (Accessories Expense)",
+   "233": "Dyeing & finishing Charges (Accessories Expense)",
+   "14": "ETP (Property, Plant & Equipment)",
+   "238": "ETP Exp. (Accessories Expense)",
+   "289": "Earn Leave Benefit (Accessories Expense)",
+   "19": "Electric & Other Appliance (Property, Plant & Equipment)",
+   "234": "Electric Charges (Accessories Expense)",
+   "17": "Electrical Installation (Property, Plant & Equipment)",
+   "329": "Electrical/Light Maintenance (Repairs & Maintenance)",
+   "370": "Electricity Expenses (Obsolete Stock - Written Off)",
+   "235": "Embroidery charges (Accessories Expense)",
+   "160": "Employee Loan and Advance (Short Term Loan)",
+   "153": "Employee Provident fund (Payable for Other Finance)",
+   "297": "Employee Salaries (Salaries, wages and bonus)",
+   "236": "Employee expenses (Accessories Expense)",
+   "237": "Entertainment (Accessories Expense)",
+   "378": "Environmental Expenses (Obsolete Stock - Written Off)",
+   "18": "Equipments (Property, Plant & Equipment)",
+   "195": "Exchange Gain (Loss) (Exchange Gain (Loss))",
+   "340": "Export Commission (Export related expenses)",
+   "338": "Export Promotional Expenses (Export related expenses)",
+   "115": "FDR Account (Cash and Cash Equivalents)",
+   "239": "Facilities (Accessories Expense)",
+   "240": "Factory Maintenance (Accessories Expense)",
+   "241": "Factory Rent (Accessories Expense)",
+   "242": "Factory Supplies & Maintenance (Accessories Expense)",
+   "290": "Festival Bonus (Accessories Expense)",
+   "315": "Filling Fees (Secretarial Expenses)",
+   "349": "Finished Goods (Obsolete Stock - Written Off)",
+   "74": "Finished Stock (Inventories)",
+   "377": "Fire Extinguishers (Obsolete Stock - Written Off)",
+   "243": "Fire Fighting Charges (Accessories Expense)",
+   "301": "Food Allowance (Salaries, wages and bonus)",
+   "113": "Foreign Currency - FC Held (Cash and Cash Equivalents)",
+   "114": "Foreign Currency - FCAD Held (Cash and Cash Equivalents)",
+   "365": "Free Medical Services (Obsolete Stock - Written Off)",
+   "334": "Freight (Export related expenses)",
+   "244": "Fuel & Lubricants (Accessories Expense)",
+   "317": "Fuel expenses (Motor Vehicle expenses)",
+   "20": "Furniture & Fixture (Property, Plant & Equipment)",
+   "202": "Gain of Assets Sales (Gain on Assets Sales)",
+   "245": "Garments Printing Charges (Accessories Expense)",
+   "246": "Gas (Accessories Expense)",
+   "371": "Gas Expenses (Obsolete Stock - Written Off)",
+   "330": "General Maintenance (Repairs & Maintenance)",
+   "76": "General Store (Inventories)",
+   "247": "Generator Rental Charge (Accessories Expense)",
+   "248": "Generator Repair & Maintenance (Accessories Expense)",
+   "364": "Gift Items (Obsolete Stock - Written Off)",
+   "13": "Godwon (Property, Plant & Equipment)",
+   "351": "Goods -In -Transit Written off (Obsolete Stock - Written Off)",
+   "352": "Goods -In -Transit Written off (Obsolete Stock - Written Off)",
+   "38": "Goodwill (In-Tangible Asset)",
+   "249": "Granding, Open Compacting & stenter charge (Accessories Expense)",
+   "124": "Gratuity (Long Term Liabilities)",
+   "336": "Handling Charges (Export related expenses)",
+   "303": "Holyday Allowance (Salaries, wages and bonus)",
+   "304": "House Rent (Salaries, wages and bonus)",
+   "305": "Iftary Allowance (Salaries, wages and bonus)",
+   "291": "Incentive Bonus (Accessories Expense)",
+   "147": "Income Tax Payable (Payable for Other Finance)",
+   "250": "Inspection charges (Accessories Expense)",
+   "374": "Insurance (Obsolete Stock - Written Off)",
+   "251": "Insurance Premium (Accessories Expense)",
+   "118": "Inter company (Cash and Cash Equivalents)",
+   "119": "Inter company - Receivables (Cash and Cash Equivalents)",
+   "152": "Interest Payable Account (Payable for Other Finance)",
+   "221": "Internet (Accessories Expense)",
+   "68": "Inventory Valuation A/C (Inventories)",
+   "55": "Investment in Secondary Market (Shares) (Investment)",
+   "197": "Investment in Secondery Market (Shares) Details (Investment Income)",
+   "57": "Investment in Share Capital (Associates) (Investment)",
+   "56": "Investment in Share Capital (Sister Concern) (Investment)",
+   "99": "LC Margin Machineries (Advance)",
+   "98": "LC Margin Raw Materials (Advance)",
+   "134": "LC Payable (Creditors)",
+   "87": "LC Receivable (Accounts Receivable)",
+   "90": "LC Receivable - Deemed Export (Property, Plant & Equipment)",
+   "89": "LC Receivable - Export (Property, Plant & Equipment)",
+   "252": "Lab Test Charges (Accessories Expense)",
+   "8": "Land & Land Development (Property, Plant & Equipment)",
+   "92": "Land Advance (Advance)",
+   "321": "Licence/Registration/Renwal Expenses (Motor Vehicle expenses)",
+   "253": "License Fee (Accessories Expense)",
+   "254": "Loading & Unloading Charge (Accessories Expense)",
+   "337": "Loading / Unloading - Export (Export related expenses)",
+   "123": "Loan - Directors (Long Term Liabilities)",
+   "164": "Loan against Cash Incentive (Short Term Loan)",
+   "167": "Long Term Loans - Current Maturity (Long Term Loans - Current Maturity)",
+   "255": "Loose Tools (Accessories Expense)",
+   "367": "Loss on Sale of Asset (Obsolete Stock - Written Off)",
+   "204": "Loss on revaluation (Gain on Assets Sales)",
+   "368": "Loss on sale of Asset (Obsolete Stock - Written Off)",
+   "327": "Machine Maintenance (Repairs & Maintenance)",
+   "101": "Machineries in Transit (Maybe WIP) (Advance)",
+   "112": "Marginal Account (Cash and Cash Equivalents)",
+   "78": "Material In Transit (Inventories)",
+   "213": "Materials Consumption (Materials Consumed)",
+   "100": "Materials in Transit(Advance) (Advance)",
+   "292": "Maternity Benefit (Accessories Expense)",
+   "306": "Medical Allowances (Salaries, wages and bonus)",
+   "256": "Medicine & Medical Expenses (Accessories Expense)",
+   "276": "Mess Expenses (Accessories Expense)",
+   "208": "Misc. Income (Others)",
+   "257": "Miscellaneous Expenses (Accessories Expense)",
+   "307": "Mobile Phone bill (Salaries, wages and bonus)",
+   "323": "Mobile and Telephone expenses (Communication Expenses)",
+   "163": "Modarabah Foreign Currency Import (MFCI) (Short Term Loan)",
+   "161": "Murabaha Post Import (MPI) (Short Term Loan)",
+   "258": "Needle (Accessories Expense)",
+   "259": "Office Maintenance (Accessories Expense)",
+   "170": "Other Deferred Liability A/C (Deferred Liability)",
+   "62": "Other Deferred expenses (Deferred Expenses)",
+   "63": "Other Fixed Asset related Accounts (Non-Current Assets)",
+   "77": "Other Inventories (Inventories)",
+   "361": "Other Outdoor Advertisement (Obsolete Stock - Written Off)",
+   "344": "Other Subscription (Donation & Subscription)",
+   "381": "Other Unusual Expenses (Obsolete Stock - Written Off)",
+   "366": "Other Welfare (Obsolete Stock - Written Off)",
+   "379": "Others (Obsolete Stock - Written Off)",
+   "137": "Outstanding Electric Bill (Payable for Expenses)",
+   "136": "Outstanding Gas Bill (Payable for Expenses)",
+   "141": "Outstanding Internet Bill (Payable for Expenses)",
+   "140": "Outstanding Mobile Bill (Payable for Expenses)",
+   "145": "Outstanding Salaries and Over Time (Payable to Employee)",
+   "142": "Outstanding Salary (Payable for Expenses)",
+   "139": "Outstanding Telephone Bill (Payable for Expenses)",
+   "138": "Outstanding Wasa Bill (Payable for Expenses)",
+   "380": "Overhead Adjustment (Obsolete Stock - Written Off)",
+   "294": "Overhead Allocation (Overhead Allocation)",
+   "287": "Overtime Allowance (Accessories Expense)",
+   "71": "Packing Materials (Inventories)",
+   "216": "Packing Materials (Accessories Expense)",
+   "348": "Packing Materials (Obsolete Stock - Written Off)",
+   "341": "Packing Materials for export (Export related expenses)",
+   "260": "Packing materials (Accessories Expense)",
+   "95": "Party & Other Advance (Advance)",
+   "261": "Pattern Board (Accessories Expense)",
+   "131": "Payable Clearing A/c (Creditors)",
+   "130": "Payables for Security Deposit from Suppliers (Creditors)",
+   "129": "Payables to Bank (Creditors)",
+   "15": "Plant & Machineries - Production (Property, Plant & Equipment)",
+   "16": "Plant & Machineries - Service (Property, Plant & Equipment)",
+   "262": "Polythine (Accessories Expense)",
+   "324": "Postage and Courier Charges (Communication Expenses)",
+   "263": "Postage, Stamp & Telegraph (Accessories Expense)",
+   "355": "Pre Production Expenses Written off (Obsolete Stock - Written Off)",
+   "108": "Pre-Paid (Pre-payments)",
+   "354": "Preliminary Expenses Written off (Obsolete Stock - Written Off)",
+   "102": "Prepaid Expenses (Advance)",
+   "264": "Printing Charges (Accessories Expense)",
+   "86": "Proceeds of Sale Clearing for Asset (Accounts Receivable)",
+   "203": "Proceeds of Sale Clearing for FA (Gain on Assets Sales)",
+   "265": "Production Materials (Accessories Expense)",
+   "199": "Profit Income - Bank (Bank Profit Income)",
+   "200": "Profit Income - FDR (Bank Profit Income)",
+   "401": "Profit on Lease Liability (Profit on Loan)",
+   "404": "Profit on Overdraft/CC/SOD Loan (Profit on Loan)",
+   "403": "Profit on PAD / LATR Charge (Profit on Loan)",
+   "402": "Profit on Short term Loan (Profit on Loan)",
+   "400": "Profit on Term/Project Loan (Profit on Loan)",
+   "177": "Proposed Bonus Share (Share Capital)",
+   "125": "Provident Fund (Long Term Liabilities)",
+   "85": "Provision for Bad and doubtful debts(-) (Accounts Receivable)",
+   "157": "Provision for Bank Guarantee (Provisions)",
+   "155": "Provision for Group Support Expenses (Provisions)",
+   "156": "Provision for Interest - Inter Company (Provisions)",
+   "158": "Provision for Sales Commission (Provisions)",
+   "359": "Publications-Magagine (Obsolete Stock - Written Off)",
+   "347": "Raw Materials (Obsolete Stock - Written Off)",
+   "69": "Raw Materials (Inventories)",
+   "266": "Registration & Renewal Fees (Accessories Expense)",
+   "267": "Rent (Machine/Generator) (Accessories Expense)",
+   "311": "Rent A Car (Travelling)",
+   "97": "Rent Advance (Advance)",
+   "268": "Rent for Building (Accessories Expense)",
+   "269": "Repair & Maintenance (Accessories Expense)",
+   "180": "Reserve & Surplus (Reserve & Surplus)",
+   "185": "Retained Earnings (Retained Earnings)",
+   "181": "Revaluation Reserve (Reserve & Surplus)",
+   "270": "Road Toll (Accessories Expense)",
+   "302": "Roster Allowances (Salaries, wages and bonus)",
+   "207": "Rounding Account (Others)",
+   "111": "STD Account (Cash and Cash Equivalents)",
+   "375": "Safety (Obsolete Stock - Written Off)",
+   "93": "Salary Advance (Advance)",
+   "219": "Salary F/O (Accessories Expense)",
+   "189": "Sales - Deemed Export (Revenue)",
+   "188": "Sales - Export (Revenue)",
+   "190": "Sales - Local (Revenue)",
+   "191": "Sales - Others (Revenue)",
+   "192": "Sales - Scraps/Wastage (Revenue)",
+   "363": "Sales Promotion (Obsolete Stock - Written Off)",
+   "271": "Sample Expenses (Accessories Expense)",
+   "105": "Secuirity Deposit for Other (Deposit)",
+   "104": "Secuirity Deposit for Tender (Deposit)",
+   "376": "Security (Obsolete Stock - Written Off)",
+   "373": "Security & Safety Expenses (Obsolete Stock - Written Off)",
+   "328": "Service Maintenance (Repairs & Maintenance)",
+   "272": "Service book (Accessories Expense)",
+   "178": "Share Money Deposit (Share Capital)",
+   "58": "Share Money Deposit ( Sister Concern) (Investment)",
+   "59": "Share Money Deposit (Associates) (Investment)",
+   "176": "Share Premium (Share Capital)",
+   "333": "Shipping Agent Charges (Export related expenses)",
+   "162": "Short Term Loan (STL) (Short Term Loan)",
+   "39": "Software (In-Tangible Asset)",
+   "273": "Staff Wefare (Accessories Expense)",
+   "72": "Stock in Transit (Inventories)",
+   "75": "Store & Spares (Inventories)",
+   "217": "Store & Spares (Accessories Expense)",
+   "350": "Stores (Obsolete Stock - Written Off)",
+   "274": "Stores & Spares (Accessories Expense)",
+   "275": "Sub Contract Charge (Accessories Expense)",
+   "150": "Tax Payable against Employee (Payable for Other Finance)",
+   "122": "Term Loan - Bank (Long Term Liabilities)",
+   "277": "Tiffin Expenses (Worker) (Accessories Expense)",
+   "37": "Trade Marks (In-Tangible Asset)",
+   "278": "Training & Development Expenses (Accessories Expense)",
+   "279": "Travelling Expenses (Accessories Expense)",
+   "309": "Travelling - Local (Travelling)",
+   "310": "Travelling - Overseas (Travelling)",
+   "280": "UD Charges (Accessories Expense)",
+   "281": "Uniform & Leveries (Accessories Expense)",
+   "369": "Utility Expenses (Obsolete Stock - Written Off)",
+   "149": "VDS(VAT Deducted At Sources) Liability (Payable for Other Finance)",
+   "282": "Vat Expenses (Accessories Expense)",
+   "21": "Vehicles (Car/Van/Truck) (Property, Plant & Equipment)",
+   "286": "Wages (Accessories Expense)",
+   "283": "Wasa Expenses (Accessories Expense)",
+   "284": "Washing Charges (Accessories Expense)",
+   "372": "Water Expenses (Obsolete Stock - Written Off)",
+   "148": "Withholding Tax Liability(TDS) (Payable for Other Finance)",
+   "73": "Work in Process (Inventories)",
+   "285": "Workshop expenses (Accessories Expense)"
+  }
+ },
+ "inventoryStore": {
+  "pages": [
+   "directIssue",
+   "directReceive",
+   "goodsDelivery"
+  ],
+  "count": 2,
+  "options": {
+   "1": "SAF001-Processing Store",
+   "2": "SAF002-Weaving Store"
+  }
+ },
+ "approveArchiveStatus": {
+  "pages": [
+   "documentApproval"
+  ],
+  "count": 2,
+  "options": {
+   "Approved": "Approved",
+   "Rejected": "Rejected"
+  }
+ },
+ "genericName": {
+  "pages": [
+   "dyesChemical"
+  ],
+  "count": 13,
+  "options": {
+   "6": "Acrylic polymer finishing resin / Binder",
+   "5": "Cationic/Nonionic textile finishing agent",
+   "3": "Modified Starch",
+   "2": "Nonionic softener",
+   "1": "Novacrone",
+   "7": "Reactive Black Dye",
+   "4": "Reactive Blue Dye",
+   "8": "Reactive Cyan (Blue) Dye",
+   "12": "Reactive Magenta",
+   "10": "Reactive Orange Dye",
+   "11": "Reactive Red Dye",
+   "9": "Reactive Yellow Dye",
+   "13": "Textile Finishing Agent"
+  }
+ },
+ "itemCategory": {
+  "pages": [
+   "dyesChemical",
+   "finishedFabrics",
+   "mroItem",
+   "yarnItem"
+  ],
+  "count": 7,
+  "options": {
+   "4": "Chemicals (Dyes & chemicals)",
+   "3": "Dyes (Dyes & chemicals)",
+   "44": "AOP Fabrics (Fabrics)",
+   "11": "Solid dyed fabrics (Fabrics)",
+   "10": "Yarn dyed fabrics (Fabrics)",
+   "198": "Maintenance, Repair, and Operating (MRO) (Maintenance, Repair, and Operating (MRO))",
+   "6": "Yarn (Yarn)"
+  }
+ },
+ "operationUnit": {
+  "pages": [
+   "dyesChemical",
+   "fiberItem",
+   "finishedFabrics",
+   "inventoryItem",
+   "mroItem",
+   "yarnItem"
+  ],
+  "count": 19,
+  "options": {
+   "4": "U103-Centimeter",
+   "6": "U105-Feet",
+   "19": "U118-Gallon",
+   "10": "U109-Gram",
+   "8": "U107-Inch",
+   "12": "U111-Kilogram",
+   "18": "U117-Kilolitre",
+   "1": "U100-Kilometer",
+   "16": "U115-Litre",
+   "2": "U101-Meter",
+   "9": "U108-Mile",
+   "11": "U110-Milligram",
+   "17": "U116-Millilitre",
+   "5": "U104-Millimeter",
+   "13": "U112-Ounce",
+   "3": "U102-PCS",
+   "14": "U113-Pound",
+   "15": "U114-Ton",
+   "7": "U106-Yard"
+  }
+ },
+ "purchaseUnit": {
+  "pages": [
+   "dyesChemical",
+   "fiberItem",
+   "finishedFabrics",
+   "inventoryItem",
+   "mroItem",
+   "yarnItem"
+  ],
+  "count": 19,
+  "options": {
+   "4": "U103-Centimeter",
+   "6": "U105-Feet",
+   "19": "U118-Gallon",
+   "10": "U109-Gram",
+   "8": "U107-Inch",
+   "12": "U111-Kilogram",
+   "18": "U117-Kilolitre",
+   "1": "U100-Kilometer",
+   "16": "U115-Litre",
+   "2": "U101-Meter",
+   "9": "U108-Mile",
+   "11": "U110-Milligram",
+   "17": "U116-Millilitre",
+   "5": "U104-Millimeter",
+   "13": "U112-Ounce",
+   "3": "U102-PCS",
+   "14": "U113-Pound",
+   "15": "U114-Ton",
+   "7": "U106-Yard"
+  }
+ },
+ "formationState": {
+  "pages": [
+   "dyesChemical"
+  ],
+  "count": 5,
+  "options": {
+   "Solid": "Solid",
+   "Liquid": "Liquid",
+   "Powder": "Powder",
+   "Gas": "Gas",
+   "Flex": "Flex"
+  }
+ },
+ "designation": {
+  "pages": [
+   "employee"
+  ],
+  "count": 11,
+  "options": {
+   "8": "DAF000008-AGM",
+   "12": "DAF000012-Advisor",
+   "4": "DAF000004-Asst. Manager",
+   "9": "DAF000009-DGM",
+   "5": "DAF000005-Deputy Manager",
+   "3": "DAF000003-Executive",
+   "10": "DAF000010-GM",
+   "11": "DAF000011-Jr. Executive",
+   "6": "DAF000006-Manager",
+   "2": "DAF000002-Sr. Executive",
+   "7": "DAF000007-Sr. Manager"
+  }
+ },
+ "department": {
+  "pages": [
+   "employee",
+   "storeRequisition"
+  ],
+  "count": 7,
+  "options": {
+   "2": "DAF000002-Commercial",
+   "7": "DAF000007-Import",
+   "4": "DAF000004-Inventory",
+   "6": "DAF000006-Management",
+   "1": "DAF000001-Marketing",
+   "3": "DAF000003-Planning",
+   "5": "DAF000005-System Admin"
+  }
+ },
+ "expLcReceive": {
+  "pages": [
+   "expCiReceive"
+  ],
+  "count": 32,
+  "options": {
+   "5": "LCAF000002-SF FASHION WEAR LTD. 25-Nov-2025",
+   "6": "LCAF000003-AUS BANGLA JUTEX LTD. 25-Dec-2025",
+   "7": "LCAF000004-Harry Fashion Limited 15-Sep-2025",
+   "8": "LCAF000005-AUS BANGLA JUTEX LTD. 10-Dec-0025",
+   "9": "LCAF000006-Jeans Plus Ltd 23-Oct-0025",
+   "13": "LCAF000010-Silken Sewing Ltd. 09-Nov-0025",
+   "14": "LCAF000011-Pakiza Woven Fashion Ltd. 09-Nov-2025",
+   "15": "LCAF000012-Aman Graphics & Design Ltd. 08-Sep-2025",
+   "16": "LCAF000013-Aman Graphics & Design Ltd. 13-Nov-2025",
+   "18": "LCAF000014-AB Apparels Ltd. 18-Jan-2026",
+   "19": "LCAF000015-AKH Fashions Limited. 10-Dec-0025",
+   "20": "LCAF000016-MG Niche Stitch Limited 12-Nov-2025",
+   "21": "LCAF000017-THE ROSE DRESSES LIMITED. 13-Nov-2025",
+   "22": "LCAF000018-MG Niche Flair Limited (Unit-2) 21-Oct-2025",
+   "25": "LCAF000019-Hollywood Garments 12-Nov-2025",
+   "26": "LCAF000020-Globus Garments Ltd 24-Nov-2025",
+   "27": "LCAF000021-Sinha Knit & Denim Ltd 11-Nov-2025",
+   "28": "LCAF000022-Crystal Vestiti Ltd. 24-Nov-2025",
+   "29": "LCAF000023-NEO FASHION LTD. 11-Dec-2025",
+   "30": "LCAF000024-AKH Fashions Limited. 29-Sep-2025",
+   "31": "LCAF000025-Islam Garments Ltd. (Unit-2) 22-Nov-2025",
+   "33": "LCAF000026-Aboni Fashions Ltd 06-Nov-2025",
+   "34": "LCAF000027-Greenlife Knit Composite Ltd. 11-Nov-2025",
+   "35": "LCAF000028-EVE DRESS-SHIRTS LIMITED 18-Dec-2025",
+   "36": "LCAF000029-Aleya Apparels Ltd 30-Dec-2025",
+   "37": "LCAF000030-ABA Fashion Ltd. 19-Jan-2026",
+   "38": "LCAF000031-EH Fabrics Ltd. 11-Nov-2025",
+   "39": "LCAF000032-Far East Knitting & Dyeing 16-Aug-2025",
+   "40": "LCAF000033-Brandix Apparel Bangladesh Ltd. 03-Dec-2025",
+   "41": "LCAF000034-SF FASHION WEAR LTD. 25-Nov-2025",
+   "42": "LCAF000035-SF FASHION WEAR LTD. 25-Nov-2025",
+   "44": "LCAF000036-Transworld Ltd 05-Jul-2026"
+  }
+ },
+ "ciType": {
+  "pages": [
+   "expCiReceive"
+  ],
+  "count": 2,
+  "options": {
+   "Advance_CI": "Advance CI",
+   "Regular_CI": "Regular CI"
+  }
+ },
+ "statusList": {
+  "pages": [
+   "expCiReceive"
+  ],
+  "count": 7,
+  "options": {
+   "Document_Submission": "Document Submission",
+   "Party_Acceptance": "Party Acceptance",
+   "Bank_Submission": "Bank Submission",
+   "Bank_Maturity": "Bank Maturity",
+   "Bank_Acceptance": "Bank Acceptance",
+   "Final_Payment": "Final Payment",
+   "Purchase": "Purchase"
+  }
+ },
+ "costHeadList": {
+  "pages": [
+   "expCiReceive",
+   "expLcReceive",
+   "expLcReceiveRevision",
+   "impLcIssue",
+   "impLcRevision",
+   "importGRN",
+   "importPurchaseOrder"
+  ],
+  "count": 3,
+  "options": {
+   "3": "Customs Duty",
+   "2": "Freight Charge",
+   "1": "Insurance"
+  }
+ },
+ "lcStatus": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision"
+  ],
+  "count": 2,
+  "options": {
+   "Draft": "Draft",
+   "Ack": "ACK"
+  }
+ },
+ "tenure": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision",
+   "expPiReceive",
+   "expPiReceiveRevision",
+   "impLcIssue",
+   "impLcRevision"
+  ],
+  "count": 13,
+  "options": {
+   "At_sight": "At sight",
+   "Thirty_Days": "30 Days",
+   "Sixty_Days": "60 Days",
+   "Ninety_Days": "90 Days",
+   "One_Twenty_Days": "120 Days",
+   "One_Fifty_Days": "150 Days",
+   "Tt": "TT",
+   "T_1": "At Sight",
+   "T_2": "30 Days",
+   "T_3": "60 Days",
+   "T_4": "90 Days",
+   "T_5": "120 Days",
+   "T_6": "150 Days"
+  }
+ },
+ "paymentTerms": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision",
+   "expPiReceive",
+   "expPiReceiveRevision"
+  ],
+  "count": 6,
+  "options": {
+   "At_sight": "At sight",
+   "Date_Of_Delivery": "Date of delivery",
+   "Date_Of_Acceptance": "Date of acceptance",
+   "Negotiation": "Date of Negotiation",
+   "Date_Of_Shipment": "Date of Shipment",
+   "Tt": "TT"
+  }
+ },
+ "deliveryTerms": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision",
+   "expPiReceive",
+   "expPiReceiveRevision"
+  ],
+  "count": 3,
+  "options": {
+   "Cpt": "CPT",
+   "Cfr": "CFR",
+   "Fob": "FOB"
+  }
+ },
+ "beneficiaryBank": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision"
+  ],
+  "count": 49,
+  "options": {
+   "1": "Agrani Bank PLC",
+   "2": "Al-Arafah Islami Bank PLC",
+   "8": "BRAC Bank PLC",
+   "3": "Bangladesh Commerce Bank PLC",
+   "4": "Bangladesh Development Bank PLC",
+   "24": "Bangladesh Krishi Bank",
+   "7": "Bangladesh Small Industries and Commerce Bank PLC",
+   "5": "Bank Al-Falah PLC",
+   "6": "Bank Asia PLC",
+   "9": "City Bank PLC",
+   "10": "Commercial Bank of Ceylon PLC",
+   "11": "Dhaka Bank PLC",
+   "12": "Dutch-Bangla Bank PLC",
+   "13": "Eastern Bank PLC",
+   "14": "Export Import Bank Of Bangladesh PLC",
+   "15": "Farmers Bank PLC",
+   "16": "First Security Islami Bank PLC",
+   "17": "Habib Bank Ltd.",
+   "19": "ICB Islamic Bank PLC",
+   "20": "International Finance Invest and Commerce Bank PLC",
+   "21": "Islami Bank Bangladesh PLC",
+   "22": "Jamuna Bank PLC",
+   "23": "Janata Bank PLC",
+   "25": "Meghna Bank PLC",
+   "26": "Mercantile Bank PLC",
+   "27": "Midland Bank PLC",
+   "28": "Mutual Trust Bank PLC",
+   "32": "NRB Bank PLC",
+   "29": "National Bank PLC",
+   "30": "National Bank of Pakistan",
+   "31": "National Credit & Commerce Bank PLC",
+   "33": "One Bank PLC",
+   "35": "Prime Bank PLC",
+   "36": "Pubali Bank PLC",
+   "37": "Rajshahi Krishi Unnayan Bank",
+   "38": "Rupali Bank PLC",
+   "39": "Shahjalal Islami Bank PLC",
+   "40": "Social Islami Bank PLC.",
+   "41": "Sonali Bank PLC",
+   "42": "South Bangla Agriculture and Commerce Bank PLC.",
+   "43": "Southeast Bank PLC",
+   "44": "Standard Bank PLC",
+   "45": "Standard Chartered Bank",
+   "18": "The Hongkong and Shanghai Banking Corporation Limited",
+   "34": "The Premier Bank PLC",
+   "46": "Trust Bank PLC",
+   "47": "Union Bank PLC",
+   "48": "United Commercial Bank PLC",
+   "49": "Uttara Bank PLC"
+  }
+ },
+ "buyerBank": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision",
+   "impLcIssue",
+   "impLcRevision"
+  ],
+  "count": 49,
+  "options": {
+   "1": "Agrani Bank PLC",
+   "2": "Al-Arafah Islami Bank PLC",
+   "8": "BRAC Bank PLC",
+   "3": "Bangladesh Commerce Bank PLC",
+   "4": "Bangladesh Development Bank PLC",
+   "24": "Bangladesh Krishi Bank",
+   "7": "Bangladesh Small Industries and Commerce Bank PLC",
+   "5": "Bank Al-Falah PLC",
+   "6": "Bank Asia PLC",
+   "9": "City Bank PLC",
+   "10": "Commercial Bank of Ceylon PLC",
+   "11": "Dhaka Bank PLC",
+   "12": "Dutch-Bangla Bank PLC",
+   "13": "Eastern Bank PLC",
+   "14": "Export Import Bank Of Bangladesh PLC",
+   "15": "Farmers Bank PLC",
+   "16": "First Security Islami Bank PLC",
+   "17": "Habib Bank Ltd.",
+   "19": "ICB Islamic Bank PLC",
+   "20": "International Finance Invest and Commerce Bank PLC",
+   "21": "Islami Bank Bangladesh PLC",
+   "22": "Jamuna Bank PLC",
+   "23": "Janata Bank PLC",
+   "25": "Meghna Bank PLC",
+   "26": "Mercantile Bank PLC",
+   "27": "Midland Bank PLC",
+   "28": "Mutual Trust Bank PLC",
+   "32": "NRB Bank PLC",
+   "29": "National Bank PLC",
+   "30": "National Bank of Pakistan",
+   "31": "National Credit & Commerce Bank PLC",
+   "33": "One Bank PLC",
+   "35": "Prime Bank PLC",
+   "36": "Pubali Bank PLC",
+   "37": "Rajshahi Krishi Unnayan Bank",
+   "38": "Rupali Bank PLC",
+   "39": "Shahjalal Islami Bank PLC",
+   "40": "Social Islami Bank PLC.",
+   "41": "Sonali Bank PLC",
+   "42": "South Bangla Agriculture and Commerce Bank PLC.",
+   "43": "Southeast Bank PLC",
+   "44": "Standard Bank PLC",
+   "45": "Standard Chartered Bank",
+   "18": "The Hongkong and Shanghai Banking Corporation Limited",
+   "34": "The Premier Bank PLC",
+   "46": "Trust Bank PLC",
+   "47": "Union Bank PLC",
+   "48": "United Commercial Bank PLC",
+   "49": "Uttara Bank PLC"
+  }
+ },
+ "piList": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision",
+   "impLcIssue",
+   "impLcRevision"
+  ],
+  "count": 46,
+  "options": {
+   "1": "null",
+   "19": "IMPPIAF000017-ZSG0001162-Rudolf 28-Nov-2025",
+   "28": "PIAF000026-Primordial Ltd. 01-Apr-2026",
+   "29": "PIAF000027-UNI GEARS LTD. 02-Apr-2026",
+   "36": "PIAF000034-Tivoli Apparels 05-Apr-2026",
+   "37": "PIAF000035-Tivoli Apparels 05-Apr-2026",
+   "39": "PIAF000037-Dekko Ready Wears 05-Apr-2026",
+   "40": "PIAF000038-Dekko Ready Wears 05-Apr-2026",
+   "44": "PIAF000042-Brandix Apparel Bangladesh Ltd. 07-Apr-2026",
+   "45": "PIAF000043-Brandix Apparel Bangladesh Ltd. 08-Apr-2026",
+   "48": "PIAF000046-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "49": "PIAF000047-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "50": "PIAF000048-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "51": "PIAF000049-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "53": "PIAF000051-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "54": "PIAF000052-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "55": "PIAF000053-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "56": "PIAF000054-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "57": "PIAF000055-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "59": "PIAF000057-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "60": "PIAF000058-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "62": "PIAF000060-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "64": "PIAF000062-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "65": "PIAF000063-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "66": "PIAF000064-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "67": "PIAF000065-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "68": "PIAF000066-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "69": "PIAF000067-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "70": "PIAF000068-Brandix Apparel Bangladesh Ltd. 13-Apr-2026",
+   "75": "PIAF000073-Primordial Ltd. 02-May-2026",
+   "2": "null",
+   "4": "IMPPIAF000003-IMPPIAF000001-M/S. SUNNY TREXIM PVT. LTD. 09-Mar-2026",
+   "5": "null",
+   "6": "IMPPIAF000005-t-t-123-M/S. SUNNY TREXIM PVT. LTD. 25-Nov-2025",
+   "7": "IMPPIAF000006-Test 10166-M/S. SUNNY TREXIM PVT. LTD. 26-Mar-2026",
+   "8": "IMPPIAF000007-P-09011-M/S. SUNNY TREXIM PVT. LTD. 02-Mar-2026",
+   "9": "IMPPIAF000008-HAZRAT/102-M/S. SUNNY TREXIM PVT. LTD. 10-Feb-2026",
+   "10": "IMPPIAF000009-(R-3)-P-090-M/S. SUNNY TREXIM PVT. LTD. 18-May-2026",
+   "11": "IMPPIAF000010-(R-2)-rre-o9-M/S. SUNNY TREXIM PVT. LTD. 05-May-2026",
+   "12": "IMPPIAF000011-P-0901-M/S. SUNNY TREXIM PVT. LTD. 14-Jul-2026",
+   "13": "IMPPIAF000012-(R-1)-Amanat-SDC Boya 19-Jul-2026",
+   "14": "IMPPIAF000013-t-t-123-M/S. SUNNY TREXIM PVT. LTD. 19-Jul-2026",
+   "16": "IMPPIAF000014-PI-1377-Rudolf 20-Jul-2026",
+   "17": "IMPPIAF000015-136-M/S. SUNNY TREXIM PVT. LTD. 04-Feb-0026",
+   "18": "IMPPIAF000016-(R-3)-2Testing-rev-8-Ben Tech Chemical Co 05-Jul-2026",
+   "20": "IMPPIAF000018-ZSG0001162-Rudolf 28-Nov-0025"
+  }
+ },
+ "reqDocList": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision"
+  ],
+  "count": 1,
+  "options": {
+   "1": "GRN"
+  }
+ },
+ "rawMaterialTypeList": {
+  "pages": [
+   "expLcReceive",
+   "expLcReceiveRevision"
+  ],
+  "count": 3,
+  "options": {
+   "Dyes": "Dyes",
+   "Chemical": "Chemical",
+   "Yarn": "Yarn"
+  }
+ },
+ "hsCode": {
+  "pages": [
+   "expPiReceive",
+   "expPiReceiveRevision",
+   "fiberItem",
+   "itElectronicsFa",
+   "mroItem"
+  ],
+  "count": 13,
+  "options": {
+   "1": "5208.11.00",
+   "3": "5208.12.00",
+   "4": "5208.13.00",
+   "5": "5208.19.00",
+   "2": "5208.32.00",
+   "6": "5209.11.00",
+   "7": "5209.12.00",
+   "8": "5209.19.00",
+   "9": "5210.11.00",
+   "10": "5210.19.00",
+   "13": "5210.31.00",
+   "11": "5211.11.00",
+   "12": "5211.19.00"
+  }
+ },
+ "scheduleList": {
+  "pages": [
+   "expPiReceive",
+   "expPiReceiveRevision"
+  ],
+  "count": 74,
+  "options": {
+   "76": "BPOAF000058-SCAF0000074-SF FASHION WEAR LTD.",
+   "75": "BPOAF000057-SCAF0000073-SF FASHION WEAR LTD.",
+   "74": "BPOAF000040-SCAF0000072-Primordial Ltd.",
+   "73": "BPOAF000033-SCAF0000071-Far East Knitting & Dyeing",
+   "72": "BPOAF000017-SCAF0000070-EH Fabrics Ltd.",
+   "71": "BPOAF000034-SCAF0000069-Transworld Ltd",
+   "70": "BPOAF000035-SCAF0000068-Transworld Ltd",
+   "69": "BPOAF000052-SCAF0000067-Brandix Apparel Bangladesh Ltd.",
+   "68": "BPOAF000052-SCAF0000066-Brandix Apparel Bangladesh Ltd.",
+   "67": "BPOAF000052-SCAF0000065-Brandix Apparel Bangladesh Ltd.",
+   "66": "BPOAF000052-SCAF0000064-Brandix Apparel Bangladesh Ltd.",
+   "65": "BPOAF000052-SCAF0000063-Brandix Apparel Bangladesh Ltd.",
+   "64": "BPOAF000052-SCAF0000062-Brandix Apparel Bangladesh Ltd.",
+   "63": "BPOAF000052-SCAF0000061-Brandix Apparel Bangladesh Ltd.",
+   "62": "BPOAF000052-SCAF0000060-Brandix Apparel Bangladesh Ltd.",
+   "61": "BPOAF000052-SCAF0000059-Brandix Apparel Bangladesh Ltd.",
+   "60": "BPOAF000051-SCAF0000058-Brandix Apparel Bangladesh Ltd.",
+   "59": "BPOAF000051-SCAF0000057-Brandix Apparel Bangladesh Ltd.",
+   "58": "BPOAF000051-SCAF0000056-Brandix Apparel Bangladesh Ltd.",
+   "57": "BPOAF000051-SCAF0000055-Brandix Apparel Bangladesh Ltd.",
+   "56": "BPOAF000051-SCAF0000054-Brandix Apparel Bangladesh Ltd.",
+   "55": "BPOAF000051-SCAF0000053-Brandix Apparel Bangladesh Ltd.",
+   "54": "BPOAF000051-SCAF0000052-Brandix Apparel Bangladesh Ltd.",
+   "53": "BPOAF000051-SCAF0000051-Brandix Apparel Bangladesh Ltd.",
+   "52": "BPOAF000051-SCAF0000050-Brandix Apparel Bangladesh Ltd.",
+   "51": "BPOAF000051-SCAF0000049-Brandix Apparel Bangladesh Ltd.",
+   "50": "BPOAF000051-SCAF0000048-Brandix Apparel Bangladesh Ltd.",
+   "49": "BPOAF000051-SCAF0000047-Brandix Apparel Bangladesh Ltd.",
+   "48": "BPOAF000051-SCAF0000046-Brandix Apparel Bangladesh Ltd.",
+   "47": "BPOAF000053-SCAF0000045-Aboni Fashions Ltd",
+   "46": "BPOAF000051-SCAF0000044-Brandix Apparel Bangladesh Ltd.",
+   "45": "BPOAF000054-SCAF0000043-THE ROSE DRESSES LIMITED.",
+   "44": "BPOAF000055-SCAF0000042-THE ROSE DRESSES LIMITED.",
+   "43": "BPOAF000042-SCAF0000041-Brandix Apparel Bangladesh Ltd.",
+   "42": "BPOAF000014-SCAF0000040-Sinha Knit & Denim Ltd",
+   "41": "BPOAF000043-SCAF0000039-Dekko Ready Wears",
+   "40": "BPOAF000045-SCAF0000038-Tivoli Apparels",
+   "39": "BPOAF000046-SCAF0000037-Tivoli Apparels",
+   "38": "BPOAF000029-SCAF0000036-EVE DRESS-SHIRTS LIMITED",
+   "37": "BPOAF000032-SCAF0000035-Greenlife Knit Composite Ltd.",
+   "36": "BPOAF000044-SCAF0000034-Globus Garments Ltd",
+   "35": "BPOAF000031-SCAF0000033-Aleya Apparels Ltd",
+   "34": "BPOAF000041-SCAF0000032-Hollywood Garments",
+   "33": "BPOAF000036-SCAF0000031-Crystal Vestiti Ltd.",
+   "32": "BPOAF000037(R-1)-SCAF0000030(R-2)-NEO FASHION LTD.",
+   "31": "BPOAF000038-SCAF0000029-THE ROSE DRESSES LIMITED.",
+   "30": "BPOAF000039-SCAF0000028-THE ROSE DRESSES LIMITED.",
+   "29": "BPOAF000013-SCAF0000027-UNI GEARS LTD.",
+   "28": "BPOAF000015-SCAF0000026-ABA Fashion Ltd.",
+   "27": "BPOAF000030-SCAF0000025-Primordial Ltd.",
+   "26": "BPOAF000027-SCAF0000024-Aman Graphics & Design Ltd.",
+   "25": "BPOAF000028-SCAF0000023-Aman Graphics & Design Ltd.",
+   "24": "BPOAF000023(R-1)-SCAF0000022-AB Apparels Ltd.",
+   "23": "BPOAF000024(R-1)-SCAF0000021(R-1)-AB Apparels Ltd.",
+   "22": "BPOAF000024(R-1)-SCAF0000020-AB Apparels Ltd.",
+   "21": "BPOAF000025-SCAF0000019-Silken Sewing Ltd.",
+   "20": "BPOAF000026-SCAF0000018-Pakiza Woven Fashion Ltd.",
+   "19": "BPOAF000026-SCAF0000017-Pakiza Woven Fashion Ltd.",
+   "18": "BPOAF000022-SCAF0000016-AKH Fashions Limited.",
+   "17": "BPOAF000021-SCAF0000015-AKH Fashions Limited.",
+   "16": "BPOAF000020-SCAF0000014-THE ROSE DRESSES LIMITED.",
+   "15": "BPOAF000019-SCAF0000013-AKH Fashions Limited.",
+   "14": "BPOAF000018-SCAF0000012-AKH Fashions Limited.",
+   "13": "BPOAF000016-SCAF0000011-AKH Fashions Limited.",
+   "12": "BPOAF000010-SCAF0000010-MG Niche Flair Limited (Unit-2)",
+   "11": "BPOAF000008-SCAF0000009-Jeans Plus Ltd",
+   "10": "BPOAF000012-SCAF0000008-UNI GEARS LTD.",
+   "9": "BPOAF000004-SCAF0000007-SF FASHION WEAR LTD.",
+   "8": "BPOAF000005-SCAF0000006-AUS BANGLA JUTEX LTD.",
+   "7": "BPOAF000007-SCAF0000005-AUS BANGLA JUTEX LTD.",
+   "6": "BPOAF000006-SCAF0000004-AUS BANGLA JUTEX LTD.",
+   "5": "BPOAF000001-SCAF0000003-Islam Garments Ltd. (Unit-2)",
+   "4": "BPOAF000002-SCAF0000002-Harry Fashion Limited",
+   "2": "BPOAF000003-SCAF0000001-MG Niche Stitch Limited"
+  }
+ },
+ "booking-list": {
+  "pages": [
+   "exportPi"
+  ],
+  "count": 1,
+  "options": {
+   "booking.id": "{{ booking.code }}"
+  }
+ },
+ "countries": {
+  "pages": [
+   "fiberItem",
+   "inventoryItem",
+   "itElectronicsFa"
+  ],
+  "count": 17,
+  "options": {
+   "705": "Afghanistan-AF",
+   "706": "Albania-AL",
+   "707": "Algeria-DZ",
+   "708": "American Samoa-AS",
+   "709": "Andorra-AD",
+   "710": "Angola-AO",
+   "711": "Anguilla-AI",
+   "712": "Antarctica-AQ",
+   "713": "Antigua And Barbuda-AG",
+   "714": "Argentina-AR",
+   "715": "Aruba-AW",
+   "716": "Australia-AU",
+   "717": "Austria-AT",
+   "718": "Azerbaijan-AZ",
+   "719": "Bahamas-BS",
+   "720": "Bahrain-BH",
+   "721": "Bangladesh-BD"
+  }
+ },
+ "salesUnit": {
+  "pages": [
+   "finishedFabrics",
+   "inventoryItem",
+   "yarnItem"
+  ],
+  "count": 19,
+  "options": {
+   "4": "U103-Centimeter",
+   "6": "U105-Feet",
+   "19": "U118-Gallon",
+   "10": "U109-Gram",
+   "8": "U107-Inch",
+   "12": "U111-Kilogram",
+   "18": "U117-Kilolitre",
+   "1": "U100-Kilometer",
+   "16": "U115-Litre",
+   "2": "U101-Meter",
+   "9": "U108-Mile",
+   "11": "U110-Milligram",
+   "17": "U116-Millilitre",
+   "5": "U104-Millimeter",
+   "13": "U112-Ounce",
+   "3": "U102-PCS",
+   "14": "U113-Pound",
+   "15": "U114-Ton",
+   "7": "U106-Yard"
+  }
+ },
+ "grm_dtlSet_countries": {
+  "pages": [
+   "goodsReceiptNote"
+  ],
+  "count": 17,
+  "options": {
+   "705": "Afghanistan-AF",
+   "706": "Albania-AL",
+   "707": "Algeria-DZ",
+   "708": "American Samoa-AS",
+   "709": "Andorra-AD",
+   "710": "Angola-AO",
+   "711": "Anguilla-AI",
+   "712": "Antarctica-AQ",
+   "713": "Antigua And Barbuda-AG",
+   "714": "Argentina-AR",
+   "715": "Aruba-AW",
+   "716": "Australia-AU",
+   "717": "Austria-AT",
+   "718": "Azerbaijan-AZ",
+   "719": "Bahamas-BS",
+   "720": "Bahrain-BH",
+   "721": "Bangladesh-BD"
+  }
+ },
+ "grm_dtlSet_itemBrand": {
+  "pages": [
+   "goodsReceiptNote"
+  ],
+  "count": 1,
+  "options": {
+   "2": "BRAF00001-Xianho"
+  }
+ },
+ "grm_dtlSet_fabricsComposition": {
+  "pages": [
+   "goodsReceiptNote"
+  ],
+  "count": 1,
+  "options": {
+   "1": "FCAF00001-50% Cotton 50% Polyester"
+  }
+ },
+ "grm_dtlSet_weaveType": {
+  "pages": [
+   "goodsReceiptNote"
+  ],
+  "count": 3,
+  "options": {
+   "Plain": "Plain",
+   "Twill": "Twill",
+   "Satin": "Satin"
+  }
+ },
+ "grm_dtlSet_fabricsFinishType": {
+  "pages": [
+   "goodsReceiptNote"
+  ],
+  "count": 4,
+  "options": {
+   "Functional_finishes": "Functional finishes",
+   "Performance_finishes": "performance finishes",
+   "Chemical_or_wet_finishes": "Chemical or wet finishes",
+   "Mechanical_finishes": "Mechanical finishes"
+  }
+ },
+ "po_dtlSet_countries": {
+  "pages": [
+   "goodsReceiptNote"
+  ],
+  "count": 17,
+  "options": {
+   "705": "Afghanistan-AF",
+   "706": "Albania-AL",
+   "707": "Algeria-DZ",
+   "708": "American Samoa-AS",
+   "709": "Andorra-AD",
+   "710": "Angola-AO",
+   "711": "Anguilla-AI",
+   "712": "Antarctica-AQ",
+   "713": "Antigua And Barbuda-AG",
+   "714": "Argentina-AR",
+   "715": "Aruba-AW",
+   "716": "Australia-AU",
+   "717": "Austria-AT",
+   "718": "Azerbaijan-AZ",
+   "719": "Bahamas-BS",
+   "720": "Bahrain-BH",
+   "721": "Bangladesh-BD"
+  }
+ },
+ "po_dtlSet_itemBrand": {
+  "pages": [
+   "goodsReceiptNote",
+   "purchaseOrder"
+  ],
+  "count": 1,
+  "options": {
+   "2": "BRAF00001-Xianho"
+  }
+ },
+ "po_dtlSet_fabricsComposition": {
+  "pages": [
+   "goodsReceiptNote"
+  ],
+  "count": 1,
+  "options": {
+   "1": "FCAF00001-50% Cotton 50% Polyester"
+  }
+ },
+ "po_dtlSet_fabricsFinishType": {
+  "pages": [
+   "goodsReceiptNote",
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 16,
+  "options": {
+   "Functional_finishes": "Functional finishes",
+   "Performance_finishes": "performance finishes",
+   "Chemical_or_wet_finishes": "Chemical or wet finishes",
+   "Mechanical_finishes": "Mechanical finishes",
+   "FFT_1": "Soft Finish",
+   "FFT_2": "Paper touch/Hard Finish",
+   "FFT_3": "Water repellent Finish",
+   "FFT_4": "ETI/ Wrinkle free Finish",
+   "FFT_5": "Carbon peach Finish",
+   "FFT_6": "Heavy peach Finish",
+   "FFT_7": "Silky Finish",
+   "FFT_8": "Rasin Finish",
+   "FFT_9": "Peach Finish",
+   "FFT_10": "Aero Finish",
+   "FFT_11": "Brush",
+   "FFT_12": "Both Side Peach"
+  }
+ },
+ "type": {
+  "pages": [
+   "impLcIssue",
+   "impLcRevision"
+  ],
+  "count": 3,
+  "options": {
+   "Lc": "LC",
+   "Tt": "TT",
+   "Invoice": "Invoice"
+  }
+ },
+ "lcType": {
+  "pages": [
+   "impLcIssue",
+   "impLcRevision"
+  ],
+  "count": 4,
+  "options": {
+   "Deferred": "DEFERRED",
+   "Upas": "UPAS",
+   "Upas_Spsm": "UPAS/SPSM",
+   "Edf": "EDF"
+  }
+ },
+ "port": {
+  "pages": [
+   "impLcIssue",
+   "impLcRevision"
+  ],
+  "count": 3,
+  "options": {
+   "Chittagong": "Chittagong",
+   "Dhaka_Airport": "Dhaka Airport",
+   "Benapole": "Benapole"
+  }
+ },
+ "poList": {
+  "pages": [
+   "importGRN"
+  ],
+  "count": 10,
+  "options": {
+   "2": "888-M/S. SUNNY TREXIM PVT. LTD.",
+   "3": "LC-123-M/S. SUNNY TREXIM PVT. LTD.",
+   "4": "888-M/S. SUNNY TREXIM PVT. LTD.",
+   "5": "10001-M/S. SUNNY TREXIM PVT. LTD.",
+   "6": "LC 10010-M/S. SUNNY TREXIM PVT. LTD.",
+   "12": "LC-1223-M/S. SUNNY TREXIM PVT. LTD.",
+   "13": "IMPLCAF000002-M/S. SUNNY TREXIM PVT. LTD.",
+   "16": "LC - 71-SDC Boya",
+   "19": "LC71-098-M/S. SUNNY TREXIM PVT. LTD.",
+   "20": "020125020670-Rudolf"
+  }
+ },
+ "sprList": {
+  "pages": [
+   "importPiReceive",
+   "importPiRevision"
+  ],
+  "count": 1,
+  "options": {
+   "1": "DSPAF0000001-Fabrics Store 25-Feb-2026"
+  }
+ },
+ "periodFilter": {
+  "pages": [
+   "invDashboard",
+   "plnDashboard",
+   "prdDashboard",
+   "rndDashboard",
+   "slsDashboard"
+  ],
+  "count": 5,
+  "options": {
+   "7": "Last 7 Days",
+   "30": "Last 30 Days",
+   "90": "Last 90 Days",
+   "365": "Last Year",
+   "180": "Last 6 Months"
+  }
+ },
+ "itemCategoryGrp": {
+  "pages": [
+   "inventoryItem"
+  ],
+  "count": 6,
+  "options": {
+   "38": "Civil And Construction (CAF160000)",
+   "8": "Finish Goods (CAF120000)",
+   "21": "General Item (CAF140000)",
+   "13": "Maintenance Repair And Operating (CAF130000)",
+   "28": "Non current Fixed Assets (CAF150000)",
+   "1": "Raw Material (CAF110000)"
+  }
+ },
+ "itemBrand": {
+  "pages": [
+   "inventoryItem",
+   "itElectronicsFa"
+  ],
+  "count": 1,
+  "options": {
+   "2": "BRAF00001-Xianho"
+  }
+ },
+ "businessUnit": {
+  "pages": [
+   "inventoryStore"
+  ],
+  "count": 2,
+  "options": {
+   "2": "BAF000002-ASFL Business Unit",
+   "3": "BAF000001-ASFL Weaving"
+  }
+ },
+ "itemInputType": {
+  "pages": [
+   "inventoryStore"
+  ],
+  "count": 7,
+  "options": {
+   "Common": "Common",
+   "Fabrics": "Fabrics",
+   "Dyes_Chemical": "Dyes Chemical",
+   "MRO": "MRO",
+   "Non_current_Fixed_Assets": "Non current Fixed Assets",
+   "Yarn": "Yarn",
+   "Fiber": "Fiber"
+  }
+ },
+ "toStore": {
+  "pages": [
+   "inventoryTransfer"
+  ],
+  "count": 2,
+  "options": {
+   "1": "SAF001-Processing Store",
+   "2": "SAF002-Weaving Store"
+  }
+ },
+ "group_dtlSet_activeStatus": {
+  "pages": [
+   "marketingGroup"
+  ],
+  "count": 2,
+  "options": {
+   "Active": "Active",
+   "Inactive": "Inactive"
+  }
+ },
+ "workTypeFilter": {
+  "pages": [
+   "plnDashboard"
+  ],
+  "count": 2,
+  "options": {
+   "Textile": "Textile",
+   "Dyeing": "Dyeing"
+  }
+ },
+ "po_dtlSet_fabricsType": {
+  "pages": [
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 14,
+  "options": {
+   "B_1": "Yarn Dyed",
+   "B_2": "Yarn Dyed Print",
+   "B_3": "Yarn Dyed Spandex",
+   "B_4": "Yarn Dyed Print Spandex",
+   "B_5": "Yarn Dyed LUNGI (Greige)",
+   "B_6": "Solid Dyed",
+   "B_7": "Solid Dyed Spandex",
+   "B_8": "Solid Dyed Print",
+   "B_9": "Solid Dyed Print Spandex",
+   "B_10": "Greige Yarn Dyed",
+   "B_11": "Greige Yarn Dyed Spandex",
+   "B_12": "Greige Solid Dyed",
+   "B_13": "Greige Solid Dyed Spandex",
+   "B_14": "Greige Solid Dyed (LUNGI)"
+  }
+ },
+ "po_dtlSet_inHouseExport": {
+  "pages": [
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 2,
+  "options": {
+   "In_house": "In-house",
+   "Export": "Export"
+  }
+ },
+ "po_dtlSet_weaveType": {
+  "pages": [
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 18,
+  "options": {
+   "WT_1": "1/1",
+   "WT_2": "2/2",
+   "WT_3": "2/1",
+   "WT_4": "3/1",
+   "WT_5": "4/1",
+   "WT_6": "Dobby : Long Float",
+   "WT_7": "Dobby : Medium Float",
+   "WT_8": "Dobby : Short Float",
+   "WT_9": "5/1",
+   "WT_10": "6/1",
+   "WT_11": "7/1",
+   "WT_12": "1/4",
+   "WT_13": "1/5",
+   "WT_14": "1/6",
+   "WT_15": "1/7",
+   "WT_16": "1/8",
+   "WT_17": "3/2",
+   "WT_18": "4/2"
+  }
+ },
+ "po_dtlSet_weaveStyles": {
+  "pages": [
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 14,
+  "options": {
+   "WS_1": "S Twill",
+   "WS_2": "Z Twill",
+   "WS_3": "HBT",
+   "WS_4": "Zig Zag Twill",
+   "WS_5": "Plain",
+   "WS_6": "Oxford",
+   "WS_7": "Matt",
+   "WS_8": "Cavalry Twill",
+   "WS_9": "Long Float",
+   "WS_10": "Medium Float",
+   "WS_11": "Short Float",
+   "WS_12": "Satin",
+   "WS_13": "Ribstop",
+   "WS_14": "Broken Twill"
+  }
+ },
+ "po_dtlSet_lightSource": {
+  "pages": [
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 7,
+  "options": {
+   "D65": "D65",
+   "TL83": "TL83",
+   "TL84": "TL84",
+   "UV": "UV",
+   "Filament": "Filament",
+   "CWF": "CWF",
+   "U30LED": "U30LED"
+  }
+ },
+ "po_dtlSet_lightSourceType": {
+  "pages": [
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 2,
+  "options": {
+   "Primary": "Primary",
+   "Secondary": "Secondary"
+  }
+ },
+ "po_dtlSet_sampleType": {
+  "pages": [
+   "productionOrder",
+   "productionOrderRevision"
+  ],
+  "count": 2,
+  "options": {
+   "As_per_Swatch": "As per Swatch",
+   "As_per_Specification": "As per Specification"
+  }
+ },
+ "po_dtlDeliversSet_proDeliveryType": {
+  "pages": [
+   "productionOrder"
+  ],
+  "count": 7,
+  "options": {
+   "3": "DTAF00003-1st Lot Delivery",
+   "4": "DTAF00004-2nd Lot Delivery",
+   "5": "DTAF00005-3rd Lot Delivery",
+   "6": "DTAF00006-4th Lot Delivery",
+   "7": "DTAF00007-5th Lot Delivery",
+   "2": "DTAF00002-Full Delivery",
+   "1": "DTAF00001-PP Submission"
+  }
+ },
+ "itemInputTypeSelect": {
+  "pages": [
+   "purchaseOrder",
+   "storeRequisition"
+  ],
+  "count": 7,
+  "options": {
+   "Common": "General",
+   "Fabrics": "Fabrics",
+   "Dyes_Chemical": "Dyes Chemical",
+   "MRO": "MRO",
+   "Non_current_Fixed_Assets": "Non current Fixed Assets",
+   "Yarn": "Yarn",
+   "Fiber": "Fiber"
+  }
+ },
+ "poType": {
+  "pages": [
+   "purchaseOrder"
+  ],
+  "count": 3,
+  "options": {
+   "Direct": "Direct",
+   "Spot": "Spot",
+   "Import": "Import"
+  }
+ },
+ "spr_dtlSet_itemBrand": {
+  "pages": [
+   "purchaseOrder",
+   "sprDirGeneral"
+  ],
+  "count": 1,
+  "options": {
+   "2": "BRAF00001-Xianho"
+  }
+ },
+ "index": {
+  "pages": [
+   "requestmap"
+  ],
+  "count": 69,
+  "options": {
+   "ROLE_ACCOUNTS": "ROLE_ACCOUNTS",
+   "ROLE_ADMINISTRATOR": "ROLE_ADMINISTRATOR",
+   "ROLE_APPROVAL": "ROLE_APPROVAL",
+   "ROLE_BANK_SETUP": "ROLE_BANK_SETUP",
+   "ROLE_BOOKING_REPORT": "ROLE_BOOKING_REPORT",
+   "ROLE_BOOKING_REVISION": "ROLE_BOOKING_REVISION",
+   "ROLE_CI_APPROVAL": "ROLE_CI_APPROVAL",
+   "ROLE_CI_CHECKER": "ROLE_CI_CHECKER",
+   "ROLE_CI_ISSUE_VIEW": "ROLE_CI_ISSUE_VIEW",
+   "ROLE_CI_MAKER": "ROLE_CI_MAKER",
+   "ROLE_COMMERCIAL": "ROLE_COMMERCIAL",
+   "ROLE_COMMERCIAL_CI_ISSUE": "ROLE_COMMERCIAL_CI_ISSUE",
+   "ROLE_COMMERCIAL_CI_REPORT": "ROLE_COMMERCIAL_CI_REPORT",
+   "ROLE_COMMERCIAL_CI_REVISION": "ROLE_COMMERCIAL_CI_REVISION",
+   "ROLE_COMMERCIAL_DOCUMENT_NAMES": "ROLE_COMMERCIAL_DOCUMENT_NAMES",
+   "ROLE_COMMERCIAL_LC_COST_HEAD": "ROLE_COMMERCIAL_LC_COST_HEAD",
+   "ROLE_COMMERCIAL_LC_RECEIVING": "ROLE_COMMERCIAL_LC_RECEIVING",
+   "ROLE_COMMERCIAL_LC_REPORT": "ROLE_COMMERCIAL_LC_REPORT",
+   "ROLE_COMMERCIAL_LC_REVISION": "ROLE_COMMERCIAL_LC_REVISION",
+   "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_PI_ISSUE": "ROLE_COMMERCIAL_PI_ISSUE",
+   "ROLE_COMMERCIAL_PI_REPORT": "ROLE_COMMERCIAL_PI_REPORT",
+   "ROLE_COMMERCIAL_PI_REVISION": "ROLE_COMMERCIAL_PI_REVISION",
+   "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_SETUP": "ROLE_COMMERCIAL_SETUP",
+   "ROLE_DELIVERY_ORDER": "ROLE_DELIVERY_ORDER",
+   "ROLE_DELIVERY_ORDER_REPORT_LIST": "ROLE_DELIVERY_ORDER_REPORT_LIST",
+   "ROLE_DELIVERY_ORDER_REQUEST": "ROLE_DELIVERY_ORDER_REQUEST",
+   "ROLE_EMPLOYEE": "ROLE_EMPLOYEE",
+   "ROLE_FABRICS_DELIVERY": "ROLE_FABRICS_DELIVERY",
+   "ROLE_FABRICS_DELIVERY_REPORT_LIST": "ROLE_FABRICS_DELIVERY_REPORT_LIST",
+   "ROLE_FINISHED_GOODS_TRANSACTION": "ROLE_FINISHED_GOODS_TRANSACTION",
+   "ROLE_GREIGE_FABRICS_TRANSACTION": "ROLE_GREIGE_FABRICS_TRANSACTION",
+   "ROLE_HRM": "ROLE_HRM",
+   "ROLE_IMPORT_MAKER": "ROLE_IMPORT_MAKER",
+   "ROLE_IMPORT_MANAGER": "ROLE_IMPORT_MANAGER",
+   "ROLE_IMPORT_SETUP": "ROLE_IMPORT_SETUP",
+   "ROLE_INVENTORY": "ROLE_INVENTORY",
+   "ROLE_LC_APPROVAL": "ROLE_LC_APPROVAL",
+   "ROLE_LC_CHECKER": "ROLE_LC_CHECKER",
+   "ROLE_LC_MAKER": "ROLE_LC_MAKER",
+   "ROLE_MARKETING_ADMIN": "ROLE_MARKETING_ADMIN",
+   "ROLE_MARKETING_EXECUTIVE": "ROLE_MARKETING_EXECUTIVE",
+   "ROLE_MARKETING_MANAGER": "ROLE_MARKETING_MANAGER",
+   "ROLE_MARKETING_TEAMLEAD": "ROLE_MARKETING_TEAMLEAD",
+   "ROLE_OPEN_API": "ROLE_OPEN_API",
+   "ROLE_PI_APPROVAL": "ROLE_PI_APPROVAL",
+   "ROLE_PI_CHECKER": "ROLE_PI_CHECKER",
+   "ROLE_PI_MAKER": "ROLE_PI_MAKER",
+   "ROLE_PLANNING": "ROLE_PLANNING",
+   "ROLE_PLANNING_HEAD": "ROLE_PLANNING_HEAD",
+   "ROLE_PROCESSING_STORE": "ROLE_PROCESSING_STORE",
+   "ROLE_PRODUCTION": "ROLE_PRODUCTION",
+   "ROLE_PRODUCTION_DELIVERY_SCHEDULE": "ROLE_PRODUCTION_DELIVERY_SCHEDULE",
+   "ROLE_PRODUCTION_ORDER": "ROLE_PRODUCTION_ORDER",
+   "ROLE_PRODUCTION_ORDER_REPORT_LIST": "ROLE_PRODUCTION_ORDER_REPORT_LIST",
+   "ROLE_PRODUCTION_ORDER_REQUIREMENT": "ROLE_PRODUCTION_ORDER_REQUIREMENT",
+   "ROLE_PRODUCTION_ORDER_REVISION": "ROLE_PRODUCTION_ORDER_REVISION",
+   "ROLE_PURCHASE": "ROLE_PURCHASE",
+   "ROLE_REPORT": "ROLE_REPORT",
+   "ROLE_RND": "ROLE_RND",
+   "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL": "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL",
+   "ROLE_SALES": "ROLE_SALES",
+   "ROLE_SALES_&_MARKETING_SETUP": "ROLE_SALES_&_MARKETING_SETUP",
+   "ROLE_SERVICE": "ROLE_SERVICE",
+   "ROLE_SETUP": "ROLE_SETUP",
+   "ROLE_SOLID_DYED_BOOKING": "ROLE_SOLID_DYED_BOOKING",
+   "ROLE_WEAVING_STORE": "ROLE_WEAVING_STORE",
+   "ROLE_YARN_DYED_BOOKING": "ROLE_YARN_DYED_BOOKING"
+  }
+ },
+ "write": {
+  "pages": [
+   "requestmap"
+  ],
+  "count": 69,
+  "options": {
+   "ROLE_ACCOUNTS": "ROLE_ACCOUNTS",
+   "ROLE_ADMINISTRATOR": "ROLE_ADMINISTRATOR",
+   "ROLE_APPROVAL": "ROLE_APPROVAL",
+   "ROLE_BANK_SETUP": "ROLE_BANK_SETUP",
+   "ROLE_BOOKING_REPORT": "ROLE_BOOKING_REPORT",
+   "ROLE_BOOKING_REVISION": "ROLE_BOOKING_REVISION",
+   "ROLE_CI_APPROVAL": "ROLE_CI_APPROVAL",
+   "ROLE_CI_CHECKER": "ROLE_CI_CHECKER",
+   "ROLE_CI_ISSUE_VIEW": "ROLE_CI_ISSUE_VIEW",
+   "ROLE_CI_MAKER": "ROLE_CI_MAKER",
+   "ROLE_COMMERCIAL": "ROLE_COMMERCIAL",
+   "ROLE_COMMERCIAL_CI_ISSUE": "ROLE_COMMERCIAL_CI_ISSUE",
+   "ROLE_COMMERCIAL_CI_REPORT": "ROLE_COMMERCIAL_CI_REPORT",
+   "ROLE_COMMERCIAL_CI_REVISION": "ROLE_COMMERCIAL_CI_REVISION",
+   "ROLE_COMMERCIAL_DOCUMENT_NAMES": "ROLE_COMMERCIAL_DOCUMENT_NAMES",
+   "ROLE_COMMERCIAL_LC_COST_HEAD": "ROLE_COMMERCIAL_LC_COST_HEAD",
+   "ROLE_COMMERCIAL_LC_RECEIVING": "ROLE_COMMERCIAL_LC_RECEIVING",
+   "ROLE_COMMERCIAL_LC_REPORT": "ROLE_COMMERCIAL_LC_REPORT",
+   "ROLE_COMMERCIAL_LC_REVISION": "ROLE_COMMERCIAL_LC_REVISION",
+   "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_PI_ISSUE": "ROLE_COMMERCIAL_PI_ISSUE",
+   "ROLE_COMMERCIAL_PI_REPORT": "ROLE_COMMERCIAL_PI_REPORT",
+   "ROLE_COMMERCIAL_PI_REVISION": "ROLE_COMMERCIAL_PI_REVISION",
+   "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_SETUP": "ROLE_COMMERCIAL_SETUP",
+   "ROLE_DELIVERY_ORDER": "ROLE_DELIVERY_ORDER",
+   "ROLE_DELIVERY_ORDER_REPORT_LIST": "ROLE_DELIVERY_ORDER_REPORT_LIST",
+   "ROLE_DELIVERY_ORDER_REQUEST": "ROLE_DELIVERY_ORDER_REQUEST",
+   "ROLE_EMPLOYEE": "ROLE_EMPLOYEE",
+   "ROLE_FABRICS_DELIVERY": "ROLE_FABRICS_DELIVERY",
+   "ROLE_FABRICS_DELIVERY_REPORT_LIST": "ROLE_FABRICS_DELIVERY_REPORT_LIST",
+   "ROLE_FINISHED_GOODS_TRANSACTION": "ROLE_FINISHED_GOODS_TRANSACTION",
+   "ROLE_GREIGE_FABRICS_TRANSACTION": "ROLE_GREIGE_FABRICS_TRANSACTION",
+   "ROLE_HRM": "ROLE_HRM",
+   "ROLE_IMPORT_MAKER": "ROLE_IMPORT_MAKER",
+   "ROLE_IMPORT_MANAGER": "ROLE_IMPORT_MANAGER",
+   "ROLE_IMPORT_SETUP": "ROLE_IMPORT_SETUP",
+   "ROLE_INVENTORY": "ROLE_INVENTORY",
+   "ROLE_LC_APPROVAL": "ROLE_LC_APPROVAL",
+   "ROLE_LC_CHECKER": "ROLE_LC_CHECKER",
+   "ROLE_LC_MAKER": "ROLE_LC_MAKER",
+   "ROLE_MARKETING_ADMIN": "ROLE_MARKETING_ADMIN",
+   "ROLE_MARKETING_EXECUTIVE": "ROLE_MARKETING_EXECUTIVE",
+   "ROLE_MARKETING_MANAGER": "ROLE_MARKETING_MANAGER",
+   "ROLE_MARKETING_TEAMLEAD": "ROLE_MARKETING_TEAMLEAD",
+   "ROLE_OPEN_API": "ROLE_OPEN_API",
+   "ROLE_PI_APPROVAL": "ROLE_PI_APPROVAL",
+   "ROLE_PI_CHECKER": "ROLE_PI_CHECKER",
+   "ROLE_PI_MAKER": "ROLE_PI_MAKER",
+   "ROLE_PLANNING": "ROLE_PLANNING",
+   "ROLE_PLANNING_HEAD": "ROLE_PLANNING_HEAD",
+   "ROLE_PROCESSING_STORE": "ROLE_PROCESSING_STORE",
+   "ROLE_PRODUCTION": "ROLE_PRODUCTION",
+   "ROLE_PRODUCTION_DELIVERY_SCHEDULE": "ROLE_PRODUCTION_DELIVERY_SCHEDULE",
+   "ROLE_PRODUCTION_ORDER": "ROLE_PRODUCTION_ORDER",
+   "ROLE_PRODUCTION_ORDER_REPORT_LIST": "ROLE_PRODUCTION_ORDER_REPORT_LIST",
+   "ROLE_PRODUCTION_ORDER_REQUIREMENT": "ROLE_PRODUCTION_ORDER_REQUIREMENT",
+   "ROLE_PRODUCTION_ORDER_REVISION": "ROLE_PRODUCTION_ORDER_REVISION",
+   "ROLE_PURCHASE": "ROLE_PURCHASE",
+   "ROLE_REPORT": "ROLE_REPORT",
+   "ROLE_RND": "ROLE_RND",
+   "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL": "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL",
+   "ROLE_SALES": "ROLE_SALES",
+   "ROLE_SALES_&_MARKETING_SETUP": "ROLE_SALES_&_MARKETING_SETUP",
+   "ROLE_SERVICE": "ROLE_SERVICE",
+   "ROLE_SETUP": "ROLE_SETUP",
+   "ROLE_SOLID_DYED_BOOKING": "ROLE_SOLID_DYED_BOOKING",
+   "ROLE_WEAVING_STORE": "ROLE_WEAVING_STORE",
+   "ROLE_YARN_DYED_BOOKING": "ROLE_YARN_DYED_BOOKING"
+  }
+ },
+ "edit": {
+  "pages": [
+   "requestmap"
+  ],
+  "count": 69,
+  "options": {
+   "ROLE_ACCOUNTS": "ROLE_ACCOUNTS",
+   "ROLE_ADMINISTRATOR": "ROLE_ADMINISTRATOR",
+   "ROLE_APPROVAL": "ROLE_APPROVAL",
+   "ROLE_BANK_SETUP": "ROLE_BANK_SETUP",
+   "ROLE_BOOKING_REPORT": "ROLE_BOOKING_REPORT",
+   "ROLE_BOOKING_REVISION": "ROLE_BOOKING_REVISION",
+   "ROLE_CI_APPROVAL": "ROLE_CI_APPROVAL",
+   "ROLE_CI_CHECKER": "ROLE_CI_CHECKER",
+   "ROLE_CI_ISSUE_VIEW": "ROLE_CI_ISSUE_VIEW",
+   "ROLE_CI_MAKER": "ROLE_CI_MAKER",
+   "ROLE_COMMERCIAL": "ROLE_COMMERCIAL",
+   "ROLE_COMMERCIAL_CI_ISSUE": "ROLE_COMMERCIAL_CI_ISSUE",
+   "ROLE_COMMERCIAL_CI_REPORT": "ROLE_COMMERCIAL_CI_REPORT",
+   "ROLE_COMMERCIAL_CI_REVISION": "ROLE_COMMERCIAL_CI_REVISION",
+   "ROLE_COMMERCIAL_DOCUMENT_NAMES": "ROLE_COMMERCIAL_DOCUMENT_NAMES",
+   "ROLE_COMMERCIAL_LC_COST_HEAD": "ROLE_COMMERCIAL_LC_COST_HEAD",
+   "ROLE_COMMERCIAL_LC_RECEIVING": "ROLE_COMMERCIAL_LC_RECEIVING",
+   "ROLE_COMMERCIAL_LC_REPORT": "ROLE_COMMERCIAL_LC_REPORT",
+   "ROLE_COMMERCIAL_LC_REVISION": "ROLE_COMMERCIAL_LC_REVISION",
+   "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_PI_ISSUE": "ROLE_COMMERCIAL_PI_ISSUE",
+   "ROLE_COMMERCIAL_PI_REPORT": "ROLE_COMMERCIAL_PI_REPORT",
+   "ROLE_COMMERCIAL_PI_REVISION": "ROLE_COMMERCIAL_PI_REVISION",
+   "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_SETUP": "ROLE_COMMERCIAL_SETUP",
+   "ROLE_DELIVERY_ORDER": "ROLE_DELIVERY_ORDER",
+   "ROLE_DELIVERY_ORDER_REPORT_LIST": "ROLE_DELIVERY_ORDER_REPORT_LIST",
+   "ROLE_DELIVERY_ORDER_REQUEST": "ROLE_DELIVERY_ORDER_REQUEST",
+   "ROLE_EMPLOYEE": "ROLE_EMPLOYEE",
+   "ROLE_FABRICS_DELIVERY": "ROLE_FABRICS_DELIVERY",
+   "ROLE_FABRICS_DELIVERY_REPORT_LIST": "ROLE_FABRICS_DELIVERY_REPORT_LIST",
+   "ROLE_FINISHED_GOODS_TRANSACTION": "ROLE_FINISHED_GOODS_TRANSACTION",
+   "ROLE_GREIGE_FABRICS_TRANSACTION": "ROLE_GREIGE_FABRICS_TRANSACTION",
+   "ROLE_HRM": "ROLE_HRM",
+   "ROLE_IMPORT_MAKER": "ROLE_IMPORT_MAKER",
+   "ROLE_IMPORT_MANAGER": "ROLE_IMPORT_MANAGER",
+   "ROLE_IMPORT_SETUP": "ROLE_IMPORT_SETUP",
+   "ROLE_INVENTORY": "ROLE_INVENTORY",
+   "ROLE_LC_APPROVAL": "ROLE_LC_APPROVAL",
+   "ROLE_LC_CHECKER": "ROLE_LC_CHECKER",
+   "ROLE_LC_MAKER": "ROLE_LC_MAKER",
+   "ROLE_MARKETING_ADMIN": "ROLE_MARKETING_ADMIN",
+   "ROLE_MARKETING_EXECUTIVE": "ROLE_MARKETING_EXECUTIVE",
+   "ROLE_MARKETING_MANAGER": "ROLE_MARKETING_MANAGER",
+   "ROLE_MARKETING_TEAMLEAD": "ROLE_MARKETING_TEAMLEAD",
+   "ROLE_OPEN_API": "ROLE_OPEN_API",
+   "ROLE_PI_APPROVAL": "ROLE_PI_APPROVAL",
+   "ROLE_PI_CHECKER": "ROLE_PI_CHECKER",
+   "ROLE_PI_MAKER": "ROLE_PI_MAKER",
+   "ROLE_PLANNING": "ROLE_PLANNING",
+   "ROLE_PLANNING_HEAD": "ROLE_PLANNING_HEAD",
+   "ROLE_PROCESSING_STORE": "ROLE_PROCESSING_STORE",
+   "ROLE_PRODUCTION": "ROLE_PRODUCTION",
+   "ROLE_PRODUCTION_DELIVERY_SCHEDULE": "ROLE_PRODUCTION_DELIVERY_SCHEDULE",
+   "ROLE_PRODUCTION_ORDER": "ROLE_PRODUCTION_ORDER",
+   "ROLE_PRODUCTION_ORDER_REPORT_LIST": "ROLE_PRODUCTION_ORDER_REPORT_LIST",
+   "ROLE_PRODUCTION_ORDER_REQUIREMENT": "ROLE_PRODUCTION_ORDER_REQUIREMENT",
+   "ROLE_PRODUCTION_ORDER_REVISION": "ROLE_PRODUCTION_ORDER_REVISION",
+   "ROLE_PURCHASE": "ROLE_PURCHASE",
+   "ROLE_REPORT": "ROLE_REPORT",
+   "ROLE_RND": "ROLE_RND",
+   "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL": "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL",
+   "ROLE_SALES": "ROLE_SALES",
+   "ROLE_SALES_&_MARKETING_SETUP": "ROLE_SALES_&_MARKETING_SETUP",
+   "ROLE_SERVICE": "ROLE_SERVICE",
+   "ROLE_SETUP": "ROLE_SETUP",
+   "ROLE_SOLID_DYED_BOOKING": "ROLE_SOLID_DYED_BOOKING",
+   "ROLE_WEAVING_STORE": "ROLE_WEAVING_STORE",
+   "ROLE_YARN_DYED_BOOKING": "ROLE_YARN_DYED_BOOKING"
+  }
+ },
+ "remove": {
+  "pages": [
+   "requestmap"
+  ],
+  "count": 69,
+  "options": {
+   "ROLE_ACCOUNTS": "ROLE_ACCOUNTS",
+   "ROLE_ADMINISTRATOR": "ROLE_ADMINISTRATOR",
+   "ROLE_APPROVAL": "ROLE_APPROVAL",
+   "ROLE_BANK_SETUP": "ROLE_BANK_SETUP",
+   "ROLE_BOOKING_REPORT": "ROLE_BOOKING_REPORT",
+   "ROLE_BOOKING_REVISION": "ROLE_BOOKING_REVISION",
+   "ROLE_CI_APPROVAL": "ROLE_CI_APPROVAL",
+   "ROLE_CI_CHECKER": "ROLE_CI_CHECKER",
+   "ROLE_CI_ISSUE_VIEW": "ROLE_CI_ISSUE_VIEW",
+   "ROLE_CI_MAKER": "ROLE_CI_MAKER",
+   "ROLE_COMMERCIAL": "ROLE_COMMERCIAL",
+   "ROLE_COMMERCIAL_CI_ISSUE": "ROLE_COMMERCIAL_CI_ISSUE",
+   "ROLE_COMMERCIAL_CI_REPORT": "ROLE_COMMERCIAL_CI_REPORT",
+   "ROLE_COMMERCIAL_CI_REVISION": "ROLE_COMMERCIAL_CI_REVISION",
+   "ROLE_COMMERCIAL_DOCUMENT_NAMES": "ROLE_COMMERCIAL_DOCUMENT_NAMES",
+   "ROLE_COMMERCIAL_LC_COST_HEAD": "ROLE_COMMERCIAL_LC_COST_HEAD",
+   "ROLE_COMMERCIAL_LC_RECEIVING": "ROLE_COMMERCIAL_LC_RECEIVING",
+   "ROLE_COMMERCIAL_LC_REPORT": "ROLE_COMMERCIAL_LC_REPORT",
+   "ROLE_COMMERCIAL_LC_REVISION": "ROLE_COMMERCIAL_LC_REVISION",
+   "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_PI_ISSUE": "ROLE_COMMERCIAL_PI_ISSUE",
+   "ROLE_COMMERCIAL_PI_REPORT": "ROLE_COMMERCIAL_PI_REPORT",
+   "ROLE_COMMERCIAL_PI_REVISION": "ROLE_COMMERCIAL_PI_REVISION",
+   "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS": "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS",
+   "ROLE_COMMERCIAL_SETUP": "ROLE_COMMERCIAL_SETUP",
+   "ROLE_DELIVERY_ORDER": "ROLE_DELIVERY_ORDER",
+   "ROLE_DELIVERY_ORDER_REPORT_LIST": "ROLE_DELIVERY_ORDER_REPORT_LIST",
+   "ROLE_DELIVERY_ORDER_REQUEST": "ROLE_DELIVERY_ORDER_REQUEST",
+   "ROLE_EMPLOYEE": "ROLE_EMPLOYEE",
+   "ROLE_FABRICS_DELIVERY": "ROLE_FABRICS_DELIVERY",
+   "ROLE_FABRICS_DELIVERY_REPORT_LIST": "ROLE_FABRICS_DELIVERY_REPORT_LIST",
+   "ROLE_FINISHED_GOODS_TRANSACTION": "ROLE_FINISHED_GOODS_TRANSACTION",
+   "ROLE_GREIGE_FABRICS_TRANSACTION": "ROLE_GREIGE_FABRICS_TRANSACTION",
+   "ROLE_HRM": "ROLE_HRM",
+   "ROLE_IMPORT_MAKER": "ROLE_IMPORT_MAKER",
+   "ROLE_IMPORT_MANAGER": "ROLE_IMPORT_MANAGER",
+   "ROLE_IMPORT_SETUP": "ROLE_IMPORT_SETUP",
+   "ROLE_INVENTORY": "ROLE_INVENTORY",
+   "ROLE_LC_APPROVAL": "ROLE_LC_APPROVAL",
+   "ROLE_LC_CHECKER": "ROLE_LC_CHECKER",
+   "ROLE_LC_MAKER": "ROLE_LC_MAKER",
+   "ROLE_MARKETING_ADMIN": "ROLE_MARKETING_ADMIN",
+   "ROLE_MARKETING_EXECUTIVE": "ROLE_MARKETING_EXECUTIVE",
+   "ROLE_MARKETING_MANAGER": "ROLE_MARKETING_MANAGER",
+   "ROLE_MARKETING_TEAMLEAD": "ROLE_MARKETING_TEAMLEAD",
+   "ROLE_OPEN_API": "ROLE_OPEN_API",
+   "ROLE_PI_APPROVAL": "ROLE_PI_APPROVAL",
+   "ROLE_PI_CHECKER": "ROLE_PI_CHECKER",
+   "ROLE_PI_MAKER": "ROLE_PI_MAKER",
+   "ROLE_PLANNING": "ROLE_PLANNING",
+   "ROLE_PLANNING_HEAD": "ROLE_PLANNING_HEAD",
+   "ROLE_PROCESSING_STORE": "ROLE_PROCESSING_STORE",
+   "ROLE_PRODUCTION": "ROLE_PRODUCTION",
+   "ROLE_PRODUCTION_DELIVERY_SCHEDULE": "ROLE_PRODUCTION_DELIVERY_SCHEDULE",
+   "ROLE_PRODUCTION_ORDER": "ROLE_PRODUCTION_ORDER",
+   "ROLE_PRODUCTION_ORDER_REPORT_LIST": "ROLE_PRODUCTION_ORDER_REPORT_LIST",
+   "ROLE_PRODUCTION_ORDER_REQUIREMENT": "ROLE_PRODUCTION_ORDER_REQUIREMENT",
+   "ROLE_PRODUCTION_ORDER_REVISION": "ROLE_PRODUCTION_ORDER_REVISION",
+   "ROLE_PURCHASE": "ROLE_PURCHASE",
+   "ROLE_REPORT": "ROLE_REPORT",
+   "ROLE_RND": "ROLE_RND",
+   "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL": "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL",
+   "ROLE_SALES": "ROLE_SALES",
+   "ROLE_SALES_&_MARKETING_SETUP": "ROLE_SALES_&_MARKETING_SETUP",
+   "ROLE_SERVICE": "ROLE_SERVICE",
+   "ROLE_SETUP": "ROLE_SETUP",
+   "ROLE_SOLID_DYED_BOOKING": "ROLE_SOLID_DYED_BOOKING",
+   "ROLE_WEAVING_STORE": "ROLE_WEAVING_STORE",
+   "ROLE_YARN_DYED_BOOKING": "ROLE_YARN_DYED_BOOKING"
+  }
+ },
+ "spr_dtlSet_fabricsComposition": {
+  "pages": [
+   "sprDirGeneral"
+  ],
+  "count": 1,
+  "options": {
+   "1": "FCAF00001-50% Cotton 50% Polyester"
+  }
+ },
+ "spr_dtlSet_fabricsFinishType": {
+  "pages": [
+   "sprDirGeneral"
+  ],
+  "count": 4,
+  "options": {
+   "Functional_finishes": "Functional finishes",
+   "Performance_finishes": "performance finishes",
+   "Chemical_or_wet_finishes": "Chemical or wet finishes",
+   "Mechanical_finishes": "Mechanical finishes"
+  }
+ },
+ "srIssue_dtlSet_itemBrand": {
+  "pages": [
+   "srIssue"
+  ],
+  "count": 1,
+  "options": {
+   "2": "BRAF00001-Xianho"
+  }
+ },
+ "sr_dtlSet_itemBrand": {
+  "pages": [
+   "srIssue"
+  ],
+  "count": 1,
+  "options": {
+   "2": "BRAF00001-Xianho"
+  }
+ },
+ "requisitionType": {
+  "pages": [
+   "storeRequisition"
+  ],
+  "count": 3,
+  "options": {
+   "Personal": "Personal",
+   "Departmental": "Departmental",
+   "Production": "Production"
+  }
+ },
+ "employeeType": {
+  "pages": [
+   "user"
+  ],
+  "count": 3,
+  "options": {
+   "Employee": "Employee",
+   "Department_Head": "Department Head",
+   "Management": "Management"
+  }
+ },
+ "dashboardEnum": {
+  "pages": [
+   "user"
+  ],
+  "count": 19,
+  "options": {
+   "Super_User_Dashboard": "Super User Dashboard",
+   "Administrator_Dashboard": "Administrator Dashboard",
+   "Configuration_Dashboard": "Configuration Dashboard",
+   "Accounts_Dashboard": "Accounts Dashboard",
+   "HRM_Dashboard": "HRM Dashboard",
+   "Inventory_Dashboard": "Inventory Dashboard",
+   "Purchase_Dashboard": "Purchase Dashboard",
+   "Sales_Dashboard": "Sales Dashboard",
+   "Report_Dashboard": "Report Dashboard",
+   "Common_Dashboard": "Common Dashboard",
+   "Management_Dashboard": "Management Dashboard",
+   "Export_Dashboard": "Export Dashboard",
+   "Import_Dashboard": "Import Dashboard",
+   "Booking_Dashboard": "Booking Dashboard",
+   "Booking_Dashboard_Management": "Booking Management Dashboard",
+   "Booking_Dashboard_Team": "Booking Team Dashboard",
+   "Planning_Dashboard": "Planning Dashboard",
+   "Rnd_Dashboard": "Rnd Dashboard",
+   "Production_Dashboard": "Production Dashboard"
+  }
+ },
+ "organizations": {
+  "pages": [
+   "user"
+  ],
+  "count": 2,
+  "options": {
+   "1": "100-Amanat Shah Fabrics Ltd",
+   "2": "200-Hazrat Amanat Shah Spinning Mills Ltd"
+  }
+ },
+ "businessUnits": {
+  "pages": [
+   "user"
+  ],
+  "count": 4,
+  "options": {
+   "2": "BAF000002-ASFL Business Unit",
+   "3": "BAF000001-ASFL Weaving",
+   "4": "BAF000006-HASSML Unit-01",
+   "5": "BAF000007-HASSML Unit-02"
+  }
+ },
+ "inventoryStores": {
+  "pages": [
+   "user"
+  ],
+  "count": 3,
+  "options": {
+   "3": "SAF003-HASSML Yarn Store",
+   "1": "SAF001-Processing Store",
+   "2": "SAF002-Weaving Store"
+  }
+ },
+ "role": {
+  "pages": [
+   "userRole"
+  ],
+  "count": 71,
+  "options": {
+   "7": "ROLE_ACCOUNTS",
+   "4": "ROLE_ADMIN",
+   "6": "ROLE_ADMINISTRATOR",
+   "9538": "ROLE_APPROVAL",
+   "9942": "ROLE_BANK_SETUP",
+   "9455": "ROLE_BOOKING_REPORT",
+   "9452": "ROLE_BOOKING_REVISION",
+   "10176": "ROLE_CI_APPROVAL",
+   "10175": "ROLE_CI_CHECKER",
+   "9421": "ROLE_CI_ISSUE_VIEW",
+   "10174": "ROLE_CI_MAKER",
+   "18": "ROLE_COMMERCIAL",
+   "9375": "ROLE_COMMERCIAL_CI_ISSUE",
+   "9377": "ROLE_COMMERCIAL_CI_REPORT",
+   "9376": "ROLE_COMMERCIAL_CI_REVISION",
+   "9384": "ROLE_COMMERCIAL_DOCUMENT_NAMES",
+   "9385": "ROLE_COMMERCIAL_LC_COST_HEAD",
+   "9381": "ROLE_COMMERCIAL_LC_RECEIVING",
+   "9383": "ROLE_COMMERCIAL_LC_REPORT",
+   "9382": "ROLE_COMMERCIAL_LC_REVISION",
+   "9386": "ROLE_COMMERCIAL_LC_TERMS_&_CONDITIONS",
+   "9378": "ROLE_COMMERCIAL_PI_ISSUE",
+   "9380": "ROLE_COMMERCIAL_PI_REPORT",
+   "9379": "ROLE_COMMERCIAL_PI_REVISION",
+   "9387": "ROLE_COMMERCIAL_PI_TERMS_&_CONDITIONS",
+   "11870": "ROLE_COMMERCIAL_SETUP",
+   "9395": "ROLE_DELIVERY_ORDER",
+   "9394": "ROLE_DELIVERY_ORDER_REPORT_LIST",
+   "9454": "ROLE_DELIVERY_ORDER_REQUEST",
+   "14": "ROLE_EMPLOYEE",
+   "9388": "ROLE_FABRICS_DELIVERY",
+   "9389": "ROLE_FABRICS_DELIVERY_REPORT_LIST",
+   "11516": "ROLE_FINISHED_GOODS_TRANSACTION",
+   "11515": "ROLE_GREIGE_FABRICS_TRANSACTION",
+   "8": "ROLE_HRM",
+   "11972": "ROLE_IMPORT_MAKER",
+   "11971": "ROLE_IMPORT_MANAGER",
+   "12170": "ROLE_IMPORT_SETUP",
+   "9": "ROLE_INVENTORY",
+   "10179": "ROLE_LC_APPROVAL",
+   "10178": "ROLE_LC_CHECKER",
+   "10177": "ROLE_LC_MAKER",
+   "9971": "ROLE_MARKETING_ADMIN",
+   "9968": "ROLE_MARKETING_EXECUTIVE",
+   "9969": "ROLE_MARKETING_MANAGER",
+   "9970": "ROLE_MARKETING_TEAMLEAD",
+   "10624": "ROLE_OPEN_API",
+   "10173": "ROLE_PI_APPROVAL",
+   "10172": "ROLE_PI_CHECKER",
+   "10171": "ROLE_PI_MAKER",
+   "16": "ROLE_PLANNING",
+   "11833": "ROLE_PLANNING_HEAD",
+   "12043": "ROLE_PROCESSING_STORE",
+   "12": "ROLE_PRODUCTION",
+   "10108": "ROLE_PRODUCTION_DELIVERY_SCHEDULE",
+   "9450": "ROLE_PRODUCTION_ORDER",
+   "9404": "ROLE_PRODUCTION_ORDER_REPORT_LIST",
+   "9451": "ROLE_PRODUCTION_ORDER_REQUIREMENT",
+   "9453": "ROLE_PRODUCTION_ORDER_REVISION",
+   "10": "ROLE_PURCHASE",
+   "13": "ROLE_REPORT",
+   "17": "ROLE_RND",
+   "13332": "ROLE_ROLE_ADMIN_IMPORT_COMMERCIAL",
+   "11": "ROLE_SALES",
+   "9456": "ROLE_SALES_&_MARKETING_SETUP",
+   "15": "ROLE_SERVICE",
+   "5": "ROLE_SETUP",
+   "9448": "ROLE_SOLID_DYED_BOOKING",
+   "3": "ROLE_SUPER_ADMIN",
+   "12042": "ROLE_WEAVING_STORE",
+   "9449": "ROLE_YARN_DYED_BOOKING"
+  }
+ },
+ "composition_dtlSet_fiber": {
+  "pages": [
+   "yarnComposition"
+  ],
+  "count": 4,
+  "options": {
+   "3": "Cotton",
+   "10": "Linen",
+   "2": "Tencel",
+   "1": "Viscose"
+  }
+ },
+ "consumption_dtlSet_weavingType": {
+  "pages": [
+   "yarnConsumption"
+  ],
+  "count": 2,
+  "options": {
+   "Warp": "Warp",
+   "Weft": "Weft"
+  }
+ },
+ "yarnCount": {
+  "pages": [
+   "yarnItem"
+  ],
+  "count": 1,
+  "options": {
+   "1": "30"
+  }
+ },
+ "yarnPly": {
+  "pages": [
+   "yarnItem"
+  ],
+  "count": 1,
+  "options": {
+   "1": "1"
+  }
+ },
+ "yarnType": {
+  "pages": [
+   "yarnItem"
+  ],
+  "count": 2,
+  "options": {
+   "1": "Card",
+   "8": "Combed"
+  }
+ },
+ "yarnComposition": {
+  "pages": [
+   "yarnItem"
+  ],
+  "count": 3,
+  "options": {
+   "1": "50% Viscose 20% Cotton 30% Tencel",
+   "7": "60% Cotton 40% Linen",
+   "6": "60% Cotton 40% Viscose"
+  }
+ }
+}

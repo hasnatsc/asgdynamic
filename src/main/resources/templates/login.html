@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!-- Standalone: no operating context exists yet, so this does not use layout/main.html. -->
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ASG FabricERP | Login</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex items-center justify-center px-4">
+
+<div class="w-full max-w-sm">
+    <div class="text-center mb-6">
+        <h1 class="text-xl font-semibold"><span class="text-brand-600">ASG</span> FabricERP</h1>
+        <p class="text-sm text-slate-500">Weaving &amp; dyeing operations</p>
+    </div>
+
+    <div class="card p-6 space-y-4">
+        <p th:if="${error}" class="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+            Invalid username or password.
+        </p>
+        <p th:if="${loggedOut}" class="text-sm text-green-700 bg-green-50 rounded-md px-3 py-2">
+            You have been signed out.
+        </p>
+
+        <form th:action="@{/login}" method="post" class="space-y-4">
+            <div>
+                <label class="label" for="username">Username</label>
+                <input id="username" name="username" class="field" autocomplete="username" required autofocus>
+            </div>
+            <div>
+                <label class="label" for="password">Password</label>
+                <input id="password" name="password" type="password" class="field"
+                       autocomplete="current-password" required>
+            </div>
+            <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" name="remember-me" class="rounded border-slate-300">
+                <span>Keep me signed in</span>
+            </label>
+            <button type="submit" class="btn-primary w-full">Sign in</button>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

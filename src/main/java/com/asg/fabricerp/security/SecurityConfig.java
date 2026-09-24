@@ -1,0 +1,90 @@
+package com.asg.fabricerp.security;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.security.SecureRandom;
+import java.util.Base64;
+
+/**
+ * Deny-by-default at the HTTP layer; every route's actual role requirement lives on the
+ * controller method as {@code @PreAuthorize}, next to the code it guards.
+ *
+ * <p>This deliberately does not build SpindleERP's {@code DynamicAuthorizationManager} —
+ * a URL-pattern permission table checked per request. That component's own comment records
+ * why an unmatched route currently <b>grants</b> access and only logs a warning: flipping
+ * to deny risked locking users out of a screen whose permission row had not been seeded.
+ * That is a real, live fail-open path. Here there is no matching step to fall through:
+ * {@code anyRequest().authenticated()} is the HTTP-level floor, and {@code @PreAuthorize}
+ * is the only way in past it — a controller method with none is unreachable, not
+ * ungoverned.
+ */
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    /**
+     * Signing key for the remember-me cookie. Must come from the environment
+     * ({@code REMEMBER_ME_KEY}, e.g. {@code openssl rand -base64 48}) in every environment
+     * that needs remember-me to survive a restart. Left unset, {@link #resolveRememberMeKey}
+     * generates a random key for this process only, so remember-me still works locally
+     * without a committed literal — restarting the app simply invalidates existing cookies.
+     * Same rule as every other secret in this project: never a literal default here.
+     */
+    @Value("${REMEMBER_ME_KEY:}")
+    private String rememberMeKey;
+
+    @Bean
+    SecurityFilterChain filterChain(HttpSecurity http, FabricUserDetailsService userDetailsService)
+            throws Exception {
+        http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+                .requestMatchers("/login", "/login/**").permitAll()
+                .anyRequest().authenticated())
+            .formLogin(form -> form
+                .loginPage("/login")
+                .loginProcessingUrl("/login")
+                .defaultSuccessUrl("/", false)
+                .permitAll())
+            .logout(out -> out
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "POST"))
+                .logoutSuccessUrl("/login?logout")
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID"))
+            .rememberMe(remember -> remember
+                .rememberMeServices(rememberMeServices(userDetailsService)))
+            // CSRF stays ON (Spring default). AJAX posts from the grid/form JS must send
+            // the token — see the meta tags in templates/layout/main.html.
+            .headers(h -> h.frameOptions(f -> f.sameOrigin()));
+        return http.build();
+    }
+
+    private TokenBasedRememberMeServices rememberMeServices(FabricUserDetailsService userDetailsService) {
+        var services = new TokenBasedRememberMeServices(resolveRememberMeKey(rememberMeKey), userDetailsService);
+        services.setTokenValiditySeconds(14 * 24 * 60 * 60); // 14 days
+        return services;
+    }
+
+    private static String resolveRememberMeKey(String configured) {
+        if (configured != null && !configured.isBlank()) {
+            return configured;
+        }
+        byte[] bytes = new byte[64];
+        new SecureRandom().nextBytes(bytes);
+        return Base64.getEncoder().encodeToString(bytes);
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
+}

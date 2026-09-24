@@ -1,0 +1,58 @@
+{
+ "currency": {
+  "pages": [
+   "allBookingReport",
+   "allProductionOrderReport",
+   "booking",
+   "bookingReport",
+   "bookingRevision",
+   "currencyConversion",
+   "fabricsDeliveryReport",
+   "importPiReceive",
+   "importPiRevision",
+   "productionOrderReport"
+  ],
+  "options": {
+   "BDT": "BDT",
+   "USD": "USD",
+   "EUR": "EUR",
+   "AUD": "AUD"
+  }
+ },
+ "city": {
+  "pages": [
+   "expCiReceive"
+  ],
+  "options": {
+   "Advance_CI": "Advance CI",
+   "Regular_CI": "Regular CI"
+  }
+ },
+ "country": {
+  "pages": [
+   "fiberItem",
+   "goodsReceiptNote",
+   "inventoryItem",
+   "itElectronicsFa"
+  ],
+  "options": {
+   "705": "Afghanistan-AF",
+   "706": "Albania-AL",
+   "707": "Algeria-DZ",
+   "708": "American Samoa-AS",
+   "709": "Andorra-AD",
+   "710": "Angola-AO",
+   "711": "Anguilla-AI",
+   "712": "Antarctica-AQ",
+   "713": "Antigua And Barbuda-AG",
+   "714": "Argentina-AR",
+   "715": "Aruba-AW",
+   "716": "Australia-AU",
+   "717": "Austria-AT",
+   "718": "Azerbaijan-AZ",
+   "719": "Bahamas-BS",
+   "720": "Bahrain-BH",
+   "721": "Bangladesh-BD"
+  }
+ }
+}

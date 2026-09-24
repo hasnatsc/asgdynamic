@@ -1,0 +1,144 @@
+controller,title,master_detail,endpoints,fields,events,functions
+accDashboard,"Grails",no,"",6,3,2
+accounts,"Chart OF Accounts",no,"edit;index;remove;write",11,6,6
+accountsPeriod,"Period",no,"edit;index;remove;write",8,5,16
+accountsPolicy,"Production Delivery Schedule",yes,"",67,15,38
+allBookingReport,"All Booking",no,"edit;index;remove;write",17,6,7
+allProductionOrderReport,"All Production Order",no,"edit;index;remove;write",17,6,7
+analysisDISPO,"DISPO Analysis Update",yes,"edit;index;remove;write",64,8,26
+approvalReport,"Approval Report",no,"edit;index;remove;write",9,6,7
+approvalSetup,"Approval Setup",yes,"edit;index;remove;write",16,6,20
+bank,"Bank",no,"edit;index;remove;write",12,5,16
+bnkAccounts,"Bnk Accounts",no,"edit;index;remove;write",16,5,16
+booking,"Booking",yes,"edit;index;remove;write",95,10,31
+bookingReport,"Booking Report",no,"edit;index;remove;write",17,6,7
+bookingRevision,"Booking Revision",yes,"edit;index;remove;write",91,9,27
+businessUnit,"Business Unit",no,"edit;index;remove;write",17,5,16
+ciClosing,"Page Not Found",no,"",6,3,2
+ciIssuing,"Page Not Found",no,"",6,3,2
+ciPayment,"Page Not Found",no,"",6,3,2
+ciRealization,"Page Not Found",no,"",6,3,2
+ciReceiving,"Page Not Found",no,"",6,3,2
+comCustomer,"Commercial Customer",no,"edit;index;remove;write",24,5,16
+comDashboard,"Grails",no,"",6,3,2
+comDocName,"Document Names",no,"edit;index;remove;write",11,5,16
+comTermsAndConditions,"Commercial Terms and conditions",no,"edit;index;remove;write",14,5,16
+commercialCostHead,"LC Cost Head",no,"edit;index;remove;write",11,3,4
+consumptionSpr,"Consumption SPR",yes,"edit;index;remove;write",39,8,38
+crmDashboard,"Grails",no,"",6,3,2
+currencyConversion,"Currency Conversion",no,"edit;index;remove;write",12,5,16
+customer,"Marketing Customer",no,"edit;index;remove;write",30,5,16
+deliveryOrder,"Delivery Order",yes,"edit;index;remove;write",28,7,25
+department,"Department",no,"edit;index;remove;write",10,5,16
+designation,"Designation",no,"edit;index;remove;write",10,5,16
+directIssue,"Direct Issue",yes,"edit;index;remove;write",17,6,20
+directReceive,"Direct Receive",yes,"edit;index;remove;write",17,6,20
+dispoAcknowledgement,"DISPO Acknowledgement",no,"edit;index;remove;write",44,4,10
+documentApproval,"Document Approval",yes,"edit;index;remove;write",42,10,26
+dyeingReceive,"Finish Goods Received",yes,"edit;index;remove;write",28,7,25
+dyeingWoByPro,"Processing WO against BPO",yes,"edit;index;remove;write",29,7,25
+dyesChemical,"Dyes Chemical Item",no,"edit;index;remove;write",16,5,16
+employee,"Employee",no,"edit;index;remove;write",22,5,16
+employeeShift,"Employee Shift",no,"edit;index;remove;write",9,5,16
+expCiReceive,"CI Issuing",no,"edit;index;remove;write",25,3,13
+expCiReport,"CI Report",no,"index",16,6,14
+expLcReceive,"LC Receiving",no,"addCost;edit;index;remove;write",55,9,6
+expLcReceiveRevision,"LC Revision",no,"addCost;edit;index;remove;write",55,8,5
+expLcReport,"LC Report",no,"index",23,8,5
+expPiReceive,"PI Issuing",no,"edit;index;remove;termsAndConditionsList;write",33,3,5
+expPiReceiveRevision,"PI Revision",no,"edit;index;remove;termsAndConditionsList;write",33,3,5
+expPiReport,"PI Report",no,"index",15,6,6
+exportPi,"PI Receiving",yes,"edit;index;remove;write",25,6,24
+fabricsComposition,"Fabrics Composition",no,"edit;index;remove;write",9,5,16
+fabricsDelivery,"Fabrics Delivery",yes,"edit;index;remove;write",27,7,26
+fabricsDeliveryReport,"Fabrics Delivery Report",no,"edit;index;remove;write",8,6,8
+fabricsDirectMrr,"Finished Fabric Receiving",yes,"edit;index;remove;write",25,6,24
+fabricsProductionReport,"Fabrics Production Report",yes,"edit;index;remove;write",39,6,20
+fabricsTransfer,"Error",no,"",6,3,2
+fabricsTransferIssue,"Transfer Issue",yes,"edit;index;remove;write",23,6,24
+fabricsTransferReceive,"Transfer Receive",yes,"edit;index;remove;write",23,6,24
+fiberItem,"Fiber Item",no,"edit;index;remove;write",16,5,16
+finishedFabrics,"Fabrics",no,"edit;index;remove;write",16,5,16
+genericName,"Generic Name",no,"edit;index;remove;write",9,5,16
+globalArea,"Error",no,"",6,3,2
+globalCity,"Error",no,"",6,3,2
+globalCountries,"Error",no,"",6,3,2
+globalCurrency,"Error",no,"",6,3,2
+globalRegion,"Error",no,"",6,3,2
+goodsDelivery,"Goods Delivery",yes,"edit;index;remove;write",42,7,38
+goodsReceiptNote,"MRR",yes,"edit;index;remove;write",77,7,38
+hrmDashboard,"Grails",no,"",6,3,2
+hsCode,"HS Code",no,"edit;index;remove;write",9,5,16
+impLcIssue,"LC Issuing (Import)",no,"edit;index;remove;write",44,6,11
+impLcRevision,"LC Revision (Import)",no,"edit;index;remove;write",44,6,9
+importGRN,"GRN (Import)",no,"edit;index;remove;write",20,4,5
+importPi,"Page Not Found",no,"",6,3,2
+importPiReceive,"PI Receive (Import)",no,"edit;index;remove;write",27,11,16
+importPiRevision,"PI Revision (Import)",no,"edit;index;remove;write",27,11,13
+importPurchaseOrder,"Purchase Order (Import)",no,"edit;index;remove;write",9,4,4
+invDashboard,"Stock & Delivery Dashboard",no,"",8,9,18
+inventoryItem,"General Item",no,"edit;index;remove;write",21,5,16
+inventoryPeriod,"Period",no,"edit;index;remove;write",8,5,16
+inventoryStore,"Item Store",no,"edit;index;remove;write",14,5,16
+inventoryTransfer,"Transfer Request",yes,"edit;index;remove;write",19,6,20
+inventoryTransferIssue,"Transfer Issue",yes,"edit;index;remove;write",32,7,38
+inventoryTransferReceive,"Transfer Receive",yes,"edit;index;remove;write",32,7,38
+itElectronicsFa,"Non current asset Item",no,"edit;index;remove;write",15,5,16
+itemBrand,"Brand",no,"edit;index;remove;write",9,5,16
+itemCategory,"Item Category",no,"edit;index;remove;write",11,8,8
+itemLedgerReport,"Item Ledger Report",no,"edit;index;remove;write",16,6,7
+itemModel,"Model",no,"edit;index;remove;write",9,5,16
+lCTermsCondition,"Page Not Found",no,"",6,3,2
+lcClosing,"Page Not Found",no,"",6,3,2
+lcIssuing,"Page Not Found",no,"",6,3,2
+localAgent,"Local Agent",no,"edit;index;remove;write",18,5,16
+machine,"Machine",no,"edit;index;remove;write",10,5,16
+marketingGroup,"Marketing Group",yes,"edit;index;remove;write",16,6,20
+monthlyStockReport,"Monthly Stock Report",no,"edit;index;remove;write",6,6,7
+mroItem,"MRO Item",no,"edit;index;remove;write",15,5,16
+organization,"Organization",no,"edit;index;remove;write",20,5,16
+pITermsCondition,"Page Not Found",no,"",6,3,2
+plnDashboard,"Work Order Dashboard",no,"",10,10,13
+prdDashboard,"Production Dashboard",no,"",9,9,13
+proDeliveryType,"Delivery Type",no,"edit;index;remove;write",9,5,16
+proPiDeliverySchedule,"Request For PI",yes,"edit;index;remove;write",27,10,27
+proPiDeliveryScheduleReport,"BPO Status Report",yes,"edit;index;remove;write",28,7,21
+proPiDeliveryScheduleRevision,"Request For PI Revision",yes,"edit;index;remove;write",26,9,25
+productionOrder,"Bulk Production Order(BPO)",yes,"edit;index;remove;write",120,14,44
+productionOrderReport,"BPO Report",no,"edit;index;remove;write",17,6,7
+productionOrderRevision,"Bulk Production Order(BPO) Revision",yes,"edit;index;remove;write",108,11,29
+purDashboard,"Grails",no,"",6,3,2
+purchaseOrder,"Purchase Order(null Item)",yes,"edit;index;remove;write",41,8,39
+rawMatConsumption,"RAW Material Consumption",yes,"edit;index;remove;write",27,7,24
+rawMatIssue,"RAW Material Issue",yes,"edit;index;remove;write",37,7,38
+requestmap,"Url Mapping",no,"edit;index;remove;write",12,5,16
+rndDashboard,"R&D Analytics Dashboard",no,"",10,7,16
+role,"Role",no,"edit;index;remove;write",8,5,16
+routCard,"Page Not Found",no,"",6,3,2
+salesReturn,"",no,"",7,1,0
+selvage,"Page Not Found",no,"",6,3,2
+slsDashboard,"Sales Analytics Dashboard",no,"",10,10,25
+slsTermsAndConditions,"Marketing Terms And Conditions",no,"edit;index;remove;write",10,5,16
+sprDirGeneral,"Direct SPR",yes,"edit;index;remove;write",31,6,20
+sprGeneral,"SR TO SPR",yes,"edit;index;remove;write",66,7,38
+sprReport,"Page Not Found",no,"",6,3,2
+srIssue,"Item Issue Against SR",yes,"edit;index;remove;write",46,7,38
+srReport,"Page Not Found",no,"",6,3,2
+stockReport,"Transaction Report",no,"edit;index;remove;write",6,6,7
+storePurchaseRequisition,"Store Purchase Requisition",yes,"edit;index;remove;write",62,8,38
+storeRequisition,"Store Requisition(null)",yes,"edit;index;remove;write",21,6,21
+supplier,"Supplier",no,"edit;index;remove;write",20,5,16
+termsAndConditions,"Terms &amp; Conditions",no,"edit;index;remove;write",14,5,16
+textileIssue,"Greige Issue for Processing",yes,"edit;index;remove;write",29,7,25
+textileReceive,"Greige Fabrics Received",yes,"edit;index;remove;write",28,7,25
+textileWoByPro,"Weaving WO against BPO",yes,"edit;index;remove;write",29,7,25
+unitsOfMeasure,"Item Unit",no,"edit;index;remove;write",20,5,16
+user,"User",no,"edit;index;remove;write",16,5,16
+userRole,"Assign Role",no,"edit;index;remove;write",10,5,16
+yarnComposition,"Yarn Composition",yes,"edit;index;remove;write",14,6,20
+yarnConsumption,"Yarn Consumption",yes,"edit;index;remove;write",21,6,20
+yarnCount,"Yarn Count",no,"edit;index;remove;write",9,5,16
+yarnFiber,"Yarn Fiber",no,"edit;index;remove;write",9,5,16
+yarnItem,"Yarn Item",no,"edit;index;remove;write",20,5,16
+yarnPly,"Yarn Ply",no,"edit;index;remove;write",9,5,16
+yarnType,"Yarn Type",no,"edit;index;remove;write",9,5,16

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  One template for all seven fabric reference lists. The heading, endpoints and grid all
+  derive from the ${slug} on the route, so adding a list adds no markup.
+-->
+<head>
+    <title th:text="${title}">Fabric setup</title>
+</head>
+<body>
+<div th:fragment="content" th:attr="data-slug=${slug}">
+
+    <div class="flex items-center justify-between mb-5">
+        <div>
+            <h1 class="text-xl font-semibold" th:text="${title}">Weave Type</h1>
+            <p class="text-sm text-slate-500">Reference list used by booking and production lines.</p>
+        </div>
+        <button type="button" class="btn-primary" data-action="attr-new">Add</button>
+    </div>
+
+    <div class="card overflow-hidden">
+        <table id="attributeTable" class="table-grid">
+            <thead>
+            <tr>
+                <th data-sort="code">Code</th>
+                <th data-sort="name">Name</th>
+                <th>Description</th>
+                <th data-sort="displayOrder" class="text-right">Order</th>
+                <th data-sort="active">Active</th>
+                <th class="text-right">Action</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <form id="attributeForm" class="card mt-6 p-5 space-y-4" th:object="${attribute}">
+        <input type="hidden" th:field="*{id}">
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <div>
+                <label class="label" for="code">Code</label>
+                <input id="code" class="field" th:field="*{code}" maxlength="40" required>
+            </div>
+            <div class="sm:col-span-2">
+                <label class="label" for="name">Name</label>
+                <input id="name" class="field" th:field="*{name}" maxlength="120" required>
+            </div>
+            <div>
+                <label class="label" for="displayOrder">Display order</label>
+                <input id="displayOrder" type="number" class="field" th:field="*{displayOrder}">
+            </div>
+        </div>
+
+        <div>
+            <label class="label" for="description">Description</label>
+            <input id="description" class="field" th:field="*{description}" maxlength="300">
+        </div>
+
+        <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" class="rounded border-slate-300" th:field="*{active}">
+            <span>Active</span>
+        </label>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" class="btn-ghost" data-action="attr-reset">Reset</button>
+        </div>
+    </form>
+
+</div>
+</body>
+</html>
