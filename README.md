@@ -238,7 +238,7 @@ role/four-eyes checks.
 
 1. **Rotate the costing API credential** (compromised — it was in client JS), then set
    `COSTING_USER` / `COSTING_PASSWORD`.
-2. Create the database and set `DB_URL` / `DB_USER` / `DB_PASSWORD`.
+2. Create the database and set `FABRICERP_DB_URL` / `FABRICERP_DB_USER` / `FABRICERP_DB_PASSWORD`.
 3. Create the first login: `app.seed-dev-user=true` + `FABRIC_ADMIN_PASSWORD`, start once,
    then turn the property back off (see **Security** below).
 4. Seed `gbl_document_sequence` from the legacy high-water mark per `(org, TYPE+UNIT)`, or

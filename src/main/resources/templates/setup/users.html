@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <title th:text="${title}">Users</title>
+</head>
+<body>
+<div th:fragment="content">
+
+    <div class="flex items-center justify-between mb-5">
+        <div>
+            <h1 class="text-xl font-semibold" th:text="${title}">Users</h1>
+            <p class="text-sm text-slate-500">Logins and the roles that grant their authorities.</p>
+        </div>
+        <button type="button" class="btn-primary" id="userNewBtn">Add</button>
+    </div>
+
+    <div class="card overflow-hidden">
+        <table id="userTable" class="table-grid">
+            <thead>
+            <tr>
+                <th data-sort="username">Username</th>
+                <th data-sort="fullName">Full name</th>
+                <th>Business unit</th>
+                <th>Roles</th>
+                <th>Locked</th>
+                <th data-sort="active">Active</th>
+                <th class="text-right">Action</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <form id="userForm" class="card mt-6 p-5 space-y-4">
+        <input type="hidden" id="userId">
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+                <label class="label" for="userUsername">Username</label>
+                <input id="userUsername" class="field" maxlength="80" required>
+            </div>
+            <div>
+                <label class="label" for="userFullName">Full name</label>
+                <input id="userFullName" class="field" maxlength="150">
+            </div>
+            <div id="userPasswordGroup">
+                <label class="label" for="userPassword">Password</label>
+                <input id="userPassword" type="password" class="field" autocomplete="new-password">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+                <label class="label" for="userBusinessUnitId">Business unit ID</label>
+                <input id="userBusinessUnitId" type="number" class="field" required>
+            </div>
+            <div>
+                <label class="label" for="userBusinessUnitCode">Business unit code</label>
+                <input id="userBusinessUnitCode" class="field" maxlength="4" required>
+            </div>
+            <div>
+                <label class="label" for="userWarehouseId">Warehouse ID</label>
+                <input id="userWarehouseId" type="number" class="field">
+            </div>
+        </div>
+
+        <div>
+            <div class="label mb-2">Roles</div>
+            <div class="space-y-1">
+                <label class="flex items-center gap-2 text-sm" th:each="role : ${roles}">
+                    <input type="checkbox" class="role-checkbox rounded border-slate-300"
+                           th:value="${role.id}">
+                    <span th:text="${role.name}">Role name</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
+            <button type="submit" class="btn-primary">Save</button>
+            <button type="button" class="btn-ghost" id="userResetBtn">Reset</button>
+        </div>
+    </form>
+
+    <script th:inline="javascript">
+    (function () {
+        const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
+        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+        const tbody = document.querySelector('#userTable tbody');
+        const form = document.getElementById('userForm');
+        const usernameInput = document.getElementById('userUsername');
+        const passwordGroup = document.getElementById('userPasswordGroup');
+        const passwordInput = document.getElementById('userPassword');
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text == null ? '' : String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function api(url, options) {
+            options = options || {};
+            options.headers = Object.assign({
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                [csrfHeader]: csrfToken
+            }, options.headers || {});
+            return fetch(url, options).then(res => {
+                if (!res.ok) return res.json().then(body => { throw new Error(body.message || ('HTTP ' + res.status)); });
+                return res.status === 204 ? null : res.json();
+            });
+        }
+
+        function loadGrid() {
+            fetch('/api/setup/users?draw=1&start=0&length=500&sortColumn=username')
+                .then(res => res.json())
+                .then(data => renderGrid(data.data || []))
+                .catch(() => { tbody.innerHTML = '<tr><td colspan="7">Failed to load users.</td></tr>'; });
+        }
+
+        function renderGrid(rows) {
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-slate-500">No users yet</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(r => `
+                <tr>
+                    <td>${escapeHtml(r.username)}</td>
+                    <td>${escapeHtml(r.fullName)}</td>
+                    <td>${escapeHtml(r.businessUnitCode)}</td>
+                    <td>${escapeHtml(r.roles)}</td>
+                    <td>${r.accountLocked ? 'Yes' : 'No'}</td>
+                    <td>${r.active ? 'Yes' : 'No'}</td>
+                    <td class="text-right">
+                        <button type="button" class="btn-ghost" data-edit="${r.id}">Edit</button>
+                        <button type="button" class="btn-ghost" data-reset="${r.id}">Reset password</button>
+                        <button type="button" class="btn-ghost" data-toggle-lock="${r.id}" data-locked="${r.accountLocked}">
+                            ${r.accountLocked ? 'Unlock' : 'Lock'}
+                        </button>
+                        <button type="button" class="btn-ghost text-red-600" data-delete="${r.id}">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        tbody.addEventListener('click', function (e) {
+            const editId = e.target.getAttribute('data-edit');
+            const resetId = e.target.getAttribute('data-reset');
+            const toggleId = e.target.getAttribute('data-toggle-lock');
+            const deleteId = e.target.getAttribute('data-delete');
+            if (editId) edit(editId);
+            if (resetId) resetPassword(resetId);
+            if (toggleId) toggleLock(toggleId, e.target.getAttribute('data-locked') === 'true');
+            if (deleteId) remove(deleteId);
+        });
+
+        function edit(id) {
+            api('/api/setup/users/' + id).then(r => {
+                document.getElementById('userId').value = r.id;
+                usernameInput.value = r.username || '';
+                usernameInput.disabled = true;
+                passwordGroup.style.display = 'none';
+                document.getElementById('userFullName').value = r.fullName || '';
+                document.getElementById('userBusinessUnitId').value = r.businessUnitId || '';
+                document.getElementById('userBusinessUnitCode').value = r.businessUnitCode || '';
+                document.getElementById('userWarehouseId').value = r.warehouseId || '';
+                const ids = new Set((r.roleIds || []).map(String));
+                document.querySelectorAll('.role-checkbox').forEach(cb => {
+                    cb.checked = ids.has(cb.value);
+                });
+                form.scrollIntoView({ behavior: 'smooth' });
+            }).catch(err => alert(err.message));
+        }
+
+        function resetPassword(id) {
+            const newPassword = prompt('New password for this user:');
+            if (!newPassword) return;
+            api('/api/setup/users/' + id + '/reset-password', {
+                method: 'POST', body: JSON.stringify({ password: newPassword })
+            }).then(() => alert('Password reset.')).catch(err => alert(err.message));
+        }
+
+        function toggleLock(id, currentlyLocked) {
+            const action = currentlyLocked ? 'unlock' : 'lock';
+            api('/api/setup/users/' + id + '/' + action, { method: 'POST' })
+                .then(loadGrid)
+                .catch(err => alert(err.message));
+        }
+
+        function remove(id) {
+            if (!confirm('Delete this user?')) return;
+            api('/api/setup/users/' + id, { method: 'DELETE' })
+                .then(loadGrid)
+                .catch(err => alert(err.message));
+        }
+
+        function resetForm() {
+            form.reset();
+            document.getElementById('userId').value = '';
+            usernameInput.disabled = false;
+            passwordGroup.style.display = '';
+            document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = false; });
+        }
+
+        document.getElementById('userNewBtn').addEventListener('click', resetForm);
+        document.getElementById('userResetBtn').addEventListener('click', resetForm);
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const rawId = document.getElementById('userId').value;
+            const roleIds = Array.from(document.querySelectorAll('.role-checkbox:checked'))
+                .map(cb => Number(cb.value));
+            const businessUnitId = Number(document.getElementById('userBusinessUnitId').value);
+            const businessUnitCode = document.getElementById('userBusinessUnitCode').value;
+            const warehouseRaw = document.getElementById('userWarehouseId').value;
+            const warehouseId = warehouseRaw ? Number(warehouseRaw) : null;
+
+            if (!rawId) {
+                const payload = {
+                    username: usernameInput.value,
+                    password: passwordInput.value,
+                    fullName: document.getElementById('userFullName').value,
+                    businessUnitId: businessUnitId,
+                    businessUnitCode: businessUnitCode,
+                    warehouseId: warehouseId,
+                    roleIds: roleIds
+                };
+                api('/api/setup/users', { method: 'POST', body: JSON.stringify(payload) })
+                    .then(() => { resetForm(); loadGrid(); })
+                    .catch(err => alert(err.message));
+            } else {
+                const payload = {
+                    fullName: document.getElementById('userFullName').value,
+                    businessUnitId: businessUnitId,
+                    businessUnitCode: businessUnitCode,
+                    warehouseId: warehouseId,
+                    roleIds: roleIds
+                };
+                api('/api/setup/users/' + rawId, { method: 'POST', body: JSON.stringify(payload) })
+                    .then(() => { resetForm(); loadGrid(); })
+                    .catch(err => alert(err.message));
+            }
+        });
+
+        loadGrid();
+    })();
+    </script>
+
+</div>
+</body>
+</html>

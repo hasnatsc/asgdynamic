@@ -24,6 +24,13 @@ import org.springframework.stereotype.Component;
  *
  * <p>Idempotent per username: safe to leave the property on in a dev environment across
  * restarts.
+ *
+ * <h2>Roles, not raw grants</h2>
+ * Used to call {@code user.grant("ROLE_...")} once per authority (28 calls total). Now assigns
+ * the two roles {@code V7__roles.sql} seeds — {@code Fabric Operations} and
+ * {@code Document Approver} — which bundle exactly the same permissions. Effective access is
+ * unchanged; the roles are now admin-editable via {@code RoleController} instead of requiring a
+ * code change and restart.
  */
 @Component
 @ConditionalOnProperty(name = "app.seed-dev-user", havingValue = "true")
@@ -32,10 +39,13 @@ public class DevUserSeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DevUserSeeder.class);
 
     private final FabricUserRepository repository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder encoder;
 
-    public DevUserSeeder(FabricUserRepository repository, PasswordEncoder encoder) {
+    public DevUserSeeder(FabricUserRepository repository, RoleRepository roleRepository,
+                         PasswordEncoder encoder) {
         this.repository = repository;
+        this.roleRepository = roleRepository;
         this.encoder = encoder;
     }
 
@@ -60,27 +70,7 @@ public class DevUserSeeder implements CommandLineRunner {
         FabricUser user = new FabricUser(username, encoder.encode(password), 1L, "AF");
         user.setOrganizationId(1L);
         user.setFullName("Development Maker");
-        // Matches exactly the roles already checked by @PreAuthorize on the controllers
-        // built so far — nothing speculative added.
-        user.grant("ROLE_FABRIC_SETUP");
-        user.grant("ROLE_BOOKING_VIEW");
-        user.grant("ROLE_BOOKING_MAKER");
-        user.grant("ROLE_SALES");
-        user.grant("ROLE_BPO_VIEW");
-        user.grant("ROLE_BPO_MAKER");
-        user.grant("ROLE_PRODUCTION");
-        user.grant("ROLE_RPI_VIEW");
-        user.grant("ROLE_RPI_MAKER");
-        user.grant("ROLE_WWO_VIEW");
-        user.grant("ROLE_WWO_MAKER");
-        user.grant("ROLE_PWO_VIEW");
-        user.grant("ROLE_PWO_MAKER");
-        user.grant("ROLE_GR_VIEW");
-        user.grant("ROLE_GR_MAKER");
-        user.grant("ROLE_DO_VIEW");
-        user.grant("ROLE_DO_MAKER");
-        user.grant("ROLE_FD_VIEW");
-        user.grant("ROLE_FD_MAKER");
+        user.addRole(requireRole("Fabric Operations"));
         repository.save(user);
 
         log.info("Seeded bootstrap user '{}'. Disable app.seed-dev-user once real accounts exist.",
@@ -107,18 +97,16 @@ public class DevUserSeeder implements CommandLineRunner {
         FabricUser user = new FabricUser(username, encoder.encode(password), 1L, "AF");
         user.setOrganizationId(1L);
         user.setFullName("Development Approver");
-        user.grant("ROLE_APPROVAL");
-        user.grant("ROLE_BOOKING_VIEW");
-        user.grant("ROLE_BPO_VIEW");
-        user.grant("ROLE_RPI_VIEW");
-        user.grant("ROLE_WWO_VIEW");
-        user.grant("ROLE_PWO_VIEW");
-        user.grant("ROLE_GR_VIEW");
-        user.grant("ROLE_DO_VIEW");
-        user.grant("ROLE_FD_VIEW");
+        user.addRole(requireRole("Document Approver"));
         repository.save(user);
 
         log.info("Seeded bootstrap user '{}'. Disable app.seed-dev-user once real accounts exist.",
                 username);
+    }
+
+    private Role requireRole(String name) {
+        return roleRepository.findByNameIgnoreCase(name)
+            .orElseThrow(() -> new IllegalStateException(
+                "Role '%s' not found — has V7__roles.sql been applied?".formatted(name)));
     }
 }

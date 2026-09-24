@@ -43,7 +43,12 @@ public class FabricUserPrincipal implements UserDetails {
         this.warehouseId = user.getWarehouseId();
         this.locked = Boolean.TRUE.equals(user.getAccountLocked());
         this.enabled = Boolean.TRUE.equals(user.getActive());
-        this.authorities = user.getAuthorities().stream()
+        this.authorities = user.getRoles().stream()
+            .filter(role -> Boolean.TRUE.equals(role.getActive()))
+            .flatMap(role -> role.getPermissions().stream())
+            .filter(permission -> Boolean.TRUE.equals(permission.getActive()))
+            .map(Permission::getName)
+            .distinct()
             .map(SimpleGrantedAuthority::new)
             .collect(Collectors.toUnmodifiableSet());
     }

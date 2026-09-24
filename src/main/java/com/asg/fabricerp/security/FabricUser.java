@@ -10,8 +10,8 @@ import java.util.Set;
 
 /**
  * A login. Deliberately minimal: username, password hash, and the operating scope
- * ({@link com.asg.fabricerp.common.OrgContext} is built from this) plus a flat set of
- * granted authorities.
+ * ({@link com.asg.fabricerp.common.OrgContext} is built from this) plus the set of
+ * {@link Role}s that determine its granted authorities.
  *
  * <h2>What is intentionally not here</h2>
  * SpindleERP models {@code Role} and {@code Permission} as separate entities with a
@@ -25,10 +25,12 @@ import java.util.Set;
  * {@code @PreAuthorize} directly on each controller method (see
  * {@code BookingController}, {@code FabricAttributeController}), so every route is either
  * explicitly guarded or explicitly {@code permitAll} in {@link SecurityConfig} — there is
- * no third, ungoverned state. The cost is that a role name is a plain string on the
- * annotation rather than a row in an editable table; a future {@code Role}/{@code Permission}
- * model can replace the flat {@link #authorities} set below without touching this class's
- * shape.
+ * no third, ungoverned state. {@link Role} and {@link Permission} exist so those hardcoded
+ * {@code hasRole(...)} strings can be bundled into admin-editable, reusable, reassignable
+ * roles instead of hand-granted per user in code ({@code DevUserSeeder} used to do exactly
+ * that) — they do not change how a route is protected, only how a user comes to hold the
+ * authority a route already checks. See {@code PermissionController}'s javadoc for why
+ * {@code Permission} itself stays read-only in the admin UI.
  *
  * <h2>Business unit / warehouse</h2>
  * These are the user's <b>default</b> operating scope, read by {@link SecurityOrgContext}.
@@ -73,14 +75,17 @@ public class FabricUser extends BaseOrgEntity {
     private Boolean accountLocked = Boolean.FALSE;
 
     /**
-     * Stored pre-formed as Spring Security authority strings, e.g. {@code "ROLE_BOOKING_MAKER"}.
-     * {@code hasRole('BOOKING_MAKER')} compares against this literally — it prepends
-     * {@code ROLE_} to the argument, not to what is stored, so the prefix must already be here.
+     * EAGER, matching the risk profile of the flat {@code authorities} collection this
+     * replaced: {@link FabricUserPrincipal} is built inside
+     * {@code FabricUserDetailsService.loadUserByUsername}'s transaction, but nothing here
+     * guarantees every future caller of {@link #getRoles()} runs inside one too.
      */
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "sec_fabric_user_authorities", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "authority", length = 60)
-    private Set<String> authorities = new HashSet<>();
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "sec_fabric_user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id"))
+    private Set<Role> roles = new HashSet<>();
 
     protected FabricUser() { }
 
@@ -103,7 +108,12 @@ public class FabricUser extends BaseOrgEntity {
     public Long getWarehouseId()               { return warehouseId; }
     public void setWarehouseId(Long v)         { this.warehouseId = v; }
     public Boolean getAccountLocked()          { return accountLocked; }
-    public Set<String> getAuthorities()        { return authorities; }
+    public void setAccountLocked(Boolean v)    { this.accountLocked = v; }
+    public Set<Role> getRoles()                { return roles; }
 
-    public void grant(String authority) { this.authorities.add(authority); }
+    public void addRole(Role role)    { this.roles.add(role); }
+    public void removeRole(Role role) { this.roles.remove(role); }
+
+    /** Replaces the entire role set — used by the admin screen's save. */
+    public void setRoles(Set<Role> roles) { this.roles = new HashSet<>(roles); }
 }
