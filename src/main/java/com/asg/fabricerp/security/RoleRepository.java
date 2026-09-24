@@ -20,6 +20,7 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
      * Global — roles aren't tenant-scoped, see {@link Role}'s javadoc. {@code hasGrants} separates
      * roles that grant something from V11's 71 empty shells, which otherwise bury them.
      */
+    @EntityGraph(attributePaths = "screenGrants")
     @Query("""
            select r from Role r
            where (:q is null
