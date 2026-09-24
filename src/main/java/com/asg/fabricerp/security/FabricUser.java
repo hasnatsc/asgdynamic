@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -74,6 +75,46 @@ public class FabricUser extends BaseOrgEntity {
     @Column(name = "account_locked", nullable = false)
     private Boolean accountLocked = Boolean.FALSE;
 
+    @Column(name = "locked_at")
+    private LocalDateTime lockedAt;
+
+    @Size(max = 255)
+    @Column(name = "locked_reason", length = 255)
+    private String lockedReason;
+
+    /**
+     * ADM-4: outside every row-scope filter. A named flag rather than a scope row so that
+     * "sees everything" is never the side effect of a missing grant — see
+     * {@link com.asg.fabricerp.common.RowScope}.
+     */
+    @Column(nullable = false)
+    private boolean unrestricted;
+
+    /**
+     * Consecutive failures since the last success. Written only by
+     * {@link FabricUserRepository#recordFailedLogin} as an atomic increment, never
+     * read-modify-written here: two wrong passwords arriving together must count as two.
+     */
+    @Column(name = "failed_login_count", nullable = false, insertable = false, updatable = false)
+    private int failedLoginCount;
+
+    @Column(name = "last_failed_login_at", insertable = false, updatable = false)
+    private LocalDateTime lastFailedLoginAt;
+
+    @Column(name = "last_login_at", insertable = false, updatable = false)
+    private LocalDateTime lastLoginAt;
+
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
+    /**
+     * Set whenever somebody other than the owner chose the password. Whoever typed it knows it,
+     * so it is good for nothing but choosing a new one — {@link SessionPrincipalRefreshFilter}
+     * holds the session on the change-password page until that happens.
+     */
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword;
+
     /**
      * EAGER, matching the risk profile of the flat {@code authorities} collection this
      * replaced: {@link FabricUserPrincipal} is built inside
@@ -98,7 +139,6 @@ public class FabricUser extends BaseOrgEntity {
 
     public String getUsername()               { return username; }
     public String getPasswordHash()            { return passwordHash; }
-    public void setPasswordHash(String v)      { this.passwordHash = v; }
     public String getFullName()                { return fullName; }
     public void setFullName(String v)          { this.fullName = v; }
     public Long getBusinessUnitId()            { return businessUnitId; }
@@ -108,7 +148,15 @@ public class FabricUser extends BaseOrgEntity {
     public Long getWarehouseId()               { return warehouseId; }
     public void setWarehouseId(Long v)         { this.warehouseId = v; }
     public Boolean getAccountLocked()          { return accountLocked; }
-    public void setAccountLocked(Boolean v)    { this.accountLocked = v; }
+    public LocalDateTime getLockedAt()         { return lockedAt; }
+    public String getLockedReason()            { return lockedReason; }
+    public boolean isUnrestricted()            { return unrestricted; }
+    public void setUnrestricted(boolean v)     { this.unrestricted = v; }
+    public int getFailedLoginCount()           { return failedLoginCount; }
+    public LocalDateTime getLastFailedLoginAt() { return lastFailedLoginAt; }
+    public LocalDateTime getLastLoginAt()      { return lastLoginAt; }
+    public LocalDateTime getPasswordChangedAt() { return passwordChangedAt; }
+    public boolean isMustChangePassword()      { return mustChangePassword; }
     public Set<Role> getRoles()                { return roles; }
 
     public void addRole(Role role)    { this.roles.add(role); }
@@ -116,4 +164,35 @@ public class FabricUser extends BaseOrgEntity {
 
     /** Replaces the entire role set — used by the admin screen's save. */
     public void setRoles(Set<Role> roles) { this.roles = new HashSet<>(roles); }
+
+    /**
+     * Replaces the password hash. {@code temporary} whenever somebody other than the owner chose
+     * it — account creation, an administrator's reset — which forces a change at next use.
+     */
+    public void setPassword(String hash, boolean temporary, LocalDateTime at) {
+        this.passwordHash = hash;
+        this.passwordChangedAt = at;
+        this.mustChangePassword = temporary;
+    }
+
+    /**
+     * An administrator's lock. The failed-login counter locks through
+     * {@link FabricUserRepository#lockIfOverThreshold} instead, for the same concurrency reason
+     * it increments there.
+     */
+    public void lock(String reason, LocalDateTime at) {
+        this.accountLocked = Boolean.TRUE;
+        this.lockedAt = at;
+        this.lockedReason = reason;
+    }
+
+    /**
+     * Clears a lock. The failure run is cleared separately by
+     * {@link FabricUserRepository#resetFailedLogins} — without that the next typo relocks.
+     */
+    public void unlock() {
+        this.accountLocked = Boolean.FALSE;
+        this.lockedAt = null;
+        this.lockedReason = null;
+    }
 }

@@ -16,7 +16,11 @@
     </div>
 
     <div class="card p-6 space-y-4">
-        <p th:if="${error}" class="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+        <p th:if="${error and accountStatus != null}" th:text="${accountStatus}"
+           class="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
+            Account status.
+        </p>
+        <p th:if="${error and accountStatus == null}" class="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
             Invalid username or password.
         </p>
         <p th:if="${loggedOut}" class="text-sm text-green-700 bg-green-50 rounded-md px-3 py-2">

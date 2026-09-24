@@ -22,6 +22,7 @@
                 <th data-sort="fullName">Full name</th>
                 <th>Business unit</th>
                 <th>Roles</th>
+                <th>Scope</th>
                 <th>Locked</th>
                 <th data-sort="active">Active</th>
                 <th class="text-right">Action</th>
@@ -64,6 +65,13 @@
             </div>
         </div>
 
+        <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" id="userUnrestricted" class="rounded border-slate-300">
+            <span><b>Unrestricted</b> — sees every row on every screen their roles open (MD, Accounts,
+                Commercial). Leave off for everyone else and give them scope grants below; a restricted
+                user with no scope cannot sign in.</span>
+        </label>
+
         <div>
             <div class="label mb-2">Roles</div>
             <div class="space-y-1">
@@ -72,6 +80,30 @@
                            th:value="${role.id}">
                     <span th:text="${role.name}">Role name</span>
                 </label>
+            </div>
+        </div>
+
+        <div id="scopePanel" class="space-y-2" style="display:none">
+            <div class="label">Data scope — which rows this user sees</div>
+            <p class="text-xs text-slate-500">Each dimension narrows independently; a dimension with no
+                grant is not narrowed. At most one open marketing team. Grants are closed from a date,
+                never deleted.</p>
+            <table class="table-grid">
+                <thead>
+                <tr><th>Dimension</th><th>Value</th><th>From</th><th>Revoked from</th><th>Remarks</th><th class="text-right">Action</th></tr>
+                </thead>
+                <tbody id="scopeRows"></tbody>
+            </table>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-5 items-end">
+                <select id="scopeDimension" class="field">
+                    <option value="MARKETING_TEAM">Marketing team</option>
+                    <option value="WAREHOUSE">Warehouse</option>
+                    <option value="BUSINESS_UNIT">Business unit</option>
+                </select>
+                <select id="scopeValue" class="field"></select>
+                <input id="scopeFrom" type="date" class="field" title="From (defaults to today)">
+                <input id="scopeRemarks" class="field" maxlength="255" placeholder="Remarks">
+                <button type="button" class="btn-ghost" id="scopeAddBtn">Add grant</button>
             </div>
         </div>
 
@@ -90,6 +122,13 @@
         const usernameInput = document.getElementById('userUsername');
         const passwordGroup = document.getElementById('userPasswordGroup');
         const passwordInput = document.getElementById('userPassword');
+        const unrestrictedInput = document.getElementById('userUnrestricted');
+        const scopePanel = document.getElementById('scopePanel');
+        const scopeRows = document.getElementById('scopeRows');
+        const scopeDimension = document.getElementById('scopeDimension');
+        const scopeValue = document.getElementById('scopeValue');
+        const scopeOptions = /*[[${scopeOptions}]]*/ {};
+        const dimensionLabels = { BUSINESS_UNIT: 'Business unit', WAREHOUSE: 'Warehouse', MARKETING_TEAM: 'Marketing team' };
 
         function escapeHtml(text) {
             const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -113,12 +152,12 @@
             fetch('/api/setup/users?draw=1&start=0&length=500&sortColumn=username')
                 .then(res => res.json())
                 .then(data => renderGrid(data.data || []))
-                .catch(() => { tbody.innerHTML = '<tr><td colspan="7">Failed to load users.</td></tr>'; });
+                .catch(() => { tbody.innerHTML = '<tr><td colspan="8">Failed to load users.</td></tr>'; });
         }
 
         function renderGrid(rows) {
             if (rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-slate-500">No users yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500">No users yet</td></tr>';
                 return;
             }
             tbody.innerHTML = rows.map(r => `
@@ -127,6 +166,7 @@
                     <td>${escapeHtml(r.fullName)}</td>
                     <td>${escapeHtml(r.businessUnitCode)}</td>
                     <td>${escapeHtml(r.roles)}</td>
+                    <td>${r.unrestricted ? 'All rows' : 'Restricted'}</td>
                     <td>${r.accountLocked ? 'Yes' : 'No'}</td>
                     <td>${r.active ? 'Yes' : 'No'}</td>
                     <td class="text-right">
@@ -162,6 +202,9 @@
                 document.getElementById('userBusinessUnitId').value = r.businessUnitId || '';
                 document.getElementById('userBusinessUnitCode').value = r.businessUnitCode || '';
                 document.getElementById('userWarehouseId').value = r.warehouseId || '';
+                unrestrictedInput.checked = !!r.unrestricted;
+                scopePanel.style.display = '';
+                loadScopes(r.id);
                 const ids = new Set((r.roleIds || []).map(String));
                 document.querySelectorAll('.role-checkbox').forEach(cb => {
                     cb.checked = ids.has(cb.value);
@@ -170,8 +213,63 @@
             }).catch(err => alert(err.message));
         }
 
+        function scopeLabel(dimension, valueId) {
+            const match = (scopeOptions[dimension] || []).find(o => o.id === valueId);
+            return match ? match.label : ('#' + valueId);
+        }
+
+        function fillScopeValues() {
+            scopeValue.innerHTML = (scopeOptions[scopeDimension.value] || [])
+                .map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join('');
+        }
+
+        function loadScopes(userId) {
+            api('/api/setup/users/' + userId + '/scopes').then(rows => {
+                if (!rows.length) {
+                    scopeRows.innerHTML = '<tr><td colspan="6" class="text-center text-slate-500">No scope grants</td></tr>';
+                    return;
+                }
+                scopeRows.innerHTML = rows.map(s => `
+                    <tr class="${s.revokedFrom ? 'text-slate-400' : ''}">
+                        <td>${escapeHtml(dimensionLabels[s.dimension] || s.dimension)}</td>
+                        <td>${escapeHtml(scopeLabel(s.dimension, s.scopeValueId))}</td>
+                        <td>${escapeHtml(s.grantedFrom)}</td>
+                        <td>${escapeHtml(s.revokedFrom)}${s.revokedReason ? ' — ' + escapeHtml(s.revokedReason) : ''}</td>
+                        <td>${escapeHtml(s.remarks)}</td>
+                        <td class="text-right">${s.revokedFrom ? '' : `<button type="button" class="btn-ghost text-red-600" data-revoke-scope="${s.id}">Revoke</button>`}</td>
+                    </tr>`).join('');
+            }).catch(err => alert(err.message));
+        }
+
+        scopeDimension.addEventListener('change', fillScopeValues);
+
+        document.getElementById('scopeAddBtn').addEventListener('click', function () {
+            const userId = document.getElementById('userId').value;
+            if (!userId || !scopeValue.value) return;
+            const payload = {
+                dimension: scopeDimension.value,
+                scopeValueId: Number(scopeValue.value),
+                from: document.getElementById('scopeFrom').value || null,
+                remarks: document.getElementById('scopeRemarks').value || null
+            };
+            api('/api/setup/users/' + userId + '/scopes', { method: 'POST', body: JSON.stringify(payload) })
+                .then(() => loadScopes(userId))
+                .catch(err => alert(err.message));
+        });
+
+        scopeRows.addEventListener('click', function (e) {
+            const scopeId = e.target.getAttribute('data-revoke-scope');
+            if (!scopeId) return;
+            const reason = prompt('Reason for revoking this scope grant (kept on record):');
+            if (!reason) return;
+            api('/api/setup/scopes/' + scopeId + '/revoke', { method: 'POST', body: JSON.stringify({ reason: reason }) })
+                .then(() => loadScopes(document.getElementById('userId').value))
+                .catch(err => alert(err.message));
+        });
+
         function resetPassword(id) {
-            const newPassword = prompt('New password for this user:');
+            const newPassword = prompt('Temporary password for this user (at least 12 characters). '
+                + 'They will have to choose their own at next sign-in:');
             if (!newPassword) return;
             api('/api/setup/users/' + id + '/reset-password', {
                 method: 'POST', body: JSON.stringify({ password: newPassword })
@@ -180,7 +278,13 @@
 
         function toggleLock(id, currentlyLocked) {
             const action = currentlyLocked ? 'unlock' : 'lock';
-            api('/api/setup/users/' + id + '/' + action, { method: 'POST' })
+            let url = '/api/setup/users/' + id + '/' + action;
+            if (!currentlyLocked) {
+                const reason = prompt('Reason for locking this account:');
+                if (reason === null) return;
+                url += '?reason=' + encodeURIComponent(reason);
+            }
+            api(url, { method: 'POST' })
                 .then(loadGrid)
                 .catch(err => alert(err.message));
         }
@@ -197,6 +301,9 @@
             document.getElementById('userId').value = '';
             usernameInput.disabled = false;
             passwordGroup.style.display = '';
+            scopePanel.style.display = 'none';
+            scopeRows.innerHTML = '';
+            unrestrictedInput.checked = false;
             document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = false; });
         }
 
@@ -221,7 +328,8 @@
                     businessUnitId: businessUnitId,
                     businessUnitCode: businessUnitCode,
                     warehouseId: warehouseId,
-                    roleIds: roleIds
+                    roleIds: roleIds,
+                    unrestricted: unrestrictedInput.checked
                 };
                 api('/api/setup/users', { method: 'POST', body: JSON.stringify(payload) })
                     .then(() => { resetForm(); loadGrid(); })
@@ -232,7 +340,8 @@
                     businessUnitId: businessUnitId,
                     businessUnitCode: businessUnitCode,
                     warehouseId: warehouseId,
-                    roleIds: roleIds
+                    roleIds: roleIds,
+                    unrestricted: unrestrictedInput.checked
                 };
                 api('/api/setup/users/' + rawId, { method: 'POST', body: JSON.stringify(payload) })
                     .then(() => { resetForm(); loadGrid(); })
@@ -240,6 +349,7 @@
             }
         });
 
+        fillScopeValues();
         loadGrid();
     })();
     </script>

@@ -49,13 +49,14 @@ public class GreigeReceiveService {
                                          String query, Pageable pageable) {
         return repository.search(
             context.requireOrganizationId(), context.requireBusinessUnitId(),
-            TYPE, status, from, to, query, pageable);
+            TYPE, status, from, to, query, context.requireRowScope(), pageable);
     }
 
     @Transactional(readOnly = true)
     public BusinessDocument get(Long id) {
         return repository.findScopedWithLines(id, context.requireOrganizationId())
             .filter(d -> d.getDocumentType() == TYPE)
+            .filter(d -> d.isVisibleTo(context.requireRowScope()))
             .orElseThrow(() -> new IllegalArgumentException("Greige Receive not found: " + id));
     }
 
@@ -76,6 +77,7 @@ public class GreigeReceiveService {
         submitted.setOrganizationId(context.requireOrganizationId());
         submitted.setBusinessUnitId(context.requireBusinessUnitId());
         submitted.setParentDocumentId(bpo.getId());
+        submitted.stampMarketingTeam(bpo.getMarketingTeamId());   // ADM-7: the team travels downstream
         submitted.setDocumentNo(numbering.next(TYPE));
         if (submitted.getDocumentDate() == null) {
             submitted.setDocumentDate(LocalDate.now());

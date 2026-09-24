@@ -70,6 +70,9 @@ public class DevUserSeeder implements CommandLineRunner {
         FabricUser user = new FabricUser(username, encoder.encode(password), 1L, "AF");
         user.setOrganizationId(1L);
         user.setFullName("Development Maker");
+        // Sees every row. A seeded account is a bootstrap for a fresh database, and a restricted
+        // one would need a scope grant before it could log in to grant anyone anything.
+        user.setUnrestricted(true);
         user.addRole(requireRole("Fabric Operations"));
         repository.save(user);
 
@@ -97,6 +100,7 @@ public class DevUserSeeder implements CommandLineRunner {
         FabricUser user = new FabricUser(username, encoder.encode(password), 1L, "AF");
         user.setOrganizationId(1L);
         user.setFullName("Development Approver");
+        user.setUnrestricted(true);
         user.addRole(requireRole("Document Approver"));
         repository.save(user);
 

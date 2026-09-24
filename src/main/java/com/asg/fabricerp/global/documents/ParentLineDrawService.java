@@ -48,7 +48,10 @@ public class ParentLineDrawService {
             throw new IllegalArgumentException(
                 "Must name the %s this document is raised against".formatted(expectedType.label()));
         }
+        // ADM-5: raising against a parent is a lookup like any other — a parent outside the
+        // caller's scope is as absent here as it is from the picker that offered it.
         BusinessDocument parent = repository.findScopedWithLines(parentId, context.requireOrganizationId())
+            .filter(d -> d.isVisibleTo(context.requireRowScope()))
             .orElseThrow(() -> new IllegalArgumentException("Parent document not found: " + parentId));
         if (parent.getDocumentType() != expectedType) {
             throw new IllegalArgumentException(

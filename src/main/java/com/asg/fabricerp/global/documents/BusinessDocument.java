@@ -1,6 +1,9 @@
 package com.asg.fabricerp.global.documents;
 
 import com.asg.fabricerp.common.BaseOrgEntity;
+import com.asg.fabricerp.common.RowScope;
+import com.asg.fabricerp.common.ScopeDimension;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 
@@ -46,7 +49,8 @@ import java.util.List;
         @Index(name = "ix_gbd_party",           columnList = "party_id"),
         @Index(name = "ix_gbd_parent",          columnList = "parent_document_id"),
         @Index(name = "ix_gbd_revision_of",     columnList = "revision_of_id"),
-        @Index(name = "ix_gbd_document_date",   columnList = "document_date")
+        @Index(name = "ix_gbd_document_date",   columnList = "document_date"),
+        @Index(name = "ix_gbd_marketing_team",  columnList = "marketing_team_id")
     })
 public class BusinessDocument extends BaseOrgEntity {
 
@@ -91,6 +95,18 @@ public class BusinessDocument extends BaseOrgEntity {
     @Column(name = "exchange_rate", nullable = false, precision = 18, scale = 6)
     private BigDecimal exchangeRate = BigDecimal.ONE;
 
+    /**
+     * ADM-7: the marketing team this document was raised under. Stamped once at creation — a
+     * Booking from its creator's team, everything downstream from its parent — and never
+     * rewritten, so a person moving team does not drag their old documents with them.
+     *
+     * <p>Read-only to JSON: controllers bind this entity straight from the request body, and
+     * the team is decided by the server, never submitted.
+     */
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Column(name = "marketing_team_id")
+    private Long marketingTeamId;
+
     @Column(name = "revision_no", nullable = false)
     private Integer revisionNo = 0;
 
@@ -134,6 +150,8 @@ public class BusinessDocument extends BaseOrgEntity {
     public void setCurrencyCode(String v)       { this.currencyCode = v; }
     public BigDecimal getExchangeRate()         { return exchangeRate; }
     public void setExchangeRate(BigDecimal v)   { this.exchangeRate = v; }
+    public Long getMarketingTeamId()            { return marketingTeamId; }
+    public void stampMarketingTeam(Long v)      { this.marketingTeamId = v; }
     public Integer getRevisionNo()              { return revisionNo; }
     public void setRevisionNo(Integer v)        { this.revisionNo = v; }
     public Long getRevisionOfId()               { return revisionOfId; }
@@ -143,6 +161,23 @@ public class BusinessDocument extends BaseOrgEntity {
     public BigDecimal getSubtotalAmount()       { return subtotalAmount; }
     public BigDecimal getTotalQuantity()        { return totalQuantity; }
     public List<BusinessDocumentLineGroup> getLineGroups() { return lineGroups; }
+
+    /**
+     * ADM-3: whether this document is within a user's row scope. Must agree exactly with the
+     * predicate in {@link BusinessDocumentRepository#search} — a grid and a detail lookup that
+     * disagree leak through whichever is wider.
+     *
+     * <p>A document with no warehouse is not narrowed by warehouse scope: it isn't held in any
+     * store (a Booking, say), and hiding it from every store-restricted user would stop a store
+     * clerk opening the BPO their receipt is raised against. A document with no marketing team
+     * gets no such allowance — it predates team stamping, and ADM-4's whole point is that a
+     * team-restricted user sees their own team's work and nothing else.
+     */
+    public boolean isVisibleTo(RowScope scope) {
+        return scope.permits(ScopeDimension.BUSINESS_UNIT, businessUnitId)
+            && (warehouseId == null || scope.permits(ScopeDimension.WAREHOUSE, warehouseId))
+            && scope.permits(ScopeDimension.MARKETING_TEAM, marketingTeamId);
+    }
 
     public void setLineGroups(List<BusinessDocumentLineGroup> incoming) {
         this.lineGroups.clear();

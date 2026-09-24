@@ -33,6 +33,19 @@ public interface OrgContext {
 
     String username();
 
+    /**
+     * Which rows the caller may see (ADM-3). Unlike the business unit above — the unit a user
+     * <em>operates</em> in, which stamps new documents — this is what they may <em>read</em>,
+     * and grids, pickers and detail lookups must all be narrowed by it.
+     */
+    RowScope rowScope();
+
+    default RowScope requireRowScope() {
+        RowScope scope = rowScope();
+        if (scope == null) throw new IllegalStateException("No row scope in context");
+        return scope;
+    }
+
     default Long requireOrganizationId() {
         Long id = organizationId();
         if (id == null) throw new IllegalStateException("No organization in context");

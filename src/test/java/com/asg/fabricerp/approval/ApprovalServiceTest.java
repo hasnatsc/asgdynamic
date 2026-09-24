@@ -1,6 +1,7 @@
 package com.asg.fabricerp.approval;
 
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.global.documents.*;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,7 @@ class ApprovalServiceTest {
             @Override public String businessUnitCode() { return "AF"; }
             @Override public Long warehouseId()        { return 1L; }
             @Override public String username()         { return username; }
+            @Override public RowScope rowScope()         { return RowScope.unrestrictedScope(); }
         };
         service = new ApprovalService(repository, historyRepository, context);
     }

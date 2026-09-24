@@ -107,6 +107,7 @@ public class ApprovalService {
 
     private BusinessDocument load(Long id) {
         return repository.findScopedWithLines(id, context.requireOrganizationId())
+            .filter(d -> d.isVisibleTo(context.requireRowScope()))
             .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
     }
 

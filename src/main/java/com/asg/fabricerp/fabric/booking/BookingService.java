@@ -55,13 +55,14 @@ public class BookingService {
         return repository.search(
             context.requireOrganizationId(),
             context.requireBusinessUnitId(),
-            TYPE, status, from, to, query, pageable);
+            TYPE, status, from, to, query, context.requireRowScope(), pageable);
     }
 
     @Transactional(readOnly = true)
     public BusinessDocument get(Long id) {
         return repository.findScopedWithLines(id, context.requireOrganizationId())
             .filter(d -> d.getDocumentType() == TYPE)
+            .filter(d -> d.isVisibleTo(context.requireRowScope()))
             .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
     }
 
@@ -78,6 +79,9 @@ public class BookingService {
             target.setDocumentType(TYPE);
             target.setOrganizationId(context.requireOrganizationId());
             target.setBusinessUnitId(context.requireBusinessUnitId());
+            // ADM-7: a Booking is where the team is decided — the creator's own team, or none
+            // for an unrestricted user. Every downstream document inherits it from here.
+            target.stampMarketingTeam(context.requireRowScope().soleMarketingTeam());
             target.setDocumentNo(numbering.next(TYPE));
             if (target.getDocumentDate() == null) {
                 target.setDocumentDate(LocalDate.now());

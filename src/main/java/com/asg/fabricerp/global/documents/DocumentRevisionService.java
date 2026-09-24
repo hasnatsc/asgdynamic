@@ -44,6 +44,7 @@ public class DocumentRevisionService {
         revision.setOrganizationId(original.getOrganizationId());
         revision.setBusinessUnitId(original.getBusinessUnitId());
         revision.setWarehouseId(original.getWarehouseId());
+        revision.stampMarketingTeam(original.getMarketingTeamId());
         revision.setPartyId(original.getPartyId());
         revision.setCurrencyCode(original.getCurrencyCode());
         revision.setExchangeRate(original.getExchangeRate());

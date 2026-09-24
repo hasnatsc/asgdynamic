@@ -1,6 +1,7 @@
 package com.asg.fabricerp.fabric.weavingworkorder;
 
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.global.documents.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,7 @@ class WeavingWorkOrderServiceTest {
             @Override public String businessUnitCode() { return "AF"; }
             @Override public Long warehouseId()        { return 1L; }
             @Override public String username()         { return "tester"; }
+            @Override public RowScope rowScope()         { return RowScope.unrestrictedScope(); }
         };
 
         ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);

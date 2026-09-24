@@ -1,6 +1,7 @@
 package com.asg.fabricerp.security;
 
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.RowScope;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -45,6 +46,12 @@ public class SecurityOrgContext implements OrgContext {
     @Override
     public String username() {
         return principal().map(FabricUserPrincipal::getUsername).orElse(null);
+    }
+
+    /** Null with nobody authenticated — {@link OrgContext#requireRowScope} turns that into a failure. */
+    @Override
+    public RowScope rowScope() {
+        return principal().map(FabricUserPrincipal::getRowScope).orElse(null);
     }
 
     private java.util.Optional<FabricUserPrincipal> principal() {

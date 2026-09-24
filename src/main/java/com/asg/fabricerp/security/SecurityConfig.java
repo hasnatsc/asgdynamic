@@ -1,13 +1,19 @@
 package com.asg.fabricerp.security;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.authorization.AuthorizationEventPublisher;
+import org.springframework.security.authorization.SpringAuthorizationEventPublisher;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 
 import java.security.SecureRandom;
@@ -42,9 +48,14 @@ public class SecurityConfig {
     private String rememberMeKey;
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, FabricUserDetailsService userDetailsService)
-            throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, FabricUserDetailsService userDetailsService,
+                                    AccessLogService accessLog) throws Exception {
+        TokenBasedRememberMeServices rememberMe = rememberMeServices(userDetailsService);
         http
+            // After remember-me has had its chance to authenticate, before anything authorises:
+            // every check downstream sees roles, lock state and scope as they are now.
+            .addFilterAfter(new SessionPrincipalRefreshFilter(userDetailsService, accessLog, rememberMe),
+                RememberMeAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                 .requestMatchers("/login", "/login/**").permitAll()
@@ -64,7 +75,7 @@ public class SecurityConfig {
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID"))
             .rememberMe(remember -> remember
-                .rememberMeServices(rememberMeServices(userDetailsService)))
+                .rememberMeServices(rememberMe))
             // CSRF stays ON (Spring default). AJAX posts from the grid/form JS must send
             // the token — see the meta tags in templates/layout/main.html.
             .headers(h -> h.frameOptions(f -> f.sameOrigin()));
@@ -89,5 +100,41 @@ public class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
+    }
+
+    /**
+     * The login provider, declared so it can refuse one more case than Spring's default:
+     * ADM-3's restricted user with no scope. Not configured is not unrestricted — letting the
+     * login succeed would only move the failure into every grid, where it reads as "no data"
+     * instead of naming the cause.
+     *
+     * <p>A post-authentication check, so it runs only after the password matched: the message
+     * is for the account's owner, not for someone guessing usernames. A single
+     * {@code AuthenticationProvider} bean is what the global authentication manager uses, so
+     * this replaces the default rather than sitting beside it — a second provider would be
+     * tried after this one refused, and would let the same login straight through.
+     */
+    @Bean
+    DaoAuthenticationProvider authenticationProvider(FabricUserDetailsService userDetailsService,
+                                                     PasswordEncoder passwordEncoder) {
+        var provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        provider.setPostAuthenticationChecks(user -> {
+            if (user instanceof FabricUserPrincipal principal && !principal.getRowScope().isConfigured()) {
+                throw new DisabledException(
+                    "No data scope has been set up for this account yet. Ask an administrator.");
+            }
+        });
+        return provider;
+    }
+
+    /**
+     * Makes {@code @PreAuthorize} refusals publish an event, which is how
+     * {@link SecurityEventListener#onAccessDenied} writes them to the ADM-11 log. Without this
+     * bean method security uses a no-op publisher and refusals leave no trace.
+     */
+    @Bean
+    AuthorizationEventPublisher authorizationEventPublisher(ApplicationEventPublisher publisher) {
+        return new SpringAuthorizationEventPublisher(publisher);
     }
 }

@@ -1,5 +1,7 @@
 package com.asg.fabricerp.global.documents;
 
+import com.asg.fabricerp.common.RowScope;
+import com.asg.fabricerp.common.ScopeDimension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -42,6 +44,29 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
            """)
     Optional<BusinessDocument> findScopedWithLines(@Param("id") Long id, @Param("orgId") Long orgId);
 
+    /**
+     * A list screen's query, narrowed by the caller's row scope (ADM-3, ADM-5).
+     *
+     * <p>The scope is a required argument rather than something a caller may add, for the same
+     * reason {@link #findScoped} exists: an unscoped variant would be the one somebody calls.
+     * The predicate must agree with {@link BusinessDocument#isVisibleTo}, which applies the
+     * same rule to a single document.
+     */
+    default Page<BusinessDocument> search(Long orgId, Long unitId, DocumentType type,
+                                          BusinessDocumentStatus status,
+                                          LocalDate from, LocalDate to, String q,
+                                          RowScope scope, Pageable pageable) {
+        return searchWithin(orgId, unitId, type, status, from, to, q,
+            !scope.restricts(ScopeDimension.BUSINESS_UNIT),
+            scope.idsForQuery(ScopeDimension.BUSINESS_UNIT),
+            !scope.restricts(ScopeDimension.WAREHOUSE),
+            scope.idsForQuery(ScopeDimension.WAREHOUSE),
+            !scope.restricts(ScopeDimension.MARKETING_TEAM),
+            scope.idsForQuery(ScopeDimension.MARKETING_TEAM),
+            pageable);
+    }
+
+    /** Use {@link #search} — this is its query, with the scope already unpacked. */
     @Query("""
            select d from BusinessDocument d
            where d.organizationId = :orgId
@@ -54,15 +79,24 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
              and (:q is null
                   or lower(d.documentNo) like lower(concat('%', :q, '%'))
                   or lower(d.referenceNo) like lower(concat('%', :q, '%')))
+             and (:allUnits = true or d.businessUnitId in :unitIds)
+             and (:allWarehouses = true or d.warehouseId is null or d.warehouseId in :warehouseIds)
+             and (:allTeams = true or d.marketingTeamId in :teamIds)
            """)
-    Page<BusinessDocument> search(@Param("orgId") Long orgId,
-                                  @Param("unitId") Long unitId,
-                                  @Param("type") DocumentType type,
-                                  @Param("status") BusinessDocumentStatus status,
-                                  @Param("from") LocalDate from,
-                                  @Param("to") LocalDate to,
-                                  @Param("q") String q,
-                                  Pageable pageable);
+    Page<BusinessDocument> searchWithin(@Param("orgId") Long orgId,
+                                        @Param("unitId") Long unitId,
+                                        @Param("type") DocumentType type,
+                                        @Param("status") BusinessDocumentStatus status,
+                                        @Param("from") LocalDate from,
+                                        @Param("to") LocalDate to,
+                                        @Param("q") String q,
+                                        @Param("allUnits") boolean allUnits,
+                                        @Param("unitIds") List<Long> unitIds,
+                                        @Param("allWarehouses") boolean allWarehouses,
+                                        @Param("warehouseIds") List<Long> warehouseIds,
+                                        @Param("allTeams") boolean allTeams,
+                                        @Param("teamIds") List<Long> teamIds,
+                                        Pageable pageable);
 
     /** Revision chain for a document, newest first. */
     @Query("""
