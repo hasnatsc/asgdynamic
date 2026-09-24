@@ -156,10 +156,33 @@ public class BusinessDocument extends BaseOrgEntity {
     }
 
     /**
+     * Numbers every group 1..n and every group's colour lines 1..n, independently per
+     * group (matching the legacy {@code sort_order}, which restarts per fabric-spec group
+     * rather than running document-wide).
+     *
+     * <p>Used to live only inside {@code ParentLineDrawService.draw()}, so a type with
+     * nothing to draw against — Booking, the root of every chain — never got numbered at
+     * all: real Maven test run, not the offline reasoning that built this class, caught it.
+     * Numbering is a property of the document's own lines regardless of whether it also
+     * draws against a parent, so it belongs here and runs for every type unconditionally.
+     */
+    public void renumberLines() {
+        int groupNo = 1;
+        for (BusinessDocumentLineGroup group : lineGroups) {
+            group.setGroupNo(groupNo++);
+            int colorNo = 1;
+            for (BusinessDocumentColorLine line : group.getColorLines()) {
+                line.setColorLineNo(colorNo++);
+            }
+        }
+    }
+
+    /**
      * Authoritative header maths, rolled up through both levels. Called by the service
      * before persist; the browser's numbers are never trusted.
      */
     public void recalculateTotals() {
+        renumberLines();
         BigDecimal amount = BigDecimal.ZERO;
         BigDecimal qty = BigDecimal.ZERO;
         for (BusinessDocumentLineGroup group : lineGroups) {

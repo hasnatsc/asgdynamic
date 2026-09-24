@@ -63,7 +63,7 @@ public class ApprovalService {
     public BusinessDocument submit(Long documentId) {
         BusinessDocument doc = load(documentId);
         requireRole(doc.getDocumentType().makerRole());
-        if (doc.getLines().isEmpty()) {
+        if (doc.getLineGroups().isEmpty()) {
             throw new IllegalStateException(
                 "%s %s has no lines and cannot be submitted"
                     .formatted(doc.getDocumentType().label(), doc.getDocumentNo()));

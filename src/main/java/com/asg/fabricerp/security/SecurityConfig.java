@@ -9,7 +9,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -56,7 +55,11 @@ public class SecurityConfig {
                 .defaultSuccessUrl("/", false)
                 .permitAll())
             .logout(out -> out
-                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "POST"))
+                // logoutUrl() defaults to matching POST only, same as the explicit
+                // AntPathRequestMatcher("/logout", "POST") this replaced — that matcher
+                // class is deprecated in this Spring Security version, and there is no
+                // need for it when the built-in default already does the same thing.
+                .logoutUrl("/logout")
                 .logoutSuccessUrl("/login?logout")
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID"))

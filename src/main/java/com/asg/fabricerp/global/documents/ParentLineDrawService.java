@@ -65,18 +65,19 @@ public class ParentLineDrawService {
     }
 
     /**
-     * Consumes parent colour-line capacity for every child colour line that names a source,
-     * and numbers the child groups/colour lines 1..n while it is there (every caller needs
-     * this regardless).
+     * Consumes parent colour-line capacity for every child colour line that names a source.
+     *
+     * <p>Numbering the child groups/colour lines used to happen here too, as a side effect
+     * — which meant a document type with nothing to draw against (Booking) never got
+     * numbered at all, since it never calls this method. Numbering now lives on
+     * {@link BusinessDocument#renumberLines()}, called unconditionally from
+     * {@code recalculateTotals()}, which every caller of this method already invokes
+     * immediately afterward.
      */
     public void draw(BusinessDocument parent, List<BusinessDocumentLineGroup> childGroups) {
         Map<Long, BusinessDocumentColorLine> byId = indexById(flatten(parent));
-        int groupNo = 1;
         for (BusinessDocumentLineGroup group : childGroups) {
-            group.setGroupNo(groupNo++);
-            int colorNo = 1;
             for (BusinessDocumentColorLine line : group.getColorLines()) {
-                line.setColorLineNo(colorNo++);
                 if (line.getSourceColorLineId() == null) continue;
                 sourceLine(byId, line, parent).fulfil(line.getQuantity());
             }
