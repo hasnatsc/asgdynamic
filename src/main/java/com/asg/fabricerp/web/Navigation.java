@@ -1,6 +1,7 @@
 package com.asg.fabricerp.web;
 
 import com.asg.fabricerp.fabric.setup.AttributeType;
+import com.asg.fabricerp.inventory.item.ItemSetupMenu;
 import com.asg.fabricerp.security.Screen;
 import com.asg.fabricerp.security.Verb;
 
@@ -57,6 +58,9 @@ public final class Navigation {
         return switch (screen) {
             case FABRIC_SETUP -> Item.group(screen.label(), Arrays.stream(AttributeType.values())
                 .map(type -> Item.leaf(type.label(), "/setup/fabric/" + type.slug(), currentPath))
+                .toList());
+            case ITEM_SETUP -> Item.group(screen.label(), ItemSetupMenu.PAGES.stream()
+                .map(page -> Item.leaf(page.label(), page.path(), currentPath))
                 .toList());
             case SECURITY_ADMIN -> Item.group("Security", List.of(
                 Item.leaf("Overview", "/setup/security", currentPath),

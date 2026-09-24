@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title th:text="${title}">Item categories</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Item categories</h1>
+            <p class="page-sub">Three levels - root, group, item category. Items are filed under the third level.</p>
+        </div>
+        <button type="button" class="btn-primary" id="catNewRootBtn"
+                sec:authorize="hasAuthority('SCREEN_ITEM_SETUP_CREATE')">
+            <span aria-hidden="true">+</span> New root
+        </button>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="relative w-full sm:w-72">
+                <input id="catSearch" type="search" class="field pr-8" placeholder="Filter by name or code"
+                       aria-label="Filter categories" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <label class="ml-auto inline-flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" id="catShowInactive" class="checkbox" checked> Show inactive
+            </label>
+        </div>
+        <div class="overflow-x-auto">
+            <table id="catTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Code</th>
+                    <th>Level</th>
+                    <th>Item type</th>
+                    <th>Status</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================== Editor ============================== -->
+    <dialog id="catDialog" class="modal" data-sticky aria-labelledby="catDialogTitle">
+        <form id="catForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="catDialogTitle" class="text-base font-semibold text-slate-900">New category</h2>
+                    <p id="catDialogSub" class="text-sm text-slate-500"></p>
+                </div>
+                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
+            </div>
+            <div class="modal-body space-y-4">
+                <div>
+                    <label class="label" for="catParent">Parent</label>
+                    <select id="catParent" class="field"></select>
+                    <p class="hint" id="catParentHint"></p>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <div class="sm:col-span-2">
+                        <label class="label" for="catName">Name</label>
+                        <input id="catName" class="field" maxlength="100" required autocomplete="off">
+                    </div>
+                    <div id="catPrefixBox">
+                        <label class="label" for="catPrefix">Code prefix <span class="font-normal text-slate-400">(optional)</span></label>
+                        <input id="catPrefix" class="field uppercase" maxlength="20" autocomplete="off">
+                        <p class="hint">Blank: first two consonants of the name.</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="label" for="catItemType">Item type <span id="catItemTypeOptional" class="font-normal text-slate-400">(optional)</span></label>
+                    <select id="catItemType" class="field">
+                        <option value="">None</option>
+                        <option th:each="t : ${itemTypes}" th:value="${t.name()}" th:text="${t.label()}">Type</option>
+                    </select>
+                    <p class="hint">Only items of this type can be filed under an item-level category.</p>
+                </div>
+                <div>
+                    <label class="label" for="catDescription">Description <span class="font-normal text-slate-400">(optional)</span></label>
+                    <textarea id="catDescription" class="field" rows="2"></textarea>
+                </div>
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" id="catActive" class="checkbox" checked>
+                    <span><b>Active</b></span>
+                </label>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-subtle mr-auto text-red-600" id="catDeleteBtn" hidden>Delete</button>
+                <button type="button" class="btn-ghost" data-dismiss>Close</button>
+                <button type="submit" class="btn-primary" id="catSaveBtn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, toast } = App;
+        const CAN = {
+            create: /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_CREATE'')')}]]*/ false,
+            amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_AMEND'')')}]]*/ false,
+            del:    /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_DELETE'')')}]]*/ false
+        };
+        const CHILD = { ROOT: 'GROUP', GROUP: 'ITEM' };
+        const INDENT = '   ';   // option text collapses ordinary spaces
+        const LAYER_LABEL = { ROOT: 'Root', GROUP: 'Group', ITEM: 'Item category' };
+        const LAYER_BADGE = { ROOT: 'badge-violet', GROUP: 'badge-blue', ITEM: 'badge-gray' };
+
+        const $ = sel => document.querySelector(sel);
+        const dialog = $('#catDialog');
+        const form = $('#catForm');
+        let rows = [];
+        let current = null;   // the category being edited; null when creating
+
+        // ------------------------------------------------------------------ tree
+        async function load() {
+            try {
+                rows = await api('/api/inventory/categories');
+                render();
+            } catch (error) {
+                $('#catTable tbody').innerHTML = `<tr><td colspan="6" class="py-10 text-center text-red-600">${esc(error.message)}</td></tr>`;
+            }
+        }
+
+        function render() {
+            const q = $('#catSearch').value.trim().toLowerCase();
+            const showInactive = $('#catShowInactive').checked;
+            const visible = rows.filter(r => (showInactive || r.active)
+                && (!q || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)));
+            $('#catTable tbody').innerHTML = visible.length ? visible.map(r => `
+                <tr data-id="${r.id}" class="cursor-pointer">
+                    <td><div class="flex items-center gap-2" style="padding-left:${r.depth * 1.5}rem">
+                        <span class="${r.layer === 'ITEM' ? 'text-slate-700' : 'font-medium text-slate-900'}">${esc(r.name)}</span>
+                        ${r.childCount ? `<span class="text-xs text-slate-400">${r.childCount}</span>` : ''}</div></td>
+                    <td><span class="font-mono text-xs text-slate-600">${esc(r.code)}</span></td>
+                    <td><span class="${LAYER_BADGE[r.layer]}">${LAYER_LABEL[r.layer]}</span></td>
+                    <td>${r.itemType ? esc(r.itemType) : '<span class="text-slate-400">-</span>'}</td>
+                    <td>${r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>'}</td>
+                    <td><div class="flex justify-end gap-1">
+                        ${CAN.create && r.layer !== 'ITEM' ? `<button type="button" class="btn-subtle btn-sm" data-add="${r.id}">Add ${r.layer === 'ROOT' ? 'group' : 'item category'}</button>` : ''}
+                        <button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button>
+                    </div></td>
+                </tr>`).join('')
+                : `<tr><td colspan="6" class="py-12 text-center text-slate-500">${rows.length ? 'No category matches.' : 'No categories yet.'}</td></tr>`;
+        }
+
+        $('#catSearch').addEventListener('input', App.debounce(render, 150));
+        $('#catShowInactive').addEventListener('change', render);
+        $('#catTable tbody').addEventListener('click', e => {
+            const add = e.target.closest('[data-add]');
+            if (add) return openEditor(null, Number(add.dataset.add));
+            const tr = e.target.closest('tr[data-id]');
+            if (tr) openEditor(Number(tr.dataset.id));
+        });
+
+        // ------------------------------------------------------------------ editor
+        const byId = id => rows.find(r => r.id === id);
+        const layerUnder = parentId => parentId ? CHILD[byId(parentId).layer] : 'ROOT';
+
+        /** Parent choices. Editing: only parents that keep the category on its own level (a move). */
+        function fillParents(selectedId) {
+            const select = $('#catParent');
+            const wanted = current ? current.layer : null;
+            const eligible = rows.filter(r => r.layer !== 'ITEM' && (!wanted || CHILD[r.layer] === wanted)
+                                           && (!current || r.id !== current.id));
+            const allowRoot = !current || current.layer === 'ROOT';
+            select.innerHTML = (allowRoot ? '<option value="">None - a new root</option>' : '')
+                + eligible.map(r => `<option value="${r.id}">${INDENT.repeat(r.depth)}${esc(r.name)} (${esc(r.code)})</option>`).join('');
+            select.value = selectedId == null ? '' : String(selectedId);
+        }
+
+        function syncLayer() {
+            const parentId = $('#catParent').value ? Number($('#catParent').value) : null;
+            const layer = current ? current.layer : layerUnder(parentId);
+            $('#catPrefixBox').hidden = !(layer === 'ROOT' && !current);
+            $('#catItemType').required = layer === 'ITEM';
+            $('#catItemTypeOptional').hidden = layer === 'ITEM';
+            $('#catParentHint').textContent = current
+                ? (current.childCount ? 'It has sub-categories, so it cannot move.' : 'Moving it issues a new code under the new parent.')
+                : `This will be a${layer === 'ITEM' ? 'n item-level category' : ' ' + LAYER_LABEL[layer].toLowerCase()}.`;
+            if (!current && parentId && byId(parentId).itemType && !$('#catItemType').value) {
+                $('#catItemType').value = byId(parentId).itemType;
+            }
+        }
+        $('#catParent').addEventListener('change', syncLayer);
+
+        function openEditor(id, parentId) {
+            current = id ? byId(id) : null;
+            $('#catDialogTitle').textContent = current ? current.name : 'New category';
+            $('#catDialogSub').textContent = current ? `${current.code} · ${LAYER_LABEL[current.layer]}` : 'The code is issued when you save.';
+            fillParents(current ? current.parentId : parentId);
+            $('#catName').value = current ? current.name : '';
+            $('#catPrefix').value = '';
+            $('#catItemType').value = current && current.itemType ? current.itemType : '';
+            $('#catDescription').value = current ? (current.description || '') : '';
+            $('#catActive').checked = current ? !!current.active : true;
+            syncLayer();
+
+            const writable = current ? CAN.amend : CAN.create;
+            form.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !writable; });
+            if (current && current.childCount) $('#catParent').disabled = true;
+            $('#catSaveBtn').hidden = !writable;
+            $('#catDeleteBtn').hidden = !(current && CAN.del);
+            dialog.showModal();
+            if (writable) $('#catName').focus();
+        }
+
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        $('#catNewRootBtn')?.addEventListener('click', () => openEditor(null, null));
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!form.checkValidity()) return form.reportValidity();
+            const btn = $('#catSaveBtn');
+            btn.disabled = true;
+            try {
+                const saved = await api('/api/inventory/categories', { method: 'POST', body: {
+                    id: current ? current.id : null,
+                    parentId: $('#catParent').value ? Number($('#catParent').value) : null,
+                    name: $('#catName').value.trim(),
+                    prefix: $('#catPrefix').value.trim() || null,
+                    itemType: $('#catItemType').value || null,
+                    description: $('#catDescription').value.trim() || null,
+                    active: $('#catActive').checked
+                } });
+                toast(`Saved ${saved.code}`, 'success');
+                dialog.close();
+                load();
+            } catch (error) {
+                fail(error);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        $('#catDeleteBtn').addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete "${current.name}"?`, danger: true, confirmText: 'Delete',
+                message: 'Refused while it has sub-categories or items - deactivate it instead in that case.' });
+            if (!ok) return;
+            try {
+                await api(`/api/inventory/categories/${current.id}`, { method: 'DELETE' });
+                toast('Category deleted', 'success');
+                dialog.close();
+                load();
+            } catch (error) { fail(error); }
+        });
+
+        load();
+    });
+    </script>
+</div>
+</body>
+</html>

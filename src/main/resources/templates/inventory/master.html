@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  One template for the simple item reference lists (units, HS codes, brands, models, yarn types,
+  counts, plies). Grid columns and editor fields come from ${page}, a MasterPage built in
+  ItemSetupController, so adding a list adds no markup.
+-->
+<head><title th:text="${title}">Item setup</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="${page.title}">List</h1>
+            <p class="page-sub" th:text="${page.subtitle}">Description.</p>
+        </div>
+        <button type="button" class="btn-primary" id="masterNewBtn"
+                sec:authorize="hasAuthority('SCREEN_ITEM_SETUP_CREATE')">
+            <span aria-hidden="true">+</span> <span th:text="|New ${page.noun}|">New</span>
+        </button>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="relative w-full sm:w-72">
+                <input id="masterSearch" type="search" class="field pr-8" placeholder="Search"
+                       aria-label="Search" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table id="masterTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th th:each="col : ${page.columns}" th:text="${col.label}"
+                        th:attr="data-sort=${col.sort}"
+                        th:classappend="${col.kind == 'number'} ? 'text-right'">Column</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="masterPager" class="pager"></div>
+    </div>
+
+    <!-- ============================== Editor ============================== -->
+    <dialog id="masterDialog" class="modal" data-sticky aria-labelledby="masterDialogTitle">
+        <form id="masterForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="masterDialogTitle" class="text-base font-semibold text-slate-900">New</h2>
+                    <p id="masterDialogSub" class="text-sm text-slate-500"></p>
+                </div>
+                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
+            </div>
+            <div class="modal-body space-y-4">
+                <p id="masterApproval" class="alert-info" hidden></p>
+                <div id="masterFields" class="grid gap-4 sm:grid-cols-2"></div>
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" id="masterActive" class="checkbox" checked>
+                    <span><b>Active</b> <span class="text-slate-500">- inactive entries stay on records but leave the pickers.</span></span>
+                </label>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-subtle mr-auto text-red-600" id="masterDeleteBtn" hidden>Delete</button>
+                <button type="button" class="btn-ghost" data-dismiss>Close</button>
+                <button type="button" class="btn-ghost" id="masterApproveBtn" hidden>Approve</button>
+                <button type="submit" class="btn-primary" id="masterSaveBtn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, toast, fmt } = App;
+        const PAGE = /*[[${page}]]*/ {};
+        const CAN = {
+            create:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_CREATE'')')}]]*/ false,
+            amend:   /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_AMEND'')')}]]*/ false,
+            del:     /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_DELETE'')')}]]*/ false,
+            approve: /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_APPROVE'')')}]]*/ false
+        };
+
+        const $ = sel => document.querySelector(sel);
+        const dialog = $('#masterDialog');
+        const form = $('#masterForm');
+        let current = null;
+
+        // ------------------------------------------------------------------ grid
+        const cell = {
+            text:     (v) => v == null || v === '' ? '<span class="text-slate-400">-</span>' : esc(v),
+            mono:     (v) => `<span class="font-mono text-xs text-slate-600">${esc(v)}</span>`,
+            number:   (v) => `<div class="text-right tabular-nums">${v == null ? '<span class="text-slate-400">-</span>' : esc(v)}</div>`,
+            yesno:    (v) => v ? '<span class="badge-blue">Yes</span>' : '<span class="text-slate-400">-</span>',
+            active:   (v) => v ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
+            approval: (v, r) => v ? `<span class="badge-green" title="${esc(r.approvedBy || '')}">Approved</span>`
+                                  : '<span class="badge-amber">Pending</span>'
+        };
+
+        const grid = new App.Grid({
+            url: PAGE.api,
+            table: $('#masterTable'),
+            search: $('#masterSearch'),
+            pager: $('#masterPager'),
+            emptyText: 'Nothing here yet.',
+            columns: PAGE.columns.map(col => row => (cell[col.kind] || cell.text)(row[col.key], row))
+                .concat([r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">
+                                 ${CAN.amend ? 'Edit' : 'View'}</button></div>`]),
+            onRowClick: row => openEditor(row.id)
+        });
+        $('#masterTable tbody').addEventListener('click', e => {
+            const edit = e.target.closest('[data-edit]');
+            if (edit) openEditor(Number(edit.dataset.edit));
+        });
+
+        // ------------------------------------------------------------------ fields
+        const fieldsBox = $('#masterFields');
+        fieldsBox.innerHTML = PAGE.fields.map(f => {
+            const id = 'mf-' + f.name;
+            const req = f.required ? 'required' : '';
+            const wide = f.wide || f.type === 'checkbox' ? ' sm:col-span-2' : '';
+            let control;
+            if (f.type === 'checkbox') {
+                return `<label class="inline-flex items-center gap-2 text-sm${wide}">
+                          <input type="checkbox" id="${id}" name="${esc(f.name)}" class="checkbox"> <span>${esc(f.label)}</span></label>`;
+            } else if (f.type === 'textarea') {
+                control = `<textarea id="${id}" name="${esc(f.name)}" class="field" rows="2"></textarea>`;
+            } else if (f.type === 'select' || f.type === 'lookup') {
+                const opts = (f.options || []).map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('');
+                control = `<select id="${id}" name="${esc(f.name)}" class="field" ${req}>
+                             <option value="">${f.required ? 'Choose…' : 'None'}</option>${opts}</select>`;
+            } else {
+                const extra = f.type === 'number' ? `step="${esc(f.step || 'any')}"` : `maxlength="${f.maxlength || 255}"`;
+                control = `<input id="${id}" name="${esc(f.name)}" class="field" type="${f.type === 'number' ? 'number' : 'text'}"
+                                  ${extra} ${req} autocomplete="off">`;
+            }
+            return `<div class="${wide.trim()}"><label class="label" for="${id}">${esc(f.label)}${f.required ? '' : ' <span class="font-normal text-slate-400">(optional)</span>'}</label>
+                      ${control}${f.hint ? `<p class="hint">${esc(f.hint)}</p>` : ''}</div>`;
+        }).join('');
+
+        // Lookup-backed selects load once per page.
+        const lookupsReady = Promise.all(PAGE.fields.filter(f => f.type === 'lookup').map(async f => {
+            try {
+                const options = await api(f.lookup);
+                $('#mf-' + f.name).insertAdjacentHTML('beforeend',
+                    options.map(o => `<option value="${o.id}">${esc(o.text)}</option>`).join(''));
+            } catch (error) { fail(error); }
+        }));
+
+        function fill(row) {
+            PAGE.fields.forEach(f => {
+                const input = $('#mf-' + f.name);
+                const value = row ? row[f.name] : null;
+                if (f.type === 'checkbox') input.checked = row ? !!value : (f.name === 'bondedAllowed');
+                else input.value = value == null ? '' : value;
+            });
+            $('#masterActive').checked = row ? !!row.active : true;
+        }
+
+        function collect() {
+            const body = { id: current ? current.id : null, active: $('#masterActive').checked };
+            PAGE.fields.forEach(f => {
+                const input = $('#mf-' + f.name);
+                if (f.type === 'checkbox') body[f.name] = input.checked;
+                else if (f.type === 'number' || f.type === 'lookup') body[f.name] = input.value === '' ? null : Number(input.value);
+                else body[f.name] = input.value.trim() === '' ? null : input.value.trim();
+            });
+            return body;
+        }
+
+        // ------------------------------------------------------------------ editor
+        const canWrite = () => current ? CAN.amend : CAN.create;
+
+        async function openEditor(id) {
+            let row = null;
+            try {
+                await lookupsReady;
+                if (id) row = await api(`${PAGE.api}/${id}`);
+            } catch (error) { return fail(error); }
+            current = row;
+
+            $('#masterDialogTitle').textContent = row ? (row.name || row.hsCode || row.code) : `New ${PAGE.noun}`;
+            $('#masterDialogSub').textContent = row && row.code ? row.code
+                : (PAGE.approvable ? 'The code is issued when you save.' : '');
+            fill(row);
+
+            const approval = $('#masterApproval');
+            approval.hidden = !(PAGE.approvable && row);
+            if (PAGE.approvable && row) {
+                approval.textContent = row.approved
+                    ? `Approved by ${row.approvedBy} ${fmt.relative(row.approvedAt)}.`
+                    : `Awaiting approval. Entered by ${row.createdBy || 'unknown'} - someone else must approve it.`;
+            }
+
+            const writable = canWrite();
+            form.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !writable; });
+            $('#masterSaveBtn').hidden = !writable;
+            $('#masterDeleteBtn').hidden = !(row && CAN.del);
+            $('#masterApproveBtn').hidden = !(PAGE.approvable && row && !row.approved && CAN.approve);
+
+            dialog.showModal();
+            if (writable) fieldsBox.querySelector('input:not([type=checkbox]), select')?.focus();
+        }
+
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        $('#masterNewBtn')?.addEventListener('click', () => openEditor(null));
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!form.checkValidity()) return form.reportValidity();
+            const btn = $('#masterSaveBtn');
+            btn.disabled = true;
+            try {
+                const saved = await api(PAGE.api, { method: 'POST', body: collect() });
+                toast(`Saved ${saved.code || saved.hsCode || ''}`.trim(), 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) {
+                fail(error);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        $('#masterApproveBtn').addEventListener('click', async () => {
+            try {
+                await api(`${PAGE.api}/${current.id}/approve`, { method: 'POST' });
+                toast('Approved', 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
+        });
+
+        $('#masterDeleteBtn').addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete this ${PAGE.noun}?`, danger: true, confirmText: 'Delete',
+                message: 'Refused while anything still uses it - deactivate it instead in that case.' });
+            if (!ok) return;
+            try {
+                await api(`${PAGE.api}/${current.id}`, { method: 'DELETE' });
+                toast('Deleted', 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
+        });
+
+        grid.load();
+    });
+    </script>
+</div>
+</body>
+</html>

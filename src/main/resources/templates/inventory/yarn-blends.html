@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title th:text="${title}">Yarn blends</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Yarn blends</h1>
+            <p class="page-sub">Fiber compositions, e.g. 60% Cotton 40% Viscose. Fibers are items of type Fiber.</p>
+        </div>
+        <button type="button" class="btn-primary" id="blendNewBtn"
+                sec:authorize="hasAuthority('SCREEN_ITEM_SETUP_CREATE')">
+            <span aria-hidden="true">+</span> New blend
+        </button>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="relative w-full sm:w-72">
+                <input id="blendSearch" type="search" class="field pr-8" placeholder="Search code or name"
+                       aria-label="Search blends" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table id="blendTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th data-sort="code">Code</th>
+                    <th data-sort="name">Name</th>
+                    <th>Composition</th>
+                    <th>Approval</th>
+                    <th data-sort="active">Status</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="blendPager" class="pager"></div>
+    </div>
+
+    <!-- ============================== Editor ============================== -->
+    <dialog id="blendDialog" class="modal modal-lg" data-sticky aria-labelledby="blendDialogTitle">
+        <form id="blendForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="blendDialogTitle" class="text-base font-semibold text-slate-900">New blend</h2>
+                    <p id="blendDialogSub" class="text-sm text-slate-500"></p>
+                </div>
+                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
+            </div>
+            <div class="modal-body space-y-4">
+                <p id="blendApproval" class="alert-info" hidden></p>
+                <p id="blendInUse" class="alert-warn" hidden>Yarn items use this blend, so its fibers and percentages are fixed.</p>
+
+                <div>
+                    <div class="mb-2 flex items-center justify-between">
+                        <span class="label mb-0">Fibers</span>
+                        <span id="blendTotal" class="badge-gray">Total 0%</span>
+                    </div>
+                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="table-grid" id="componentTable">
+                            <thead>
+                            <tr>
+                                <th>Fiber</th>
+                                <th class="w-28 text-right">%</th>
+                                <th>Certification</th>
+                                <th>Remarks</th>
+                                <th class="w-px"><span class="sr-only">Remove</span></th>
+                            </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn-subtle btn-sm mt-2" id="componentAddBtn">+ Add fiber</button>
+                    <p id="fiberEmpty" class="hint" hidden>No active fiber items yet - create items of type Fiber first.</p>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="label" for="blendName">Name <span class="font-normal text-slate-400">(optional)</span></label>
+                        <input id="blendName" class="field" maxlength="500" autocomplete="off">
+                        <p class="hint">Blank: the composition, e.g. "60% Cotton 40% Viscose".</p>
+                    </div>
+                    <div>
+                        <label class="label" for="blendShortName">Short name <span class="font-normal text-slate-400">(optional)</span></label>
+                        <input id="blendShortName" class="field" maxlength="500" autocomplete="off">
+                    </div>
+                </div>
+                <div>
+                    <label class="label" for="blendDescription">Description <span class="font-normal text-slate-400">(optional)</span></label>
+                    <textarea id="blendDescription" class="field" rows="2"></textarea>
+                </div>
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" id="blendActive" class="checkbox" checked>
+                    <span><b>Active</b></span>
+                </label>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-subtle mr-auto text-red-600" id="blendDeleteBtn" hidden>Delete</button>
+                <button type="button" class="btn-ghost" data-dismiss>Close</button>
+                <button type="button" class="btn-ghost" id="blendApproveBtn" hidden>Approve</button>
+                <button type="submit" class="btn-primary" id="blendSaveBtn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, toast, fmt } = App;
+        const CERTIFICATIONS = /*[[${certifications}]]*/ [];
+        const CAN = {
+            create:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_CREATE'')')}]]*/ false,
+            amend:   /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_AMEND'')')}]]*/ false,
+            del:     /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_DELETE'')')}]]*/ false,
+            approve: /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_APPROVE'')')}]]*/ false
+        };
+
+        const $ = sel => document.querySelector(sel);
+        const dialog = $('#blendDialog');
+        const form = $('#blendForm');
+        const tbody = $('#componentTable tbody');
+        let current = null;
+        let fibers = [];
+
+        // ------------------------------------------------------------------ grid
+        const grid = new App.Grid({
+            url: '/api/inventory/yarn-blends',
+            table: $('#blendTable'),
+            search: $('#blendSearch'),
+            pager: $('#blendPager'),
+            sort: { column: 'name', dir: 'asc' },
+            emptyText: 'No blends yet.',
+            columns: [
+                r => `<span class="font-mono text-xs text-slate-600">${esc(r.code)}</span>`,
+                r => `<span class="font-medium text-slate-900">${esc(r.name)}</span>`,
+                r => `<span class="text-slate-600">${esc(r.composition)}</span>`,
+                r => r.approved ? `<span class="badge-green" title="${esc(r.approvedBy)}">Approved</span>` : '<span class="badge-amber">Pending</span>',
+                r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
+                r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+            ],
+            onRowClick: row => openEditor(row.id)
+        });
+        $('#blendTable tbody').addEventListener('click', e => {
+            const edit = e.target.closest('[data-edit]');
+            if (edit) openEditor(Number(edit.dataset.edit));
+        });
+
+        // ------------------------------------------------------------------ components
+        const fibersReady = api('/api/lookup/inventory/items', { query: { itemType: 'FIBER' } })
+            .then(list => { fibers = list; })
+            .catch(fail);
+
+        function addComponent(c) {
+            c = c || {};
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><select class="field comp-fiber" required>
+                      <option value="">Choose fiber…</option>
+                      ${fibers.map(f => `<option value="${f.id}">${esc(f.text)}</option>`).join('')}
+                      ${c.fiberId && !fibers.some(f => f.id === c.fiberId)
+                          ? `<option value="${c.fiberId}">${esc(c.fiberCode + ' | ' + c.fiberName)} (inactive)</option>` : ''}
+                    </select></td>
+                <td><input class="field comp-pct text-right" type="number" min="0.01" max="100" step="0.01" required></td>
+                <td><select class="field comp-cert"><option value="">None</option>
+                      ${CERTIFICATIONS.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></td>
+                <td><input class="field comp-remarks" maxlength="500"></td>
+                <td><button type="button" class="btn-icon comp-remove" aria-label="Remove fiber">&#x2715;</button></td>`;
+            tbody.appendChild(tr);
+            tr.querySelector('.comp-fiber').value = c.fiberId || '';
+            tr.querySelector('.comp-pct').value = c.percentage == null ? '' : c.percentage;
+            tr.querySelector('.comp-cert').value = c.certification || '';
+            tr.querySelector('.comp-remarks').value = c.remarks || '';
+            syncTotal();
+        }
+
+        function syncTotal() {
+            const total = Array.from(tbody.querySelectorAll('.comp-pct'))
+                .reduce((sum, input) => sum + (Number(input.value) || 0), 0);
+            const rounded = Math.round(total * 100) / 100;
+            const badge = $('#blendTotal');
+            badge.textContent = `Total ${rounded}%`;
+            badge.className = rounded === 100 ? 'badge-green' : 'badge-amber';
+        }
+
+        tbody.addEventListener('input', syncTotal);
+        tbody.addEventListener('click', e => {
+            if (e.target.closest('.comp-remove')) {
+                e.target.closest('tr').remove();
+                syncTotal();
+            }
+        });
+        $('#componentAddBtn').addEventListener('click', () => addComponent());
+
+        // ------------------------------------------------------------------ editor
+        async function openEditor(id) {
+            let blend = null;
+            try {
+                await fibersReady;
+                if (id) blend = await api(`/api/inventory/yarn-blends/${id}`);
+            } catch (error) { return fail(error); }
+            current = blend;
+
+            $('#blendDialogTitle').textContent = blend ? blend.name : 'New blend';
+            $('#blendDialogSub').textContent = blend ? blend.code : 'The code is issued when you save.';
+            $('#blendName').value = blend ? blend.name : '';
+            $('#blendShortName').value = blend ? (blend.shortName || '') : '';
+            $('#blendDescription').value = blend ? (blend.description || '') : '';
+            $('#blendActive').checked = blend ? !!blend.active : true;
+            tbody.innerHTML = '';
+            (blend ? blend.components : [{}]).forEach(addComponent);
+            $('#fiberEmpty').hidden = fibers.length > 0;
+
+            const approval = $('#blendApproval');
+            approval.hidden = !blend;
+            if (blend) {
+                approval.textContent = blend.approved
+                    ? `Approved by ${blend.approvedBy} ${fmt.relative(blend.approvedAt)}.`
+                    : `Awaiting approval. Entered by ${blend.createdBy || 'unknown'} - someone else must approve it.`;
+            }
+            $('#blendInUse').hidden = !(blend && blend.inUse);
+
+            const writable = blend ? CAN.amend : CAN.create;
+            form.querySelectorAll('input, select, textarea, #componentAddBtn, .comp-remove').forEach(el => { el.disabled = !writable; });
+            if (blend && blend.inUse) {
+                tbody.querySelectorAll('.comp-fiber, .comp-pct, .comp-cert, .comp-remove').forEach(el => { el.disabled = true; });
+                $('#componentAddBtn').disabled = true;
+            }
+            $('#blendSaveBtn').hidden = !writable;
+            $('#blendDeleteBtn').hidden = !(blend && CAN.del);
+            $('#blendApproveBtn').hidden = !(blend && !blend.approved && CAN.approve);
+            dialog.showModal();
+        }
+
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        $('#blendNewBtn')?.addEventListener('click', () => openEditor(null));
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!form.checkValidity()) return form.reportValidity();
+            const btn = $('#blendSaveBtn');
+            btn.disabled = true;
+            try {
+                const saved = await api('/api/inventory/yarn-blends', { method: 'POST', body: {
+                    id: current ? current.id : null,
+                    name: $('#blendName').value.trim() || null,
+                    shortName: $('#blendShortName').value.trim() || null,
+                    description: $('#blendDescription').value.trim() || null,
+                    active: $('#blendActive').checked,
+                    components: Array.from(tbody.querySelectorAll('tr')).map(tr => ({
+                        fiberId: Number(tr.querySelector('.comp-fiber').value) || null,
+                        percentage: tr.querySelector('.comp-pct').value === '' ? null : Number(tr.querySelector('.comp-pct').value),
+                        certification: tr.querySelector('.comp-cert').value || null,
+                        remarks: tr.querySelector('.comp-remarks').value.trim() || null
+                    }))
+                } });
+                toast(`Saved ${saved.code}`, 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) {
+                fail(error);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        $('#blendApproveBtn').addEventListener('click', async () => {
+            try {
+                await api(`/api/inventory/yarn-blends/${current.id}/approve`, { method: 'POST' });
+                toast('Blend approved', 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
+        });
+
+        $('#blendDeleteBtn').addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete "${current.name}"?`, danger: true, confirmText: 'Delete',
+                message: 'Refused while yarn items use it - deactivate it instead in that case.' });
+            if (!ok) return;
+            try {
+                await api(`/api/inventory/yarn-blends/${current.id}`, { method: 'DELETE' });
+                toast('Blend deleted', 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
+        });
+
+        grid.load();
+    });
+    </script>
+</div>
+</body>
+</html>

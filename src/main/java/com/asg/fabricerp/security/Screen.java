@@ -3,8 +3,8 @@ package com.asg.fabricerp.security;
 /**
  * Every screen a role grant can name — the asgdynamic equivalent of asfl-erp's admin module's
  * {@code screenCode}, code-defined rather than DB-driven (there is no menu table here; see
- * {@code Role}'s javadoc). One value per document-type controller plus the two setup/admin
- * screens that aren't a {@link com.asg.fabricerp.global.documents.DocumentType}.
+ * {@code Role}'s javadoc). One value per document-type controller, plus the setup, item-master
+ * and admin screens that aren't a {@link com.asg.fabricerp.global.documents.DocumentType}.
  *
  * <p>Also carries what the navigation and the role editor show for it: a label, the menu
  * section it sits in, and its landing path. The sidebar lists exactly the screens the user holds
@@ -20,12 +20,15 @@ public enum Screen {
     WWO("Weaving work order", Section.PRODUCTION, "/weaving-wo"),
     PWO("Processing work order", Section.PRODUCTION, "/processing-wo"),
     GR("Greige receive", Section.PRODUCTION, "/greige-receive"),
+    ITEM("Items", Section.INVENTORY, "/inventory/items"),
+    ITEM_SETUP("Item setup", Section.INVENTORY, "/inventory/categories"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
     SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security");
 
     public enum Section {
         SALES("Sales"),
         PRODUCTION("Production"),
+        INVENTORY("Inventory"),
         SETUP("Setup"),
         ADMINISTRATION("Administration");
 

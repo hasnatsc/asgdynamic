@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  The item master for every item type. Inputs carry data-f (the request field) and data-t (how to
+  read it: text | num | int | id | bool | enum | date), so filling and collecting the editor is
+  one loop rather than a line per field.
+-->
+<head><title th:text="${title}">Items</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Items</h1>
+            <p class="page-sub">Everything bought, stocked, produced or sold. Yarn names are generated from count, ply, type and blend.</p>
+        </div>
+        <button type="button" class="btn-primary" id="itemNewBtn"
+                sec:authorize="hasAuthority('SCREEN_ITEM_CREATE')">
+            <span aria-hidden="true">+</span> New item
+        </button>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="relative w-full sm:w-72">
+                <input id="itemSearch" type="search" class="field pr-8" placeholder="Search code, name, SKU, barcode"
+                       aria-label="Search items" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select id="itemTypeFilter" class="field w-auto" aria-label="Filter by item type">
+                <option value="">All types</option>
+                <option th:each="t : ${itemTypes}" th:value="${t.name()}" th:text="${t.label()}">Type</option>
+            </select>
+            <select id="itemActiveFilter" class="field w-auto" aria-label="Filter by status">
+                <option value="">Any status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+        <div class="overflow-x-auto">
+            <table id="itemTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th data-sort="itemCode">Code</th>
+                    <th data-sort="name">Name</th>
+                    <th data-sort="itemType">Type</th>
+                    <th data-sort="categoryName">Category</th>
+                    <th>Unit</th>
+                    <th>Approval</th>
+                    <th data-sort="active">Status</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="itemPager" class="pager"></div>
+    </div>
+
+    <!-- ============================== Editor ============================== -->
+    <dialog id="itemDialog" class="modal modal-lg" data-sticky aria-labelledby="itemDialogTitle">
+        <form id="itemForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="itemDialogTitle" class="text-base font-semibold text-slate-900">New item</h2>
+                    <p id="itemDialogSub" class="text-sm text-slate-500"></p>
+                </div>
+                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
+            </div>
+
+            <div id="itemTabs">
+                <div class="tabs" role="tablist">
+                    <button type="button" class="tab" role="tab" data-tab="general" aria-selected="true">General</button>
+                    <button type="button" class="tab" role="tab" data-tab="spec" id="specTab">Details</button>
+                    <button type="button" class="tab" role="tab" data-tab="stock">Stock &amp; pricing</button>
+                    <button type="button" class="tab" role="tab" data-tab="costing">Production &amp; costing</button>
+                </div>
+
+                <div class="modal-body space-y-4">
+                    <p id="itemApproval" class="alert-info" hidden></p>
+
+                    <!-- ---------------------------------------------------- General -->
+                    <div data-panel="general" class="space-y-4">
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label class="label" for="fItemType">Item type</label>
+                                <select id="fItemType" class="field" data-f="itemType" data-t="enum" required>
+                                    <option th:each="t : ${itemTypes}" th:value="${t.name()}" th:text="${t.label()}">Type</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label" for="fCategory">Category</label>
+                                <select id="fCategory" class="field" data-f="categoryId" data-t="id" required></select>
+                                <p class="hint" id="categoryHint"></p>
+                            </div>
+                            <div class="sm:col-span-2" id="nameBox">
+                                <label class="label" for="fName">Item name</label>
+                                <input id="fName" class="field" data-f="name" data-t="text" maxlength="200" required autocomplete="off">
+                            </div>
+                            <div class="sm:col-span-2" id="yarnNameNote" hidden>
+                                <p class="alert-info">The name of a yarn is generated from its count, ply, type and blend when you save - see the Yarn tab.</p>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="label" for="fNameBn">Name in Bangla <span class="font-normal text-slate-400">(optional)</span></label>
+                                <input id="fNameBn" class="field" data-f="nameBn" data-t="text" maxlength="200" lang="bn">
+                            </div>
+                            <div>
+                                <label class="label" for="fBaseUnit">Base unit</label>
+                                <select id="fBaseUnit" class="field" data-f="baseUnitId" data-t="id" data-lookup="uoms" required></select>
+                            </div>
+                            <div>
+                                <label class="label" for="fHsCode">HS code <span class="font-normal text-slate-400">(optional)</span></label>
+                                <select id="fHsCode" class="field" data-f="hsCodeId" data-t="id" data-lookup="hs-codes"></select>
+                            </div>
+                            <div>
+                                <label class="label" for="fBrand">Brand <span class="font-normal text-slate-400">(optional)</span></label>
+                                <select id="fBrand" class="field" data-f="brandId" data-t="id" data-lookup="brands"></select>
+                            </div>
+                            <div>
+                                <label class="label" for="fModel">Model <span class="font-normal text-slate-400">(optional)</span></label>
+                                <select id="fModel" class="field" data-f="modelId" data-t="id"></select>
+                            </div>
+                            <div>
+                                <label class="label" for="fSku">SKU <span class="font-normal text-slate-400">(optional)</span></label>
+                                <input id="fSku" class="field" data-f="sku" data-t="text" maxlength="100">
+                            </div>
+                            <div>
+                                <label class="label" for="fBarcode">Barcode <span class="font-normal text-slate-400">(optional)</span></label>
+                                <input id="fBarcode" class="field" data-f="barcode" data-t="text" maxlength="100">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="label" for="fDescription">Description <span class="font-normal text-slate-400">(optional)</span></label>
+                                <textarea id="fDescription" class="field" rows="2" data-f="description" data-t="text"></textarea>
+                            </div>
+                        </div>
+                        <label class="inline-flex items-center gap-2 text-sm">
+                            <input type="checkbox" id="fActive" class="checkbox" data-f="active" data-t="bool">
+                            <span><b>Active</b> <span class="text-slate-500">- inactive items stay on records but leave the pickers.</span></span>
+                        </label>
+                    </div>
+
+                    <!-- ---------------------------------------------------- Type details -->
+                    <div data-panel="spec" hidden>
+                        <div data-spec="FIBER" class="grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <label class="label" for="fFiberType">Fiber type</label>
+                                <select id="fFiberType" class="field" data-f="fiberType" data-t="enum">
+                                    <option value="">Not set</option>
+                                    <option th:each="f : ${fiberTypes}" th:value="${f.name()}"
+                                            th:text="${#strings.capitalize(#strings.toLowerCase(f.name()))}">Fiber</option>
+                                </select>
+                            </div>
+                            <div><label class="label" for="fOrigin">Origin</label>
+                                <input id="fOrigin" class="field" data-f="originName" data-t="text" maxlength="100"></div>
+                            <div><label class="label" for="fGrade">Grade</label>
+                                <input id="fGrade" class="field" data-f="grade" data-t="text" maxlength="50" placeholder='SLM 1-1/8"'></div>
+                            <div><label class="label" for="fStaple">Staple length (mm)</label>
+                                <input id="fStaple" class="field" type="number" step="0.01" min="0" data-f="stapleLength" data-t="num"></div>
+                            <div><label class="label" for="fMic">Micronaire</label>
+                                <input id="fMic" class="field" type="number" step="0.01" min="0" data-f="micronaire" data-t="num"></div>
+                            <div><label class="label" for="fStrength">Strength (g/tex)</label>
+                                <input id="fStrength" class="field" type="number" step="0.01" min="0" data-f="strength" data-t="num"></div>
+                            <div><label class="label" for="fMoisture">Moisture %</label>
+                                <input id="fMoisture" class="field" type="number" step="0.01" min="0" max="100" data-f="moisture" data-t="num"></div>
+                            <div><label class="label" for="fTrash">Trash %</label>
+                                <input id="fTrash" class="field" type="number" step="0.01" min="0" max="100" data-f="trash" data-t="num"></div>
+                            <div><label class="label" for="fPurity">Purity %</label>
+                                <input id="fPurity" class="field" type="number" step="0.01" min="0" max="100" data-f="purity" data-t="num"></div>
+                        </div>
+
+                        <div data-spec="YARN" class="grid gap-4 sm:grid-cols-2">
+                            <div><label class="label" for="fYarnCount">Count</label>
+                                <select id="fYarnCount" class="field yarn-req" data-f="yarnCountId" data-t="id" data-lookup="yarn-counts"></select></div>
+                            <div><label class="label" for="fYarnPly">Ply</label>
+                                <select id="fYarnPly" class="field yarn-req" data-f="yarnPlyId" data-t="id" data-lookup="yarn-plies"></select></div>
+                            <div><label class="label" for="fYarnType">Type</label>
+                                <select id="fYarnType" class="field yarn-req" data-f="yarnTypeId" data-t="id" data-lookup="yarn-types"></select></div>
+                            <div><label class="label" for="fYarnBlend">Blend</label>
+                                <select id="fYarnBlend" class="field yarn-req" data-f="yarnBlendId" data-t="id" data-lookup="yarn-blends"></select></div>
+                            <div class="sm:col-span-2"><label class="label" for="fQuality">Quality grade <span class="font-normal text-slate-400">(optional)</span></label>
+                                <input id="fQuality" class="field" data-f="qualityGrade" data-t="text" maxlength="100"></div>
+                            <p class="hint sm:col-span-2">No two active yarns may share the same count, ply, type and blend.</p>
+                        </div>
+
+                        <div data-spec="CHEMICALS" class="grid gap-4 sm:grid-cols-2">
+                            <div><label class="label" for="fFormula">Chemical formula</label>
+                                <input id="fFormula" class="field" data-f="chemicalFormula" data-t="text" maxlength="50"></div>
+                            <div><label class="label" for="fCas">CAS number</label>
+                                <input id="fCas" class="field" data-f="casNumber" data-t="text" maxlength="50"></div>
+                            <div><label class="label" for="fConcentration">Concentration %</label>
+                                <input id="fConcentration" class="field" type="number" step="0.01" min="0" max="100" data-f="concentration" data-t="num"></div>
+                            <div><label class="label" for="fExpiry">Expiry date</label>
+                                <input id="fExpiry" class="field" type="date" data-f="expiryDate" data-t="date"></div>
+                            <label class="inline-flex items-center gap-2 text-sm sm:col-span-2">
+                                <input type="checkbox" id="fHazardous" class="checkbox" data-f="hazardous" data-t="bool"> <span>Hazardous</span></label>
+                            <div class="sm:col-span-2"><label class="label" for="fSds">Safety data sheet reference</label>
+                                <input id="fSds" class="field" data-f="safetyDataSheet" data-t="text" maxlength="100">
+                                <p class="hint">Required for a hazardous chemical.</p></div>
+                        </div>
+
+                        <div data-spec="FIXED_ASSET" class="grid gap-4 sm:grid-cols-2">
+                            <div><label class="label" for="fManufacturer">Manufacturer</label>
+                                <input id="fManufacturer" class="field" data-f="manufacturer" data-t="text" maxlength="100"></div>
+                            <div><label class="label" for="fModelNo">Model number</label>
+                                <input id="fModelNo" class="field" data-f="modelNumber" data-t="text" maxlength="100"></div>
+                            <div><label class="label" for="fSerial">Serial number</label>
+                                <input id="fSerial" class="field" data-f="serialNumber" data-t="text" maxlength="50"></div>
+                            <div><label class="label" for="fWarranty">Warranty (months)</label>
+                                <input id="fWarranty" class="field" type="number" step="1" min="0" data-f="warrantyMonths" data-t="int"></div>
+                            <div><label class="label" for="fAssetValue">Asset value</label>
+                                <input id="fAssetValue" class="field" type="number" step="0.01" min="0" data-f="assetValue" data-t="num"></div>
+                            <div><label class="label" for="fDepreciation">Depreciation rate %</label>
+                                <input id="fDepreciation" class="field" type="number" step="0.01" min="0" max="100" data-f="depreciationRate" data-t="num"></div>
+                        </div>
+                    </div>
+
+                    <!-- ---------------------------------------------------- Stock & pricing -->
+                    <div data-panel="stock" class="grid gap-4 sm:grid-cols-3" hidden>
+                        <div><label class="label" for="fReorder">Reorder level</label>
+                            <input id="fReorder" class="field" type="number" step="0.001" min="0" data-f="reorderLevel" data-t="num"></div>
+                        <div><label class="label" for="fMin">Minimum stock</label>
+                            <input id="fMin" class="field" type="number" step="0.001" min="0" data-f="minimumStock" data-t="num"></div>
+                        <div><label class="label" for="fMax">Maximum stock</label>
+                            <input id="fMax" class="field" type="number" step="0.001" min="0" data-f="maximumStock" data-t="num"></div>
+                        <div><label class="label" for="fUnitPrice">Unit price</label>
+                            <input id="fUnitPrice" class="field" type="number" step="0.0001" min="0" data-f="unitPrice" data-t="num"></div>
+                        <div><label class="label" for="fCostPrice">Cost price</label>
+                            <input id="fCostPrice" class="field" type="number" step="0.0001" min="0" data-f="costPrice" data-t="num"></div>
+                        <div><label class="label" for="fTax">Tax rate %</label>
+                            <input id="fTax" class="field" type="number" step="0.01" min="0" max="100" data-f="taxRate" data-t="num"></div>
+                        <p class="hint sm:col-span-3" id="priceWithTax"></p>
+                    </div>
+
+                    <!-- ---------------------------------------------------- Production & costing -->
+                    <div data-panel="costing" class="grid gap-4 sm:grid-cols-2" hidden>
+                        <div><label class="label" for="fLoss">Process loss %</label>
+                            <input id="fLoss" class="field" type="number" step="0.01" min="0" max="100" data-f="processLossPercent" data-t="num"></div>
+                        <div><label class="label" for="fYield">Yield %</label>
+                            <input id="fYield" class="field" type="number" step="0.01" min="0" max="100" data-f="yieldPercent" data-t="num"></div>
+                        <div><label class="label" for="fStdCost">Standard cost per kg</label>
+                            <input id="fStdCost" class="field" type="number" step="0.01" min="0" data-f="standardCostPerKg" data-t="num"></div>
+                        <div><label class="label" for="fSellKg">Selling price per kg</label>
+                            <input id="fSellKg" class="field" type="number" step="0.01" min="0" data-f="sellingPricePerKg" data-t="num"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" class="btn-subtle mr-auto text-red-600" id="itemDeleteBtn" hidden>Delete</button>
+                <button type="button" class="btn-ghost" data-dismiss>Close</button>
+                <button type="button" class="btn-ghost" id="itemApproveBtn" hidden>Approve</button>
+                <button type="submit" class="btn-primary" id="itemSaveBtn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, toast, fmt } = App;
+        const CAN = {
+            create:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_CREATE'')')}]]*/ false,
+            amend:   /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_AMEND'')')}]]*/ false,
+            del:     /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_DELETE'')')}]]*/ false,
+            approve: /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_APPROVE'')')}]]*/ false
+        };
+        const SPEC_LABEL = { FIBER: 'Fiber', YARN: 'Yarn', CHEMICALS: 'Chemical', FIXED_ASSET: 'Asset' };
+
+        const $ = sel => document.querySelector(sel);
+        const dialog = $('#itemDialog');
+        const form = $('#itemForm');
+        const fields = () => Array.from(form.querySelectorAll('[data-f]'));
+        const tabs = App.tabs($('#itemTabs'));
+        let current = null;
+
+        // ------------------------------------------------------------------ grid
+        const grid = new App.Grid({
+            url: '/api/inventory/items',
+            table: $('#itemTable'),
+            search: $('#itemSearch'),
+            pager: $('#itemPager'),
+            sort: { column: 'itemCode', dir: 'asc' },
+            emptyText: 'No items match.',
+            params: () => ({ itemType: $('#itemTypeFilter').value, active: $('#itemActiveFilter').value }),
+            columns: [
+                r => `<span class="font-mono text-xs text-slate-600">${esc(r.itemCode)}</span>`,
+                r => `<span class="font-medium text-slate-900">${esc(r.name)}</span>`
+                   + (r.sku ? `<div class="text-xs text-slate-500">SKU ${esc(r.sku)}</div>` : ''),
+                r => `<span class="badge-gray">${esc(r.itemTypeLabel)}</span>`,
+                r => esc(r.categoryName),
+                r => `<span title="${esc(r.baseUnitName)}">${esc(r.baseUnitCode)}</span>`,
+                r => r.approved ? `<span class="badge-green" title="${esc(r.approvedBy)}">Approved</span>` : '<span class="badge-amber">Pending</span>',
+                r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
+                r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+            ],
+            onRowClick: row => openEditor(row.id)
+        });
+        $('#itemTable tbody').addEventListener('click', e => {
+            const edit = e.target.closest('[data-edit]');
+            if (edit) openEditor(Number(edit.dataset.edit));
+        });
+        $('#itemTypeFilter').addEventListener('change', () => grid.reload(true));
+        $('#itemActiveFilter').addEventListener('change', () => grid.reload(true));
+
+        // ------------------------------------------------------------------ lookups
+        function options(select, list, placeholder) {
+            const keep = select.value;
+            select.innerHTML = `<option value="">${esc(placeholder)}</option>`
+                + list.map(o => `<option value="${o.id}">${esc(o.text)}</option>`).join('');
+            select.value = keep;
+        }
+
+        const lookupsReady = Promise.all(Array.from(form.querySelectorAll('[data-lookup]')).map(async select => {
+            const list = await api(`/api/lookup/inventory/${select.dataset.lookup}`);
+            options(select, list, select.required || select.classList.contains('yarn-req') ? 'Choose…' : 'None');
+        })).catch(fail);
+
+        async function loadCategories(type, selected) {
+            const list = await api('/api/lookup/inventory/categories', { query: { itemType: type } });
+            options($('#fCategory'), list, list.length ? 'Choose…' : 'No item-level category for this type');
+            $('#fCategory').value = selected == null ? '' : String(selected);
+            $('#categoryHint').textContent = list.length ? ''
+                : 'Create an item-level category of this type under Item setup, Categories.';
+        }
+
+        async function loadModels(brandId, selected) {
+            const list = await api('/api/lookup/inventory/models', { query: { brandId } });
+            options($('#fModel'), list, 'None');
+            $('#fModel').value = selected == null ? '' : String(selected);
+        }
+
+        // ------------------------------------------------------------------ type switching
+        function syncType() {
+            const type = $('#fItemType').value;
+            const yarn = type === 'YARN';
+            $('#nameBox').hidden = yarn;
+            $('#fName').required = !yarn;
+            $('#yarnNameNote').hidden = !yarn;
+            form.querySelectorAll('.yarn-req').forEach(s => { s.required = yarn; });
+            form.querySelectorAll('[data-spec]').forEach(box => { box.hidden = box.dataset.spec !== type; });
+            const hasSpec = !!SPEC_LABEL[type];
+            $('#specTab').hidden = !hasSpec;
+            $('#specTab').textContent = hasSpec ? SPEC_LABEL[type] : 'Details';
+            if (!hasSpec && $('#specTab').getAttribute('aria-selected') === 'true') tabs.select('general');
+        }
+
+        $('#fItemType').addEventListener('change', async () => {
+            syncType();
+            try { await loadCategories($('#fItemType').value, null); } catch (error) { fail(error); }
+        });
+        $('#fBrand').addEventListener('change', async () => {
+            try { await loadModels($('#fBrand').value || null, null); } catch (error) { fail(error); }
+        });
+        $('#fHazardous').addEventListener('change', () => { $('#fSds').required = $('#fHazardous').checked; });
+
+        function syncPrice() {
+            const price = Number($('#fUnitPrice').value), tax = Number($('#fTax').value);
+            $('#priceWithTax').textContent = price && tax ? `Selling price with tax: ${(price * (1 + tax / 100)).toFixed(2)}` : '';
+        }
+        $('#fUnitPrice').addEventListener('input', syncPrice);
+        $('#fTax').addEventListener('input', syncPrice);
+
+        // ------------------------------------------------------------------ fill / collect
+        function fill(item) {
+            fields().forEach(el => {
+                const value = item ? item[el.dataset.f] : null;
+                if (el.dataset.t === 'bool') el.checked = item ? !!value : el.dataset.f === 'active';
+                else el.value = value == null ? '' : value;
+            });
+            if (!item) $('#fItemType').value = $('#itemTypeFilter').value || 'GENERAL';
+        }
+
+        function collect() {
+            const body = { id: current ? current.id : null };
+            const type = $('#fItemType').value;
+            fields().forEach(el => {
+                // A section the chosen type does not show is sent empty, so switching an item's
+                // type never leaves the old type's attributes behind on it.
+                const hiddenSpec = el.closest('[data-spec]') && el.closest('[data-spec]').dataset.spec !== type;
+                const raw = el.dataset.t === 'bool' ? el.checked : el.value.trim();
+                let value;
+                switch (el.dataset.t) {
+                    case 'bool': value = raw; break;
+                    case 'num':  value = raw === '' ? null : Number(raw); break;
+                    case 'int':
+                    case 'id':   value = raw === '' ? null : parseInt(raw, 10); break;
+                    default:     value = raw === '' ? null : raw;
+                }
+                body[el.dataset.f] = hiddenSpec ? (el.dataset.t === 'bool' ? false : null) : value;
+            });
+            return body;
+        }
+
+        // ------------------------------------------------------------------ editor
+        async function openEditor(id) {
+            let item = null;
+            try {
+                await lookupsReady;
+                if (id) item = await api(`/api/inventory/items/${id}`);
+                current = item;
+                fill(item);
+                syncType();
+                await Promise.all([
+                    loadCategories($('#fItemType').value, item ? item.categoryId : null),
+                    loadModels(item ? item.brandId : null, item ? item.modelId : null)
+                ]);
+            } catch (error) { return fail(error); }
+
+            $('#itemDialogTitle').textContent = item ? item.name : 'New item';
+            $('#itemDialogSub').textContent = item ? `${item.itemCode} · ${item.itemTypeLabel}` : 'The code is issued when you save.';
+            const approval = $('#itemApproval');
+            approval.hidden = !item;
+            if (item) {
+                approval.textContent = item.approved
+                    ? `Approved by ${item.approvedBy} ${fmt.relative(item.approvedAt)}.`
+                    : `Awaiting approval. Entered by ${item.createdBy || 'unknown'} - someone else must approve it.`;
+            }
+            $('#fSds').required = $('#fHazardous').checked;
+            syncPrice();
+
+            const writable = item ? CAN.amend : CAN.create;
+            fields().forEach(el => { el.disabled = !writable; });
+            $('#itemSaveBtn').hidden = !writable;
+            $('#itemDeleteBtn').hidden = !(item && CAN.del);
+            $('#itemApproveBtn').hidden = !(item && !item.approved && CAN.approve);
+            tabs.select('general');
+            dialog.showModal();
+        }
+
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        $('#itemNewBtn')?.addEventListener('click', () => openEditor(null));
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!form.checkValidity()) {
+                // Show the tab holding the first invalid field before the browser points at it.
+                const bad = form.querySelector(':invalid');
+                const panel = bad && bad.closest('[data-panel]');
+                if (panel) tabs.select(panel.dataset.panel);
+                return form.reportValidity();
+            }
+            const btn = $('#itemSaveBtn');
+            btn.disabled = true;
+            try {
+                const saved = await api('/api/inventory/items', { method: 'POST', body: collect() });
+                toast(`Saved ${saved.itemCode} - ${saved.name}`, 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) {
+                fail(error);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        $('#itemApproveBtn').addEventListener('click', async () => {
+            try {
+                await api(`/api/inventory/items/${current.id}/approve`, { method: 'POST' });
+                toast('Item approved', 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
+        });
+
+        $('#itemDeleteBtn').addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete "${current.name}"?`, danger: true, confirmText: 'Delete',
+                message: 'The item leaves every list. A fiber that blends use cannot be deleted - deactivate it instead.' });
+            if (!ok) return;
+            try {
+                await api(`/api/inventory/items/${current.id}`, { method: 'DELETE' });
+                toast('Item deleted', 'success');
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
+        });
+
+        grid.load();
+    });
+    </script>
+</div>
+</body>
+</html>

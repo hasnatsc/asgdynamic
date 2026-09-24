@@ -54,4 +54,22 @@ public class DocumentNumberService {
 
         return "%s%06d".formatted(key, nextValue.longValue());
     }
+
+    /**
+     * A master-data code on the same counter table: {@code prefix}, the caller's unit code, then
+     * {@code width} digits - ITMAF000001, YTAF0001. The legacy masters were numbered this way
+     * too (brand BRAF00001, category CAF110000). SpindleERP computes these as {@code MAX(code)+1}
+     * inside a read-only transaction, which hands two concurrent callers the same code.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public String nextCode(String prefix, int width) {
+        String key = prefix + context.requireBusinessUnitCode();
+
+        Number nextValue = (Number) em.createNativeQuery(NEXT_VALUE_SQL)
+            .setParameter("orgId", context.requireOrganizationId())
+            .setParameter("key", key)
+            .getSingleResult();
+
+        return key + String.format("%0" + width + "d", nextValue.longValue());
+    }
 }
