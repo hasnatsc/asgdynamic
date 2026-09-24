@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><title th:text="${title}">Access log</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Access log</h1>
+            <p class="page-sub">Sign-ins, refusals, lockouts and password changes for this organization's accounts. Append-only.</p>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="relative w-full sm:w-56">
+                <input id="logUser" type="search" class="field pr-8" placeholder="Username" aria-label="Filter by username"
+                       data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select id="logEvent" class="field w-auto" aria-label="Filter by event">
+                <option value="">All events</option>
+                <option th:each="e : ${events}" th:value="${e}"
+                        th:text="${#strings.capitalize(#strings.toLowerCase(#strings.replace(e, '_', ' ')))}">Event</option>
+            </select>
+            <div class="flex items-center gap-1">
+                <input id="logFrom" type="date" class="field w-auto" aria-label="From date">
+                <span class="text-slate-400">–</span>
+                <input id="logTo" type="date" class="field w-auto" aria-label="To date">
+            </div>
+            <div class="flex gap-1" id="logPresets">
+                <button type="button" class="btn-subtle btn-sm" data-days="0">Today</button>
+                <button type="button" class="btn-subtle btn-sm" data-days="7">7 days</button>
+                <button type="button" class="btn-subtle btn-sm" data-days="30">30 days</button>
+            </div>
+            <button type="button" class="btn-subtle btn-sm ml-auto" id="logClear">Clear filters</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table id="logTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th data-sort="occurredAt">When</th>
+                    <th data-sort="username">User</th>
+                    <th data-sort="event">Event</th>
+                    <th>Target</th>
+                    <th>Detail</th>
+                    <th>Source</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="logPager" class="pager"></div>
+    </div>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { esc, fmt } = App;
+        const $ = sel => document.querySelector(sel);
+
+        const EVENT_BADGES = {
+            LOGIN_SUCCEEDED:        ['badge-green', 'Signed in'],
+            LOGIN_FAILED:           ['badge-amber', 'Login failed'],
+            ACCOUNT_LOCKED:         ['badge-red',   'Account locked'],
+            LOGIN_REFUSED_INACTIVE: ['badge-red',   'Login refused'],
+            ACCESS_DENIED:          ['badge-red',   'Access denied'],
+            SESSION_ENDED:          ['badge-gray',  'Session ended'],
+            PASSWORD_CHANGED:       ['badge-blue',  'Password changed']
+        };
+        const eventBadge = e => {
+            const [cls, label] = EVENT_BADGES[e] || ['badge-gray', e];
+            return `<span class="${cls}">${esc(label)}</span>`;
+        };
+
+        const filters = { event: $('#logEvent'), from: $('#logFrom'), to: $('#logTo') };
+
+        const grid = new App.Grid({
+            url: '/api/setup/access-log',
+            table: $('#logTable'),
+            search: $('#logUser'),
+            pager: $('#logPager'),
+            pageSize: 50,
+            sort: { column: 'occurredAt', dir: 'desc' },
+            emptyText: 'No events match these filters.',
+            params: () => ({ event: filters.event.value, from: filters.from.value, to: filters.to.value }),
+            columns: [
+                r => `<span class="whitespace-nowrap" title="${esc(fmt.dateTime(r.occurredAt))}">${esc(fmt.dateTime(r.occurredAt))}</span>`,
+                r => `<span class="font-medium">${esc(r.username)}</span>`,
+                r => eventBadge(r.event),
+                r => `<span class="font-mono text-xs text-slate-600">${esc(r.target)}</span>`,
+                r => `<span class="block max-w-sm truncate text-slate-500" title="${esc(r.detail)}">${esc(r.detail)}</span>`,
+                r => `<span class="font-mono text-xs text-slate-500">${esc(r.sourceAddress)}</span>`
+            ]
+        });
+
+        Object.values(filters).forEach(el => el.addEventListener('change', () => grid.reload(true)));
+
+        const isoDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        $('#logPresets').addEventListener('click', e => {
+            const btn = e.target.closest('[data-days]');
+            if (!btn) return;
+            const from = new Date();
+            from.setDate(from.getDate() - Number(btn.dataset.days));
+            filters.from.value = isoDay(from);
+            filters.to.value = isoDay(new Date());
+            grid.reload(true);
+        });
+        $('#logClear').addEventListener('click', () => {
+            $('#logUser').value = '';
+            Object.values(filters).forEach(el => { el.value = ''; });
+            grid.reload(true);
+        });
+
+        const params = new URLSearchParams(location.search);
+        if (params.get('event')) filters.event.value = params.get('event');
+        if (params.get('user')) $('#logUser').value = params.get('user');
+        grid.load();
+    });
+    </script>
+</div>
+</body>
+</html>

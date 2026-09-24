@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.util.UrlPathHelper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -129,8 +130,9 @@ public class ApiExceptionHandler {
         if (!isApi(request)) throw ex;
     }
 
+    /** Path within the application, not the servlet path, which is empty under some mappings. */
     private static boolean isApi(HttpServletRequest request) {
-        return request.getServletPath().startsWith("/api/");
+        return UrlPathHelper.defaultInstance.getPathWithinApplication(request).startsWith("/api/");
     }
 
     private static ResponseEntity<Map<String, Object>> body(HttpStatus status, String message) {

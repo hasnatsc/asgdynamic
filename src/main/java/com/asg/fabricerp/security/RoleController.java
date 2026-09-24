@@ -51,6 +51,7 @@ public class RoleController {
             }
         }
         model.addAttribute("screensBySection", screensBySection);
+        model.addAttribute("screenTotal", Screen.values().length);
         model.addAttribute("verbs", Verb.values());
         model.addAttribute("content", "setup/roles :: content");
         return "layout/main";

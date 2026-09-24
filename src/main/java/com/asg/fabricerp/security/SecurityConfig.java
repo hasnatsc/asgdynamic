@@ -14,7 +14,11 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
@@ -22,6 +26,7 @@ import org.springframework.security.web.authentication.rememberme.TokenBasedReme
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 
 /**
  * Deny-by-default at the HTTP layer; every route's actual role requirement lives on the
@@ -69,9 +74,10 @@ public class SecurityConfig {
                 .anyRequest().authenticated())
             // A grid's fetch() behind an expired session must see 401, not follow a redirect to
             // the login page and try to parse its HTML as JSON. app.js sends the user to /login.
-            .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
-                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                PathPatternRequestMatcher.withDefaults().matcher("/api/**")))
+            // One explicit entry point rather than one registered beside formLogin's: with two,
+            // whichever registered first became the fallback for any request that matched
+            // neither, and a page fetched without an HTML Accept header got a bare 401.
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint()))
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
@@ -95,6 +101,16 @@ public class SecurityConfig {
                 // Document numbers and ids sit in URLs; they need not travel to other sites.
                 .referrerPolicy(r -> r.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)));
         return http.build();
+    }
+
+    /** {@code /api/**} answers 401; everything else is sent to the login page. */
+    private static AuthenticationEntryPoint entryPoint() {
+        LinkedHashMap<RequestMatcher, AuthenticationEntryPoint> byPath = new LinkedHashMap<>();
+        byPath.put(PathPatternRequestMatcher.withDefaults().matcher("/api/**"),
+            new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED));
+        var delegating = new DelegatingAuthenticationEntryPoint(byPath);
+        delegating.setDefaultEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"));
+        return delegating;
     }
 
     private TokenBasedRememberMeServices rememberMeServices(FabricUserDetailsService userDetailsService) {

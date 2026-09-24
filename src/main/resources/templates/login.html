@@ -4,47 +4,98 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ASG FabricERP | Login</title>
+    <title>Sign in · ASG FabricERP</title>
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
-<body class="bg-slate-50 text-slate-900 antialiased min-h-screen flex items-center justify-center px-4">
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
 
-<div class="w-full max-w-sm">
-    <div class="text-center mb-6">
-        <h1 class="text-xl font-semibold"><span class="text-brand-600">ASG</span> FabricERP</h1>
-        <p class="text-sm text-slate-500">Weaving &amp; dyeing operations</p>
+<div class="flex min-h-screen">
+    <!-- Brand panel -->
+    <div class="relative hidden w-1/2 overflow-hidden bg-brand-700 lg:block">
+        <div class="absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900"></div>
+        <div class="relative flex h-full flex-col justify-between p-12 text-white">
+            <div class="flex items-center gap-2 text-lg font-semibold">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white/15 text-sm font-bold">A</span>
+                ASG FabricERP
+            </div>
+            <div>
+                <p class="text-3xl font-semibold leading-tight">Weaving &amp; dyeing operations,<br>from booking to delivery.</p>
+                <p class="mt-3 max-w-md text-sm text-brand-100">Every action is checked against your roles and recorded.
+                    Sign in with the account your administrator issued.</p>
+            </div>
+            <p class="text-xs text-brand-200">Authorized users only. Sign-ins and refusals are logged.</p>
+        </div>
     </div>
 
-    <div class="card p-6 space-y-4">
-        <p th:if="${error and accountStatus != null}" th:text="${accountStatus}"
-           class="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
-            Account status.
-        </p>
-        <p th:if="${error and accountStatus == null}" class="text-sm text-red-600 bg-red-50 rounded-md px-3 py-2">
-            Invalid username or password.
-        </p>
-        <p th:if="${loggedOut}" class="text-sm text-green-700 bg-green-50 rounded-md px-3 py-2">
-            You have been signed out.
-        </p>
+    <!-- Form -->
+    <div class="flex flex-1 items-center justify-center px-4 py-12">
+        <div class="w-full max-w-sm">
+            <div class="mb-8 text-center lg:text-left">
+                <h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
+                <p class="mt-1 text-sm text-slate-500">
+                    <span class="lg:hidden"><span class="text-brand-600">ASG</span> FabricERP · </span>Welcome back.
+                </p>
+            </div>
 
-        <form th:action="@{/login}" method="post" class="space-y-4">
-            <div>
-                <label class="label" for="username">Username</label>
-                <input id="username" name="username" class="field" autocomplete="username" required autofocus>
+            <div class="space-y-4">
+                <p th:if="${error and accountStatus != null}" th:text="${accountStatus}" class="alert-error" role="alert">
+                    Account status.
+                </p>
+                <p th:if="${error and accountStatus == null}" class="alert-error" role="alert">
+                    Invalid username or password.
+                </p>
+                <p th:if="${loggedOut}" class="alert-success" role="status">
+                    You have been signed out.
+                </p>
+
+                <form th:action="@{/login}" method="post" class="space-y-4">
+                    <div>
+                        <label class="label" for="username">Username</label>
+                        <input id="username" name="username" class="field" autocomplete="username"
+                               autocapitalize="none" spellcheck="false" required autofocus>
+                    </div>
+                    <div>
+                        <label class="label" for="password">Password</label>
+                        <div class="relative">
+                            <input id="password" name="password" type="password" class="field pr-16"
+                                   autocomplete="current-password" required>
+                            <button type="button" data-reveal="password"
+                                    class="absolute inset-y-0 right-0 px-3 text-xs font-medium text-slate-500 hover:text-slate-800">Show</button>
+                        </div>
+                        <p id="capsWarning" class="hint text-amber-700" hidden>Caps Lock is on.</p>
+                    </div>
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+                        <input type="checkbox" name="remember-me" class="checkbox">
+                        <span>Keep me signed in for 14 days</span>
+                    </label>
+                    <button type="submit" class="btn-primary w-full py-2.5">Sign in</button>
+                </form>
+
+                <p class="text-center text-xs text-slate-500">
+                    Forgotten your password or locked out? Your administrator can reset or unlock your account.
+                </p>
             </div>
-            <div>
-                <label class="label" for="password">Password</label>
-                <input id="password" name="password" type="password" class="field"
-                       autocomplete="current-password" required>
-            </div>
-            <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" name="remember-me" class="rounded border-slate-300">
-                <span>Keep me signed in</span>
-            </label>
-            <button type="submit" class="btn-primary w-full">Sign in</button>
-        </form>
+        </div>
     </div>
 </div>
 
+<script>
+    // Small enough to inline: this page must work before anything else has loaded.
+    document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.reveal);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? 'Hide' : 'Show';
+    }));
+    document.getElementById('password').addEventListener('keyup', e => {
+        document.getElementById('capsWarning').hidden = !(e.getModifierState && e.getModifierState('CapsLock'));
+    });
+    // Double submits would count as two failed attempts toward the lockout.
+    document.querySelector('form').addEventListener('submit', e => {
+        const btn = e.target.querySelector('[type=submit]');
+        btn.disabled = true;
+        btn.textContent = 'Signing in…';
+    });
+</script>
 </body>
 </html>

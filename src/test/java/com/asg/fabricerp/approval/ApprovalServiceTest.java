@@ -98,18 +98,18 @@ class ApprovalServiceTest {
     void submitRequiresTheMakerRole() {
         setUpWithContextUsername("maker1");
         bookingCreatedBy("maker1", BusinessDocumentStatus.DRAFT);
-        authenticateAs("maker1");   // no ROLE_BOOKING_MAKER
+        authenticateAs("maker1");   // no SCREEN_BOOKING_CREATE
 
         assertThatThrownBy(() -> service.submit(DOC_ID))
             .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("ROLE_BOOKING_MAKER");
+            .hasMessageContaining("SCREEN_BOOKING_CREATE");
     }
 
     @Test
     void submitTransitionsAndRecordsHistory() {
         setUpWithContextUsername("maker1");
         BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.DRAFT);
-        authenticateAs("maker1", "ROLE_BOOKING_MAKER");
+        authenticateAs("maker1", "SCREEN_BOOKING_CREATE");
 
         service.submit(DOC_ID);
 
@@ -129,7 +129,7 @@ class ApprovalServiceTest {
         doc.setDocumentType(DocumentType.BOOKING);
         doc.setDocumentNo("BKAF000002");
         when(repository.findScopedWithLines(DOC_ID, ORG)).thenReturn(Optional.of(doc));
-        authenticateAs("maker1", "ROLE_BOOKING_MAKER");
+        authenticateAs("maker1", "SCREEN_BOOKING_CREATE");
 
         assertThatThrownBy(() -> service.submit(DOC_ID))
             .isInstanceOf(IllegalStateException.class)
@@ -140,7 +140,7 @@ class ApprovalServiceTest {
     void aDifferentUserWithTheApprovalRoleCanApprove() {
         setUpWithContextUsername("approver1");
         BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("approver1", "ROLE_APPROVAL");
+        authenticateAs("approver1", "SCREEN_BOOKING_APPROVE");
 
         service.approve(DOC_ID, "looks correct");
 
@@ -152,7 +152,7 @@ class ApprovalServiceTest {
     void theCreatorCannotApproveTheirOwnDocumentEvenWithTheRole() {
         setUpWithContextUsername("maker1");
         bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("maker1", "ROLE_APPROVAL");   // holds the role, but is the creator
+        authenticateAs("maker1", "SCREEN_BOOKING_APPROVE");   // holds the role, but is the creator
 
         assertThatThrownBy(() -> service.approve(DOC_ID, null))
             .isInstanceOf(AccessDeniedException.class)
@@ -163,11 +163,11 @@ class ApprovalServiceTest {
     void approvalIsRefusedWithoutTheRoleEvenForADifferentUser() {
         setUpWithContextUsername("someone-else");
         bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("someone-else");   // authenticated, but no ROLE_APPROVAL
+        authenticateAs("someone-else");   // authenticated, but no SCREEN_BOOKING_APPROVE
 
         assertThatThrownBy(() -> service.approve(DOC_ID, null))
             .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("ROLE_APPROVAL");
+            .hasMessageContaining("SCREEN_BOOKING_APPROVE");
     }
 
     @Test
@@ -175,7 +175,7 @@ class ApprovalServiceTest {
         // Sending your own submission back for correction is not the risk self-approval is.
         setUpWithContextUsername("maker1");
         BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("maker1", "ROLE_APPROVAL");
+        authenticateAs("maker1", "SCREEN_BOOKING_APPROVE");
 
         service.reject(DOC_ID, "wrong construction");
 

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><title>Home</title></head>
+<body>
+<div th:fragment="content">
+
+    <div th:if="${passwordChanged}" class="alert-success mb-5" role="status">
+        Your password has been changed.
+    </div>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Welcome<th:block th:if="${currentUser != null}">, <span th:text="${currentUser.displayName}">name</span></th:block></h1>
+            <p class="page-sub">Everything your roles open is listed below and in the menu.</p>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-3">
+        <!-- Screens -->
+        <div class="space-y-6 xl:col-span-2">
+            <section th:each="section : ${nav}" class="card">
+                <div class="card-header"><h2 class="card-title" th:text="${section.label}">Section</h2></div>
+                <div class="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <th:block th:each="item : ${section.items}">
+                        <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}"
+                           class="group rounded-lg border border-slate-200 p-3 transition hover:border-brand-300 hover:bg-brand-50/40">
+                            <span class="block text-sm font-medium text-slate-800 group-hover:text-brand-700" th:text="${item.label}">Item</span>
+                            <span class="block text-xs text-slate-500" th:text="${item.path}">/path</span>
+                        </a>
+                        <div th:if="${item.hasChildren()}" class="rounded-lg border border-slate-200 p-3">
+                            <span class="block text-sm font-medium text-slate-800" th:text="${item.label}">Group</span>
+                            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                                <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
+                                   class="text-xs text-brand-700 hover:underline">Child</a>
+                            </div>
+                        </div>
+                    </th:block>
+                </div>
+            </section>
+
+            <div th:if="${#lists.isEmpty(nav)}" class="card p-8 text-center">
+                <p class="text-sm font-medium text-slate-800">No screens yet</p>
+                <p class="mt-1 text-sm text-slate-500">Your account has no role granting access to any screen.
+                    An administrator can assign one on the Users screen.</p>
+            </div>
+        </div>
+
+        <!-- Account -->
+        <aside th:if="${account != null}" class="card h-fit">
+            <div class="card-header"><h2 class="card-title">Your account</h2></div>
+            <dl class="divide-y divide-slate-100 text-sm">
+                <div class="flex justify-between gap-4 px-4 py-2.5">
+                    <dt class="text-slate-500">Username</dt>
+                    <dd class="font-medium" th:text="${account.username}">user</dd>
+                </div>
+                <div class="flex justify-between gap-4 px-4 py-2.5">
+                    <dt class="text-slate-500">Last sign-in</dt>
+                    <dd th:text="${account.lastLoginAt != null} ? ${#temporals.format(account.lastLoginAt, 'dd MMM yyyy, HH:mm')} : 'First time'">-</dd>
+                </div>
+                <div class="flex justify-between gap-4 px-4 py-2.5">
+                    <dt class="text-slate-500">Password changed</dt>
+                    <dd th:text="${account.passwordChangedAt != null} ? ${#temporals.format(account.passwordChangedAt, 'dd MMM yyyy')} : 'Not recorded'">-</dd>
+                </div>
+                <div class="flex justify-between gap-4 px-4 py-2.5">
+                    <dt class="text-slate-500">Data access</dt>
+                    <dd>
+                        <span th:if="${account.unrestricted}" class="badge-violet">All rows</span>
+                        <span th:unless="${account.unrestricted}" class="badge-gray">Scoped</span>
+                    </dd>
+                </div>
+                <div class="px-4 py-2.5">
+                    <dt class="mb-1.5 text-slate-500">Roles</dt>
+                    <dd class="flex flex-wrap gap-1">
+                        <span th:each="role : ${accountRoles}" class="badge-blue" th:text="${role}">Role</span>
+                        <span th:if="${#lists.isEmpty(accountRoles)}" class="text-slate-400">None</span>
+                    </dd>
+                </div>
+            </dl>
+            <div class="border-t border-slate-100 p-4">
+                <a th:href="@{/account/password}" class="btn-ghost w-full">Change password</a>
+            </div>
+        </aside>
+    </div>
+</div>
+</body>
+</html>

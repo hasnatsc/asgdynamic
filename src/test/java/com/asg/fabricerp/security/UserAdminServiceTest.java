@@ -1,11 +1,13 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.common.BusinessUnit;
 import com.asg.fabricerp.common.BusinessUnitRepository;
 import com.asg.fabricerp.common.MarketingTeam;
 import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.common.ScopeDimension;
+import com.asg.fabricerp.common.Warehouse;
 import com.asg.fabricerp.common.WarehouseRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +39,7 @@ class UserAdminServiceTest {
     private static final Long OTHER_ID = 2L;
     private static final Long TEAM_LONDON = 3L;
     private static final Long TEAM_TOKYO = 7L;
+    private static final Long STORE_WEAVING = 20L;
 
     private FabricUserRepository users;
     private DataScopeRepository scopes;
@@ -77,9 +80,13 @@ class UserAdminServiceTest {
             @Override public RowScope rowScope()         { return RowScope.unrestrictedScope(); }
         };
 
-        service = new UserAdminService(users, roles, scopes, mock(BusinessUnitRepository.class),
-            mock(WarehouseRepository.class), teams, NoOpPasswordEncoder.getInstance(),
-            accessLog, context);
+        BusinessUnitRepository units = mock(BusinessUnitRepository.class);
+        when(units.lookup(ORG)).thenReturn(List.of(unit(10L, "AF"), unit(11L, "AX")));
+        WarehouseRepository stores = mock(WarehouseRepository.class);
+        when(stores.lookup(ORG)).thenReturn(List.of(store(STORE_WEAVING)));
+
+        service = new UserAdminService(users, roles, scopes, units, stores, teams,
+            NoOpPasswordEncoder.getInstance(), accessLog, context);
 
         signInAs(admin);
     }
@@ -94,6 +101,18 @@ class UserAdminServiceTest {
         user.setId(id);
         user.setOrganizationId(ORG);
         return user;
+    }
+
+    private static BusinessUnit unit(Long id, String code) {
+        BusinessUnit unit = new BusinessUnit(code, code + " unit");
+        unit.setId(id);
+        return unit;
+    }
+
+    private static Warehouse store(Long id) {
+        Warehouse store = new Warehouse("WS", "Weaving store");
+        store.setId(id);
+        return store;
     }
 
     private static MarketingTeam team(Long id, String name) {
@@ -115,20 +134,20 @@ class UserAdminServiceTest {
     void anAdministratorCannotMakeThemselvesUnrestricted() {
         admin.setUnrestricted(false);
 
-        assertThatThrownBy(() -> service.update(ADMIN_ID, "Admin", 10L, "AF", null, Set.of(), true))
+        assertThatThrownBy(() -> service.update(ADMIN_ID, "Admin", 10L, null, Set.of(), true))
             .isInstanceOf(SelfGrantException.class)
             .hasMessageContaining("unrestricted");
     }
 
     @Test
     void anAdministratorCannotMoveThemselvesToAnotherBusinessUnit() {
-        assertThatThrownBy(() -> service.update(ADMIN_ID, "Admin", 11L, "AX", null, Set.of(), true))
+        assertThatThrownBy(() -> service.update(ADMIN_ID, "Admin", 11L, null, Set.of(), true))
             .isInstanceOf(SelfGrantException.class);
     }
 
     @Test
     void anAdministratorMayStillCorrectTheirOwnName() {
-        FabricUser saved = service.update(ADMIN_ID, "Corrected Name", 10L, "AF", null, Set.of(), true);
+        FabricUser saved = service.update(ADMIN_ID, "Corrected Name", 10L, null, Set.of(), true);
 
         assertThat(saved.getFullName()).isEqualTo("Corrected Name");
     }
@@ -153,9 +172,57 @@ class UserAdminServiceTest {
 
     @Test
     void theSameChangesToSomebodyElseAreAllowed() {
-        FabricUser saved = service.update(OTHER_ID, "Merch", 10L, "AF", null, Set.of(), true);
+        FabricUser saved = service.update(OTHER_ID, "Merch", 10L, null, Set.of(), true);
 
         assertThat(saved.isUnrestricted()).isTrue();
+    }
+
+    // --- business unit and store ---------------------------------------------------------------
+
+    @Test
+    void movingAUserToAnotherUnitTakesThatUnitsCode() {
+        FabricUser saved = service.update(OTHER_ID, "Merch", 11L, null, Set.of(), false);
+
+        assertThat(saved.getBusinessUnitId()).isEqualTo(11L);
+        assertThat(saved.getBusinessUnitCode()).isEqualTo("AX");
+    }
+
+    @Test
+    void aBusinessUnitOutsideTheOrganizationIsRefused() {
+        assertThatThrownBy(() -> service.update(OTHER_ID, "Merch", 99L, null, Set.of(), false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("business unit");
+        assertThat(other.getBusinessUnitId()).isEqualTo(10L);
+    }
+
+    @Test
+    void aStoreOutsideTheOrganizationIsRefused() {
+        assertThatThrownBy(() -> service.update(OTHER_ID, "Merch", 10L, 99L, Set.of(), false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("warehouse");
+
+        FabricUser saved = service.update(OTHER_ID, "Merch", 10L, STORE_WEAVING, Set.of(), false);
+        assertThat(saved.getWarehouseId()).isEqualTo(STORE_WEAVING);
+    }
+
+    @Test
+    void creatingAUserDerivesTheUnitCodeAndTrimsTheUsername() {
+        FabricUser created = service.create("  new.merch ", "a-long-enough-password", "New Merch",
+            11L, null, Set.of(), false);
+
+        assertThat(created.getUsername()).isEqualTo("new.merch");
+        assertThat(created.getBusinessUnitCode()).isEqualTo("AX");
+        assertThat(created.isMustChangePassword()).isTrue();
+        assertThat(created.getOrganizationId()).isEqualTo(ORG);
+    }
+
+    @Test
+    void creatingAUserNeedsARealBusinessUnit() {
+        assertThatThrownBy(() -> service.create("new.merch", "a-long-enough-password", null,
+                null, null, Set.of(), false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("business unit");
+        verify(users, never()).save(any());
     }
 
     // --- passwords ------------------------------------------------------------------------------

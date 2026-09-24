@@ -1,54 +1,126 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
-      lang="en">
+      lang="en" class="h-full">
+<!--
+  The application shell. Controllers render this view with ${content} naming the page fragment;
+  LayoutModelInterceptor supplies ${nav}, ${operatingContext}, ${currentUser} and ${currentPath}.
+  Page scripts inside a fragment run after app.js by waiting for DOMContentLoaded.
+-->
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="|ASG Dynamic | ${title ?: 'Home'}|">ASG Dynamic</title>
+    <title th:text="|${title ?: 'Home'} · ASG FabricERP|">ASG FabricERP</title>
 
-    <!-- CSRF for AJAX: Spring Security CSRF stays enabled. -->
+    <!-- CSRF for AJAX: Spring Security CSRF stays enabled. app.js reads these. -->
     <meta name="_csrf" th:content="${_csrf?.token}">
     <meta name="_csrf_header" th:content="${_csrf?.headerName}">
 
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script th:src="@{/js/app.js}" defer></script>
 </head>
-<body class="bg-slate-50 text-slate-900 antialiased">
+<body class="h-full bg-slate-50 font-sans text-slate-900 antialiased">
 
-<header class="bg-white border-b border-slate-200">
-    <div class="mx-auto max-w-screen-2xl px-4 h-14 flex items-center gap-4">
-        <a th:href="@{/}" class="font-semibold tracking-tight">
-            <span class="text-brand-600">ASG</span> DYNAMIC
+<a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 btn-primary">Skip to content</a>
+
+<!-- Mobile scrim -->
+<div id="sidebar-scrim" class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" hidden data-sidebar-toggle></div>
+
+<!-- ============================== Sidebar ============================== -->
+<aside id="sidebar"
+       class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white
+              transition-transform duration-200 lg:translate-x-0">
+    <div class="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-4">
+        <a th:href="@{/}" class="flex items-center gap-2 font-semibold tracking-tight">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-white">A</span>
+            <span><span class="text-brand-600">ASG</span> FabricERP</span>
         </a>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-2 pb-6" aria-label="Main">
+        <div class="pt-3">
+            <a th:href="@{/}" class="nav-link" th:classappend="${currentPath == '/'} ? 'is-active'">
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.7 2.3a1 1 0 0 0-1.4 0l-7 7A1 1 0 0 0 3 11h1v6a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-6h1a1 1 0 0 0 .7-1.7l-7-7Z"/></svg>
+                Home
+            </a>
+        </div>
+
+        <th:block th:each="section : ${nav}">
+            <div class="nav-section" th:text="${section.label}">Section</div>
+            <th:block th:each="item : ${section.items}">
+                <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}" th:text="${item.label}"
+                   class="nav-link" th:classappend="${item.active} ? 'is-active'"
+                   th:attr="aria-current=${item.active} ? 'page' : null">Item</a>
+
+                <details th:if="${item.hasChildren()}" class="group" th:open="${item.active}">
+                    <summary class="nav-link cursor-pointer list-none justify-between"
+                             th:classappend="${item.active} ? 'font-medium text-slate-900'">
+                        <span th:text="${item.label}">Group</span>
+                        <svg class="h-4 w-4 text-slate-400 transition-transform group-open:rotate-90" viewBox="0 0 20 20"
+                             fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.2 14.8a1 1 0 0 1 0-1.4L10.6 10 7.2 6.6a1 1 0 1 1 1.4-1.4l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4 0Z" clip-rule="evenodd"/></svg>
+                    </summary>
+                    <div class="mt-0.5 space-y-0.5">
+                        <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
+                           class="nav-sublink" th:classappend="${child.active} ? 'is-active'"
+                           th:attr="aria-current=${child.active} ? 'page' : null">Child</a>
+                    </div>
+                </details>
+            </th:block>
+        </th:block>
+
+        <p th:if="${#lists.isEmpty(nav)}" class="px-3 pt-6 text-xs text-slate-500">
+            No screens are granted to your roles yet. Ask an administrator.
+        </p>
+    </nav>
+</aside>
+
+<!-- ============================== Main column ============================== -->
+<div class="flex min-h-full flex-col lg:pl-64">
+    <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur">
+        <button type="button" class="btn-icon lg:hidden" data-sidebar-toggle aria-label="Open menu">
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" clip-rule="evenodd"/></svg>
+        </button>
 
         <!--
-          Operating context. In the legacy system changing either of these forced a
-          logout; here it is a plain POST that updates the session in place.
+          Operating context: the unit that stamps new document numbers, and the default store.
+          Read-only for now - FabricUser's javadoc records that switching mid-session is not built.
         -->
-        <form th:action="@{/context/switch}" method="post"
-              class="flex items-center gap-2 text-sm text-slate-600">
-            <span class="hidden sm:inline"
-                  th:text="${operatingContext.businessUnitName} ?: 'No business unit'">Unit</span>
-            <span class="text-slate-300">/</span>
-            <span class="hidden sm:inline"
-                  th:text="${operatingContext.storeName} ?: 'No store'">Store</span>
-        </form>
+        <div th:if="${operatingContext != null}" class="hidden items-center gap-2 text-xs sm:flex"
+             title="Your operating unit and store. New documents are numbered under this unit.">
+            <span class="badge-blue">
+                <span class="font-semibold" th:text="${operatingContext.businessUnitCode}">AF</span>
+                <span th:if="${operatingContext.businessUnitName}" th:text="${operatingContext.businessUnitName}">Unit</span>
+            </span>
+            <span class="badge-gray" th:text="${operatingContext.storeName} ?: 'No default store'">Store</span>
+        </div>
 
-        <nav class="ml-auto flex items-center gap-3 text-sm">
-            <a th:href="@{/menu}" class="hover:text-brand-600">Menu</a>
-            <span sec:authentication="name" class="text-slate-500"></span>
-            <a th:href="@{/account/password}" class="hover:text-brand-600">Change password</a>
-            <form th:action="@{/logout}" method="post">
-                <button type="submit" class="btn-ghost">Sign out</button>
-            </form>
-        </nav>
-    </div>
-</header>
+        <div class="ml-auto flex items-center gap-2">
+            <details class="relative" data-menu th:if="${currentUser != null}">
+                <summary class="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-100">
+                    <span class="avatar" th:text="${#strings.toUpperCase(#strings.substring(currentUser.displayName, 0, 1))}">A</span>
+                    <span class="hidden text-sm font-medium text-slate-700 md:inline" th:text="${currentUser.displayName}">User</span>
+                    <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.2 7.2a1 1 0 0 1 1.4 0L10 10.6l3.4-3.4a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4Z" clip-rule="evenodd"/></svg>
+                </summary>
+                <div class="absolute right-0 mt-2 w-60 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-slate-900/10">
+                    <div class="border-b border-slate-100 px-4 py-3">
+                        <p class="truncate text-sm font-medium text-slate-900" th:text="${currentUser.displayName}">Name</p>
+                        <p class="truncate text-xs text-slate-500" sec:authentication="name">username</p>
+                    </div>
+                    <a th:href="@{/account/password}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Change password</a>
+                    <form th:action="@{/logout}" method="post" class="border-t border-slate-100">
+                        <button type="submit" class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">Sign out</button>
+                    </form>
+                </div>
+            </details>
+        </div>
+    </header>
 
-<main class="mx-auto max-w-screen-2xl px-4 py-6">
-    <div th:replace="${content}">Page content goes here.</div>
-</main>
+    <main id="main" class="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-6 sm:px-6">
+        <!-- ${content} is a controller-set "template :: fragment" string; preprocessing (__…__)
+             turns it into a fragment expression. A bare ${content} is read as a template NAME. -->
+        <div th:replace="~{__${content}__}">Page content goes here.</div>
+    </main>
+</div>
 
-<script th:src="@{/js/app.js}" defer></script>
 </body>
 </html>

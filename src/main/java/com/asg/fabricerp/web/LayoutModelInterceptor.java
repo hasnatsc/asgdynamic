@@ -12,6 +12,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.util.UrlPathHelper;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -47,7 +48,7 @@ public class LayoutModelInterceptor implements HandlerInterceptor {
         if (mav == null || !LAYOUT_VIEW.equals(mav.getViewName())) {
             return;
         }
-        String currentPath = request.getServletPath();
+        String currentPath = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
         mav.addObject("currentPath", currentPath);
 
         CurrentUser.principal().ifPresent(principal -> {

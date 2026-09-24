@@ -1,202 +1,358 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <title th:text="${title}">Roles</title>
-</head>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title th:text="${title}">Roles</title></head>
 <body>
 <div th:fragment="content">
 
-    <div class="flex items-center justify-between mb-5">
+    <div class="page-header">
         <div>
-            <h1 class="text-xl font-semibold" th:text="${title}">Roles</h1>
-            <p class="text-sm text-slate-500">Named bundles of per-screen view/create/amend/delete/approve grants.</p>
+            <h1 class="page-title">Roles</h1>
+            <p class="page-sub">Named bundles of per-screen permissions. A user's access is the union of their active roles.</p>
         </div>
-        <button type="button" class="btn-primary" id="roleNewBtn">Add</button>
+        <button type="button" class="btn-primary" id="roleNewBtn"
+                sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_CREATE')">
+            <span aria-hidden="true">+</span> New role
+        </button>
     </div>
 
     <div class="card overflow-hidden">
-        <table id="roleTable" class="table-grid">
-            <thead>
-            <tr>
-                <th data-sort="name">Name</th>
-                <th>Description</th>
-                <th>Screens granted</th>
-                <th data-sort="active">Active</th>
-                <th class="text-right">Action</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <form id="roleForm" class="card mt-6 p-5 space-y-4">
-        <input type="hidden" id="roleId">
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-                <label class="label" for="roleName">Name</label>
-                <input id="roleName" class="field" maxlength="80" required>
+        <div class="toolbar">
+            <div class="relative w-full sm:w-72">
+                <input id="roleSearch" type="search" class="field pr-8" placeholder="Search name or description"
+                       aria-label="Search roles" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
             </div>
-            <div>
-                <label class="label" for="roleDescription">Description</label>
-                <input id="roleDescription" class="field" maxlength="255">
+            <div class="inline-flex rounded-md shadow-sm" role="group" aria-label="Filter by grants" id="grantFilter">
+                <button type="button" class="btn-ghost rounded-r-none" data-grants="" aria-pressed="true">All</button>
+                <button type="button" class="btn-ghost -ml-px rounded-none" data-grants="with" aria-pressed="false">Granting access</button>
+                <button type="button" class="btn-ghost -ml-px rounded-l-none" data-grants="empty" aria-pressed="false">Empty</button>
             </div>
         </div>
-
-        <label class="inline-flex items-center gap-2 text-sm">
-            <input type="checkbox" id="roleActive" class="rounded border-slate-300" checked>
-            <span>Active</span>
-        </label>
-
-        <div>
-            <div class="label mb-2">Grants</div>
-            <table class="table-grid" id="grantTable">
+        <div class="overflow-x-auto">
+            <table id="roleTable" class="table-grid">
                 <thead>
                 <tr>
-                    <th>Screen</th>
-                    <th th:each="verb : ${verbs}" th:text="${verb}" class="text-center">VERB</th>
+                    <th data-sort="name">Name</th>
+                    <th>Screens</th>
+                    <th>Users</th>
+                    <th data-sort="active">Status</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
                 </tr>
                 </thead>
-                <tbody>
-                <tr th:each="screen : ${screens}" th:attr="data-screen=${screen}">
-                    <td th:text="${screen}">SCREEN</td>
-                    <td th:each="verb : ${verbs}" class="text-center">
-                        <input type="checkbox" class="grant-checkbox rounded border-slate-300"
-                               th:attr="data-screen=${screen},data-verb=${verb}">
-                    </td>
-                </tr>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
+        <div id="rolePager" class="pager"></div>
+    </div>
 
-        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
-            <button type="submit" class="btn-primary">Save</button>
-            <button type="button" class="btn-ghost" id="roleResetBtn">Reset</button>
-        </div>
-    </form>
+    <!-- ============================== Editor ============================== -->
+    <dialog id="roleDialog" class="modal modal-lg" data-sticky aria-labelledby="roleDialogTitle">
+        <form id="roleForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="roleDialogTitle" class="text-base font-semibold text-slate-900">New role</h2>
+                    <p id="roleDialogSub" class="text-sm text-slate-500">Tick what this role may do on each screen.</p>
+                </div>
+                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
+            </div>
+
+            <div class="modal-body space-y-4">
+                <p id="roleUsersNotice" class="alert-warn" hidden></p>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="label" for="roleName">Name</label>
+                        <input id="roleName" class="field" maxlength="80" required autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="label" for="roleDescription">Description</label>
+                        <input id="roleDescription" class="field" maxlength="255" autocomplete="off">
+                    </div>
+                </div>
+
+                <label class="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" id="roleActive" class="checkbox" checked>
+                    <span><b>Active</b> <span class="text-slate-500">- an inactive role grants nothing, without being unassigned.</span></span>
+                </label>
+
+                <div>
+                    <div class="mb-2 flex items-center justify-between">
+                        <span class="label mb-0">Permissions</span>
+                        <span class="text-xs text-slate-500">Any permission includes View. Click a header to toggle a whole column.</span>
+                    </div>
+                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="table-grid" id="grantTable">
+                            <thead>
+                            <tr>
+                                <th>Screen</th>
+                                <th th:each="verb : ${verbs}" class="text-center">
+                                    <button type="button" class="uppercase hover:text-brand-700" th:attr="data-col=${verb}"
+                                            th:text="${#strings.capitalize(#strings.toLowerCase(verb))}">Verb</button>
+                                </th>
+                                <th class="text-center">All</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <th:block th:each="entry : ${screensBySection}">
+                                <tr class="bg-slate-50/60 hover:bg-slate-50/60">
+                                    <td th:attr="colspan=${#arrays.length(verbs) + 2}"
+                                        class="py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                                        th:text="${entry.key}">Section</td>
+                                </tr>
+                                <tr th:each="screen : ${entry.value}" th:attr="data-screen=${screen.name()}">
+                                    <td>
+                                        <span class="font-medium text-slate-800" th:text="${screen.label()}">Screen</span>
+                                        <span class="block font-mono text-[11px] text-slate-400" th:text="${screen.name()}">CODE</span>
+                                    </td>
+                                    <td th:each="verb : ${verbs}" class="text-center">
+                                        <input type="checkbox" class="checkbox grant"
+                                               th:attr="data-screen=${screen.name()},data-verb=${verb},aria-label=${screen.label()} + ' ' + ${verb}">
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="checkbox" class="checkbox row-all" th:attr="aria-label='All on ' + ${screen.label()}">
+                                    </td>
+                                </tr>
+                            </th:block>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" class="btn-subtle mr-auto text-red-600" id="roleDeleteBtn" hidden
+                        sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_DELETE')">Delete role</button>
+                <span id="roleDirtyNote" class="text-xs text-amber-700" hidden>Unsaved changes</span>
+                <button type="button" class="btn-ghost" data-dismiss>Close</button>
+                <button type="submit" class="btn-primary" id="roleSaveBtn">Save role</button>
+            </div>
+        </form>
+    </dialog>
 
     <script th:inline="javascript">
-    (function () {
-        const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
-        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
-        const tbody = document.querySelector('#roleTable tbody');
-        const form = document.getElementById('roleForm');
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, toast } = App;
+        const SCREEN_TOTAL = /*[[${screenTotal}]]*/ 10;
+        const CAN = {
+            create: /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_CREATE'')')}]]*/ false,
+            amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_AMEND'')')}]]*/ false,
+            del:    /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_DELETE'')')}]]*/ false
+        };
 
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text == null ? '' : String(text).replace(/[&<>"']/g, m => map[m]);
-        }
+        const $ = sel => document.querySelector(sel);
+        const dialog = $('#roleDialog');
+        const form = $('#roleForm');
+        let grantsFilter = '';
+        let current = null;
+        let dirty = false;
 
-        function api(url, options) {
-            options = options || {};
-            options.headers = Object.assign({
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                [csrfHeader]: csrfToken
-            }, options.headers || {});
-            return fetch(url, options).then(res => {
-                if (!res.ok) return res.json().then(body => { throw new Error(body.message || ('HTTP ' + res.status)); });
-                return res.status === 204 ? null : res.json();
-            });
-        }
-
-        function loadGrid() {
-            fetch('/api/setup/roles?draw=1&start=0&length=500&sortColumn=name')
-                .then(res => res.json())
-                .then(data => renderGrid(data.data || []))
-                .catch(() => { tbody.innerHTML = '<tr><td colspan="5">Failed to load roles.</td></tr>'; });
-        }
-
-        function renderGrid(rows) {
-            if (rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500">No roles yet</td></tr>';
-                return;
-            }
-            tbody.innerHTML = rows.map(r => `
-                <tr>
-                    <td>${escapeHtml(r.name)}</td>
-                    <td>${escapeHtml(r.description)}</td>
-                    <td>${r.screenCount}</td>
-                    <td>${r.active ? 'Yes' : 'No'}</td>
-                    <td class="text-right">
-                        <button type="button" class="btn-ghost" data-edit="${r.id}">Edit</button>
-                        <button type="button" class="btn-ghost text-red-600" data-delete="${r.id}">Delete</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        tbody.addEventListener('click', function (e) {
-            const editId = e.target.getAttribute('data-edit');
-            const deleteId = e.target.getAttribute('data-delete');
-            if (editId) edit(editId);
-            if (deleteId) remove(deleteId);
+        // ------------------------------------------------------------------ grid
+        const grid = new App.Grid({
+            url: '/api/setup/roles',
+            table: $('#roleTable'),
+            search: $('#roleSearch'),
+            pager: $('#rolePager'),
+            sort: { column: 'name', dir: 'asc' },
+            emptyText: 'No roles match.',
+            params: () => ({ grants: grantsFilter }),
+            columns: [
+                r => `<div class="font-medium text-slate-900">${esc(r.name)}</div>`
+                   + (r.description ? `<div class="max-w-md truncate text-xs text-slate-500">${esc(r.description)}</div>` : ''),
+                r => {
+                    const pct = Math.round(100 * r.screenCount / SCREEN_TOTAL);
+                    return r.screenCount === 0 ? '<span class="badge-gray">Grants nothing</span>'
+                        : `<div class="flex items-center gap-2"><div class="h-1.5 w-20 rounded-full bg-slate-100">
+                             <div class="h-1.5 rounded-full bg-brand-500" style="width:${pct}%"></div></div>
+                             <span class="text-xs text-slate-600">${r.screenCount} of ${SCREEN_TOTAL}</span></div>`;
+                },
+                r => r.userCount ? `<span class="font-medium">${r.userCount}</span>` : '<span class="text-slate-400">0</span>',
+                r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
+                r => `<div class="flex justify-end gap-1">
+                        ${CAN.create ? `<button type="button" class="btn-subtle btn-sm" data-duplicate="${r.id}" title="Start a new role from this one">Duplicate</button>` : ''}
+                        <button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+            ],
+            onRowClick: row => openEditor(row.id)
         });
 
-        function edit(id) {
-            api('/api/setup/roles/' + id).then(r => {
-                document.getElementById('roleId').value = r.id;
-                document.getElementById('roleName').value = r.name || '';
-                document.getElementById('roleDescription').value = r.description || '';
-                document.getElementById('roleActive').checked = !!r.active;
-                document.querySelectorAll('.grant-checkbox').forEach(cb => { cb.checked = false; });
-                const grants = r.grants || {};
-                Object.keys(grants).forEach(screen => {
-                    (grants[screen] || []).forEach(verb => {
-                        const cb = document.querySelector(
-                            '.grant-checkbox[data-screen="' + screen + '"][data-verb="' + verb + '"]');
-                        if (cb) cb.checked = true;
-                    });
-                });
-                form.scrollIntoView({ behavior: 'smooth' });
-            }).catch(err => alert(err.message));
-        }
+        $('#grantFilter').addEventListener('click', e => {
+            const btn = e.target.closest('[data-grants]');
+            if (!btn) return;
+            grantsFilter = btn.dataset.grants;
+            $('#grantFilter').querySelectorAll('[data-grants]').forEach(b => {
+                const on = b === btn;
+                b.setAttribute('aria-pressed', String(on));
+                b.classList.toggle('bg-brand-50', on);
+                b.classList.toggle('text-brand-700', on);
+            });
+            grid.reload(true);
+        });
 
-        function remove(id) {
-            if (!confirm('Delete this role?')) return;
-            api('/api/setup/roles/' + id, { method: 'DELETE' })
-                .then(loadGrid)
-                .catch(err => alert(err.message));
-        }
+        $('#roleTable tbody').addEventListener('click', e => {
+            const edit = e.target.closest('[data-edit]');
+            const dup = e.target.closest('[data-duplicate]');
+            if (edit) openEditor(Number(edit.dataset.edit));
+            if (dup) openEditor(Number(dup.dataset.duplicate), { duplicate: true });
+        });
 
-        function resetForm() {
-            form.reset();
-            document.getElementById('roleId').value = '';
-            document.querySelectorAll('.grant-checkbox').forEach(cb => { cb.checked = false; });
-        }
+        // ------------------------------------------------------------------ matrix
+        const grants = () => Array.from(dialog.querySelectorAll('.grant'));
 
-        document.getElementById('roleNewBtn').addEventListener('click', resetForm);
-        document.getElementById('roleResetBtn').addEventListener('click', resetForm);
+        function syncRow(tr) {
+            const boxes = Array.from(tr.querySelectorAll('.grant'));
+            const all = tr.querySelector('.row-all');
+            const checked = boxes.filter(b => b.checked).length;
+            all.checked = checked === boxes.length;
+            all.indeterminate = checked > 0 && checked < boxes.length;
+        }
+        const syncAllRows = () => dialog.querySelectorAll('tr[data-screen]').forEach(syncRow);
+
+        dialog.querySelector('#grantTable tbody').addEventListener('change', e => {
+            const tr = e.target.closest('tr[data-screen]');
+            if (!tr) return;
+            if (e.target.classList.contains('row-all')) {
+                tr.querySelectorAll('.grant').forEach(b => { b.checked = e.target.checked; });
+            } else if (e.target.classList.contains('grant')) {
+                const view = tr.querySelector('.grant[data-verb="VIEW"]');
+                // Mirrors RoleScreenGrant.setVerbs: any verb implies VIEW, and without VIEW nothing stands.
+                if (e.target.checked && e.target !== view) view.checked = true;
+                if (!e.target.checked && e.target === view) tr.querySelectorAll('.grant').forEach(b => { b.checked = false; });
+            }
+            syncRow(tr);
+            markDirty();
+        });
+
+        dialog.querySelectorAll('[data-col]').forEach(btn => btn.addEventListener('click', () => {
+            if (!canWrite()) return;
+            const verb = btn.dataset.col;
+            const column = grants().filter(b => b.dataset.verb === verb);
+            const turnOn = column.some(b => !b.checked);
+            column.forEach(b => {
+                b.checked = turnOn;
+                const tr = b.closest('tr');
+                if (turnOn && verb !== 'VIEW') tr.querySelector('.grant[data-verb="VIEW"]').checked = true;
+                if (!turnOn && verb === 'VIEW') tr.querySelectorAll('.grant').forEach(x => { x.checked = false; });
+            });
+            syncAllRows();
+            markDirty();
+        }));
 
         function collectGrants() {
-            const grants = {};
-            document.querySelectorAll('.grant-checkbox:checked').forEach(cb => {
-                const screen = cb.getAttribute('data-screen');
-                const verb = cb.getAttribute('data-verb');
-                (grants[screen] = grants[screen] || []).push(verb);
+            const out = {};
+            grants().filter(b => b.checked).forEach(b => {
+                (out[b.dataset.screen] = out[b.dataset.screen] || []).push(b.dataset.verb);
             });
-            return grants;
+            return out;
         }
 
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const rawId = document.getElementById('roleId').value;
-            const payload = {
-                id: rawId ? Number(rawId) : null,
-                name: document.getElementById('roleName').value,
-                description: document.getElementById('roleDescription').value,
-                active: document.getElementById('roleActive').checked,
-                grants: collectGrants()
-            };
-            api('/api/setup/roles', { method: 'POST', body: JSON.stringify(payload) })
-                .then(() => { resetForm(); loadGrid(); })
-                .catch(err => alert(err.message));
+        // ------------------------------------------------------------------ editor
+        function markDirty() { dirty = true; $('#roleDirtyNote').hidden = false; }
+        function clearDirty() { dirty = false; $('#roleDirtyNote').hidden = true; }
+        form.addEventListener('input', e => { if (!e.target.closest('#grantTable')) markDirty(); });
+
+        const canWrite = () => (current && current.id) ? CAN.amend : CAN.create;
+
+        async function closeEditor() {
+            if (dirty && !(await App.confirm({ title: 'Discard changes?', message: 'Your edits to this role have not been saved.',
+                                                confirmText: 'Discard', danger: true }))) return;
+            clearDirty();
+            dialog.close();
+        }
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', closeEditor));
+        dialog.addEventListener('cancel', e => { e.preventDefault(); closeEditor(); });
+
+        async function openEditor(id, opts) {
+            opts = opts || {};
+            let role = null;
+            try {
+                if (id) role = await api(`/api/setup/roles/${id}`);
+            } catch (error) { return fail(error); }
+
+            if (opts.duplicate && role) {
+                role = Object.assign({}, role, { id: null, name: 'Copy of ' + role.name, userCount: 0 });
+            }
+            current = role;
+            const editing = !!(role && role.id);
+
+            $('#roleDialogTitle').textContent = editing ? role.name : (opts.duplicate ? 'Duplicate role' : 'New role');
+            $('#roleDialogSub').textContent = editing ? 'Change what this role may do on each screen.'
+                                                      : 'Tick what this role may do on each screen.';
+            $('#roleName').value = role ? role.name : '';
+            $('#roleDescription').value = role ? (role.description || '') : '';
+            $('#roleActive').checked = role ? !!role.active : true;
+
+            grants().forEach(b => { b.checked = false; });
+            Object.entries((role && role.grants) || {}).forEach(([screen, verbs]) => verbs.forEach(verb => {
+                const box = dialog.querySelector(`.grant[data-screen="${screen}"][data-verb="${verb}"]`);
+                if (box) box.checked = true;
+            }));
+            syncAllRows();
+
+            const notice = $('#roleUsersNotice');
+            notice.hidden = !(editing && role.userCount > 0);
+            notice.textContent = editing && role.userCount > 0
+                ? `${role.userCount} user${role.userCount === 1 ? ' holds' : 's hold'} this role. Changes apply to them on their next request.` : '';
+
+            const writable = canWrite();
+            form.querySelectorAll('input').forEach(input => { input.disabled = !writable; });
+            $('#roleSaveBtn').hidden = !writable;
+            const del = $('#roleDeleteBtn');
+            if (del) {
+                del.hidden = !editing;
+                del.disabled = editing && role.userCount > 0;
+                del.title = del.disabled ? 'Unassign it from every user first' : '';
+            }
+
+            clearDirty();
+            dialog.showModal();
+            if (writable) $('#roleName').focus();
+        }
+
+        $('#roleNewBtn')?.addEventListener('click', () => openEditor(null));
+
+        $('#roleDeleteBtn')?.addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete "${current.name}"?`, danger: true, confirmText: 'Delete role',
+                message: 'This cannot be undone. Only a role no user holds can be deleted.' });
+            if (!ok) return;
+            try {
+                await api(`/api/setup/roles/${current.id}`, { method: 'DELETE' });
+                toast('Role deleted', 'success');
+                clearDirty();
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
         });
 
-        loadGrid();
-    })();
-    </script>
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!form.checkValidity()) return form.reportValidity();
+            const saveBtn = $('#roleSaveBtn');
+            saveBtn.disabled = true;
+            try {
+                const saved = await api('/api/setup/roles', { method: 'POST', body: {
+                    id: current && current.id ? current.id : null,
+                    name: $('#roleName').value.trim(),
+                    description: $('#roleDescription').value.trim(),
+                    active: $('#roleActive').checked,
+                    grants: collectGrants()
+                } });
+                toast(`Role "${saved.name}" saved`, 'success');
+                clearDirty();
+                dialog.close();
+                grid.load();
+            } catch (error) {
+                fail(error);
+            } finally {
+                saveBtn.disabled = false;
+            }
+        });
 
+        // ------------------------------------------------------------------ boot
+        const initial = new URLSearchParams(location.search).get('grants');
+        if (initial) $(`#grantFilter [data-grants="${initial === 'empty' ? 'empty' : 'with'}"]`).click();
+        else grid.load();
+    });
+    </script>
 </div>
 </body>
 </html>

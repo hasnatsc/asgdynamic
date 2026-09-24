@@ -17,7 +17,7 @@ import java.util.Map;
  * restricted with no scope), who is part-way through a reset, and what the last day's refusals
  * look like. Every number is organization-scoped; roles are global and counted as such.
  *
- * <p>Eight queries, each an aggregate or a short capped list — the page costs the same with ten
+ * <p>Nine queries, each an aggregate or a short capped list — the page costs the same with ten
  * users as with ten thousand.
  */
 @Service
@@ -48,12 +48,17 @@ public class SecurityOverviewService {
     public record RoleCounts(long total, long active, long withoutGrants) { }
 
     public record Overview(UserCounts users, RoleCounts roles, Map<Event, Long> last24h,
-                           List<FabricUser> locked, List<FabricUser> withoutScope,
+                           List<FabricUser> locked, long withoutScopeCount, List<FabricUser> withoutScope,
                            List<AccessLogEntry> recentEvents) {
 
         public long last24h(Event event) {
             return last24h.getOrDefault(event, 0L);
         }
+
+        // Named accessors for the template: Thymeleaf 3.1 restricts T(...) static access.
+        public long failedLogins24h() { return last24h(Event.LOGIN_FAILED); }
+        public long lockouts24h()     { return last24h(Event.ACCOUNT_LOCKED); }
+        public long accessDenied24h() { return last24h(Event.ACCESS_DENIED); }
     }
 
     @Transactional(readOnly = true)
@@ -65,12 +70,14 @@ public class SecurityOverviewService {
             last24h.put((Event) row[0], (Long) row[1]);
         }
 
+        LocalDate today = LocalDate.now();
         return new Overview(
             users.countSummary(orgId),
             new RoleCounts(roles.count(), roles.countActive(), roles.countWithoutGrants()),
             last24h,
             users.findLocked(orgId, PageRequest.of(0, ATTENTION_LIMIT)),
-            users.findWithoutScope(orgId, LocalDate.now(), PageRequest.of(0, ATTENTION_LIMIT)),
+            users.countWithoutScope(orgId, today),
+            users.findWithoutScope(orgId, today, PageRequest.of(0, ATTENTION_LIMIT)),
             accessLog.findRecent(orgId, NOTABLE, PageRequest.of(0, RECENT_EVENTS)));
     }
 }

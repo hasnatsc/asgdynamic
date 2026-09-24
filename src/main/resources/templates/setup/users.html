@@ -1,359 +1,647 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head>
-    <title th:text="${title}">Users</title>
-</head>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title th:text="${title}">Users</title></head>
 <body>
 <div th:fragment="content">
 
-    <div class="flex items-center justify-between mb-5">
+    <div class="page-header">
         <div>
-            <h1 class="text-xl font-semibold" th:text="${title}">Users</h1>
-            <p class="text-sm text-slate-500">Logins and the roles that grant their authorities.</p>
+            <h1 class="page-title">Users</h1>
+            <p class="page-sub">Logins, the roles that open screens to them, and the data scope that decides which rows they see.</p>
         </div>
-        <button type="button" class="btn-primary" id="userNewBtn">Add</button>
+        <button type="button" class="btn-primary" id="userNewBtn"
+                sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_CREATE')">
+            <span aria-hidden="true">+</span> New user
+        </button>
     </div>
 
     <div class="card overflow-hidden">
-        <table id="userTable" class="table-grid">
-            <thead>
-            <tr>
-                <th data-sort="username">Username</th>
-                <th data-sort="fullName">Full name</th>
-                <th>Business unit</th>
-                <th>Roles</th>
-                <th>Scope</th>
-                <th>Locked</th>
-                <th data-sort="active">Active</th>
-                <th class="text-right">Action</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div class="toolbar">
+            <div class="relative w-full sm:w-72">
+                <input id="userSearch" type="search" class="field pr-8" placeholder="Search username or name"
+                       aria-label="Search users" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select id="userStatus" class="field w-auto" aria-label="Filter by status">
+                <option value="">All users</option>
+                <option value="LOCKED">Locked</option>
+                <option value="MUST_CHANGE_PASSWORD">Password reset pending</option>
+                <option value="RESTRICTED">Scoped access</option>
+                <option value="UNRESTRICTED">All-rows access</option>
+            </select>
+        </div>
+        <div class="overflow-x-auto">
+            <table id="userTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th data-sort="username">User</th>
+                    <th data-sort="businessUnitCode">Unit</th>
+                    <th>Roles</th>
+                    <th>Access</th>
+                    <th>Status</th>
+                    <th data-sort="lastLoginAt">Last sign-in</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="userPager" class="pager"></div>
     </div>
 
-    <form id="userForm" class="card mt-6 p-5 space-y-4">
-        <input type="hidden" id="userId">
+    <!-- ============================== Editor ============================== -->
+    <dialog id="userDialog" class="modal modal-lg" data-sticky aria-labelledby="userDialogTitle">
+        <form id="userForm" novalidate>
+            <div class="modal-head">
+                <div class="flex items-center gap-3">
+                    <span class="avatar h-10 w-10 text-sm" id="userAvatar">+</span>
+                    <div>
+                        <h2 id="userDialogTitle" class="text-base font-semibold text-slate-900">New user</h2>
+                        <p id="userDialogSub" class="text-sm text-slate-500">Create a login. The password you set is temporary.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
+            </div>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-                <label class="label" for="userUsername">Username</label>
-                <input id="userUsername" class="field" maxlength="80" required>
+            <div class="tabs" role="tablist">
+                <button type="button" class="tab" role="tab" data-tab="profile" aria-selected="true">Profile</button>
+                <button type="button" class="tab" role="tab" data-tab="roles">Roles <span id="roleCount" class="badge-gray ml-1">0</span></button>
+                <button type="button" class="tab" role="tab" data-tab="scope" title="Save the user first">Data scope</button>
+                <button type="button" class="tab" role="tab" data-tab="security" title="Save the user first">Sign-in &amp; security</button>
             </div>
-            <div>
-                <label class="label" for="userFullName">Full name</label>
-                <input id="userFullName" class="field" maxlength="150">
-            </div>
-            <div id="userPasswordGroup">
-                <label class="label" for="userPassword">Password</label>
-                <input id="userPassword" type="password" class="field" autocomplete="new-password">
-            </div>
-        </div>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-                <label class="label" for="userBusinessUnitId">Business unit ID</label>
-                <input id="userBusinessUnitId" type="number" class="field" required>
-            </div>
-            <div>
-                <label class="label" for="userBusinessUnitCode">Business unit code</label>
-                <input id="userBusinessUnitCode" class="field" maxlength="4" required>
-            </div>
-            <div>
-                <label class="label" for="userWarehouseId">Warehouse ID</label>
-                <input id="userWarehouseId" type="number" class="field">
-            </div>
-        </div>
+            <div class="modal-body">
+                <p id="selfNotice" class="alert-info mb-4" hidden>
+                    This is your own account. Roles, unit, store, access and sign-in controls can only be changed by
+                    another administrator.
+                </p>
 
-        <label class="flex items-center gap-2 text-sm">
-            <input type="checkbox" id="userUnrestricted" class="rounded border-slate-300">
-            <span><b>Unrestricted</b> — sees every row on every screen their roles open (MD, Accounts,
-                Commercial). Leave off for everyone else and give them scope grants below; a restricted
-                user with no scope cannot sign in.</span>
-        </label>
+                <!-- ---------- Profile ---------- -->
+                <div data-panel="profile" class="space-y-4">
+                    <input type="hidden" id="userId">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="label" for="userUsername">Username</label>
+                            <input id="userUsername" class="field" maxlength="80" required autocomplete="off" spellcheck="false">
+                        </div>
+                        <div>
+                            <label class="label" for="userFullName">Full name</label>
+                            <input id="userFullName" class="field" maxlength="150" autocomplete="off">
+                        </div>
+                    </div>
 
-        <div>
-            <div class="label mb-2">Roles</div>
-            <div class="space-y-1">
-                <label class="flex items-center gap-2 text-sm" th:each="role : ${roles}">
-                    <input type="checkbox" class="role-checkbox rounded border-slate-300"
-                           th:value="${role.id}">
-                    <span th:text="${role.name}">Role name</span>
-                </label>
+                    <div id="userPasswordGroup">
+                        <label class="label" for="userPassword">Temporary password</label>
+                        <div class="flex gap-2">
+                            <input id="userPassword" type="text" class="field font-mono" autocomplete="new-password"
+                                   th:attr="minlength=${minPasswordLength}" spellcheck="false">
+                            <button type="button" class="btn-ghost whitespace-nowrap" data-generate="#userPassword">Generate</button>
+                            <button type="button" class="btn-ghost" data-copy="#userPassword" title="Copy">Copy</button>
+                        </div>
+                        <p class="hint">At least <span th:text="${minPasswordLength}">12</span> characters. The user must choose
+                            their own at first sign-in, so pass this on privately.</p>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="label" for="userBusinessUnit">Business unit</label>
+                            <select id="userBusinessUnit" class="field" required data-self-locked>
+                                <option value="">Select a unit…</option>
+                                <option th:each="u : ${businessUnits}" th:value="${u.id}" th:text="${u.label}">AF - Unit</option>
+                            </select>
+                            <p class="hint">Its code is stamped into every document number this user raises.</p>
+                        </div>
+                        <div>
+                            <label class="label" for="userWarehouse">Default store</label>
+                            <select id="userWarehouse" class="field" data-self-locked>
+                                <option value="">None</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+                        <input type="checkbox" id="userUnrestricted" class="checkbox mt-0.5" data-self-locked>
+                        <span class="text-sm">
+                            <span class="font-medium text-slate-800">Sees every row</span>
+                            <span class="block text-slate-500">For the MD, Accounts or Commercial - every row on each screen their roles open.
+                                Leave off for everyone else and give them data scope instead; a scoped user with no grant cannot sign in.</span>
+                        </span>
+                    </label>
+                </div>
+
+                <!-- ---------- Roles ---------- -->
+                <div data-panel="roles" hidden>
+                    <div class="mb-3 flex flex-wrap items-center gap-3">
+                        <input id="roleFilter" type="search" class="field sm:w-64" placeholder="Filter roles" aria-label="Filter roles">
+                        <label class="flex items-center gap-2 text-sm text-slate-600">
+                            <input type="checkbox" id="roleSelectedOnly" class="checkbox"> Selected only
+                        </label>
+                    </div>
+                    <div id="roleList" class="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200"></div>
+                    <p class="hint">A role grants view/create/amend/delete/approve per screen - see the Roles screen for what each one holds.</p>
+                </div>
+
+                <!-- ---------- Data scope ---------- -->
+                <div data-panel="scope" hidden class="space-y-3">
+                    <div id="scopeBanner"></div>
+                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                        <table class="table-grid">
+                            <thead>
+                            <tr><th>Dimension</th><th>Value</th><th>From</th><th>Revoked</th><th>Remarks</th><th class="w-px"></th></tr>
+                            </thead>
+                            <tbody id="scopeRows"></tbody>
+                        </table>
+                    </div>
+                    <div id="scopeAdd" class="grid items-end gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-12"
+                         sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')">
+                        <div class="sm:col-span-3">
+                            <label class="label text-xs" for="scopeDimension">Dimension</label>
+                            <select id="scopeDimension" class="field">
+                                <option value="MARKETING_TEAM">Marketing team</option>
+                                <option value="WAREHOUSE">Warehouse</option>
+                                <option value="BUSINESS_UNIT">Business unit</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="label text-xs" for="scopeValue">Value</label>
+                            <select id="scopeValue" class="field"></select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label text-xs" for="scopeFrom">From</label>
+                            <input id="scopeFrom" type="date" class="field" title="Defaults to today">
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="label text-xs" for="scopeRemarks">Remarks</label>
+                            <input id="scopeRemarks" class="field" maxlength="255">
+                        </div>
+                        <div class="sm:col-span-12 flex justify-end">
+                            <button type="button" class="btn-primary btn-sm" id="scopeAddBtn">Add grant</button>
+                        </div>
+                    </div>
+                    <p class="hint">Each dimension narrows independently; one with no grant does not narrow. At most one open
+                        marketing team. Grants are closed from a date, never deleted, so past visibility stays answerable.</p>
+                </div>
+
+                <!-- ---------- Sign-in & security ---------- -->
+                <div data-panel="security" hidden class="space-y-4">
+                    <dl id="securityFacts" class="grid gap-x-6 gap-y-3 rounded-lg border border-slate-200 p-4 text-sm sm:grid-cols-2"></dl>
+                    <div class="flex flex-wrap gap-2" sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')">
+                        <button type="button" class="btn-ghost" id="lockBtn" data-self-locked>Lock account</button>
+                        <button type="button" class="btn-ghost" id="unlockBtn" data-self-locked>Unlock account</button>
+                        <button type="button" class="btn-ghost" id="resetPasswordBtn" data-self-locked>Reset password</button>
+                    </div>
+                    <div class="rounded-lg border border-red-200 p-4" sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_DELETE')">
+                        <p class="text-sm font-medium text-red-700">Delete this user</p>
+                        <p class="mt-0.5 text-sm text-slate-500">The login stops working at once. The record is kept for the audit trail.</p>
+                        <button type="button" class="btn-danger btn-sm mt-3" id="deleteBtn" data-self-locked>Delete user</button>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div id="scopePanel" class="space-y-2" style="display:none">
-            <div class="label">Data scope — which rows this user sees</div>
-            <p class="text-xs text-slate-500">Each dimension narrows independently; a dimension with no
-                grant is not narrowed. At most one open marketing team. Grants are closed from a date,
-                never deleted.</p>
-            <table class="table-grid">
-                <thead>
-                <tr><th>Dimension</th><th>Value</th><th>From</th><th>Revoked from</th><th>Remarks</th><th class="text-right">Action</th></tr>
-                </thead>
-                <tbody id="scopeRows"></tbody>
-            </table>
-            <div class="grid grid-cols-1 gap-2 sm:grid-cols-5 items-end">
-                <select id="scopeDimension" class="field">
-                    <option value="MARKETING_TEAM">Marketing team</option>
-                    <option value="WAREHOUSE">Warehouse</option>
-                    <option value="BUSINESS_UNIT">Business unit</option>
-                </select>
-                <select id="scopeValue" class="field"></select>
-                <input id="scopeFrom" type="date" class="field" title="From (defaults to today)">
-                <input id="scopeRemarks" class="field" maxlength="255" placeholder="Remarks">
-                <button type="button" class="btn-ghost" id="scopeAddBtn">Add grant</button>
+            <div class="modal-foot">
+                <span id="dirtyNote" class="mr-auto text-xs text-amber-700" hidden>Unsaved changes</span>
+                <button type="button" class="btn-ghost" data-dismiss>Close</button>
+                <button type="submit" class="btn-primary" id="userSaveBtn">Save</button>
             </div>
-        </div>
-
-        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
-            <button type="submit" class="btn-primary">Save</button>
-            <button type="button" class="btn-ghost" id="userResetBtn">Reset</button>
-        </div>
-    </form>
+        </form>
+    </dialog>
 
     <script th:inline="javascript">
-    (function () {
-        const csrfToken  = document.querySelector('meta[name="_csrf"]').content;
-        const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
-        const tbody = document.querySelector('#userTable tbody');
-        const form = document.getElementById('userForm');
-        const usernameInput = document.getElementById('userUsername');
-        const passwordGroup = document.getElementById('userPasswordGroup');
-        const passwordInput = document.getElementById('userPassword');
-        const unrestrictedInput = document.getElementById('userUnrestricted');
-        const scopePanel = document.getElementById('scopePanel');
-        const scopeRows = document.getElementById('scopeRows');
-        const scopeDimension = document.getElementById('scopeDimension');
-        const scopeValue = document.getElementById('scopeValue');
-        const scopeOptions = /*[[${scopeOptions}]]*/ {};
-        const dimensionLabels = { BUSINESS_UNIT: 'Business unit', WAREHOUSE: 'Warehouse', MARKETING_TEAM: 'Marketing team' };
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, fmt, toast } = App;
 
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text == null ? '' : String(text).replace(/[&<>"']/g, m => map[m]);
+        const ROLES         = /*[[${roles}]]*/ [];
+        const WAREHOUSES    = /*[[${warehouses}]]*/ [];
+        const SCOPE_OPTIONS = /*[[${scopeOptions}]]*/ {};
+        const SELF_ID       = /*[[${currentUserId}]]*/ null;
+        const MIN_PASSWORD  = /*[[${minPasswordLength}]]*/ 12;
+        const CAN = {
+            create: /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_CREATE'')')}]]*/ false,
+            amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_AMEND'')')}]]*/ false,
+            del:    /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_DELETE'')')}]]*/ false
+        };
+        const DIMENSIONS = { BUSINESS_UNIT: 'Business unit', WAREHOUSE: 'Warehouse', MARKETING_TEAM: 'Marketing team' };
+
+        const $ = sel => document.querySelector(sel);
+        const dialog = $('#userDialog');
+        const form = $('#userForm');
+        const statusFilter = $('#userStatus');
+
+        // ------------------------------------------------------------------ grid
+        function userCell(r) {
+            const name = r.fullName || r.username;
+            const you = r.id === SELF_ID ? ' <span class="badge-blue">You</span>' : '';
+            return `<div class="flex items-center gap-3">
+                <span class="avatar">${esc(fmt.initials(name))}</span>
+                <div class="min-w-0"><div class="truncate font-medium text-slate-900">${esc(name)}${you}</div>
+                <div class="truncate text-xs text-slate-500">${esc(r.username)}</div></div></div>`;
+        }
+        function rolesCell(r) {
+            const roles = r.roles || [];
+            if (!roles.length) return '<span class="text-slate-400">None</span>';
+            const shown = roles.slice(0, 2).map(n => `<span class="badge-gray">${esc(n)}</span>`).join(' ');
+            const more = roles.length > 2
+                ? ` <span class="badge-gray" title="${esc(roles.slice(2).join(', '))}">+${roles.length - 2}</span>` : '';
+            return `<div class="flex flex-wrap gap-1">${shown}${more}</div>`;
+        }
+        function statusCell(r) {
+            const out = [];
+            if (r.accountLocked) out.push('<span class="badge-red">Locked</span>');
+            if (!r.active) out.push('<span class="badge-gray">Inactive</span>');
+            if (r.cannotSignIn && !r.accountLocked) out.push('<span class="badge-amber" title="Scoped access with no grant held today">No scope</span>');
+            if (r.mustChangePassword) out.push('<span class="badge-amber" title="Administrator-set password not yet replaced">Password pending</span>');
+            if (!out.length) out.push('<span class="badge-green">Active</span>');
+            return `<div class="flex flex-wrap gap-1">${out.join('')}</div>`;
+        }
+        function actionsCell(r) {
+            const unlock = r.accountLocked && CAN.amend && r.id !== SELF_ID
+                ? `<button type="button" class="btn-ghost btn-sm" data-unlock="${r.id}">Unlock</button>` : '';
+            return `<div class="flex justify-end gap-1">${unlock}
+                <button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`;
         }
 
-        function api(url, options) {
-            options = options || {};
-            options.headers = Object.assign({
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                [csrfHeader]: csrfToken
-            }, options.headers || {});
-            return fetch(url, options).then(res => {
-                if (!res.ok) return res.json().then(body => { throw new Error(body.message || ('HTTP ' + res.status)); });
-                return res.status === 204 ? null : res.json();
-            });
-        }
+        const grid = new App.Grid({
+            url: '/api/setup/users',
+            table: $('#userTable'),
+            search: $('#userSearch'),
+            pager: $('#userPager'),
+            sort: { column: 'username', dir: 'asc' },
+            emptyText: 'No users match.',
+            params: () => ({ status: statusFilter.value }),
+            columns: [
+                userCell,
+                r => `<span class="font-mono text-xs">${esc(r.businessUnitCode)}</span>`,
+                rolesCell,
+                r => r.unrestricted ? '<span class="badge-violet">All rows</span>' : '<span class="badge-gray">Scoped</span>',
+                statusCell,
+                r => fmt.timeTag(r.lastLoginAt),
+                actionsCell
+            ],
+            onRowClick: row => openEditor(row.id)
+        });
+        statusFilter.addEventListener('change', () => grid.reload(true));
 
-        function loadGrid() {
-            fetch('/api/setup/users?draw=1&start=0&length=500&sortColumn=username')
-                .then(res => res.json())
-                .then(data => renderGrid(data.data || []))
-                .catch(() => { tbody.innerHTML = '<tr><td colspan="8">Failed to load users.</td></tr>'; });
-        }
-
-        function renderGrid(rows) {
-            if (rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-500">No users yet</td></tr>';
-                return;
+        $('#userTable tbody').addEventListener('click', e => {
+            const edit = e.target.closest('[data-edit]');
+            const unlock = e.target.closest('[data-unlock]');
+            if (edit) openEditor(Number(edit.dataset.edit));
+            if (unlock) {
+                api(`/api/setup/users/${unlock.dataset.unlock}/unlock`, { method: 'POST' })
+                    .then(() => { toast('Account unlocked', 'success'); grid.load(); }).catch(fail);
             }
-            tbody.innerHTML = rows.map(r => `
-                <tr>
-                    <td>${escapeHtml(r.username)}</td>
-                    <td>${escapeHtml(r.fullName)}</td>
-                    <td>${escapeHtml(r.businessUnitCode)}</td>
-                    <td>${escapeHtml(r.roles)}</td>
-                    <td>${r.unrestricted ? 'All rows' : 'Restricted'}</td>
-                    <td>${r.accountLocked ? 'Yes' : 'No'}</td>
-                    <td>${r.active ? 'Yes' : 'No'}</td>
-                    <td class="text-right">
-                        <button type="button" class="btn-ghost" data-edit="${r.id}">Edit</button>
-                        <button type="button" class="btn-ghost" data-reset="${r.id}">Reset password</button>
-                        <button type="button" class="btn-ghost" data-toggle-lock="${r.id}" data-locked="${r.accountLocked}">
-                            ${r.accountLocked ? 'Unlock' : 'Lock'}
-                        </button>
-                        <button type="button" class="btn-ghost text-red-600" data-delete="${r.id}">Delete</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        tbody.addEventListener('click', function (e) {
-            const editId = e.target.getAttribute('data-edit');
-            const resetId = e.target.getAttribute('data-reset');
-            const toggleId = e.target.getAttribute('data-toggle-lock');
-            const deleteId = e.target.getAttribute('data-delete');
-            if (editId) edit(editId);
-            if (resetId) resetPassword(resetId);
-            if (toggleId) toggleLock(toggleId, e.target.getAttribute('data-locked') === 'true');
-            if (deleteId) remove(deleteId);
         });
 
-        function edit(id) {
-            api('/api/setup/users/' + id).then(r => {
-                document.getElementById('userId').value = r.id;
-                usernameInput.value = r.username || '';
-                usernameInput.disabled = true;
-                passwordGroup.style.display = 'none';
-                document.getElementById('userFullName').value = r.fullName || '';
-                document.getElementById('userBusinessUnitId').value = r.businessUnitId || '';
-                document.getElementById('userBusinessUnitCode').value = r.businessUnitCode || '';
-                document.getElementById('userWarehouseId').value = r.warehouseId || '';
-                unrestrictedInput.checked = !!r.unrestricted;
-                scopePanel.style.display = '';
-                loadScopes(r.id);
-                const ids = new Set((r.roleIds || []).map(String));
-                document.querySelectorAll('.role-checkbox').forEach(cb => {
-                    cb.checked = ids.has(cb.value);
-                });
-                form.scrollIntoView({ behavior: 'smooth' });
-            }).catch(err => alert(err.message));
+        // ------------------------------------------------------------------ editor state
+        let current = null;      // detail of the user being edited; null when creating
+        let dirty = false;
+        const tabs = App.tabs(dialog, name => {
+            if (name === 'scope' && current) loadScopes();
+        });
+
+        function setDirty(value) {
+            dirty = value;
+            $('#dirtyNote').hidden = !value;
+        }
+        form.addEventListener('input', () => setDirty(true));
+        form.addEventListener('change', e => { if (!e.target.closest('#scopeAdd, #roleFilter, #roleSelectedOnly')) setDirty(true); });
+
+        async function closeEditor() {
+            if (dirty && !(await App.confirm({ title: 'Discard changes?', message: 'Your edits to this user have not been saved.',
+                                                confirmText: 'Discard', danger: true }))) return;
+            setDirty(false);
+            dialog.close();
+            history.replaceState(null, '', location.pathname + (statusFilter.value ? '?status=' + statusFilter.value : ''));
+        }
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', closeEditor));
+        dialog.addEventListener('cancel', e => { e.preventDefault(); closeEditor(); });
+
+        // ------------------------------------------------------------------ profile
+        const unitSelect = $('#userBusinessUnit');
+        const storeSelect = $('#userWarehouse');
+
+        function fillStores(selected) {
+            const unitId = Number(unitSelect.value) || null;
+            const options = WAREHOUSES.filter(w => !unitId || w.businessUnitId == null || w.businessUnitId === unitId);
+            storeSelect.innerHTML = '<option value="">None</option>' + options.map(w =>
+                `<option value="${w.id}"${w.id === selected ? ' selected' : ''}>${esc(w.label)}</option>`).join('');
+        }
+        unitSelect.addEventListener('change', () => fillStores(Number(storeSelect.value) || null));
+
+        dialog.addEventListener('click', e => {
+            const gen = e.target.closest('[data-generate]');
+            const copy = e.target.closest('[data-copy]');
+            if (gen) { const input = $(gen.dataset.generate); input.value = generatePassword(); setDirty(true); }
+            if (copy) {
+                const value = $(copy.dataset.copy).value;
+                if (value) navigator.clipboard?.writeText(value).then(() => toast('Copied', 'success'));
+            }
+        });
+
+        /** Four groups of four from an unambiguous alphabet: 19 characters, easy to read out. */
+        function generatePassword() {
+            const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            const bytes = crypto.getRandomValues(new Uint32Array(16));
+            const chars = Array.from(bytes, b => alphabet[b % alphabet.length]).join('');
+            return chars.match(/.{4}/g).join('-');
         }
 
-        function scopeLabel(dimension, valueId) {
-            const match = (scopeOptions[dimension] || []).find(o => o.id === valueId);
-            return match ? match.label : ('#' + valueId);
-        }
+        // ------------------------------------------------------------------ roles
+        const roleList = $('#roleList');
+        let selectedRoles = new Set();
 
+        function renderRoles() {
+            const q = $('#roleFilter').value.trim().toLowerCase();
+            const onlySelected = $('#roleSelectedOnly').checked;
+            const locked = isSelf() || !canWrite();
+            const rows = ROLES.filter(r => (!q || r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q))
+                                        && (!onlySelected || selectedRoles.has(r.id)));
+            roleList.innerHTML = rows.length ? rows.map(r => `
+                <label class="flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-slate-50">
+                    <input type="checkbox" class="checkbox mt-0.5" data-role="${r.id}" ${selectedRoles.has(r.id) ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+                    <span class="min-w-0 text-sm">
+                        <span class="font-medium text-slate-800">${esc(r.name)}</span>
+                        ${r.active ? '' : '<span class="badge-gray ml-1">Inactive</span>'}
+                        ${r.description ? `<span class="block truncate text-xs text-slate-500">${esc(r.description)}</span>` : ''}
+                    </span>
+                </label>`).join('')
+                : '<p class="px-3 py-6 text-center text-sm text-slate-500">No roles match.</p>';
+            $('#roleCount').textContent = selectedRoles.size;
+        }
+        roleList.addEventListener('change', e => {
+            const id = Number(e.target.dataset.role);
+            if (!id) return;
+            e.target.checked ? selectedRoles.add(id) : selectedRoles.delete(id);
+            $('#roleCount').textContent = selectedRoles.size;
+        });
+        $('#roleFilter').addEventListener('input', App.debounce(renderRoles, 120));
+        $('#roleSelectedOnly').addEventListener('change', renderRoles);
+
+        // ------------------------------------------------------------------ scope
+        const scopeDimension = $('#scopeDimension');
+        const scopeValue = $('#scopeValue');
+
+        function scopeLabel(dimension, id) {
+            const match = (SCOPE_OPTIONS[dimension] || []).find(o => o.id === id);
+            return match ? match.label : '#' + id;
+        }
         function fillScopeValues() {
-            scopeValue.innerHTML = (scopeOptions[scopeDimension.value] || [])
-                .map(o => `<option value="${o.id}">${escapeHtml(o.label)}</option>`).join('');
+            if (!scopeValue) return;
+            scopeValue.innerHTML = (SCOPE_OPTIONS[scopeDimension.value] || [])
+                .map(o => `<option value="${o.id}">${esc(o.label)}</option>`).join('');
+        }
+        scopeDimension?.addEventListener('change', fillScopeValues);
+
+        function renderScopeBanner(rows) {
+            const held = rows.some(s => s.heldToday);
+            let html = '';
+            if (current.unrestricted) {
+                html = '<p class="alert-info">This user sees every row, so scope grants are recorded but not applied.</p>';
+            } else if (!held) {
+                html = '<p class="alert-warn"><b>Cannot sign in yet.</b>&nbsp;Scoped access with no grant held today - add one below.</p>';
+            }
+            $('#scopeBanner').innerHTML = html;
         }
 
-        function loadScopes(userId) {
-            api('/api/setup/users/' + userId + '/scopes').then(rows => {
-                if (!rows.length) {
-                    scopeRows.innerHTML = '<tr><td colspan="6" class="text-center text-slate-500">No scope grants</td></tr>';
-                    return;
-                }
-                scopeRows.innerHTML = rows.map(s => `
+        async function loadScopes() {
+            const tbody = $('#scopeRows');
+            tbody.innerHTML = '<tr><td colspan="6"><div class="skeleton h-4 w-1/2"></div></td></tr>';
+            try {
+                const rows = await api(`/api/setup/users/${current.id}/scopes`);
+                renderScopeBanner(rows);
+                const canRevoke = CAN.amend;
+                tbody.innerHTML = rows.length ? rows.map(s => `
                     <tr class="${s.revokedFrom ? 'text-slate-400' : ''}">
-                        <td>${escapeHtml(dimensionLabels[s.dimension] || s.dimension)}</td>
-                        <td>${escapeHtml(scopeLabel(s.dimension, s.scopeValueId))}</td>
-                        <td>${escapeHtml(s.grantedFrom)}</td>
-                        <td>${escapeHtml(s.revokedFrom)}${s.revokedReason ? ' — ' + escapeHtml(s.revokedReason) : ''}</td>
-                        <td>${escapeHtml(s.remarks)}</td>
-                        <td class="text-right">${s.revokedFrom ? '' : `<button type="button" class="btn-ghost text-red-600" data-revoke-scope="${s.id}">Revoke</button>`}</td>
-                    </tr>`).join('');
-            }).catch(err => alert(err.message));
+                        <td>${esc(DIMENSIONS[s.dimension] || s.dimension)}</td>
+                        <td class="font-medium">${esc(scopeLabel(s.dimension, s.scopeValueId))}</td>
+                        <td class="whitespace-nowrap">${esc(fmt.date(s.grantedFrom))}</td>
+                        <td>${s.revokedFrom ? `${esc(fmt.date(s.revokedFrom))}<span class="block text-xs">${esc(s.revokedReason)}</span>`
+                                            : (s.heldToday ? '<span class="badge-green">Held</span>' : '<span class="badge-gray">Starts later</span>')}</td>
+                        <td class="text-slate-500">${esc(s.remarks)}</td>
+                        <td>${!s.revokedFrom && canRevoke ? `<button type="button" class="btn-subtle btn-sm text-red-600" data-revoke="${s.id}">Revoke</button>` : ''}</td>
+                    </tr>`).join('')
+                    : '<tr><td colspan="6" class="py-6 text-center text-slate-500">No scope grants.</td></tr>';
+            } catch (error) { fail(error); }
         }
 
-        scopeDimension.addEventListener('change', fillScopeValues);
-
-        document.getElementById('scopeAddBtn').addEventListener('click', function () {
-            const userId = document.getElementById('userId').value;
-            if (!userId || !scopeValue.value) return;
-            const payload = {
-                dimension: scopeDimension.value,
-                scopeValueId: Number(scopeValue.value),
-                from: document.getElementById('scopeFrom').value || null,
-                remarks: document.getElementById('scopeRemarks').value || null
-            };
-            api('/api/setup/users/' + userId + '/scopes', { method: 'POST', body: JSON.stringify(payload) })
-                .then(() => loadScopes(userId))
-                .catch(err => alert(err.message));
+        $('#scopeAddBtn')?.addEventListener('click', async () => {
+            if (!scopeValue.value) return toast('Pick a value to grant', 'warn');
+            try {
+                await api(`/api/setup/users/${current.id}/scopes`, { method: 'POST', body: {
+                    dimension: scopeDimension.value,
+                    scopeValueId: Number(scopeValue.value),
+                    from: $('#scopeFrom').value || null,
+                    remarks: $('#scopeRemarks').value || null
+                } });
+                $('#scopeRemarks').value = '';
+                toast('Scope granted', 'success');
+                loadScopes();
+                grid.load();
+            } catch (error) { fail(error); }
         });
 
-        scopeRows.addEventListener('click', function (e) {
-            const scopeId = e.target.getAttribute('data-revoke-scope');
-            if (!scopeId) return;
-            const reason = prompt('Reason for revoking this scope grant (kept on record):');
-            if (!reason) return;
-            api('/api/setup/scopes/' + scopeId + '/revoke', { method: 'POST', body: JSON.stringify({ reason: reason }) })
-                .then(() => loadScopes(document.getElementById('userId').value))
-                .catch(err => alert(err.message));
+        $('#scopeRows').addEventListener('click', async e => {
+            const btn = e.target.closest('[data-revoke]');
+            if (!btn) return;
+            const values = await App.form({
+                title: 'Revoke scope grant',
+                message: 'The grant is closed from the date given and kept on record.',
+                confirmText: 'Revoke', danger: true,
+                fields: [
+                    { name: 'from', label: 'Revoke from', type: 'date', value: new Date().toISOString().slice(0, 10), required: true },
+                    { name: 'reason', label: 'Reason', required: true, maxlength: 255, placeholder: 'e.g. Moved to the Tokyo team' }
+                ]
+            });
+            if (!values) return;
+            try {
+                await api(`/api/setup/scopes/${btn.dataset.revoke}/revoke`, { method: 'POST', body: values });
+                toast('Scope grant revoked', 'success');
+                loadScopes();
+                grid.load();
+            } catch (error) { fail(error); }
         });
 
-        function resetPassword(id) {
-            const newPassword = prompt('Temporary password for this user (at least 12 characters). '
-                + 'They will have to choose their own at next sign-in:');
-            if (!newPassword) return;
-            api('/api/setup/users/' + id + '/reset-password', {
-                method: 'POST', body: JSON.stringify({ password: newPassword })
-            }).then(() => alert('Password reset.')).catch(err => alert(err.message));
+        // ------------------------------------------------------------------ security tab
+        function fact(label, value) {
+            return `<div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">${esc(label)}</dt>
+                    <dd class="mt-0.5 text-slate-800">${value}</dd></div>`;
+        }
+        function renderSecurity() {
+            const u = current;
+            const status = u.accountLocked
+                ? `<span class="badge-red">Locked</span> <span class="text-xs text-slate-500">${esc(u.lockedReason || '')}${u.lockedAt ? ' · ' + esc(fmt.dateTime(u.lockedAt)) : ''}</span>`
+                : '<span class="badge-green">Can sign in</span>';
+            $('#securityFacts').innerHTML = [
+                fact('Account', status),
+                fact('Failed attempts in a row', esc(u.failedLoginCount ?? 0)),
+                fact('Last sign-in', fmt.timeTag(u.lastLoginAt)),
+                fact('Last failed attempt', fmt.timeTag(u.lastFailedLoginAt, 'None')),
+                fact('Password last set', fmt.timeTag(u.passwordChangedAt, 'Not recorded')),
+                fact('Password', u.mustChangePassword ? '<span class="badge-amber">Temporary - must be changed at sign-in</span>'
+                                                      : '<span class="badge-gray">Chosen by the user</span>')
+            ].join('');
+            const lockBtn = $('#lockBtn'), unlockBtn = $('#unlockBtn');
+            if (lockBtn) lockBtn.hidden = !!u.accountLocked;
+            if (unlockBtn) unlockBtn.hidden = !u.accountLocked;
         }
 
-        function toggleLock(id, currentlyLocked) {
-            const action = currentlyLocked ? 'unlock' : 'lock';
-            let url = '/api/setup/users/' + id + '/' + action;
-            if (!currentlyLocked) {
-                const reason = prompt('Reason for locking this account:');
-                if (reason === null) return;
-                url += '?reason=' + encodeURIComponent(reason);
-            }
-            api(url, { method: 'POST' })
-                .then(loadGrid)
-                .catch(err => alert(err.message));
+        async function refreshCurrent() {
+            current = await api(`/api/setup/users/${current.id}`);
+            renderSecurity();
+            grid.load();
         }
 
-        function remove(id) {
-            if (!confirm('Delete this user?')) return;
-            api('/api/setup/users/' + id, { method: 'DELETE' })
-                .then(loadGrid)
-                .catch(err => alert(err.message));
+        $('#lockBtn')?.addEventListener('click', async () => {
+            const values = await App.form({ title: `Lock ${current.username}?`, confirmText: 'Lock account', danger: true,
+                message: 'Their current session ends on its next request.',
+                fields: [{ name: 'reason', label: 'Reason', maxlength: 255, placeholder: 'Locked by an administrator' }] });
+            if (!values) return;
+            try {
+                await api(`/api/setup/users/${current.id}/lock`, { method: 'POST', query: { reason: values.reason } });
+                toast('Account locked', 'success');
+                refreshCurrent();
+            } catch (error) { fail(error); }
+        });
+        $('#unlockBtn')?.addEventListener('click', async () => {
+            try {
+                await api(`/api/setup/users/${current.id}/unlock`, { method: 'POST' });
+                toast('Account unlocked', 'success');
+                refreshCurrent();
+            } catch (error) { fail(error); }
+        });
+        $('#resetPasswordBtn')?.addEventListener('click', async () => {
+            const values = await App.form({
+                title: `Reset password for ${current.username}`,
+                message: 'The new password is temporary: they must replace it at their next sign-in.',
+                confirmText: 'Reset password',
+                fields: [{ name: 'password', label: 'Temporary password', required: true, minlength: MIN_PASSWORD,
+                           value: generatePassword(), autocomplete: 'off',
+                           hint: 'A random one is filled in - note it down or copy it before confirming.' }]
+            });
+            if (!values) return;
+            try {
+                await api(`/api/setup/users/${current.id}/reset-password`, { method: 'POST', body: { password: values.password } });
+                toast('Password reset. Pass it on privately.', 'success');
+                refreshCurrent();
+            } catch (error) { fail(error); }
+        });
+        $('#deleteBtn')?.addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete ${current.username}?`, danger: true, confirmText: 'Delete user',
+                message: 'They are signed out and can no longer sign in. The record is kept for the audit trail.' });
+            if (!ok) return;
+            try {
+                await api(`/api/setup/users/${current.id}`, { method: 'DELETE' });
+                toast('User deleted', 'success');
+                setDirty(false);
+                dialog.close();
+                grid.load();
+            } catch (error) { fail(error); }
+        });
+
+        // ------------------------------------------------------------------ open / save
+        const isSelf = () => current && current.id === SELF_ID;
+        const canWrite = () => current ? CAN.amend : CAN.create;
+
+        function applyMode() {
+            const editing = !!current;
+            const self = isSelf();
+            const name = editing ? (current.fullName || current.username) : '';
+            $('#userDialogTitle').textContent = editing ? name : 'New user';
+            $('#userDialogSub').textContent = editing ? current.username : 'Create a login. The password you set is temporary.';
+            $('#userAvatar').textContent = editing ? fmt.initials(name) : '+';
+            $('#userUsername').disabled = editing;
+            $('#userPasswordGroup').hidden = editing;
+            $('#userPassword').required = !editing;
+            $('#selfNotice').hidden = !self;
+            dialog.querySelectorAll('[data-self-locked]').forEach(el => { el.disabled = self || !canWrite(); });
+            $('#userFullName').disabled = !canWrite();
+            $('#userSaveBtn').hidden = !canWrite();
+            dialog.querySelectorAll('[data-tab="scope"], [data-tab="security"]').forEach(tab => {
+                tab.disabled = !editing;
+                tab.title = editing ? '' : 'Save the user first';
+            });
+            if (scopeValue) $('#scopeAdd').hidden = self;
         }
 
-        function resetForm() {
-            form.reset();
-            document.getElementById('userId').value = '';
-            usernameInput.disabled = false;
-            passwordGroup.style.display = '';
-            scopePanel.style.display = 'none';
-            scopeRows.innerHTML = '';
-            unrestrictedInput.checked = false;
-            document.querySelectorAll('.role-checkbox').forEach(cb => { cb.checked = false; });
+        function fillForm() {
+            const u = current || {};
+            $('#userId').value = u.id || '';
+            $('#userUsername').value = u.username || '';
+            $('#userFullName').value = u.fullName || '';
+            $('#userPassword').value = '';
+            unitSelect.value = u.businessUnitId || '';
+            fillStores(u.warehouseId || null);
+            $('#userUnrestricted').checked = !!u.unrestricted;
+            selectedRoles = new Set(u.roleIds || []);
+            $('#roleFilter').value = '';
+            $('#roleSelectedOnly').checked = false;
+            renderRoles();
+            if (current) renderSecurity();
         }
 
-        document.getElementById('userNewBtn').addEventListener('click', resetForm);
-        document.getElementById('userResetBtn').addEventListener('click', resetForm);
+        async function openEditor(id, tab) {
+            try {
+                current = id ? await api(`/api/setup/users/${id}`) : null;
+            } catch (error) { return fail(error); }
+            applyMode();
+            fillForm();
+            setDirty(false);
+            tabs.select(current && tab ? tab : 'profile');
+            if (!dialog.open) dialog.showModal();
+            if (!current) $('#userUsername').focus();
+            if (current) history.replaceState(null, '', `${location.pathname}?edit=${current.id}`);
+        }
 
-        form.addEventListener('submit', function (e) {
+        $('#userNewBtn')?.addEventListener('click', () => openEditor(null));
+
+        form.addEventListener('submit', async e => {
             e.preventDefault();
-            const rawId = document.getElementById('userId').value;
-            const roleIds = Array.from(document.querySelectorAll('.role-checkbox:checked'))
-                .map(cb => Number(cb.value));
-            const businessUnitId = Number(document.getElementById('userBusinessUnitId').value);
-            const businessUnitCode = document.getElementById('userBusinessUnitCode').value;
-            const warehouseRaw = document.getElementById('userWarehouseId').value;
-            const warehouseId = warehouseRaw ? Number(warehouseRaw) : null;
-
-            if (!rawId) {
-                const payload = {
-                    username: usernameInput.value,
-                    password: passwordInput.value,
-                    fullName: document.getElementById('userFullName').value,
-                    businessUnitId: businessUnitId,
-                    businessUnitCode: businessUnitCode,
-                    warehouseId: warehouseId,
-                    roleIds: roleIds,
-                    unrestricted: unrestrictedInput.checked
-                };
-                api('/api/setup/users', { method: 'POST', body: JSON.stringify(payload) })
-                    .then(() => { resetForm(); loadGrid(); })
-                    .catch(err => alert(err.message));
-            } else {
-                const payload = {
-                    fullName: document.getElementById('userFullName').value,
-                    businessUnitId: businessUnitId,
-                    businessUnitCode: businessUnitCode,
-                    warehouseId: warehouseId,
-                    roleIds: roleIds,
-                    unrestricted: unrestrictedInput.checked
-                };
-                api('/api/setup/users/' + rawId, { method: 'POST', body: JSON.stringify(payload) })
-                    .then(() => { resetForm(); loadGrid(); })
-                    .catch(err => alert(err.message));
+            if (!form.checkValidity()) {
+                tabs.select('profile');
+                return form.reportValidity();
+            }
+            const body = {
+                fullName: $('#userFullName').value.trim() || null,
+                businessUnitId: Number(unitSelect.value),
+                warehouseId: Number(storeSelect.value) || null,
+                roleIds: Array.from(selectedRoles),
+                unrestricted: $('#userUnrestricted').checked
+            };
+            const saveBtn = $('#userSaveBtn');
+            saveBtn.disabled = true;
+            try {
+                if (current) {
+                    current = await api(`/api/setup/users/${current.id}`, { method: 'POST', body });
+                    toast('User saved', 'success');
+                    setDirty(false);
+                    dialog.close();
+                } else {
+                    Object.assign(body, { username: $('#userUsername').value.trim(), password: $('#userPassword').value });
+                    current = await api('/api/setup/users', { method: 'POST', body });
+                    toast(`${current.username} created`, 'success');
+                    setDirty(false);
+                    // A scoped user cannot sign in until granted something - go straight there.
+                    applyMode();
+                    fillForm();
+                    tabs.select(current.unrestricted ? 'profile' : 'scope');
+                    if (current.unrestricted) dialog.close();
+                }
+                grid.load();
+            } catch (error) {
+                fail(error);
+            } finally {
+                saveBtn.disabled = false;
             }
         });
 
+        // ------------------------------------------------------------------ boot
         fillScopeValues();
-        loadGrid();
-    })();
+        const params = new URLSearchParams(location.search);
+        if (params.get('status')) statusFilter.value = params.get('status');
+        grid.load();
+        if (params.get('edit')) openEditor(Number(params.get('edit')), params.get('tab'));
+    });
     </script>
-
 </div>
 </body>
 </html>

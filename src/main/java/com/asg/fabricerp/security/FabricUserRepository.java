@@ -72,6 +72,16 @@ public interface FabricUserRepository extends JpaRepository<FabricUser, Long> {
     List<FabricUser> findWithoutScope(@Param("orgId") Long orgId, @Param("today") LocalDate today, Pageable pageable);
 
     @Query("""
+           select count(u) from FabricUser u
+           where u.organizationId = :orgId and u.deleted = false
+             and u.unrestricted = false and u.accountLocked = false
+             and not exists (select s.id from DataScope s
+                             where s.userId = u.id and s.grantedFrom <= :today
+                               and (s.revokedFrom is null or s.revokedFrom > :today))
+           """)
+    long countWithoutScope(@Param("orgId") Long orgId, @Param("today") LocalDate today);
+
+    @Query("""
            select u from FabricUser u
            where u.organizationId = :orgId and u.deleted = false and u.accountLocked = true
            order by u.lockedAt desc nulls last

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><title>Security overview</title></head>
+<body>
+<div th:fragment="content" th:with="o=${overview}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Security overview</h1>
+            <p class="page-sub">Who can't work right now, and what the last day's refusals look like.</p>
+        </div>
+        <div class="flex gap-2">
+            <a th:href="@{/setup/access-log}" class="btn-ghost">Access log</a>
+            <a th:href="@{/setup/roles}" class="btn-ghost">Roles</a>
+            <a th:href="@{/setup/users}" class="btn-primary">Users</a>
+        </div>
+    </div>
+
+    <!-- ---------------- Headline numbers ---------------- -->
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <a th:href="@{/setup/users}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Users</span>
+            <span class="kpi-value" th:text="${o.users.total}">0</span>
+            <span class="text-xs text-slate-500"><span th:text="${o.users.unrestricted}">0</span> see all rows</span>
+        </a>
+        <a th:href="@{/setup/users(status='LOCKED')}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Locked</span>
+            <span class="kpi-value" th:classappend="${o.users.locked > 0} ? 'text-red-600'" th:text="${o.users.locked}">0</span>
+            <span class="text-xs text-slate-500">cannot sign in</span>
+        </a>
+        <a th:href="@{/setup/users(status='MUST_CHANGE_PASSWORD')}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Password pending</span>
+            <span class="kpi-value" th:classappend="${o.users.mustChangePassword > 0} ? 'text-amber-600'" th:text="${o.users.mustChangePassword}">0</span>
+            <span class="text-xs text-slate-500">admin-set, not yet replaced</span>
+        </a>
+        <div class="kpi">
+            <span class="kpi-label">No data scope</span>
+            <span class="kpi-value" th:classappend="${o.withoutScopeCount > 0} ? 'text-amber-600'"
+                  th:text="${o.withoutScopeCount}">0</span>
+            <span class="text-xs text-slate-500">restricted, nothing granted</span>
+        </div>
+        <a th:href="@{/setup/access-log(event='LOGIN_FAILED')}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Failed logins · 24h</span>
+            <span class="kpi-value" th:text="${o.failedLogins24h()}">0</span>
+            <span class="text-xs text-slate-500"><span th:text="${o.lockouts24h()}">0</span> lockouts</span>
+        </a>
+        <a th:href="@{/setup/access-log(event='ACCESS_DENIED')}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Access denied · 24h</span>
+            <span class="kpi-value" th:text="${o.accessDenied24h()}">0</span>
+            <span class="text-xs text-slate-500">refused requests</span>
+        </a>
+    </div>
+
+    <div class="mt-6 grid gap-6 xl:grid-cols-3">
+        <!-- ---------------- Needs attention ---------------- -->
+        <section class="card xl:col-span-1">
+            <div class="card-header">
+                <h2 class="card-title">Needs attention</h2>
+            </div>
+
+            <div th:if="${#lists.isEmpty(o.locked) and #lists.isEmpty(o.withoutScope)}"
+                 class="px-4 py-10 text-center text-sm text-slate-500">
+                Nothing - every account can sign in.
+            </div>
+
+            <ul class="divide-y divide-slate-100">
+                <li th:each="u : ${o.locked}" class="flex items-start gap-3 px-4 py-3">
+                    <span class="badge-red mt-0.5">Locked</span>
+                    <div class="min-w-0 flex-1">
+                        <a th:href="@{/setup/users(edit=${u.id})}" class="text-sm font-medium text-slate-800 hover:text-brand-700"
+                           th:text="${u.fullName ?: u.username}">user</a>
+                        <p class="truncate text-xs text-slate-500" th:text="${u.lockedReason}">reason</p>
+                    </div>
+                    <span class="whitespace-nowrap text-xs text-slate-400"
+                          th:text="${u.lockedAt != null} ? ${#temporals.format(u.lockedAt, 'dd MMM')} : ''">date</span>
+                </li>
+                <li th:each="u : ${o.withoutScope}" class="flex items-start gap-3 px-4 py-3">
+                    <span class="badge-amber mt-0.5">No scope</span>
+                    <div class="min-w-0 flex-1">
+                        <a th:href="@{/setup/users(edit=${u.id}, tab='scope')}" class="text-sm font-medium text-slate-800 hover:text-brand-700"
+                           th:text="${u.fullName ?: u.username}">user</a>
+                        <p class="text-xs text-slate-500">Restricted with no scope grant - the login refuses them.</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <!-- ---------------- Recent events ---------------- -->
+        <section class="card xl:col-span-2">
+            <div class="card-header">
+                <h2 class="card-title">Recent security events</h2>
+                <a th:href="@{/setup/access-log}" class="text-xs font-medium text-brand-700 hover:underline">View all</a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="table-grid">
+                    <thead>
+                    <tr><th>When</th><th>User</th><th>Event</th><th>Detail</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="e : ${o.recentEvents}">
+                        <td class="whitespace-nowrap text-slate-500" th:text="${#temporals.format(e.occurredAt, 'dd MMM, HH:mm')}">time</td>
+                        <td class="font-medium" th:text="${e.username}">user</td>
+                        <td>
+                            <span th:switch="${e.event.name()}">
+                                <span th:case="'LOGIN_FAILED'" class="badge-amber">Login failed</span>
+                                <span th:case="'ACCOUNT_LOCKED'" class="badge-red">Account locked</span>
+                                <span th:case="'LOGIN_REFUSED_INACTIVE'" class="badge-red">Login refused</span>
+                                <span th:case="'ACCESS_DENIED'" class="badge-red">Access denied</span>
+                                <span th:case="'SESSION_ENDED'" class="badge-gray">Session ended</span>
+                                <span th:case="'PASSWORD_CHANGED'" class="badge-blue">Password changed</span>
+                                <span th:case="*" class="badge-gray" th:text="${e.event}">event</span>
+                            </span>
+                        </td>
+                        <td class="max-w-md truncate text-slate-500" th:title="${e.detail}"
+                            th:text="${e.target != null ? e.target : ''} + ${e.detail != null ? ' · ' + e.detail : ''}">detail</td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(o.recentEvents)}">
+                        <td colspan="4" class="py-10 text-center text-slate-500">No security events recorded yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- ---------------- Roles ---------------- -->
+    <section class="card mt-6">
+        <div class="card-header">
+            <h2 class="card-title">Roles</h2>
+            <a th:href="@{/setup/roles}" class="text-xs font-medium text-brand-700 hover:underline">Manage roles</a>
+        </div>
+        <div class="grid grid-cols-3 divide-x divide-slate-100 text-center">
+            <div class="p-4">
+                <div class="kpi-value" th:text="${o.roles.total}">0</div>
+                <div class="kpi-label">Defined</div>
+            </div>
+            <div class="p-4">
+                <div class="kpi-value" th:text="${o.roles.active}">0</div>
+                <div class="kpi-label">Active</div>
+            </div>
+            <a th:href="@{/setup/roles(grants='empty')}" class="p-4 hover:bg-slate-50">
+                <div class="kpi-value" th:classappend="${o.roles.withoutGrants > 0} ? 'text-amber-600'" th:text="${o.roles.withoutGrants}">0</div>
+                <div class="kpi-label">Grant nothing yet</div>
+            </a>
+        </div>
+    </section>
+</div>
+</body>
+</html>
