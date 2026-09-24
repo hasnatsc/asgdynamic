@@ -108,6 +108,24 @@ captured functions carry no revision handler, unlike every type built before it.
 branch in the pattern, not an oversight: documented on `WeavingWorkOrderService` rather
 than silently omitted.
 
+**Processing Work Order** (5th), **Greige Receive** (6th), **Delivery Order** (7th, draws
+against Request-for-PI) and **Fabrics Delivery** (8th, draws against Delivery Order) —
+extending both chains one/two more hops each on the same `ParentLineDrawService`. None are
+revisable or costed, matching what their legacy screens' captured functions actually show.
+
+Verified end to end against a real database: the full **5-hop sales chain** — Booking → BPO
+→ Request-for-PI → Delivery Order → Fabrics Delivery — inserted and queried, each hop's
+ledger correct (BPO line 600/800 fulfilled, RPI line 400/600, DO line 400/400), and the
+`CHECK` constraint still rejects over-drawing the Delivery Order line at that depth.
+
+**A correction caught before it was built on:** an earlier pass assumed Greige Issue draws
+against Greige Receive and Finished Fabrics Receive draws against Greige Issue — sequential,
+like the sales chain. Checking `textileIssue`'s actual captured fields before building it
+showed a `woCode` field and "WO QTY"/"Issue QTY" grid columns, not a receipt reference —
+meaning it likely draws against the **Weaving Work Order's** committed quantity instead.
+Genuinely ambiguous from field names alone, so those two types are not built yet rather than
+encoding a guess with false confidence — see **Still to build**.
+
 **`DocumentRevisionService`** — extracted out of `BookingService` the moment `BpoService`
 needed the same revision logic, rather than copy-pasting a second time. Every revisable
 type now calls one implementation.
@@ -159,11 +177,15 @@ concatenates its `ORDER BY` and `WHERE` over raw `JdbcTemplate`.
   queried end to end: the BPO line correctly shows 550/700 fulfilled with RPI and WWO
   drawing against it independently, and the fulfilment `CHECK` still rejects exceeding it
   at that depth
+- A real **5-hop sales chain** (Booking → BPO → RPI → Delivery Order → Fabrics Delivery)
+  inserted and queried end to end, every hop's ledger correct, `CHECK` still enforced at
+  full depth
 
 Java sources parse cleanly. **They have not been compiled and the tests have not run** —
-there is no Maven CLI on this machine, so dependencies were never resolved. Seven test
-classes are written but unexecuted: document rules, Booking revision semantics, BPO/RPI/WWO
-ceiling and release behaviour, security context resolution, approval role/four-eyes checks.
+there is no Maven CLI on this machine, so dependencies were never resolved. Eleven test
+classes are written but unexecuted: document rules, revision semantics, ceiling/release
+behaviour across all six draw-against-parent types, security context resolution, approval
+role/four-eyes checks.
 
 ## Before it runs
 
@@ -205,20 +227,27 @@ every other secret in this project.
 
 ## Still to build
 
-- **The remaining fabric documents** — Delivery Order (draws against Request-for-PI),
-  Fabrics Delivery (draws against Delivery Order), Processing Work Order (draws against
-  BPO, same shape as Weaving WO), Greige Receive (draws against BPO), Greige Issue (draws
-  against Greige Receive), Finished Fabrics Receive (draws against Greige Issue), Sales
-  Return. Each is now a thin service + controller + template on top of
-  `ParentLineDrawService` and `ApprovalService` — see `fabric/requestforpi` and
-  `fabric/weavingworkorder` as the templates, one drawing-against-parent example with
-  revision, one without. Each new type needs one line added to `DocumentType`'s `roleRoot`
-  (see its javadoc) before its controller can call `ApprovalService`.
-  **`ROUT_CARD` has no captured legacy data at all** — it was one of the 14 dead menu
-  entries found 404ing even at the bare controller root (see
-  `business-logic-capture/missing-screens-report.md`). It was never actually implemented
-  in the legacy system, so build it from a real requirements conversation, not by guessing
-  at asgdynamic's intent the way every other type here was grounded in its capture.
+- **Greige Issue and Finished Fabrics Receive — genuinely unresolved, not just undone.**
+  `textileIssue`'s captured fields (`woCode`, grid columns "WO NO"/"WO QTY"/"Issue QTY")
+  suggest Greige Issue draws against the **Weaving Work Order**, not against Greige
+  Receive as the family's original comment on `DocumentType` assumed before anyone checked
+  the fields — likewise Finished Fabrics Receive against the **Processing Work Order**
+  (`dyeingReceive` shows the same shape). This is a reasonable reading of the field names,
+  not a confirmed fact: verify against the real legacy screen behaviour, or a stakeholder
+  who worked with it, before picking a `PARENT_TYPE` and building on it. Both would
+  otherwise be a straightforward seventh/eighth instance of the exact same
+  `ParentLineDrawService` pattern.
+- **Raw Material Issue, Sales Return.** Sales Return's capture is unusually thin — 6 generic
+  fields, **zero captured functions** — thinner than every other type built here by a wide
+  margin. Treat it as unimplemented-in-the-legacy-system-in-practice rather than a normal
+  gap; get real requirements before building it, the same caution as Rout Card below.
+- **`ROUT_CARD` has no captured legacy data at all** — one of the 14 dead menu entries
+  found 404ing even at the bare controller root (see
+  `business-logic-capture/missing-screens-report.md`). Never actually implemented in the
+  legacy system. Build it from a real requirements conversation, not by guessing at
+  asgdynamic's intent the way every other type here was grounded in its capture.
+- Each new type needs one line added to `DocumentType`'s `roleRoot` (see its javadoc)
+  before its controller can call `ApprovalService`.
 - **The maker/checker/approver triad** for the Commercial family (PI/LC/CI) — today every
   document type uses the single-stage `ROLE_APPROVAL` path; the three-stage version is a
   documented extension point on `DocumentType.approverRole()`, deliberately not built until

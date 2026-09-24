@@ -73,6 +73,14 @@ public class DevUserSeeder implements CommandLineRunner {
         user.grant("ROLE_RPI_MAKER");
         user.grant("ROLE_WWO_VIEW");
         user.grant("ROLE_WWO_MAKER");
+        user.grant("ROLE_PWO_VIEW");
+        user.grant("ROLE_PWO_MAKER");
+        user.grant("ROLE_GR_VIEW");
+        user.grant("ROLE_GR_MAKER");
+        user.grant("ROLE_DO_VIEW");
+        user.grant("ROLE_DO_MAKER");
+        user.grant("ROLE_FD_VIEW");
+        user.grant("ROLE_FD_MAKER");
         repository.save(user);
 
         log.info("Seeded bootstrap user '{}'. Disable app.seed-dev-user once real accounts exist.",
@@ -104,6 +112,10 @@ public class DevUserSeeder implements CommandLineRunner {
         user.grant("ROLE_BPO_VIEW");
         user.grant("ROLE_RPI_VIEW");
         user.grant("ROLE_WWO_VIEW");
+        user.grant("ROLE_PWO_VIEW");
+        user.grant("ROLE_GR_VIEW");
+        user.grant("ROLE_DO_VIEW");
+        user.grant("ROLE_FD_VIEW");
         repository.save(user);
 
         log.info("Seeded bootstrap user '{}'. Disable app.seed-dev-user once real accounts exist.",
