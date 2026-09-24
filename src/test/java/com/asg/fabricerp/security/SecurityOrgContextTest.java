@@ -27,7 +27,9 @@ class SecurityOrgContextTest {
         FabricUser user = new FabricUser("weaver1", "{noop}unused", 10L, "AF");
         user.setOrganizationId(1L);
         user.setWarehouseId(99L);
-        user.grant("ROLE_BOOKING_MAKER");
+        Role role = new Role("Booking Maker", null);
+        role.grant(Screen.BOOKING, Verb.CREATE);
+        user.addRole(role);
         return user;
     }
 
