@@ -265,6 +265,27 @@ comment records why an unmatched route currently **grants** access rather than d
 a live fail-open path kept for migration safety. There is no equivalent gap here: a
 controller method with no `@PreAuthorize` is unreachable, not ungoverned.
 
+**Administration screens** (all behind `SCREEN_SECURITY_ADMIN_*`, under *Administration → Security*):
+
+- **Overview** (`/setup/security`) — who cannot work right now (locked; restricted with no scope),
+  pending administrator-set passwords, the last 24 hours of failed logins and refusals, recent
+  events. Every number is organization-scoped and comes from an aggregate query, not a scan.
+- **Users** (`/setup/users`) — searchable, status-filtered grid; a tabbed editor for profile,
+  roles, effective-dated data scope and sign-in state (lock/unlock, temporary-password reset with
+  a generator). The business-unit code is derived from the unit, never typed beside its id.
+  Fields nobody may change on their own account are shown disabled rather than refused on save.
+- **Roles** (`/setup/roles`) — screen × verb matrix grouped by menu section, with row/column
+  toggles and the "any verb implies VIEW" rule mirrored client-side; user counts per role, a
+  filter separating granting roles from V11's empty shells, and duplicate-a-role.
+- **Access log** (`/setup/access-log`) — the ADM-11 log, filterable by user, event and date. The
+  log has no organization column, so reads narrow through the user it names; failed logins for
+  usernames that exist nowhere are therefore not shown to any tenant (they stay in the table).
+
+The sidebar is derived from the signed-in user's `VIEW` authorities (`web/Navigation`), so the
+menu cannot list a screen the user would be refused. `/api/**` answers `401`/`403`/`400`/`409`
+with a JSON `message` (`common/ApiExceptionHandler`); pages get `templates/error.html`. Shared
+browser behaviour — grid, dialogs, toasts, CSRF-aware fetch — lives in `static/js/app.js`.
+
 **First login:** nothing is seeded by default. Set `app.seed-dev-user=true` plus
 `FABRIC_ADMIN_PASSWORD` (a maker) and `FABRIC_APPROVER_PASSWORD` (an approver — needed to
 actually exercise the four-eyes rule, since the maker can never approve its own document),
@@ -299,11 +320,12 @@ every other secret in this project.
   document type uses the single-stage `ROLE_APPROVAL` path; the three-stage version is a
   documented extension point on `DocumentType.approverRole()`, deliberately not built until
   a Commercial document type exists to test it against.
-- **A `Role`/`Permission` table**, if the flat `ROLE_*` string set on `FabricUser` ever
-  needs to be editable at runtime rather than a fixed set of `@PreAuthorize` strings /
-  `DocumentType.roleRoot()` values.
-- **Front-end JS** — the grid and line-table behaviour the templates declare via
-  `data-action` / `data-lookup` attributes.
+- **Front-end JS for the fabric screens** — the line-table behaviour those templates declare via
+  `data-action` / `data-lookup` attributes. `static/js/app.js` now provides the grid, dialogs and
+  fetch helpers the security screens use; the fabric templates are still standalone pages outside
+  `layout/main.html` and have not been moved onto it.
+- **Switching operating unit/store mid-session** — the header shows it read-only; see
+  `FabricUser`'s javadoc.
 - **Party, item and UoM masters** — currently referenced by id only.
 - Purchase, store, commercial and accounts modules.
 

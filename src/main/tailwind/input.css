@@ -78,8 +78,8 @@
   .nav-sublink.is-active { @apply font-medium text-brand-700; }
 
   /* ---- Tabs ------------------------------------------------------------------------------ */
-  .tabs       { @apply flex gap-1 border-b border-slate-200 px-5; }
-  .tab        { @apply -mb-px border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500
+  .tabs       { @apply flex gap-1 overflow-x-auto border-b border-slate-200 px-5; }
+  .tab        { @apply -mb-px shrink-0 whitespace-nowrap border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500
                        hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40; }
   .tab[aria-selected="true"] { @apply border-brand-600 text-brand-700; }
 
