@@ -20,7 +20,7 @@ import java.util.List;
  * chosen because it is genuinely different from Booking rather than a copy: a BPO line
  * draws against a specific Booking line's outstanding quantity ({@code transaction_qty_so}
  * alongside {@code transactionQty} in the legacy {@code productionOrder} screen). That
- * needed a real model change — {@link BusinessDocumentLine#getSourceLineId()} — not a
+ * needed a real model change — {@link BusinessDocumentColorLine#getSourceColorLineId()} — not a
  * workaround, which is the outcome worth having: the gap showed up here instead of in
  * production.
  *
@@ -74,7 +74,7 @@ public class BpoService {
 
     /** The Booking lines still available to draw against — feeds the "raise BPO" line picker. */
     @Transactional(readOnly = true)
-    public List<BusinessDocumentLine> openBookingLines(Long bookingId) {
+    public List<BusinessDocumentColorLine> openBookingLines(Long bookingId) {
         return parentDraw.openLines(parentDraw.loadParent(bookingId, PARENT_TYPE));
     }
 
@@ -98,7 +98,7 @@ public class BpoService {
             submitted.setPartyId(booking.getPartyId());
         }
 
-        parentDraw.draw(booking, submitted.getLines());
+        parentDraw.draw(booking, submitted.getLineGroups());
         parentDraw.save(booking);
 
         refreshCostingFigures(submitted);
@@ -111,12 +111,12 @@ public class BpoService {
         target.assertEditable();
 
         BusinessDocument booking = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(booking, target.getLines());
+        parentDraw.release(booking, target.getLineGroups());
 
         applyHeader(submitted, target);
-        target.setLines(submitted.getLines());
+        target.setLineGroups(submitted.getLineGroups());
 
-        parentDraw.draw(booking, target.getLines());
+        parentDraw.draw(booking, target.getLineGroups());
         parentDraw.save(booking);
 
         refreshCostingFigures(target);
@@ -142,7 +142,7 @@ public class BpoService {
         doc.assertEditable();
 
         BusinessDocument booking = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(booking, doc.getLines());
+        parentDraw.release(booking, doc.getLineGroups());
         parentDraw.save(booking);
 
         doc.markDeleted();
@@ -159,11 +159,13 @@ public class BpoService {
     }
 
     private void refreshCostingFigures(BusinessDocument doc) {
-        for (BusinessDocumentLine line : doc.getLines()) {
-            if (!line.getFabric().hasCostingCode()) continue;
-            BigDecimal breakEven = costing.applyTo(line.getFabric());
-            if (line.getRate().signum() == 0 && breakEven != null) {
-                line.setRate(breakEven);
+        for (BusinessDocumentLineGroup group : doc.getLineGroups()) {
+            if (!group.getFabric().hasCostingCode()) continue;
+            BigDecimal breakEven = costing.applyTo(group.getFabric());
+            for (BusinessDocumentColorLine line : group.getColorLines()) {
+                if (line.getRate().signum() == 0 && breakEven != null) {
+                    line.setRate(breakEven);
+                }
             }
         }
     }

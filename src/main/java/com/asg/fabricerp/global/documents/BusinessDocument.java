@@ -15,8 +15,12 @@ import java.util.List;
  *
  * <h2>What it replaces</h2>
  * asgdynamic implements 42 master-detail screens as 42 controller/table pairs with the same
- * shape: header, {@code dtlSet}, {@code dtlLine}, {@code dtlTcSet}, plus a parallel
- * {@code *Revision} controller. All of that collapses into this type plus {@link DocumentType}.
+ * shape: header → {@code dtlSet} (fabric spec, one per construction) → {@code dtlLine}
+ * (one per colour) → {@code dtlTcSet}, plus a parallel {@code *Revision} controller. That
+ * collapses into this type plus {@link DocumentType}, {@link BusinessDocumentLineGroup} and
+ * {@link BusinessDocumentColorLine} — the same two levels, not flattened into one the way
+ * an earlier version of this model tried (see {@link FabricSpec}'s javadoc for why that
+ * was wrong).
  *
  * <h2>Where it improves on SpindleERP</h2>
  * <ul>
@@ -105,7 +109,7 @@ public class BusinessDocument extends BaseOrgEntity {
 
     @Valid
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<BusinessDocumentLine> lines = new ArrayList<>();
+    private List<BusinessDocumentLineGroup> lineGroups = new ArrayList<>();
 
     public String getDocumentNo()               { return documentNo; }
     public void setDocumentNo(String v)         { this.documentNo = v; }
@@ -138,30 +142,32 @@ public class BusinessDocument extends BaseOrgEntity {
     public void setRemarks(String v)            { this.remarks = v; }
     public BigDecimal getSubtotalAmount()       { return subtotalAmount; }
     public BigDecimal getTotalQuantity()        { return totalQuantity; }
-    public List<BusinessDocumentLine> getLines(){ return lines; }
+    public List<BusinessDocumentLineGroup> getLineGroups() { return lineGroups; }
 
-    public void setLines(List<BusinessDocumentLine> incoming) {
-        this.lines.clear();
-        if (incoming != null) incoming.forEach(this::addLine);
+    public void setLineGroups(List<BusinessDocumentLineGroup> incoming) {
+        this.lineGroups.clear();
+        if (incoming != null) incoming.forEach(this::addLineGroup);
     }
 
-    public void addLine(BusinessDocumentLine line) {
-        line.setDocument(this);
-        line.setOrganizationId(getOrganizationId());
-        this.lines.add(line);
+    public void addLineGroup(BusinessDocumentLineGroup group) {
+        group.setDocument(this);
+        group.setOrganizationId(getOrganizationId());
+        this.lineGroups.add(group);
     }
 
     /**
-     * Authoritative header maths. Called by the service before persist; the browser's
-     * numbers are never trusted.
+     * Authoritative header maths, rolled up through both levels. Called by the service
+     * before persist; the browser's numbers are never trusted.
      */
     public void recalculateTotals() {
         BigDecimal amount = BigDecimal.ZERO;
         BigDecimal qty = BigDecimal.ZERO;
-        for (BusinessDocumentLine line : lines) {
-            line.recalculate();
-            amount = amount.add(line.getLineAmount());
-            qty = qty.add(line.getQuantity());
+        for (BusinessDocumentLineGroup group : lineGroups) {
+            for (BusinessDocumentColorLine colorLine : group.getColorLines()) {
+                colorLine.recalculate();
+            }
+            amount = amount.add(group.groupAmount());
+            qty = qty.add(group.groupQuantity());
         }
         this.subtotalAmount = amount;
         this.totalQuantity = qty;

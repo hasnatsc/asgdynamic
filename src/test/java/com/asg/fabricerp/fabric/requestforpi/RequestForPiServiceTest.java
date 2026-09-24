@@ -24,7 +24,7 @@ class RequestForPiServiceTest {
     private static final Long ORG = 1L;
     private static final Long UNIT = 10L;
     private static final Long BPO_ID = 700L;
-    private static final Long BPO_LINE_ID = 701L;
+    private static final Long BPO_COLOR_LINE_ID = 701L;
 
     private BusinessDocumentRepository repository;
     private DocumentNumberService numbering;
@@ -62,14 +62,22 @@ class RequestForPiServiceTest {
         bpo.setDocumentNo("BPOAF000001");
         bpo.setPartyId(88L);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setId(BPO_LINE_ID);
-        line.setLineNo(1);
-        line.setQuantity(quantity);
-        bpo.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setId(BPO_COLOR_LINE_ID);
+        colorLine.setColorLineNo(1);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.setGroupNo(1);
+        group.addColorLine(colorLine);
+        bpo.addLineGroup(group);
 
         when(repository.findScopedWithLines(BPO_ID, ORG)).thenReturn(Optional.of(bpo));
         return bpo;
+    }
+
+    private BusinessDocumentColorLine onlyColorLine(BusinessDocument doc) {
+        return doc.getLineGroups().get(0).getColorLines().get(0);
     }
 
     private BusinessDocument rpiRequest(BigDecimal quantity) {
@@ -77,10 +85,13 @@ class RequestForPiServiceTest {
         rpi.setDocumentDate(LocalDate.now());
         rpi.setParentDocumentId(BPO_ID);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setSourceLineId(BPO_LINE_ID);
-        line.setQuantity(quantity);
-        rpi.setLines(List.of(line));
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setSourceColorLineId(BPO_COLOR_LINE_ID);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        rpi.setLineGroups(List.of(group));
         return rpi;
     }
 
@@ -92,7 +103,7 @@ class RequestForPiServiceTest {
 
         assertThat(rpi.getDocumentType()).isEqualTo(DocumentType.REQUEST_FOR_PI);
         assertThat(rpi.getPartyId()).isEqualTo(88L);
-        assertThat(bpo.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("200");
+        assertThat(onlyColorLine(bpo).getFulfilledQuantity()).isEqualByComparingTo("200");
     }
 
     @Test
@@ -113,7 +124,7 @@ class RequestForPiServiceTest {
 
         service.delete(900L);
 
-        assertThat(bpo.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("500");
+        assertThat(onlyColorLine(bpo).outstandingQuantity()).isEqualByComparingTo("500");
     }
 
     @Test
@@ -129,8 +140,8 @@ class RequestForPiServiceTest {
 
         assertThat(revision.getDocumentNo()).isEqualTo("RPIAF000002");
         assertThat(revision.getRevisionNo()).isEqualTo(1);
-        assertThat(revision.getLines().get(0).getSourceLineId()).isEqualTo(BPO_LINE_ID);
+        assertThat(onlyColorLine(revision).getSourceColorLineId()).isEqualTo(BPO_COLOR_LINE_ID);
         // The BPO ledger is untouched by the revision itself — only the original draw counts.
-        assertThat(bpo.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("200");
+        assertThat(onlyColorLine(bpo).getFulfilledQuantity()).isEqualByComparingTo("200");
     }
 }

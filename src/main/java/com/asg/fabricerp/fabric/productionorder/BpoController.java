@@ -1,7 +1,8 @@
 package com.asg.fabricerp.fabric.productionorder;
 
 import com.asg.fabricerp.global.documents.BusinessDocument;
-import com.asg.fabricerp.global.documents.BusinessDocumentLine;
+import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
+import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
@@ -22,7 +23,7 @@ import java.util.Map;
 /**
  * Same page/grid split as {@code BookingController}; the one addition is
  * {@code /api/bpo/booking-lines/{bookingId}}, which the "raise BPO" form calls to populate
- * its line picker with what each Booking line still has outstanding.
+ * its line picker with what each Booking colour line still has outstanding.
  */
 @Controller
 public class BpoController {
@@ -80,7 +81,7 @@ public class BpoController {
         return toDetail(service.get(id));
     }
 
-    /** What the "raise BPO" line picker offers: Booking lines with something left to draw. */
+    /** What the "raise BPO" line picker offers: Booking colour lines with something left to draw. */
     @GetMapping("/api/bpo/booking-lines/{bookingId}")
     @ResponseBody
     @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
@@ -134,34 +135,45 @@ public class BpoController {
     private static Map<String, Object> toDetail(BusinessDocument d) {
         Map<String, Object> detail = new LinkedHashMap<>(toRow(d));
         detail.put("remarks", d.getRemarks() == null ? "" : d.getRemarks());
-        detail.put("lines", d.getLines().stream().map(BpoController::toLine).toList());
+        detail.put("lineGroups", d.getLineGroups().stream().map(BpoController::toGroup).toList());
         return detail;
     }
 
-    private static Map<String, Object> toLine(BusinessDocumentLine l) {
+    private static Map<String, Object> toGroup(BusinessDocumentLineGroup g) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", g.getId());
+        row.put("groupNo", g.getGroupNo());
+        row.put("costingCode", g.getFabric().getCostingCode());
+        row.put("construction", g.getFabric().getConstruction());
+        row.put("weaveType", g.getFabric().getWeaveType());
+        row.put("finishType", g.getFabric().getFinishType());
+        row.put("gsm", g.getFabric().getGsm());
+        row.put("groupQuantity", g.groupQuantity());
+        row.put("groupAmount", g.groupAmount());
+        row.put("colorLines", g.getColorLines().stream().map(BpoController::toColorLine).toList());
+        return row;
+    }
+
+    private static Map<String, Object> toColorLine(BusinessDocumentColorLine l) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", l.getId());
-        row.put("lineNo", l.getLineNo());
-        row.put("sourceLineId", l.getSourceLineId());
-        row.put("costingCode", l.getFabric().getCostingCode());
-        row.put("construction", l.getFabric().getConstruction());
-        row.put("weaveType", l.getFabric().getWeaveType());
-        row.put("finishType", l.getFabric().getFinishType());
-        row.put("gsm", l.getFabric().getGsm());
-        row.put("colourName", l.getFabric().getColourName());
+        row.put("colorLineNo", l.getColorLineNo());
+        row.put("sourceColorLineId", l.getSourceColorLineId());
+        row.put("colorCode", l.getColorCode());
+        row.put("colorName", l.getColorName());
         row.put("quantity", l.getQuantity());
         row.put("rate", l.getRate());
         row.put("lineAmount", l.getLineAmount());
         return row;
     }
 
-    private static Map<String, Object> toSourceOption(BusinessDocumentLine bookingLine) {
+    private static Map<String, Object> toSourceOption(BusinessDocumentColorLine bookingColorLine) {
         Map<String, Object> row = new LinkedHashMap<>();
-        row.put("sourceLineId", bookingLine.getId());
-        row.put("construction", bookingLine.getFabric().getConstruction());
-        row.put("colourName", bookingLine.getFabric().getColourName());
-        row.put("orderedQuantity", bookingLine.getQuantity());
-        row.put("outstandingQuantity", bookingLine.outstandingQuantity());
+        row.put("sourceColorLineId", bookingColorLine.getId());
+        row.put("construction", bookingColorLine.getLineGroup().getFabric().getConstruction());
+        row.put("colorName", bookingColorLine.getColorName());
+        row.put("orderedQuantity", bookingColorLine.getQuantity());
+        row.put("outstandingQuantity", bookingColorLine.outstandingQuantity());
         return row;
     }
 }

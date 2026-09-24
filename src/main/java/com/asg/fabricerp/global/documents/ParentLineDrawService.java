@@ -3,26 +3,33 @@ package com.asg.fabricerp.global.documents;
 import com.asg.fabricerp.common.OrgContext;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * The mechanics every "draw against a parent document's lines" document type shares:
+ * The mechanics every "draw against a parent document's colours" document type shares:
  * BPO draws against Booking, Request-for-PI draws against BPO, a Weaving or Processing
- * Work Order draws against BPO, Greige Issue draws against Greige Receive, and so on down
- * both the sales and production chains asgdynamic encoded as separate screens per hop.
+ * Work Order draws against BPO, and so on down both the sales and production chains
+ * asgdynamic encoded as separate screens per hop.
  *
- * <p>Extracted out of {@code BpoService} the moment a second consumer
- * ({@code RequestForPiService}) needed the identical loadParent/draw/release logic — the
- * same signal that produced {@link DocumentRevisionService} and
- * {@code com.asg.fabricerp.approval.ApprovalService} before it. What is deliberately
- * <b>not</b> here is document creation/update orchestration: each document type has its
- * own header fields worth copying (BPO copies remarks/dates but not currency; Booking
- * copies currency and reference number) and some carry a costing refresh, some don't
- * (neither Request-for-PI nor a Work Order does — see their service javadocs). Forcing one
- * generic {@code create()}/{@code update()} shape onto that variance would have been
- * over-generalizing what was never actually duplicated.
+ * <h2>Operates on colour lines, not fabric-spec groups</h2>
+ * The drawable unit is a {@link BusinessDocumentColorLine} — a real production payload
+ * confirmed a downstream document (a BPO, say) can commit less than a Booking line's full
+ * colour breakdown, and the id it actually references ({@code so_line_dtl_id} in the legacy
+ * JSON) is the colour line's, not the fabric-spec group's. {@link BusinessDocumentLineGroup}
+ * only groups colours that share one construction; it has no quantity of its own to draw
+ * against.
+ *
+ * <p>Extracted out of {@code BpoService} the moment a second consumer needed the identical
+ * loadParent/draw/release logic — the same signal that produced
+ * {@link DocumentRevisionService} and {@code com.asg.fabricerp.approval.ApprovalService}
+ * before it. What is deliberately <b>not</b> here is document creation/update
+ * orchestration: each document type has its own header fields worth copying and some carry
+ * a costing refresh, some don't. Forcing one generic {@code create()}/{@code update()}
+ * shape onto that variance would have been over-generalizing what was never actually
+ * duplicated.
  */
 @Service
 public class ParentLineDrawService {
@@ -50,33 +57,40 @@ public class ParentLineDrawService {
         return parent;
     }
 
-    /** Parent lines still open to draw against — feeds a "raise against" form's line picker. */
-    public List<BusinessDocumentLine> openLines(BusinessDocument parent) {
-        return parent.getLines().stream()
-            .filter(l -> l.outstandingQuantity().signum() > 0)
+    /** Parent colour lines still open to draw against — feeds a "raise against" line picker. */
+    public List<BusinessDocumentColorLine> openLines(BusinessDocument parent) {
+        return flatten(parent).stream()
+            .filter(cl -> cl.outstandingQuantity().signum() > 0)
             .toList();
     }
 
     /**
-     * Consumes parent-line capacity for every child line that names a source, and numbers
-     * the child lines 1..n while it is there (every caller needs this regardless).
+     * Consumes parent colour-line capacity for every child colour line that names a source,
+     * and numbers the child groups/colour lines 1..n while it is there (every caller needs
+     * this regardless).
      */
-    public void draw(BusinessDocument parent, List<BusinessDocumentLine> childLines) {
-        Map<Long, BusinessDocumentLine> byId = indexById(parent.getLines());
-        int lineNo = 1;
-        for (BusinessDocumentLine line : childLines) {
-            line.setLineNo(lineNo++);
-            if (line.getSourceLineId() == null) continue;
-            sourceLine(byId, line, parent).fulfil(line.getQuantity());
+    public void draw(BusinessDocument parent, List<BusinessDocumentLineGroup> childGroups) {
+        Map<Long, BusinessDocumentColorLine> byId = indexById(flatten(parent));
+        int groupNo = 1;
+        for (BusinessDocumentLineGroup group : childGroups) {
+            group.setGroupNo(groupNo++);
+            int colorNo = 1;
+            for (BusinessDocumentColorLine line : group.getColorLines()) {
+                line.setColorLineNo(colorNo++);
+                if (line.getSourceColorLineId() == null) continue;
+                sourceLine(byId, line, parent).fulfil(line.getQuantity());
+            }
         }
     }
 
-    /** Gives back whatever a set of child lines had previously drawn. */
-    public void release(BusinessDocument parent, List<BusinessDocumentLine> childLines) {
-        Map<Long, BusinessDocumentLine> byId = indexById(parent.getLines());
-        for (BusinessDocumentLine line : childLines) {
-            if (line.getSourceLineId() == null) continue;
-            sourceLine(byId, line, parent).release(line.getQuantity());
+    /** Gives back whatever a set of child colour lines had previously drawn. */
+    public void release(BusinessDocument parent, List<BusinessDocumentLineGroup> childGroups) {
+        Map<Long, BusinessDocumentColorLine> byId = indexById(flatten(parent));
+        for (BusinessDocumentLineGroup group : childGroups) {
+            for (BusinessDocumentColorLine line : group.getColorLines()) {
+                if (line.getSourceColorLineId() == null) continue;
+                sourceLine(byId, line, parent).release(line.getQuantity());
+            }
         }
     }
 
@@ -84,21 +98,30 @@ public class ParentLineDrawService {
         repository.save(parent);
     }
 
-    private BusinessDocumentLine sourceLine(Map<Long, BusinessDocumentLine> byId,
-                                            BusinessDocumentLine childLine, BusinessDocument parent) {
-        BusinessDocumentLine source = byId.get(childLine.getSourceLineId());
+    private BusinessDocumentColorLine sourceLine(Map<Long, BusinessDocumentColorLine> byId,
+                                                 BusinessDocumentColorLine childLine,
+                                                 BusinessDocument parent) {
+        BusinessDocumentColorLine source = byId.get(childLine.getSourceColorLineId());
         if (source == null) {
             throw new IllegalArgumentException(
-                "Line %d names source line %d, which is not on %s %s"
-                    .formatted(childLine.getLineNo(), childLine.getSourceLineId(),
+                "Colour line %d names source colour line %d, which is not on %s %s"
+                    .formatted(childLine.getColorLineNo(), childLine.getSourceColorLineId(),
                               parent.getDocumentType().label(), parent.getDocumentNo()));
         }
         return source;
     }
 
-    private Map<Long, BusinessDocumentLine> indexById(List<BusinessDocumentLine> lines) {
-        Map<Long, BusinessDocumentLine> byId = new HashMap<>();
-        for (BusinessDocumentLine line : lines) byId.put(line.getId(), line);
+    private List<BusinessDocumentColorLine> flatten(BusinessDocument doc) {
+        List<BusinessDocumentColorLine> all = new ArrayList<>();
+        for (BusinessDocumentLineGroup group : doc.getLineGroups()) {
+            all.addAll(group.getColorLines());
+        }
+        return all;
+    }
+
+    private Map<Long, BusinessDocumentColorLine> indexById(List<BusinessDocumentColorLine> lines) {
+        Map<Long, BusinessDocumentColorLine> byId = new HashMap<>();
+        for (BusinessDocumentColorLine line : lines) byId.put(line.getId(), line);
         return byId;
     }
 }

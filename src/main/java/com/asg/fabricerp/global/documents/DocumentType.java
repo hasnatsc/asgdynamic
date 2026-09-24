@@ -20,7 +20,9 @@ public enum DocumentType {
      * Booking rather than a quotation, and every stage is revisable. SpindleERP's
      * SALES_QUOTATION has no counterpart here.
      */
-    BOOKING("BKG", "Booking", Family.SALES, "BOOKING"),
+    // Prefix confirmed "BK" (not a guessed "BKG") against a real production Booking
+    // payload: document codes BKAF000017, BKAF000028, BKAF000059.
+    BOOKING("BK", "Booking", Family.SALES, "BOOKING"),
     BULK_PRODUCTION_ORDER("BPO", "Bulk Production Order", Family.SALES, "BPO"),
     REQUEST_FOR_PI("RPI", "Request For PI", Family.SALES, "RPI"),
     DELIVERY_ORDER("DO", "Delivery Order", Family.SALES, "DO"),

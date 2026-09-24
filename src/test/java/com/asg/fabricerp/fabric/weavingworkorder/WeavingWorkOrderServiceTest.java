@@ -24,7 +24,7 @@ class WeavingWorkOrderServiceTest {
     private static final Long ORG = 1L;
     private static final Long UNIT = 10L;
     private static final Long BPO_ID = 800L;
-    private static final Long BPO_LINE_ID = 801L;
+    private static final Long BPO_COLOR_LINE_ID = 801L;
 
     private BusinessDocumentRepository repository;
     private WeavingWorkOrderService service;
@@ -57,14 +57,22 @@ class WeavingWorkOrderServiceTest {
         bpo.setDocumentNo("BPOAF000001");
         bpo.setPartyId(99L);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setId(BPO_LINE_ID);
-        line.setLineNo(1);
-        line.setQuantity(quantity);
-        bpo.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setId(BPO_COLOR_LINE_ID);
+        colorLine.setColorLineNo(1);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.setGroupNo(1);
+        group.addColorLine(colorLine);
+        bpo.addLineGroup(group);
 
         when(repository.findScopedWithLines(BPO_ID, ORG)).thenReturn(Optional.of(bpo));
         return bpo;
+    }
+
+    private BusinessDocumentColorLine onlyColorLine(BusinessDocument doc) {
+        return doc.getLineGroups().get(0).getColorLines().get(0);
     }
 
     private BusinessDocument woRequest(BigDecimal quantity) {
@@ -72,10 +80,13 @@ class WeavingWorkOrderServiceTest {
         wo.setDocumentDate(LocalDate.now());
         wo.setParentDocumentId(BPO_ID);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setSourceLineId(BPO_LINE_ID);
-        line.setQuantity(quantity);
-        wo.setLines(List.of(line));
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setSourceColorLineId(BPO_COLOR_LINE_ID);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        wo.setLineGroups(List.of(group));
         return wo;
     }
 
@@ -86,7 +97,7 @@ class WeavingWorkOrderServiceTest {
         BusinessDocument wo = service.save(woRequest(new BigDecimal("400")));
 
         assertThat(wo.getDocumentType()).isEqualTo(DocumentType.WEAVING_WORK_ORDER);
-        assertThat(bpo.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("400");
+        assertThat(onlyColorLine(bpo).getFulfilledQuantity()).isEqualByComparingTo("400");
     }
 
     @Test
@@ -106,7 +117,7 @@ class WeavingWorkOrderServiceTest {
 
         service.delete(950L);
 
-        assertThat(bpo.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("1200");
+        assertThat(onlyColorLine(bpo).outstandingQuantity()).isEqualByComparingTo("1200");
         assertThat(wo.getDeleted()).isTrue();
     }
 }

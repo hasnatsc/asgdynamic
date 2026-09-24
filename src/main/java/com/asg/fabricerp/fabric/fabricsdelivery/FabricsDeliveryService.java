@@ -55,7 +55,7 @@ public class FabricsDeliveryService {
     }
 
     @Transactional(readOnly = true)
-    public List<BusinessDocumentLine> openDeliveryOrderLines(Long deliveryOrderId) {
+    public List<BusinessDocumentColorLine> openDeliveryOrderLines(Long deliveryOrderId) {
         return parentDraw.openLines(parentDraw.loadParent(deliveryOrderId, PARENT_TYPE));
     }
 
@@ -79,7 +79,7 @@ public class FabricsDeliveryService {
             submitted.setPartyId(deliveryOrder.getPartyId());
         }
 
-        parentDraw.draw(deliveryOrder, submitted.getLines());
+        parentDraw.draw(deliveryOrder, submitted.getLineGroups());
         parentDraw.save(deliveryOrder);
 
         submitted.recalculateTotals();
@@ -91,12 +91,12 @@ public class FabricsDeliveryService {
         target.assertEditable();
 
         BusinessDocument deliveryOrder = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(deliveryOrder, target.getLines());
+        parentDraw.release(deliveryOrder, target.getLineGroups());
 
         applyHeader(submitted, target);
-        target.setLines(submitted.getLines());
+        target.setLineGroups(submitted.getLineGroups());
 
-        parentDraw.draw(deliveryOrder, target.getLines());
+        parentDraw.draw(deliveryOrder, target.getLineGroups());
         parentDraw.save(deliveryOrder);
 
         target.recalculateTotals();
@@ -109,7 +109,7 @@ public class FabricsDeliveryService {
         doc.assertEditable();
 
         BusinessDocument deliveryOrder = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(deliveryOrder, doc.getLines());
+        parentDraw.release(deliveryOrder, doc.getLineGroups());
         parentDraw.save(deliveryOrder);
 
         doc.markDeleted();

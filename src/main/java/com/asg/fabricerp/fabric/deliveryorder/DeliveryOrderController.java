@@ -1,7 +1,8 @@
 package com.asg.fabricerp.fabric.deliveryorder;
 
 import com.asg.fabricerp.global.documents.BusinessDocument;
-import com.asg.fabricerp.global.documents.BusinessDocumentLine;
+import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
+import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
@@ -112,28 +113,37 @@ public class DeliveryOrderController {
     private static Map<String, Object> toDetail(BusinessDocument d) {
         Map<String, Object> detail = new LinkedHashMap<>(toRow(d));
         detail.put("remarks", d.getRemarks() == null ? "" : d.getRemarks());
-        detail.put("lines", d.getLines().stream().map(DeliveryOrderController::toLine).toList());
+        detail.put("lineGroups", d.getLineGroups().stream().map(DeliveryOrderController::toGroup).toList());
         return detail;
     }
 
-    private static Map<String, Object> toLine(BusinessDocumentLine l) {
+    private static Map<String, Object> toGroup(BusinessDocumentLineGroup g) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", g.getId());
+        row.put("groupNo", g.getGroupNo());
+        row.put("construction", g.getFabric().getConstruction());
+        row.put("groupQuantity", g.groupQuantity());
+        row.put("colorLines", g.getColorLines().stream().map(DeliveryOrderController::toColorLine).toList());
+        return row;
+    }
+
+    private static Map<String, Object> toColorLine(BusinessDocumentColorLine l) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", l.getId());
-        row.put("lineNo", l.getLineNo());
-        row.put("sourceLineId", l.getSourceLineId());
-        row.put("construction", l.getFabric().getConstruction());
-        row.put("colourName", l.getFabric().getColourName());
+        row.put("colorLineNo", l.getColorLineNo());
+        row.put("sourceColorLineId", l.getSourceColorLineId());
+        row.put("colorName", l.getColorName());
         row.put("quantity", l.getQuantity());
         return row;
     }
 
-    private static Map<String, Object> toSourceOption(BusinessDocumentLine scheduleLine) {
+    private static Map<String, Object> toSourceOption(BusinessDocumentColorLine scheduleColorLine) {
         Map<String, Object> row = new LinkedHashMap<>();
-        row.put("sourceLineId", scheduleLine.getId());
-        row.put("construction", scheduleLine.getFabric().getConstruction());
-        row.put("colourName", scheduleLine.getFabric().getColourName());
-        row.put("orderedQuantity", scheduleLine.getQuantity());
-        row.put("outstandingQuantity", scheduleLine.outstandingQuantity());
+        row.put("sourceColorLineId", scheduleColorLine.getId());
+        row.put("construction", scheduleColorLine.getLineGroup().getFabric().getConstruction());
+        row.put("colorName", scheduleColorLine.getColorName());
+        row.put("orderedQuantity", scheduleColorLine.getQuantity());
+        row.put("outstandingQuantity", scheduleColorLine.outstandingQuantity());
         return row;
     }
 }

@@ -33,7 +33,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
      * Lines are almost always needed with the document; fetching them here avoids the
      * N+1 that a lazy collection produces on every detail screen.
      */
-    @EntityGraph(attributePaths = "lines")
+    @EntityGraph(attributePaths = {"lineGroups", "lineGroups.colorLines"})
     @Query("""
            select d from BusinessDocument d
            where d.id = :id

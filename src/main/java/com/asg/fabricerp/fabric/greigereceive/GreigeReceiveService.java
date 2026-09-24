@@ -60,7 +60,7 @@ public class GreigeReceiveService {
     }
 
     @Transactional(readOnly = true)
-    public List<BusinessDocumentLine> openBpoLines(Long bpoId) {
+    public List<BusinessDocumentColorLine> openBpoLines(Long bpoId) {
         return parentDraw.openLines(parentDraw.loadParent(bpoId, PARENT_TYPE));
     }
 
@@ -84,7 +84,7 @@ public class GreigeReceiveService {
             submitted.setPartyId(bpo.getPartyId());
         }
 
-        parentDraw.draw(bpo, submitted.getLines());
+        parentDraw.draw(bpo, submitted.getLineGroups());
         parentDraw.save(bpo);
 
         submitted.recalculateTotals();
@@ -96,12 +96,12 @@ public class GreigeReceiveService {
         target.assertEditable();
 
         BusinessDocument bpo = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(bpo, target.getLines());
+        parentDraw.release(bpo, target.getLineGroups());
 
         applyHeader(submitted, target);
-        target.setLines(submitted.getLines());
+        target.setLineGroups(submitted.getLineGroups());
 
-        parentDraw.draw(bpo, target.getLines());
+        parentDraw.draw(bpo, target.getLineGroups());
         parentDraw.save(bpo);
 
         target.recalculateTotals();
@@ -114,7 +114,7 @@ public class GreigeReceiveService {
         doc.assertEditable();
 
         BusinessDocument bpo = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(bpo, doc.getLines());
+        parentDraw.release(bpo, doc.getLineGroups());
         parentDraw.save(bpo);
 
         doc.markDeleted();

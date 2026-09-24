@@ -18,7 +18,7 @@ class GreigeReceiveServiceTest {
     private static final Long ORG = 1L;
     private static final Long UNIT = 10L;
     private static final Long BPO_ID = 820L;
-    private static final Long BPO_LINE_ID = 821L;
+    private static final Long BPO_COLOR_LINE_ID = 821L;
 
     private BusinessDocumentRepository repository;
     private GreigeReceiveService service;
@@ -50,24 +50,36 @@ class GreigeReceiveServiceTest {
         bpo.setDocumentType(DocumentType.BULK_PRODUCTION_ORDER);
         bpo.setDocumentNo("BPOAF000003");
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setId(BPO_LINE_ID);
-        line.setLineNo(1);
-        line.setQuantity(quantity);
-        bpo.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setId(BPO_COLOR_LINE_ID);
+        colorLine.setColorLineNo(1);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.setGroupNo(1);
+        group.addColorLine(colorLine);
+        bpo.addLineGroup(group);
 
         when(repository.findScopedWithLines(BPO_ID, ORG)).thenReturn(Optional.of(bpo));
         return bpo;
+    }
+
+    private BusinessDocumentColorLine onlyColorLine(BusinessDocument doc) {
+        return doc.getLineGroups().get(0).getColorLines().get(0);
     }
 
     private BusinessDocument receiptRequest(BigDecimal quantity) {
         BusinessDocument receipt = new BusinessDocument();
         receipt.setDocumentDate(LocalDate.now());
         receipt.setParentDocumentId(BPO_ID);
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setSourceLineId(BPO_LINE_ID);
-        line.setQuantity(quantity);
-        receipt.setLines(List.of(line));
+
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setSourceColorLineId(BPO_COLOR_LINE_ID);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        receipt.setLineGroups(List.of(group));
         return receipt;
     }
 
@@ -77,7 +89,7 @@ class GreigeReceiveServiceTest {
 
         service.save(receiptRequest(new BigDecimal("250")));
 
-        assertThat(bpo.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("250");
+        assertThat(onlyColorLine(bpo).getFulfilledQuantity()).isEqualByComparingTo("250");
     }
 
     @Test
@@ -97,6 +109,6 @@ class GreigeReceiveServiceTest {
 
         service.delete(970L);
 
-        assertThat(bpo.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("600");
+        assertThat(onlyColorLine(bpo).outstandingQuantity()).isEqualByComparingTo("600");
     }
 }

@@ -15,18 +15,18 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * The point of building a second document type: {@link BusinessDocumentLine#fulfil} and
- * {@link BusinessDocumentLine#release}, written for Booking's own ceiling, are exercised
- * here purely through {@link BpoService} drawing against a <i>different</i> document's
- * lines. Nothing in the entity had to change for a second consumer to use it correctly —
- * that is the generalization the redesign was for.
+ * The point of building a second document type: {@link BusinessDocumentColorLine#fulfil}
+ * and {@link BusinessDocumentColorLine#release}, written for Booking's own ceiling, are
+ * exercised here purely through {@link BpoService} drawing against a <i>different</i>
+ * document's colour lines. Nothing in the entity had to change for a second consumer to
+ * use it correctly — that is the generalization the redesign was for.
  */
 class BpoServiceTest {
 
     private static final Long ORG = 1L;
     private static final Long UNIT = 10L;
     private static final Long BOOKING_ID = 500L;
-    private static final Long BOOKING_LINE_ID = 501L;
+    private static final Long BOOKING_COLOR_LINE_ID = 501L;
 
     private BusinessDocumentRepository repository;
     private BpoService service;
@@ -52,24 +52,32 @@ class BpoServiceTest {
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
-    /** A Booking with one line ordering 1000 units, nothing drawn yet. */
+    /** A Booking with one construction, one colour ordering 1000 units, nothing drawn yet. */
     private BusinessDocument bookingWithOpenLine(BigDecimal quantity) {
         BusinessDocument booking = new BusinessDocument();
         booking.setId(BOOKING_ID);
         booking.setOrganizationId(ORG);
         booking.setBusinessUnitId(UNIT);
         booking.setDocumentType(DocumentType.BOOKING);
-        booking.setDocumentNo("BKGAF000001");
+        booking.setDocumentNo("BKAF000001");
         booking.setPartyId(42L);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setId(BOOKING_LINE_ID);
-        line.setLineNo(1);
-        line.setQuantity(quantity);
-        booking.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setId(BOOKING_COLOR_LINE_ID);
+        colorLine.setColorLineNo(1);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.setGroupNo(1);
+        group.addColorLine(colorLine);
+        booking.addLineGroup(group);
 
         when(repository.findScopedWithLines(BOOKING_ID, ORG)).thenReturn(Optional.of(booking));
         return booking;
+    }
+
+    private BusinessDocumentColorLine onlyColorLine(BusinessDocument doc) {
+        return doc.getLineGroups().get(0).getColorLines().get(0);
     }
 
     private BusinessDocument bpoRequest(BigDecimal quantity) {
@@ -77,11 +85,14 @@ class BpoServiceTest {
         bpo.setDocumentDate(LocalDate.now());
         bpo.setParentDocumentId(BOOKING_ID);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setSourceLineId(BOOKING_LINE_ID);
-        line.setQuantity(quantity);
-        line.setRate(new BigDecimal("2"));
-        bpo.setLines(List.of(line));
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setSourceColorLineId(BOOKING_COLOR_LINE_ID);
+        colorLine.setQuantity(quantity);
+        colorLine.setRate(new BigDecimal("2"));
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        bpo.setLineGroups(List.of(group));
         return bpo;
     }
 
@@ -95,7 +106,7 @@ class BpoServiceTest {
         assertThat(bpo.getParentDocumentId()).isEqualTo(BOOKING_ID);
         assertThat(bpo.getPartyId()).isEqualTo(42L);   // inherited from the booking
 
-        BusinessDocumentLine bookingLine = booking.getLines().get(0);
+        BusinessDocumentColorLine bookingLine = onlyColorLine(booking);
         assertThat(bookingLine.getFulfilledQuantity()).isEqualByComparingTo("600");
         assertThat(bookingLine.outstandingQuantity()).isEqualByComparingTo("400");
 
@@ -117,14 +128,14 @@ class BpoServiceTest {
         BusinessDocument booking = bookingWithOpenLine(new BigDecimal("1000"));
 
         service.save(bpoRequest(new BigDecimal("700")));
-        assertThat(booking.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("300");
+        assertThat(onlyColorLine(booking).outstandingQuantity()).isEqualByComparingTo("300");
 
         assertThatThrownBy(() -> service.save(bpoRequest(new BigDecimal("400"))))
             .isInstanceOf(IllegalStateException.class);
 
         // The successful 300 still fits.
         service.save(bpoRequest(new BigDecimal("300")));
-        assertThat(booking.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("0");
+        assertThat(onlyColorLine(booking).outstandingQuantity()).isEqualByComparingTo("0");
     }
 
     @Test
@@ -134,11 +145,11 @@ class BpoServiceTest {
         bpo.setId(900L);
         when(repository.findScopedWithLines(900L, ORG)).thenReturn(Optional.of(bpo));
 
-        assertThat(booking.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("400");
+        assertThat(onlyColorLine(booking).outstandingQuantity()).isEqualByComparingTo("400");
 
         service.delete(900L);
 
-        assertThat(booking.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("1000");
+        assertThat(onlyColorLine(booking).outstandingQuantity()).isEqualByComparingTo("1000");
         assertThat(bpo.getDeleted()).isTrue();
     }
 
@@ -155,8 +166,8 @@ class BpoServiceTest {
         service.save(edited);
 
         // Not 600 + 250 = 850 outstanding-350; the old draw is released before the new one applies.
-        assertThat(booking.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("250");
-        assertThat(booking.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("750");
+        assertThat(onlyColorLine(booking).getFulfilledQuantity()).isEqualByComparingTo("250");
+        assertThat(onlyColorLine(booking).outstandingQuantity()).isEqualByComparingTo("750");
     }
 
     @Test
@@ -164,7 +175,7 @@ class BpoServiceTest {
         bookingWithOpenLine(new BigDecimal("1000"));
 
         BusinessDocument request = bpoRequest(new BigDecimal("100"));
-        request.getLines().get(0).setSourceLineId(999999L);   // not on this booking
+        request.getLineGroups().get(0).getColorLines().get(0).setSourceColorLineId(999999L);   // not on this booking
 
         assertThatThrownBy(() -> service.save(request))
             .isInstanceOf(IllegalArgumentException.class)
@@ -183,7 +194,7 @@ class BpoServiceTest {
 
     @Test
     void openBookingLinesExcludesFullyDrawnLines() {
-        BusinessDocument booking = bookingWithOpenLine(new BigDecimal("500"));
+        bookingWithOpenLine(new BigDecimal("500"));
         service.save(bpoRequest(new BigDecimal("500")));   // fully consumes it
 
         assertThat(service.openBookingLines(BOOKING_ID)).isEmpty();

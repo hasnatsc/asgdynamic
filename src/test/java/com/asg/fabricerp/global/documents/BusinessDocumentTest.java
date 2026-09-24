@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -15,6 +16,11 @@ import static org.assertj.core.api.Assertions.*;
  * <p>SpindleERP has ~40 tests on its AI layer and three on its transactional core, so the
  * guards that matter most commercially are the least covered. These are the equivalent
  * guards here, written alongside the model rather than after an incident.
+ *
+ * <p>The totals tests below build the two-level shape a real Booking actually has — one
+ * fabric-spec group with several colours under it — rather than one colour per group,
+ * because a flat one-colour-per-group model is exactly what an earlier version of this
+ * class got wrong (see {@link FabricSpec}'s javadoc).
  */
 class BusinessDocumentTest {
 
@@ -23,17 +29,22 @@ class BusinessDocumentTest {
         doc.setOrganizationId(1L);
         doc.setBusinessUnitId(10L);
         doc.setDocumentType(DocumentType.BOOKING);
-        doc.setDocumentNo("BKGAF000001");
+        doc.setDocumentNo("BKAF000001");
         doc.setDocumentDate(LocalDate.of(2026, 9, 24));
         return doc;
     }
 
-    private BusinessDocumentLine line(String qty, String rate) {
-        BusinessDocumentLine l = new BusinessDocumentLine();
-        l.setLineNo(1);
+    private BusinessDocumentColorLine colorLine(String qty, String rate) {
+        BusinessDocumentColorLine l = new BusinessDocumentColorLine();
         l.setQuantity(new BigDecimal(qty));
         l.setRate(new BigDecimal(rate));
         return l;
+    }
+
+    private BusinessDocumentLineGroup groupOf(BusinessDocumentColorLine... colorLines) {
+        BusinessDocumentLineGroup g = new BusinessDocumentLineGroup();
+        for (BusinessDocumentColorLine l : colorLines) g.addColorLine(l);
+        return g;
     }
 
     @Nested
@@ -41,14 +52,26 @@ class BusinessDocumentTest {
     class Totals {
 
         @Test
-        void areDerivedFromLinesNotFromTheClient() {
+        void rollUpThroughColourLinesAndGroupsNotFromTheClient() {
             BusinessDocument doc = booking();
-            doc.addLine(line("100", "2.50"));
-            doc.addLine(line("40", "1.25"));
+            // One construction, two colours — the shape the real Booking payload showed.
+            doc.addLineGroup(groupOf(colorLine("100", "2.50"), colorLine("40", "2.50")));
 
             doc.recalculateTotals();
 
-            // 100*2.50 + 40*1.25 = 250 + 50
+            // (100 + 40) * 2.50 = 350
+            assertThat(doc.getSubtotalAmount()).isEqualByComparingTo("350");
+            assertThat(doc.getTotalQuantity()).isEqualByComparingTo("140");
+        }
+
+        @Test
+        void sumAcrossMultipleGroupsToo() {
+            BusinessDocument doc = booking();
+            doc.addLineGroup(groupOf(colorLine("100", "2.50")));  // group 1: 250
+            doc.addLineGroup(groupOf(colorLine("40", "1.25")));   // group 2: 50
+
+            doc.recalculateTotals();
+
             assertThat(doc.getSubtotalAmount()).isEqualByComparingTo("300");
             assertThat(doc.getTotalQuantity()).isEqualByComparingTo("140");
         }
@@ -56,7 +79,7 @@ class BusinessDocumentTest {
         @Test
         void recalculatingIsIdempotent() {
             BusinessDocument doc = booking();
-            doc.addLine(line("10", "3"));
+            doc.addLineGroup(groupOf(colorLine("10", "3")));
 
             doc.recalculateTotals();
             BigDecimal once = doc.getSubtotalAmount();
@@ -66,15 +89,29 @@ class BusinessDocumentTest {
         }
 
         @Test
-        void replacingLinesDropsTheOldOnes() {
+        void replacingGroupsDropsTheOldOnes() {
             BusinessDocument doc = booking();
-            doc.addLine(line("100", "1"));
-            doc.setLines(java.util.List.of(line("5", "1")));
+            doc.addLineGroup(groupOf(colorLine("100", "1")));
+            doc.setLineGroups(List.of(groupOf(colorLine("5", "1"))));
 
             doc.recalculateTotals();
 
-            assertThat(doc.getLines()).hasSize(1);
+            assertThat(doc.getLineGroups()).hasSize(1);
             assertThat(doc.getTotalQuantity()).isEqualByComparingTo("5");
+        }
+
+        @Test
+        void groupNumbersAndColourLineNumbersAreIndependentSequences() {
+            // ParentLineDrawService assigns these; verify a group's colour numbering
+            // restarts at 1 rather than continuing a document-wide sequence, matching the
+            // legacy sort_order, which is scoped per fabric-spec group in the real payload.
+            BusinessDocumentLineGroup group = groupOf(
+                colorLine("10", "1"), colorLine("20", "1"), colorLine("30", "1"));
+            int n = 1;
+            for (BusinessDocumentColorLine l : group.getColorLines()) l.setColorLineNo(n++);
+
+            assertThat(group.getColorLines()).extracting(BusinessDocumentColorLine::getColorLineNo)
+                .containsExactly(1, 2, 3);
         }
     }
 
@@ -84,7 +121,7 @@ class BusinessDocumentTest {
 
         @Test
         void allowsPartialThenExactCompletion() {
-            BusinessDocumentLine l = line("100", "1");
+            BusinessDocumentColorLine l = colorLine("100", "1");
 
             l.fulfil(new BigDecimal("60"));
             assertThat(l.outstandingQuantity()).isEqualByComparingTo("40");
@@ -97,7 +134,7 @@ class BusinessDocumentTest {
 
         @Test
         void refusesToExceedTheOrderedQuantity() {
-            BusinessDocumentLine l = line("100", "1");
+            BusinessDocumentColorLine l = colorLine("100", "1");
             l.fulfil(new BigDecimal("90"));
 
             assertThatThrownBy(() -> l.fulfil(new BigDecimal("20")))
@@ -110,11 +147,26 @@ class BusinessDocumentTest {
 
         @Test
         void refusesNonPositiveFulfilment() {
-            BusinessDocumentLine l = line("100", "1");
+            BusinessDocumentColorLine l = colorLine("100", "1");
             assertThatThrownBy(() -> l.fulfil(BigDecimal.ZERO))
                 .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> l.fulfil(new BigDecimal("-5")))
                 .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        void eachColourLineHasItsOwnCeilingIndependentOfSiblings() {
+            // Two colours under one construction must not share a ceiling — drawing all of
+            // one colour must leave the other's untouched.
+            BusinessDocumentColorLine white = colorLine("100", "1");
+            BusinessDocumentColorLine black = colorLine("50", "1");
+            groupOf(white, black);
+
+            white.fulfil(new BigDecimal("100"));
+
+            assertThat(white.isFullyFulfilled()).isTrue();
+            assertThat(black.getFulfilledQuantity()).isEqualByComparingTo("0");
+            assertThat(black.outstandingQuantity()).isEqualByComparingTo("50");
         }
     }
 

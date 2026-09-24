@@ -62,13 +62,15 @@ class ApprovalServiceTest {
         doc.setId(DOC_ID);
         doc.setOrganizationId(ORG);
         doc.setDocumentType(DocumentType.BOOKING);
-        doc.setDocumentNo("BKGAF000001");
+        doc.setDocumentNo("BKAF000001");
         doc.setDocumentDate(LocalDate.now());
         setCreatedBy(doc, creator);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setQuantity(new BigDecimal("10"));
-        doc.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setQuantity(new BigDecimal("10"));
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        doc.addLineGroup(group);
 
         if (status == BusinessDocumentStatus.SUBMITTED) {
             doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
@@ -123,7 +125,7 @@ class ApprovalServiceTest {
         doc.setId(DOC_ID);
         doc.setOrganizationId(ORG);
         doc.setDocumentType(DocumentType.BOOKING);
-        doc.setDocumentNo("BKGAF000002");
+        doc.setDocumentNo("BKAF000002");
         when(repository.findScopedWithLines(DOC_ID, ORG)).thenReturn(Optional.of(doc));
         authenticateAs("maker1", "ROLE_BOOKING_MAKER");
 

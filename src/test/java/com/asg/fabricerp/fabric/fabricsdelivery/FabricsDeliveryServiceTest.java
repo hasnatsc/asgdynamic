@@ -19,7 +19,7 @@ class FabricsDeliveryServiceTest {
     private static final Long ORG = 1L;
     private static final Long UNIT = 10L;
     private static final Long DLO_ID = 840L;
-    private static final Long DLO_LINE_ID = 841L;
+    private static final Long DLO_COLOR_LINE_ID = 841L;
 
     private BusinessDocumentRepository repository;
     private FabricsDeliveryService service;
@@ -51,24 +51,36 @@ class FabricsDeliveryServiceTest {
         dlo.setDocumentType(DocumentType.DELIVERY_ORDER);
         dlo.setDocumentNo("DOAF000002");
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setId(DLO_LINE_ID);
-        line.setLineNo(1);
-        line.setQuantity(quantity);
-        dlo.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setId(DLO_COLOR_LINE_ID);
+        colorLine.setColorLineNo(1);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.setGroupNo(1);
+        group.addColorLine(colorLine);
+        dlo.addLineGroup(group);
 
         when(repository.findScopedWithLines(DLO_ID, ORG)).thenReturn(Optional.of(dlo));
         return dlo;
+    }
+
+    private BusinessDocumentColorLine onlyColorLine(BusinessDocument doc) {
+        return doc.getLineGroups().get(0).getColorLines().get(0);
     }
 
     private BusinessDocument fdRequest(BigDecimal quantity) {
         BusinessDocument fd = new BusinessDocument();
         fd.setDocumentDate(LocalDate.now());
         fd.setParentDocumentId(DLO_ID);
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setSourceLineId(DLO_LINE_ID);
-        line.setQuantity(quantity);
-        fd.setLines(List.of(line));
+
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setSourceColorLineId(DLO_COLOR_LINE_ID);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        fd.setLineGroups(List.of(group));
         return fd;
     }
 
@@ -78,7 +90,7 @@ class FabricsDeliveryServiceTest {
 
         service.save(fdRequest(new BigDecimal("80")));
 
-        assertThat(dlo.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("80");
+        assertThat(onlyColorLine(dlo).getFulfilledQuantity()).isEqualByComparingTo("80");
     }
 
     @Test
@@ -98,6 +110,6 @@ class FabricsDeliveryServiceTest {
 
         service.delete(980L);
 
-        assertThat(dlo.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("200");
+        assertThat(onlyColorLine(dlo).outstandingQuantity()).isEqualByComparingTo("200");
     }
 }

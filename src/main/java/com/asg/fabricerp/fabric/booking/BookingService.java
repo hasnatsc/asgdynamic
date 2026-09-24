@@ -86,7 +86,7 @@ public class BookingService {
             target = get(submitted.getId());
             target.assertEditable();
             applyHeader(submitted, target);
-            target.setLines(submitted.getLines());
+            target.setLineGroups(submitted.getLineGroups());
         }
 
         refreshCostingFigures(target);
@@ -128,18 +128,19 @@ public class BookingService {
     }
 
     /**
-     * Pulls authoritative fabric figures for every line that names a costing code, and
-     * uses the break-even price as the rate when the user has not set one.
+     * Pulls authoritative fabric figures for every group that names a costing code — the
+     * costing lookup is per construction, not per colour — and uses the break-even price as
+     * the rate for each of that group's colour lines that has not set its own.
      */
     private void refreshCostingFigures(BusinessDocument doc) {
-        int lineNo = 1;
-        for (BusinessDocumentLine line : doc.getLines()) {
-            line.setLineNo(lineNo++);
-            if (!line.getFabric().hasCostingCode()) continue;
+        for (BusinessDocumentLineGroup group : doc.getLineGroups()) {
+            if (!group.getFabric().hasCostingCode()) continue;
 
-            BigDecimal breakEven = costing.applyTo(line.getFabric());
-            if (line.getRate().signum() == 0 && breakEven != null) {
-                line.setRate(breakEven);
+            BigDecimal breakEven = costing.applyTo(group.getFabric());
+            for (BusinessDocumentColorLine line : group.getColorLines()) {
+                if (line.getRate().signum() == 0 && breakEven != null) {
+                    line.setRate(breakEven);
+                }
             }
         }
     }

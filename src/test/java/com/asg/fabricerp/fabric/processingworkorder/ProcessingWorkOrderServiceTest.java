@@ -20,7 +20,7 @@ class ProcessingWorkOrderServiceTest {
     private static final Long ORG = 1L;
     private static final Long UNIT = 10L;
     private static final Long BPO_ID = 810L;
-    private static final Long BPO_LINE_ID = 811L;
+    private static final Long BPO_COLOR_LINE_ID = 811L;
 
     private BusinessDocumentRepository repository;
     private ProcessingWorkOrderService service;
@@ -52,24 +52,36 @@ class ProcessingWorkOrderServiceTest {
         bpo.setDocumentType(DocumentType.BULK_PRODUCTION_ORDER);
         bpo.setDocumentNo("BPOAF000002");
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setId(BPO_LINE_ID);
-        line.setLineNo(1);
-        line.setQuantity(quantity);
-        bpo.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setId(BPO_COLOR_LINE_ID);
+        colorLine.setColorLineNo(1);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.setGroupNo(1);
+        group.addColorLine(colorLine);
+        bpo.addLineGroup(group);
 
         when(repository.findScopedWithLines(BPO_ID, ORG)).thenReturn(Optional.of(bpo));
         return bpo;
+    }
+
+    private BusinessDocumentColorLine onlyColorLine(BusinessDocument doc) {
+        return doc.getLineGroups().get(0).getColorLines().get(0);
     }
 
     private BusinessDocument woRequest(BigDecimal quantity) {
         BusinessDocument wo = new BusinessDocument();
         wo.setDocumentDate(LocalDate.now());
         wo.setParentDocumentId(BPO_ID);
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setSourceLineId(BPO_LINE_ID);
-        line.setQuantity(quantity);
-        wo.setLines(List.of(line));
+
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setSourceColorLineId(BPO_COLOR_LINE_ID);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        wo.setLineGroups(List.of(group));
         return wo;
     }
 
@@ -79,7 +91,7 @@ class ProcessingWorkOrderServiceTest {
 
         service.save(woRequest(new BigDecimal("350")));
 
-        assertThat(bpo.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("350");
+        assertThat(onlyColorLine(bpo).getFulfilledQuantity()).isEqualByComparingTo("350");
     }
 
     @Test
@@ -99,6 +111,6 @@ class ProcessingWorkOrderServiceTest {
 
         service.delete(960L);
 
-        assertThat(bpo.getLines().get(0).outstandingQuantity()).isEqualByComparingTo("900");
+        assertThat(onlyColorLine(bpo).outstandingQuantity()).isEqualByComparingTo("900");
     }
 }

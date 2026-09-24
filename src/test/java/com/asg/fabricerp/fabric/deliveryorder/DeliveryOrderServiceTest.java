@@ -22,7 +22,7 @@ class DeliveryOrderServiceTest {
     private static final Long ORG = 1L;
     private static final Long UNIT = 10L;
     private static final Long RPI_ID = 830L;
-    private static final Long RPI_LINE_ID = 831L;
+    private static final Long RPI_COLOR_LINE_ID = 831L;
 
     private BusinessDocumentRepository repository;
     private DeliveryOrderService service;
@@ -55,24 +55,36 @@ class DeliveryOrderServiceTest {
         schedule.setDocumentNo("XAF000001");
         schedule.setPartyId(55L);
 
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setId(RPI_LINE_ID);
-        line.setLineNo(1);
-        line.setQuantity(quantity);
-        schedule.addLine(line);
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setId(RPI_COLOR_LINE_ID);
+        colorLine.setColorLineNo(1);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.setGroupNo(1);
+        group.addColorLine(colorLine);
+        schedule.addLineGroup(group);
 
         when(repository.findScopedWithLines(RPI_ID, ORG)).thenReturn(Optional.of(schedule));
         return schedule;
+    }
+
+    private BusinessDocumentColorLine onlyColorLine(BusinessDocument doc) {
+        return doc.getLineGroups().get(0).getColorLines().get(0);
     }
 
     private BusinessDocument dloRequest(BigDecimal quantity) {
         BusinessDocument dlo = new BusinessDocument();
         dlo.setDocumentDate(LocalDate.now());
         dlo.setParentDocumentId(RPI_ID);
-        BusinessDocumentLine line = new BusinessDocumentLine();
-        line.setSourceLineId(RPI_LINE_ID);
-        line.setQuantity(quantity);
-        dlo.setLines(List.of(line));
+
+        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
+        colorLine.setSourceColorLineId(RPI_COLOR_LINE_ID);
+        colorLine.setQuantity(quantity);
+
+        BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
+        group.addColorLine(colorLine);
+        dlo.setLineGroups(List.of(group));
         return dlo;
     }
 
@@ -83,7 +95,7 @@ class DeliveryOrderServiceTest {
         BusinessDocument dlo = service.save(dloRequest(new BigDecimal("150")));
 
         assertThat(dlo.getPartyId()).isEqualTo(55L);
-        assertThat(rpi.getLines().get(0).getFulfilledQuantity()).isEqualByComparingTo("150");
+        assertThat(onlyColorLine(rpi).getFulfilledQuantity()).isEqualByComparingTo("150");
     }
 
     @Test

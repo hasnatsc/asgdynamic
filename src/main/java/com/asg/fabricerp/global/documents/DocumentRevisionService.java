@@ -10,9 +10,10 @@ import java.time.LocalDate;
  *
  * <p>Extracted rather than left on {@code BookingService} the moment a second document type
  * needed it: {@code BpoService} calls the same method. Every field this copies —
- * {@code partyId}, currency, dates, remarks, the fabric-specced lines — lives on the generic
- * {@link BusinessDocument} / {@link BusinessDocumentLine}, so nothing here is Booking- or
- * BPO-specific. A third document type needs no changes to this class, only a call to it.
+ * {@code partyId}, currency, dates, remarks, the fabric-specced groups and their colour
+ * lines — lives on the generic {@link BusinessDocument} / {@link BusinessDocumentLineGroup}
+ * / {@link BusinessDocumentColorLine}, so nothing here is Booking- or BPO-specific. A third
+ * document type needs no changes to this class, only a call to it.
  */
 @Service
 public class DocumentRevisionService {
@@ -61,33 +62,102 @@ public class DocumentRevisionService {
         revision.setRevisionOfId(rootId);
         revision.setRevisionNo(original.getRevisionNo() + 1);
 
-        for (BusinessDocumentLine line : original.getLines()) {
-            revision.addLine(copyOf(line));
+        for (BusinessDocumentLineGroup group : original.getLineGroups()) {
+            revision.addLineGroup(copyOf(group));
         }
         revision.recalculateTotals();
         return repository.save(revision);
     }
 
+    private BusinessDocumentLineGroup copyOf(BusinessDocumentLineGroup source) {
+        BusinessDocumentLineGroup copy = new BusinessDocumentLineGroup();
+        copy.setGroupNo(source.getGroupNo());
+        copy.setItemId(source.getItemId());
+        copy.setUomId(source.getUomId());
+        copy.setFabric(copyOf(source.getFabric()));
+        for (BusinessDocumentColorLine line : source.getColorLines()) {
+            copy.addColorLine(copyOf(line));
+        }
+        return copy;
+    }
+
     /**
-     * {@code sourceLineId} travels across the copy — the revision still traces to the same
-     * upstream allocation. What does NOT happen here is a fresh {@code fulfil()} call
+     * {@code sourceColorLineId} travels across the copy — the revision still traces to the
+     * same upstream allocation. What does NOT happen here is a fresh {@code fulfil()} call
      * against that source: the original draw already recorded the consumption, and revising
-     * the wording or price of a line must not consume the source a second time. A revision
+     * the wording or price of a colour must not consume the source a second time. A revision
      * that changes <i>how much</i> was drawn is a deliberate reallocation, not implied by
      * raising a revision, and is out of scope until a document type actually needs it.
      */
-    private BusinessDocumentLine copyOf(BusinessDocumentLine source) {
-        BusinessDocumentLine copy = new BusinessDocumentLine();
-        copy.setLineNo(source.getLineNo());
-        copy.setSourceLineId(source.getSourceLineId());
-        copy.setItemId(source.getItemId());
-        copy.setUomId(source.getUomId());
-        copy.setFabric(source.getFabric());
+    private BusinessDocumentColorLine copyOf(BusinessDocumentColorLine source) {
+        BusinessDocumentColorLine copy = new BusinessDocumentColorLine();
+        copy.setColorLineNo(source.getColorLineNo());
+        copy.setSourceColorLineId(source.getSourceColorLineId());
+        copy.setColorCode(source.getColorCode());
+        copy.setColorName(source.getColorName());
+        copy.setFabricsStyle(source.getFabricsStyle());
+        copy.setColorReference(source.getColorReference());
+        copy.setStrikeOffReference(source.getStrikeOffReference());
+        copy.setLabDipReference(source.getLabDipReference());
+        copy.setLoomReference(source.getLoomReference());
+        copy.setColorSpecification(source.getColorSpecification());
+        copy.setFilePath(source.getFilePath());
         copy.setQuantity(source.getQuantity());
         copy.setRate(source.getRate());
+        copy.setPriceInMeter(source.getPriceInMeter());
         copy.setRemarks(source.getRemarks());
         // fulfilledQuantity is deliberately not copied: a revision starts unfulfilled
         // against its own row, even though its source line's ledger is untouched.
+        return copy;
+    }
+
+    /**
+     * An independent copy, not the same embeddable instance. {@code FabricSpec} is mutable,
+     * and the previous version of this method did {@code copy.setFabric(source.getFabric())}
+     * — sharing one object between the original and the revision in memory, so editing
+     * either before both were flushed could silently corrupt the other. JPA copies an
+     * embeddable's column values into each owning row regardless, but there is no reason to
+     * carry that fragile aliasing through the Java object graph in the meantime.
+     */
+    private FabricSpec copyOf(FabricSpec source) {
+        FabricSpec copy = new FabricSpec();
+        copy.setConstruction(source.getConstruction());
+        copy.setDeclaredConstruction(source.getDeclaredConstruction());
+        copy.setWeaveType(source.getWeaveType());
+        copy.setWeaveStyle(source.getWeaveStyle());
+        copy.setFabricType(source.getFabricType());
+        copy.setFinishType(source.getFinishType());
+        copy.setComposition(source.getComposition());
+        copy.setDeclaredComposition(source.getDeclaredComposition());
+        copy.setWarpCount1(source.getWarpCount1());
+        copy.setWarpCount2(source.getWarpCount2());
+        copy.setWarpCount3(source.getWarpCount3());
+        copy.setWarpCountRatio1(source.getWarpCountRatio1());
+        copy.setWarpCountRatio2(source.getWarpCountRatio2());
+        copy.setWarpCountRatio3(source.getWarpCountRatio3());
+        copy.setWeftCount1(source.getWeftCount1());
+        copy.setWeftCount2(source.getWeftCount2());
+        copy.setWeftCount3(source.getWeftCount3());
+        copy.setWeftCountRatio1(source.getWeftCountRatio1());
+        copy.setWeftCountRatio2(source.getWeftCountRatio2());
+        copy.setWeftCountRatio3(source.getWeftCountRatio3());
+        copy.setEpi(source.getEpi());
+        copy.setPpi(source.getPpi());
+        copy.setShrinkageWarp(source.getShrinkageWarp());
+        copy.setShrinkageWeft(source.getShrinkageWeft());
+        copy.setShrinkageMechanical(source.getShrinkageMechanical());
+        copy.setGsm(source.getGsm());
+        copy.setGsmBeforeWash(source.getGsmBeforeWash());
+        copy.setGsmAfterWash(source.getGsmAfterWash());
+        copy.setFinishWidth(source.getFinishWidth());
+        copy.setCuttableWidth(source.getCuttableWidth());
+        copy.setLightSource(source.getLightSource());
+        copy.setSelvedge(source.getSelvedge());
+        copy.setWashType(source.getWashType());
+        copy.setWashInstruction(source.getWashInstruction());
+        copy.setEndUse(source.getEndUse());
+        copy.setDispoReference(source.getDispoReference());
+        copy.setCostingCode(source.getCostingCode());
         return copy;
     }
 }

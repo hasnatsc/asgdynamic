@@ -60,7 +60,7 @@ public class DeliveryOrderService {
 
     /** The Request-for-PI lines still available to deliver against. */
     @Transactional(readOnly = true)
-    public List<BusinessDocumentLine> openScheduleLines(Long requestForPiId) {
+    public List<BusinessDocumentColorLine> openScheduleLines(Long requestForPiId) {
         return parentDraw.openLines(parentDraw.loadParent(requestForPiId, PARENT_TYPE));
     }
 
@@ -84,7 +84,7 @@ public class DeliveryOrderService {
             submitted.setPartyId(schedule.getPartyId());
         }
 
-        parentDraw.draw(schedule, submitted.getLines());
+        parentDraw.draw(schedule, submitted.getLineGroups());
         parentDraw.save(schedule);
 
         submitted.recalculateTotals();
@@ -96,12 +96,12 @@ public class DeliveryOrderService {
         target.assertEditable();
 
         BusinessDocument schedule = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(schedule, target.getLines());
+        parentDraw.release(schedule, target.getLineGroups());
 
         applyHeader(submitted, target);
-        target.setLines(submitted.getLines());
+        target.setLineGroups(submitted.getLineGroups());
 
-        parentDraw.draw(schedule, target.getLines());
+        parentDraw.draw(schedule, target.getLineGroups());
         parentDraw.save(schedule);
 
         target.recalculateTotals();
@@ -114,7 +114,7 @@ public class DeliveryOrderService {
         doc.assertEditable();
 
         BusinessDocument schedule = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
-        parentDraw.release(schedule, doc.getLines());
+        parentDraw.release(schedule, doc.getLineGroups());
         parentDraw.save(schedule);
 
         doc.markDeleted();

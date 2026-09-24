@@ -1,7 +1,8 @@
 package com.asg.fabricerp.fabric.booking;
 
 import com.asg.fabricerp.global.documents.BusinessDocument;
-import com.asg.fabricerp.global.documents.BusinessDocumentLine;
+import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
+import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
@@ -136,26 +137,56 @@ public class BookingController {
         Map<String, Object> detail = new LinkedHashMap<>(toRow(d));
         detail.put("partyId", d.getPartyId());
         detail.put("remarks", d.getRemarks() == null ? "" : d.getRemarks());
-        detail.put("lines", d.getLines().stream().map(BookingController::toLine).toList());
+        detail.put("lineGroups", d.getLineGroups().stream().map(BookingController::toGroup).toList());
         return detail;
     }
 
-    private static Map<String, Object> toLine(BusinessDocumentLine l) {
+    /**
+     * One fabric specification, with its colour breakdown nested inside it — the shape a
+     * real Booking API response actually has (one {@code dtlSet} carrying an array of
+     * {@code dtlLine} colours), not the flat one-colour-per-row shape an earlier version of
+     * this method produced.
+     */
+    private static Map<String, Object> toGroup(BusinessDocumentLineGroup g) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", g.getId());
+        row.put("groupNo", g.getGroupNo());
+        row.put("costingCode", g.getFabric().getCostingCode());
+        row.put("construction", g.getFabric().getConstruction());
+        row.put("composition", g.getFabric().getComposition());
+        row.put("weaveType", g.getFabric().getWeaveType());
+        row.put("weaveStyle", g.getFabric().getWeaveStyle());
+        row.put("finishType", g.getFabric().getFinishType());
+        row.put("finishWidth", g.getFabric().getFinishWidth());
+        row.put("cuttableWidth", g.getFabric().getCuttableWidth());
+        row.put("gsm", g.getFabric().getGsm());
+        row.put("epi", g.getFabric().getEpi());
+        row.put("ppi", g.getFabric().getPpi());
+        row.put("lightSource", g.getFabric().getLightSource());
+        row.put("groupQuantity", g.groupQuantity());
+        row.put("groupAmount", g.groupAmount());
+        row.put("colorLines", g.getColorLines().stream().map(BookingController::toColorLine).toList());
+        return row;
+    }
+
+    private static Map<String, Object> toColorLine(BusinessDocumentColorLine l) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", l.getId());
-        row.put("lineNo", l.getLineNo());
-        row.put("costingCode", l.getFabric().getCostingCode());
-        row.put("construction", l.getFabric().getConstruction());
-        row.put("weaveType", l.getFabric().getWeaveType());
-        row.put("weaveStyle", l.getFabric().getWeaveStyle());
-        row.put("finishType", l.getFabric().getFinishType());
-        row.put("gsm", l.getFabric().getGsm());
-        row.put("colourName", l.getFabric().getColourName());
+        row.put("colorLineNo", l.getColorLineNo());
+        row.put("colorCode", l.getColorCode());
+        row.put("colorName", l.getColorName());
+        row.put("fabricsStyle", l.getFabricsStyle());
+        row.put("colorReference", l.getColorReference());
+        row.put("strikeOffReference", l.getStrikeOffReference());
+        row.put("labDipReference", l.getLabDipReference());
+        row.put("loomReference", l.getLoomReference());
         row.put("quantity", l.getQuantity());
         row.put("rate", l.getRate());
+        row.put("priceInMeter", l.getPriceInMeter());
         row.put("lineAmount", l.getLineAmount());
         row.put("fulfilled", l.getFulfilledQuantity());
         row.put("outstanding", l.outstandingQuantity());
+        row.put("remarks", l.getRemarks());
         return row;
     }
 }
