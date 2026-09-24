@@ -5,12 +5,14 @@ import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.common.WarehouseRepository;
+import com.asg.fabricerp.security.UserAdminService.StatusFilter;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,7 +33,9 @@ public class UserAdminController {
 
     private static final SortWhitelist SORTABLE = SortWhitelist.of(Map.of(
         "username", "username",
-        "fullName", "fullName"
+        "fullName", "fullName",
+        "businessUnitCode", "businessUnitCode",
+        "lastLoginAt", "lastLoginAt"
     ));
 
     private final UserAdminService service;
@@ -55,17 +59,32 @@ public class UserAdminController {
     @GetMapping("/setup/users")
     @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public String page(Model model) {
-        model.addAttribute("title", "Users");
-        model.addAttribute("roles", roleRepository.findAll(Sort.by("name")));
-        // Scope-grant pickers: one list per ScopeDimension, keyed by the enum name the JS posts.
         Long orgId = context.requireOrganizationId();
+        var unitOptions = businessUnits.lookup(orgId).stream()
+            .map(b -> option(b.getId(), b.getCode() + " - " + b.getName())).toList();
+        var warehouseOptions = warehouses.lookup(orgId).stream()
+            .map(w -> {
+                Map<String, Object> o = new LinkedHashMap<>(option(w.getId(), w.getCode() + " - " + w.getName()));
+                o.put("businessUnitId", w.getBusinessUnitId());
+                return o;
+            }).toList();
+
+        model.addAttribute("title", "Users");
+        model.addAttribute("roles", roleRepository.findAll(Sort.by("name")).stream()
+            .map(r -> Map.of("id", r.getId(), "name", r.getName(),
+                "description", r.getDescription() == null ? "" : r.getDescription(),
+                "active", Boolean.TRUE.equals(r.getActive())))
+            .toList());
+        model.addAttribute("businessUnits", unitOptions);
+        model.addAttribute("warehouses", warehouseOptions);
+        // Scope-grant pickers: one list per ScopeDimension, keyed by the enum name the JS posts.
         model.addAttribute("scopeOptions", Map.of(
-            ScopeDimension.BUSINESS_UNIT.name(), businessUnits.lookup(orgId).stream()
-                .map(b -> option(b.getId(), b.getCode() + " - " + b.getName())).toList(),
-            ScopeDimension.WAREHOUSE.name(), warehouses.lookup(orgId).stream()
-                .map(w -> option(w.getId(), w.getCode() + " - " + w.getName())).toList(),
+            ScopeDimension.BUSINESS_UNIT.name(), unitOptions,
+            ScopeDimension.WAREHOUSE.name(), warehouseOptions,
             ScopeDimension.MARKETING_TEAM.name(), marketingTeams.lookup(orgId).stream()
                 .map(t -> option(t.getId(), t.getName())).toList()));
+        model.addAttribute("currentUserId", CurrentUser.id());
+        model.addAttribute("minPasswordLength", PasswordPolicy.MIN_LENGTH);
         model.addAttribute("content", "setup/users :: content");
         return "layout/main";
     }
@@ -79,12 +98,15 @@ public class UserAdminController {
             @RequestParam(defaultValue = "25") int length,
             @RequestParam(name = "search[value]", required = false) String search,
             @RequestParam(required = false) String sortColumn,
-            @RequestParam(required = false) String sortDir) {
+            @RequestParam(required = false) String sortDir,
+            @RequestParam(required = false) StatusFilter status) {
 
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
-        Page<FabricUser> page = service.search(request.searchOrNull(),
+        Page<FabricUser> page = service.search(request.searchOrNull(), status,
             request.toPageable(SORTABLE, "username"));
-        return DataTableResponse.from(draw, page, UserAdminController::toRow);
+        Set<Long> scoped = service.idsHoldingScopeToday(
+            page.getContent().stream().map(FabricUser::getId).toList());
+        return DataTableResponse.from(draw, page, u -> toRow(u, scoped));
     }
 
     @GetMapping("/api/setup/users/{id}")
@@ -125,8 +147,7 @@ public class UserAdminController {
     @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_CREATE')")
     public Map<String, Object> create(@Valid @RequestBody CreateUserRequest request) {
         FabricUser saved = service.create(request.username(), request.password(), request.fullName(),
-            request.businessUnitId(), request.businessUnitCode(), request.warehouseId(),
-            request.roleIds(), request.unrestricted());
+            request.businessUnitId(), request.warehouseId(), request.roleIds(), request.unrestricted());
         return toDetail(saved);
     }
 
@@ -135,7 +156,7 @@ public class UserAdminController {
     @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')")
     public Map<String, Object> update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         FabricUser saved = service.update(id, request.fullName(), request.businessUnitId(),
-            request.businessUnitCode(), request.warehouseId(), request.roleIds(), request.unrestricted());
+            request.warehouseId(), request.roleIds(), request.unrestricted());
         return toDetail(saved);
     }
 
@@ -171,6 +192,13 @@ public class UserAdminController {
         return Map.of("deleted", id);
     }
 
+    private static Map<String, Object> toRow(FabricUser u, Set<Long> scoped) {
+        Map<String, Object> row = toRow(u);
+        // Restricted with nothing held today: the login refuses them (ADM-3).
+        row.put("cannotSignIn", !u.isUnrestricted() && !scoped.contains(u.getId()));
+        return row;
+    }
+
     private static Map<String, Object> toRow(FabricUser u) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", u.getId());
@@ -180,8 +208,9 @@ public class UserAdminController {
         row.put("accountLocked", u.getAccountLocked());
         row.put("unrestricted", u.isUnrestricted());
         row.put("active", u.getActive());
-        row.put("roles", u.getRoles().stream().map(Role::getName)
-            .collect(Collectors.joining(", ")));
+        row.put("mustChangePassword", u.isMustChangePassword());
+        row.put("lastLoginAt", u.getLastLoginAt());
+        row.put("roles", u.getRoles().stream().map(Role::getName).sorted().toList());
         return row;
     }
 
@@ -193,8 +222,8 @@ public class UserAdminController {
         row.put("lockedAt", u.getLockedAt());
         row.put("lockedReason", u.getLockedReason());
         row.put("failedLoginCount", u.getFailedLoginCount());
-        row.put("lastLoginAt", u.getLastLoginAt());
-        row.put("mustChangePassword", u.isMustChangePassword());
+        row.put("lastFailedLoginAt", u.getLastFailedLoginAt());
+        row.put("passwordChangedAt", u.getPasswordChangedAt());
         return row;
     }
 
@@ -216,18 +245,19 @@ public class UserAdminController {
     }
 
     public record CreateUserRequest(
-        @NotBlank String username, @NotBlank String password, String fullName,
-        Long businessUnitId, @NotBlank String businessUnitCode, Long warehouseId,
+        @NotBlank @Size(max = 80) String username, @NotBlank String password,
+        @Size(max = 150) String fullName, @NotNull Long businessUnitId, Long warehouseId,
         Set<Long> roleIds, boolean unrestricted) { }
 
     public record UpdateUserRequest(
-        String fullName, Long businessUnitId, @NotBlank String businessUnitCode,
-        Long warehouseId, Set<Long> roleIds, boolean unrestricted) { }
+        @Size(max = 150) String fullName, @NotNull Long businessUnitId, Long warehouseId,
+        Set<Long> roleIds, boolean unrestricted) { }
 
     public record GrantScopeRequest(
-        @NotNull ScopeDimension dimension, @NotNull Long scopeValueId, LocalDate from, String remarks) { }
+        @NotNull ScopeDimension dimension, @NotNull Long scopeValueId, LocalDate from,
+        @Size(max = 255) String remarks) { }
 
-    public record RevokeScopeRequest(LocalDate from, @NotBlank String reason) { }
+    public record RevokeScopeRequest(LocalDate from, @NotBlank @Size(max = 255) String reason) { }
 
     public record ResetPasswordRequest(@NotBlank String password) { }
 }

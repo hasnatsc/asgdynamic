@@ -1,5 +1,6 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.common.BusinessUnit;
 import com.asg.fabricerp.common.BusinessUnitRepository;
 import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -63,9 +65,23 @@ public class UserAdminService {
         this.context = context;
     }
 
+    /** The user grid's status filter. Null means everyone. */
+    public enum StatusFilter { LOCKED, MUST_CHANGE_PASSWORD, UNRESTRICTED, RESTRICTED }
+
     @Transactional(readOnly = true)
-    public Page<FabricUser> search(String query, Pageable pageable) {
-        return repository.search(context.requireOrganizationId(), query, pageable);
+    public Page<FabricUser> search(String query, StatusFilter status, Pageable pageable) {
+        return repository.search(context.requireOrganizationId(), query,
+            status == StatusFilter.LOCKED ? Boolean.TRUE : null,
+            status == StatusFilter.MUST_CHANGE_PASSWORD ? Boolean.TRUE : null,
+            status == StatusFilter.UNRESTRICTED ? Boolean.TRUE
+                : status == StatusFilter.RESTRICTED ? Boolean.FALSE : null,
+            pageable);
+    }
+
+    /** Of these users, the ones holding at least one scope grant today — see {@link DataScopeRepository}. */
+    @Transactional(readOnly = true)
+    public Set<Long> idsHoldingScopeToday(Collection<Long> userIds) {
+        return userIds.isEmpty() ? Set.of() : scopes.findUserIdsHoldingScopeOn(userIds, LocalDate.now());
     }
 
     @Transactional(readOnly = true)
@@ -77,14 +93,24 @@ public class UserAdminService {
     /**
      * {@code password} required and temporary; {@code roleIds} may be empty. A restricted user
      * ({@code unrestricted} false) cannot log in until given at least one scope grant.
+     *
+     * <p>The business-unit code is read from the unit, not accepted alongside its id: the code
+     * is stamped into every document number the user raises, and two fields that must agree
+     * should not both be typed.
      */
     @Transactional
     public FabricUser create(String username, String password, String fullName,
-                             Long businessUnitId, String businessUnitCode, Long warehouseId,
+                             Long businessUnitId, Long warehouseId,
                              Set<Long> roleIds, boolean unrestricted) {
-        requireUniqueUsername(username);
+        String normalized = username == null ? null : username.trim();
+        if (normalized == null || normalized.isEmpty()) {
+            throw new IllegalArgumentException("A username is required");
+        }
+        requireUniqueUsername(normalized);
         PasswordPolicy.requireAcceptable(password);
-        FabricUser user = new FabricUser(username, null, businessUnitId, businessUnitCode);
+        BusinessUnit unit = requireBusinessUnit(businessUnitId);
+        requireWarehouse(warehouseId);
+        FabricUser user = new FabricUser(normalized, null, unit.getId(), unit.getCode());
         user.setPassword(passwordEncoder.encode(password), true, LocalDateTime.now());
         user.setOrganizationId(context.requireOrganizationId());
         user.setFullName(fullName);
@@ -102,9 +128,8 @@ public class UserAdminService {
      * changes any of them is refused rather than partly applied.
      */
     @Transactional
-    public FabricUser update(Long id, String fullName, Long businessUnitId,
-                             String businessUnitCode, Long warehouseId, Set<Long> roleIds,
-                             boolean unrestricted) {
+    public FabricUser update(Long id, String fullName, Long businessUnitId, Long warehouseId,
+                             Set<Long> roleIds, boolean unrestricted) {
         FabricUser user = get(id);
         Set<Role> roles = resolveRoles(roleIds);
 
@@ -113,7 +138,6 @@ public class UserAdminService {
                 throw selfGrant(id, "roles");
             }
             if (!Objects.equals(businessUnitId, user.getBusinessUnitId())
-                    || !Objects.equals(businessUnitCode, user.getBusinessUnitCode())
                     || !Objects.equals(warehouseId, user.getWarehouseId())) {
                 throw selfGrant(id, "the business unit or warehouse");
             }
@@ -122,9 +146,18 @@ public class UserAdminService {
             }
         }
 
+        // Only a change is validated: an existing account whose unit was since deactivated can
+        // still have its name corrected without first being moved.
+        if (!Objects.equals(businessUnitId, user.getBusinessUnitId())) {
+            BusinessUnit unit = requireBusinessUnit(businessUnitId);
+            user.setBusinessUnitId(unit.getId());
+            user.setBusinessUnitCode(unit.getCode());
+        }
+        if (!Objects.equals(warehouseId, user.getWarehouseId())) {
+            requireWarehouse(warehouseId);
+        }
+
         user.setFullName(fullName);
-        user.setBusinessUnitId(businessUnitId);
-        user.setBusinessUnitCode(businessUnitCode);
         user.setWarehouseId(warehouseId);
         user.setRoles(roles);
         user.setUnrestricted(unrestricted);
@@ -233,6 +266,29 @@ public class UserAdminService {
     }
 
     // -----------------------------------------------------------------------------------------
+
+    /** An active unit of this organization — an id from anywhere else is refused, not stored. */
+    private BusinessUnit requireBusinessUnit(Long businessUnitId) {
+        if (businessUnitId == null) {
+            throw new IllegalArgumentException("A business unit is required");
+        }
+        return businessUnits.lookup(context.requireOrganizationId()).stream()
+            .filter(unit -> unit.getId().equals(businessUnitId))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No active business unit with id " + businessUnitId));
+    }
+
+    /** Optional, but when given it must be an active warehouse of this organization. */
+    private void requireWarehouse(Long warehouseId) {
+        if (warehouseId == null) {
+            return;
+        }
+        boolean found = warehouses.lookup(context.requireOrganizationId()).stream()
+            .anyMatch(w -> w.getId().equals(warehouseId));
+        if (!found) {
+            throw new IllegalArgumentException("No active warehouse with id " + warehouseId);
+        }
+    }
 
     private void requireScopeValueExists(ScopeDimension dimension, Long valueId) {
         if (dimension == null || valueId == null) {

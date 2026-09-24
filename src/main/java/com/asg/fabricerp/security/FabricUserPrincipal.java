@@ -37,6 +37,7 @@ public class FabricUserPrincipal implements UserDetails {
 
     private final Long userId;
     private final String username;
+    private final String fullName;
     private final String passwordHash;
     private final Long organizationId;
     private final Long businessUnitId;
@@ -59,6 +60,7 @@ public class FabricUserPrincipal implements UserDetails {
     public FabricUserPrincipal(FabricUser user, List<DataScope> scopes, LocalDate on) {
         this.userId = user.getId();
         this.username = user.getUsername();
+        this.fullName = user.getFullName();
         this.passwordHash = user.getPasswordHash();
         this.organizationId = user.getOrganizationId();
         this.businessUnitId = user.getBusinessUnitId();
@@ -70,7 +72,7 @@ public class FabricUserPrincipal implements UserDetails {
             .filter(role -> Boolean.TRUE.equals(role.getActive()))
             .flatMap(role -> role.getScreenGrants().stream())
             .flatMap(grant -> grant.grantedVerbs().stream()
-                .map(verb -> "SCREEN_" + grant.getScreen() + "_" + verb))
+                .map(verb -> grant.getScreen().authority(verb)))
             .distinct()
             .map(SimpleGrantedAuthority::new)
             .collect(Collectors.toUnmodifiableSet());
@@ -94,6 +96,8 @@ public class FabricUserPrincipal implements UserDetails {
     }
 
     public Long getUserId()           { return userId; }
+    /** Falls back to the username, so the layout never shows a blank. */
+    public String getDisplayName()    { return fullName == null || fullName.isBlank() ? username : fullName; }
     public Long getOrganizationId()   { return organizationId; }
     public Long getBusinessUnitId()   { return businessUnitId; }
     public String getBusinessUnitCode() { return businessUnitCode; }

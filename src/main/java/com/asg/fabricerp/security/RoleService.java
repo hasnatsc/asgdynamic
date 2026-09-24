@@ -1,10 +1,13 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.common.OrgContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -13,15 +16,30 @@ public class RoleService {
 
     private final RoleRepository repository;
     private final FabricUserRepository userRepository;
+    private final OrgContext context;
 
-    public RoleService(RoleRepository repository, FabricUserRepository userRepository) {
+    public RoleService(RoleRepository repository, FabricUserRepository userRepository, OrgContext context) {
         this.repository = repository;
         this.userRepository = userRepository;
+        this.context = context;
     }
 
     @Transactional(readOnly = true)
-    public Page<Role> search(String query, Pageable pageable) {
-        return repository.search(query, pageable);
+    public Page<Role> search(String query, Boolean hasGrants, Pageable pageable) {
+        return repository.search(query, hasGrants, pageable);
+    }
+
+    /** Users in this organization holding each role, for one page of the grid in one query. */
+    @Transactional(readOnly = true)
+    public Map<Long, Long> userCounts(Collection<Long> roleIds) {
+        if (roleIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : userRepository.countUsersByRole(roleIds, context.requireOrganizationId())) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
     @Transactional(readOnly = true)
@@ -32,6 +50,10 @@ public class RoleService {
 
     @Transactional
     public Role save(Role submitted, Map<Screen, Set<Verb>> grants) {
+        if (submitted.getName() == null || submitted.getName().isBlank()) {
+            throw new IllegalArgumentException("A role needs a name");
+        }
+        submitted.setName(submitted.getName().trim());
         if (submitted.getId() == null) {
             requireUniqueName(submitted.getName());
             submitted.setGrants(grants);

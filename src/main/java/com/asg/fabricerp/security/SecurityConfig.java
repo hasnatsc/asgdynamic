@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.authorization.AuthorizationEventPublisher;
@@ -13,6 +14,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 
@@ -59,7 +63,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                 .requestMatchers("/login", "/login/**").permitAll()
+                // The error page renders nothing but the status; without this an anonymous 404
+                // is bounced to the login page instead of saying "not found".
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated())
+            // A grid's fetch() behind an expired session must see 401, not follow a redirect to
+            // the login page and try to parse its HTML as JSON. app.js sends the user to /login.
+            .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
+                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                PathPatternRequestMatcher.withDefaults().matcher("/api/**")))
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
@@ -78,7 +90,10 @@ public class SecurityConfig {
                 .rememberMeServices(rememberMe))
             // CSRF stays ON (Spring default). AJAX posts from the grid/form JS must send
             // the token — see the meta tags in templates/layout/main.html.
-            .headers(h -> h.frameOptions(f -> f.sameOrigin()));
+            .headers(h -> h
+                .frameOptions(f -> f.sameOrigin())
+                // Document numbers and ids sit in URLs; they need not travel to other sites.
+                .referrerPolicy(r -> r.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)));
         return http.build();
     }
 

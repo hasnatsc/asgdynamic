@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -39,12 +41,22 @@ public class RoleController {
     @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Roles");
-        model.addAttribute("screens", Screen.values());
+        // Grouped by menu section, so the matrix reads the way the sidebar does.
+        Map<String, List<Screen>> screensBySection = new LinkedHashMap<>();
+        for (Screen.Section section : Screen.Section.values()) {
+            List<Screen> inSection = Arrays.stream(Screen.values())
+                .filter(s -> s.section() == section).toList();
+            if (!inSection.isEmpty()) {
+                screensBySection.put(section.label(), inSection);
+            }
+        }
+        model.addAttribute("screensBySection", screensBySection);
         model.addAttribute("verbs", Verb.values());
         model.addAttribute("content", "setup/roles :: content");
         return "layout/main";
     }
 
+    /** {@code grants}: {@code with} = roles granting something, {@code empty} = unconfigured shells. */
     @GetMapping("/api/setup/roles")
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
@@ -54,18 +66,27 @@ public class RoleController {
             @RequestParam(defaultValue = "25") int length,
             @RequestParam(name = "search[value]", required = false) String search,
             @RequestParam(required = false) String sortColumn,
-            @RequestParam(required = false) String sortDir) {
+            @RequestParam(required = false) String sortDir,
+            @RequestParam(required = false) String grants) {
 
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
-        Page<Role> page = service.search(request.searchOrNull(), request.toPageable(SORTABLE, "name"));
-        return DataTableResponse.from(draw, page, RoleController::toRow);
+        Boolean hasGrants = "with".equals(grants) ? Boolean.TRUE : "empty".equals(grants) ? Boolean.FALSE : null;
+        Page<Role> page = service.search(request.searchOrNull(), hasGrants, request.toPageable(SORTABLE, "name"));
+        Map<Long, Long> userCounts = service.userCounts(page.getContent().stream().map(Role::getId).toList());
+        return DataTableResponse.from(draw, page, r -> {
+            Map<String, Object> row = toRow(r);
+            row.put("userCount", userCounts.getOrDefault(r.getId(), 0L));
+            return row;
+        });
     }
 
     @GetMapping("/api/setup/roles/{id}")
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
-        return toDetail(service.get(id));
+        Map<String, Object> row = toDetail(service.get(id));
+        row.put("userCount", service.userCounts(List.of(id)).getOrDefault(id, 0L));
+        return row;
     }
 
     @PostMapping("/api/setup/roles")
