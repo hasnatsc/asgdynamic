@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -37,7 +38,7 @@ public class FabricsDeliveryController {
     }
 
     @GetMapping("/fabrics-delivery")
-    @PreAuthorize("hasAnyRole('FD_VIEW', 'FD_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_FD_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Fabrics Delivery");
         model.addAttribute("delivery", new BusinessDocument());
@@ -47,7 +48,7 @@ public class FabricsDeliveryController {
 
     @GetMapping("/api/fabrics-delivery")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('FD_VIEW', 'FD_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_FD_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -69,14 +70,14 @@ public class FabricsDeliveryController {
 
     @GetMapping("/api/fabrics-delivery/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('FD_VIEW', 'FD_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_FD_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
     @GetMapping("/api/fabrics-delivery/delivery-order-lines/{deliveryOrderId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('FD_VIEW', 'FD_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_FD_VIEW')")
     public List<Map<String, Object>> openDeliveryOrderLines(@PathVariable Long deliveryOrderId) {
         return service.openDeliveryOrderLines(deliveryOrderId).stream()
             .map(FabricsDeliveryController::toSourceOption).toList();
@@ -84,14 +85,15 @@ public class FabricsDeliveryController {
 
     @PostMapping("/api/fabrics-delivery")
     @ResponseBody
-    @PreAuthorize("hasRole('FD_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_FD_CREATE') or hasAuthority('SCREEN_FD_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument delivery) {
+        AuthorityChecks.require(delivery.getId() == null ? "SCREEN_FD_CREATE" : "SCREEN_FD_AMEND");
         return toDetail(service.save(delivery));
     }
 
     @DeleteMapping("/api/fabrics-delivery/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('FD_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_FD_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

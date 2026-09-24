@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public interface RoleRepository extends JpaRepository<Role, Long> {
 
-    @EntityGraph(attributePaths = "permissions")
+    @EntityGraph(attributePaths = "screenGrants")
     Optional<Role> findByNameIgnoreCase(String name);
 
     boolean existsByNameIgnoreCase(String name);
@@ -23,6 +23,6 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
            """)
     Page<Role> search(@Param("q") String q, Pageable pageable);
 
-    @EntityGraph(attributePaths = "permissions")
-    Optional<Role> findWithPermissionsById(Long id);
+    @EntityGraph(attributePaths = "screenGrants")
+    Optional<Role> findWithGrantsById(Long id);
 }

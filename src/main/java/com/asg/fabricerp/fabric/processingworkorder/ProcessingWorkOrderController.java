@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -38,7 +39,7 @@ public class ProcessingWorkOrderController {
     }
 
     @GetMapping("/processing-wo")
-    @PreAuthorize("hasAnyRole('PWO_VIEW', 'PWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_PWO_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Processing Work Order");
         model.addAttribute("wo", new BusinessDocument());
@@ -48,7 +49,7 @@ public class ProcessingWorkOrderController {
 
     @GetMapping("/api/processing-wo")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('PWO_VIEW', 'PWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_PWO_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -70,28 +71,29 @@ public class ProcessingWorkOrderController {
 
     @GetMapping("/api/processing-wo/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('PWO_VIEW', 'PWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_PWO_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
     @GetMapping("/api/processing-wo/bpo-lines/{bpoId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('PWO_VIEW', 'PWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_PWO_VIEW')")
     public List<Map<String, Object>> openBpoLines(@PathVariable Long bpoId) {
         return service.openBpoLines(bpoId).stream().map(ProcessingWorkOrderController::toSourceOption).toList();
     }
 
     @PostMapping("/api/processing-wo")
     @ResponseBody
-    @PreAuthorize("hasRole('PWO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_PWO_CREATE') or hasAuthority('SCREEN_PWO_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument wo) {
+        AuthorityChecks.require(wo.getId() == null ? "SCREEN_PWO_CREATE" : "SCREEN_PWO_AMEND");
         return toDetail(service.save(wo));
     }
 
     @DeleteMapping("/api/processing-wo/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('PWO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_PWO_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -42,7 +43,7 @@ public class WeavingWorkOrderController {
     }
 
     @GetMapping("/weaving-wo")
-    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_WWO_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Weaving Work Order");
         model.addAttribute("wo", new BusinessDocument());
@@ -52,7 +53,7 @@ public class WeavingWorkOrderController {
 
     @GetMapping("/api/weaving-wo")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_WWO_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -74,28 +75,29 @@ public class WeavingWorkOrderController {
 
     @GetMapping("/api/weaving-wo/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_WWO_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
     @GetMapping("/api/weaving-wo/bpo-lines/{bpoId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_WWO_VIEW')")
     public List<Map<String, Object>> openBpoLines(@PathVariable Long bpoId) {
         return service.openBpoLines(bpoId).stream().map(WeavingWorkOrderController::toSourceOption).toList();
     }
 
     @PostMapping("/api/weaving-wo")
     @ResponseBody
-    @PreAuthorize("hasRole('WWO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_WWO_CREATE') or hasAuthority('SCREEN_WWO_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument wo) {
+        AuthorityChecks.require(wo.getId() == null ? "SCREEN_WWO_CREATE" : "SCREEN_WWO_AMEND");
         return toDetail(service.save(wo));
     }
 
     @DeleteMapping("/api/weaving-wo/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('WWO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_WWO_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

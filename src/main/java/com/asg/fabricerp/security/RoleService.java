@@ -5,20 +5,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
 public class RoleService {
 
     private final RoleRepository repository;
-    private final PermissionRepository permissionRepository;
     private final FabricUserRepository userRepository;
 
-    public RoleService(RoleRepository repository, PermissionRepository permissionRepository,
-                       FabricUserRepository userRepository) {
+    public RoleService(RoleRepository repository, FabricUserRepository userRepository) {
         this.repository = repository;
-        this.permissionRepository = permissionRepository;
         this.userRepository = userRepository;
     }
 
@@ -29,17 +26,15 @@ public class RoleService {
 
     @Transactional(readOnly = true)
     public Role get(Long id) {
-        return repository.findWithPermissionsById(id)
+        return repository.findWithGrantsById(id)
             .orElseThrow(() -> new IllegalArgumentException("Role not found: " + id));
     }
 
     @Transactional
-    public Role save(Role submitted, Set<Long> permissionIds) {
-        Set<Permission> permissions = resolvePermissions(permissionIds);
-
+    public Role save(Role submitted, Map<Screen, Set<Verb>> grants) {
         if (submitted.getId() == null) {
             requireUniqueName(submitted.getName());
-            submitted.setPermissions(permissions);
+            submitted.setGrants(grants);
             return repository.save(submitted);
         }
         Role target = get(submitted.getId());
@@ -49,7 +44,7 @@ public class RoleService {
         }
         target.setDescription(submitted.getDescription());
         target.setActive(submitted.getActive());
-        target.setPermissions(permissions);
+        target.setGrants(grants);
         return repository.save(target);
     }
 
@@ -67,17 +62,6 @@ public class RoleService {
                 "Role '%s' is still assigned to at least one user".formatted(target.getName()));
         }
         repository.delete(target);
-    }
-
-    private Set<Permission> resolvePermissions(Set<Long> permissionIds) {
-        if (permissionIds == null || permissionIds.isEmpty()) {
-            return Set.of();
-        }
-        List<Permission> found = permissionRepository.findAllById(permissionIds);
-        if (found.size() != permissionIds.size()) {
-            throw new IllegalArgumentException("One or more permission ids do not exist");
-        }
-        return Set.copyOf(found);
     }
 
     private void requireUniqueName(String name) {

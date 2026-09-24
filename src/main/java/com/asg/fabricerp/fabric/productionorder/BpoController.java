@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -44,7 +45,7 @@ public class BpoController {
     }
 
     @GetMapping("/bpo")
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_BPO_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Bulk Production Order");
         model.addAttribute("bpo", new BusinessDocument());
@@ -54,7 +55,7 @@ public class BpoController {
 
     @GetMapping("/api/bpo")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_BPO_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -76,7 +77,7 @@ public class BpoController {
 
     @GetMapping("/api/bpo/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_BPO_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
@@ -84,7 +85,7 @@ public class BpoController {
     /** What the "raise BPO" line picker offers: Booking colour lines with something left to draw. */
     @GetMapping("/api/bpo/booking-lines/{bookingId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_BPO_VIEW')")
     public List<Map<String, Object>> openBookingLines(@PathVariable Long bookingId) {
         return service.openBookingLines(bookingId).stream()
             .map(BpoController::toSourceOption)
@@ -93,8 +94,9 @@ public class BpoController {
 
     @PostMapping("/api/bpo")
     @ResponseBody
-    @PreAuthorize("hasRole('BPO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_BPO_CREATE') or hasAuthority('SCREEN_BPO_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument bpo) {
+        AuthorityChecks.require(bpo.getId() == null ? "SCREEN_BPO_CREATE" : "SCREEN_BPO_AMEND");
         return toDetail(service.save(bpo));
     }
 
@@ -104,7 +106,7 @@ public class BpoController {
 
     @PostMapping("/api/bpo/{id}/revise")
     @ResponseBody
-    @PreAuthorize("hasRole('BPO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_BPO_AMEND')")
     public Map<String, Object> revise(@PathVariable Long id,
                                       @RequestParam(required = false) String reason) {
         return toDetail(service.revise(id, reason));
@@ -112,7 +114,7 @@ public class BpoController {
 
     @DeleteMapping("/api/bpo/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('BPO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_BPO_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

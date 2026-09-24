@@ -9,7 +9,7 @@
     <div class="flex items-center justify-between mb-5">
         <div>
             <h1 class="text-xl font-semibold" th:text="${title}">Roles</h1>
-            <p class="text-sm text-slate-500">Named, reusable bundles of permissions.</p>
+            <p class="text-sm text-slate-500">Named bundles of per-screen view/create/amend/delete/approve grants.</p>
         </div>
         <button type="button" class="btn-primary" id="roleNewBtn">Add</button>
     </div>
@@ -20,7 +20,7 @@
             <tr>
                 <th data-sort="name">Name</th>
                 <th>Description</th>
-                <th>Permissions</th>
+                <th>Screens granted</th>
                 <th data-sort="active">Active</th>
                 <th class="text-right">Action</th>
             </tr>
@@ -49,21 +49,24 @@
         </label>
 
         <div>
-            <div class="label mb-2">Permissions</div>
-            <div class="space-y-3" id="permissionGroups"
-                 th:each="perm, stat : ${permissions}">
-                <div th:if="${stat.first or permissions[stat.index - 1].module != perm.module}"
-                     class="text-xs font-semibold uppercase text-slate-400 mt-3"
-                     th:text="${perm.module}">MODULE</div>
-                <label class="flex items-start gap-2 text-sm">
-                    <input type="checkbox" class="perm-checkbox rounded border-slate-300 mt-0.5"
-                           th:value="${perm.id}">
-                    <span>
-                        <code th:text="${perm.name}">ROLE_X</code>
-                        <span class="text-slate-500" th:text="${' — ' + perm.description}"> — desc</span>
-                    </span>
-                </label>
-            </div>
+            <div class="label mb-2">Grants</div>
+            <table class="table-grid" id="grantTable">
+                <thead>
+                <tr>
+                    <th>Screen</th>
+                    <th th:each="verb : ${verbs}" th:text="${verb}" class="text-center">VERB</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="screen : ${screens}" th:attr="data-screen=${screen}">
+                    <td th:text="${screen}">SCREEN</td>
+                    <td th:each="verb : ${verbs}" class="text-center">
+                        <input type="checkbox" class="grant-checkbox rounded border-slate-300"
+                               th:attr="data-screen=${screen},data-verb=${verb}">
+                    </td>
+                </tr>
+                </tbody>
+            </table>
         </div>
 
         <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
@@ -113,7 +116,7 @@
                 <tr>
                     <td>${escapeHtml(r.name)}</td>
                     <td>${escapeHtml(r.description)}</td>
-                    <td>${r.permissionCount}</td>
+                    <td>${r.screenCount}</td>
                     <td>${r.active ? 'Yes' : 'No'}</td>
                     <td class="text-right">
                         <button type="button" class="btn-ghost" data-edit="${r.id}">Edit</button>
@@ -136,9 +139,14 @@
                 document.getElementById('roleName').value = r.name || '';
                 document.getElementById('roleDescription').value = r.description || '';
                 document.getElementById('roleActive').checked = !!r.active;
-                const ids = new Set((r.permissionIds || []).map(String));
-                document.querySelectorAll('.perm-checkbox').forEach(cb => {
-                    cb.checked = ids.has(cb.value);
+                document.querySelectorAll('.grant-checkbox').forEach(cb => { cb.checked = false; });
+                const grants = r.grants || {};
+                Object.keys(grants).forEach(screen => {
+                    (grants[screen] || []).forEach(verb => {
+                        const cb = document.querySelector(
+                            '.grant-checkbox[data-screen="' + screen + '"][data-verb="' + verb + '"]');
+                        if (cb) cb.checked = true;
+                    });
                 });
                 form.scrollIntoView({ behavior: 'smooth' });
             }).catch(err => alert(err.message));
@@ -154,23 +162,31 @@
         function resetForm() {
             form.reset();
             document.getElementById('roleId').value = '';
-            document.querySelectorAll('.perm-checkbox').forEach(cb => { cb.checked = false; });
+            document.querySelectorAll('.grant-checkbox').forEach(cb => { cb.checked = false; });
         }
 
         document.getElementById('roleNewBtn').addEventListener('click', resetForm);
         document.getElementById('roleResetBtn').addEventListener('click', resetForm);
 
+        function collectGrants() {
+            const grants = {};
+            document.querySelectorAll('.grant-checkbox:checked').forEach(cb => {
+                const screen = cb.getAttribute('data-screen');
+                const verb = cb.getAttribute('data-verb');
+                (grants[screen] = grants[screen] || []).push(verb);
+            });
+            return grants;
+        }
+
         form.addEventListener('submit', function (e) {
             e.preventDefault();
-            const permissionIds = Array.from(document.querySelectorAll('.perm-checkbox:checked'))
-                .map(cb => Number(cb.value));
             const rawId = document.getElementById('roleId').value;
             const payload = {
                 id: rawId ? Number(rawId) : null,
                 name: document.getElementById('roleName').value,
                 description: document.getElementById('roleDescription').value,
                 active: document.getElementById('roleActive').checked,
-                permissionIds: permissionIds
+                grants: collectGrants()
             };
             api('/api/setup/roles', { method: 'POST', body: JSON.stringify(payload) })
                 .then(() => { resetForm(); loadGrid(); })

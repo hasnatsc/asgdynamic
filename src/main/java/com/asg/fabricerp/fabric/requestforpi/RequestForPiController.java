@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -43,7 +44,7 @@ public class RequestForPiController {
     }
 
     @GetMapping("/requestforpi")
-    @PreAuthorize("hasAnyRole('RPI_VIEW', 'RPI_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_RPI_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Request For PI");
         model.addAttribute("rpi", new BusinessDocument());
@@ -53,7 +54,7 @@ public class RequestForPiController {
 
     @GetMapping("/api/requestforpi")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('RPI_VIEW', 'RPI_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_RPI_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -75,7 +76,7 @@ public class RequestForPiController {
 
     @GetMapping("/api/requestforpi/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('RPI_VIEW', 'RPI_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_RPI_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
@@ -83,21 +84,22 @@ public class RequestForPiController {
     /** What the "raise against BPO" line picker offers. */
     @GetMapping("/api/requestforpi/bpo-lines/{bpoId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('RPI_VIEW', 'RPI_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_RPI_VIEW')")
     public List<Map<String, Object>> openBpoLines(@PathVariable Long bpoId) {
         return service.openBpoLines(bpoId).stream().map(RequestForPiController::toSourceOption).toList();
     }
 
     @PostMapping("/api/requestforpi")
     @ResponseBody
-    @PreAuthorize("hasRole('RPI_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_RPI_CREATE') or hasAuthority('SCREEN_RPI_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument rpi) {
+        AuthorityChecks.require(rpi.getId() == null ? "SCREEN_RPI_CREATE" : "SCREEN_RPI_AMEND");
         return toDetail(service.save(rpi));
     }
 
     @PostMapping("/api/requestforpi/{id}/revise")
     @ResponseBody
-    @PreAuthorize("hasRole('RPI_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_RPI_AMEND')")
     public Map<String, Object> revise(@PathVariable Long id,
                                       @RequestParam(required = false) String reason) {
         return toDetail(service.revise(id, reason));
@@ -105,7 +107,7 @@ public class RequestForPiController {
 
     @DeleteMapping("/api/requestforpi/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('RPI_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_RPI_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

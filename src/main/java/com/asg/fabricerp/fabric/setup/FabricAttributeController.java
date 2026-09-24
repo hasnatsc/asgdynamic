@@ -3,6 +3,7 @@ package com.asg.fabricerp.fabric.setup;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
+import com.asg.fabricerp.security.AuthorityChecks;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,7 +28,6 @@ import java.util.Map;
  * service, DTO, template or grid.
  */
 @Controller
-@PreAuthorize("hasRole('FABRIC_SETUP')")
 public class FabricAttributeController {
 
     private static final SortWhitelist SORTABLE = SortWhitelist.of(Map.of(
@@ -44,6 +44,7 @@ public class FabricAttributeController {
     }
 
     @GetMapping("/setup/fabric/{slug}")
+    @PreAuthorize("hasAuthority('SCREEN_FABRIC_SETUP_VIEW')")
     public String page(@PathVariable String slug, Model model) {
         AttributeType type = AttributeType.fromSlug(slug);
         model.addAttribute("attributeType", type);
@@ -55,6 +56,7 @@ public class FabricAttributeController {
 
     @GetMapping("/api/setup/fabric/{slug}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_FABRIC_SETUP_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @PathVariable String slug,
             @RequestParam(defaultValue = "1") int draw,
@@ -74,8 +76,11 @@ public class FabricAttributeController {
 
     @PostMapping("/api/setup/fabric/{slug}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_FABRIC_SETUP_CREATE') or hasAuthority('SCREEN_FABRIC_SETUP_AMEND')")
     public Map<String, Object> save(@PathVariable String slug,
                                     @Valid @RequestBody FabricAttribute attribute) {
+        AuthorityChecks.require(attribute.getId() == null
+            ? "SCREEN_FABRIC_SETUP_CREATE" : "SCREEN_FABRIC_SETUP_AMEND");
         AttributeType type = AttributeType.fromSlug(slug);
         FabricAttribute saved = service.save(type, attribute);
         return Map.of("id", saved.getId(), "code", saved.getCode(), "name", saved.getName());
@@ -83,6 +88,7 @@ public class FabricAttributeController {
 
     @DeleteMapping("/api/setup/fabric/{slug}/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_FABRIC_SETUP_DELETE')")
     public Map<String, Object> delete(@PathVariable String slug, @PathVariable Long id) {
         AttributeType.fromSlug(slug);   // validates the route
         service.delete(id);

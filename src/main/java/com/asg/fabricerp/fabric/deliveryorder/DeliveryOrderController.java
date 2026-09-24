@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -37,7 +38,7 @@ public class DeliveryOrderController {
     }
 
     @GetMapping("/delivery-order")
-    @PreAuthorize("hasAnyRole('DO_VIEW', 'DO_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_DO_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Delivery Order");
         model.addAttribute("dlo", new BusinessDocument());
@@ -47,7 +48,7 @@ public class DeliveryOrderController {
 
     @GetMapping("/api/delivery-order")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('DO_VIEW', 'DO_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_DO_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -69,7 +70,7 @@ public class DeliveryOrderController {
 
     @GetMapping("/api/delivery-order/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('DO_VIEW', 'DO_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_DO_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
@@ -77,7 +78,7 @@ public class DeliveryOrderController {
     /** What the "raise against Request-for-PI" line picker offers. */
     @GetMapping("/api/delivery-order/schedule-lines/{requestForPiId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('DO_VIEW', 'DO_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_DO_VIEW')")
     public List<Map<String, Object>> openScheduleLines(@PathVariable Long requestForPiId) {
         return service.openScheduleLines(requestForPiId).stream()
             .map(DeliveryOrderController::toSourceOption).toList();
@@ -85,14 +86,15 @@ public class DeliveryOrderController {
 
     @PostMapping("/api/delivery-order")
     @ResponseBody
-    @PreAuthorize("hasRole('DO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_DO_CREATE') or hasAuthority('SCREEN_DO_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument dlo) {
+        AuthorityChecks.require(dlo.getId() == null ? "SCREEN_DO_CREATE" : "SCREEN_DO_AMEND");
         return toDetail(service.save(dlo));
     }
 
     @DeleteMapping("/api/delivery-order/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('DO_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_DO_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

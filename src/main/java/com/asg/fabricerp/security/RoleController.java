@@ -19,11 +19,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-/** CRUD for {@link Role}: named, reusable bundles of existing {@link Permission}s. */
+/** CRUD for {@link Role}: named, reusable bundles of per-{@link Screen} {@link Verb} grants. */
 @Controller
-@PreAuthorize("hasRole('SECURITY_ADMIN')")
 public class RoleController {
 
     private static final SortWhitelist SORTABLE = SortWhitelist.of(Map.of(
@@ -32,24 +30,24 @@ public class RoleController {
     ));
 
     private final RoleService service;
-    private final PermissionRepository permissionRepository;
 
-    public RoleController(RoleService service, PermissionRepository permissionRepository) {
+    public RoleController(RoleService service) {
         this.service = service;
-        this.permissionRepository = permissionRepository;
     }
 
     @GetMapping("/setup/roles")
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Roles");
-        model.addAttribute("permissions", permissionRepository.findAll(
-            org.springframework.data.domain.Sort.by("module", "name")));
+        model.addAttribute("screens", Screen.values());
+        model.addAttribute("verbs", Verb.values());
         model.addAttribute("content", "setup/roles :: content");
         return "layout/main";
     }
 
     @GetMapping("/api/setup/roles")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -65,25 +63,32 @@ public class RoleController {
 
     @GetMapping("/api/setup/roles/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
     @PostMapping("/api/setup/roles")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_CREATE') or hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody RoleRequest request) {
         Role submitted = new Role(request.name(), request.description());
         submitted.setId(request.id());
         submitted.setActive(request.active() == null || request.active());
-        Role saved = service.save(submitted, request.permissionIds());
+        Role saved = service.save(submitted, toGrantMap(request.grants()));
         return toDetail(saved);
     }
 
     @DeleteMapping("/api/setup/roles/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);
+    }
+
+    private static Map<Screen, Set<Verb>> toGrantMap(Map<Screen, Set<Verb>> grants) {
+        return grants == null ? Map.of() : grants;
     }
 
     private static Map<String, Object> toRow(Role r) {
@@ -92,17 +97,18 @@ public class RoleController {
         row.put("name", r.getName());
         row.put("description", r.getDescription());
         row.put("active", r.getActive());
-        row.put("permissionCount", r.getPermissions().size());
+        row.put("screenCount", r.getScreenGrants().size());
         return row;
     }
 
     private static Map<String, Object> toDetail(Role r) {
         Map<String, Object> row = toRow(r);
-        row.put("permissionIds", r.getPermissions().stream()
-            .map(Permission::getId).collect(Collectors.toSet()));
+        Map<String, Set<Verb>> byScreenName = new LinkedHashMap<>();
+        r.grantsByScreen().forEach((screen, verbs) -> byScreenName.put(screen.name(), verbs));
+        row.put("grants", byScreenName);
         return row;
     }
 
     public record RoleRequest(Long id, String name, String description, Boolean active,
-                              Set<Long> permissionIds) { }
+                              Map<Screen, Set<Verb>> grants) { }
 }

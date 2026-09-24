@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -37,7 +38,7 @@ public class GreigeReceiveController {
     }
 
     @GetMapping("/greige-receive")
-    @PreAuthorize("hasAnyRole('GR_VIEW', 'GR_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_GR_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Greige Fabrics Received");
         model.addAttribute("receipt", new BusinessDocument());
@@ -47,7 +48,7 @@ public class GreigeReceiveController {
 
     @GetMapping("/api/greige-receive")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('GR_VIEW', 'GR_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_GR_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -69,28 +70,29 @@ public class GreigeReceiveController {
 
     @GetMapping("/api/greige-receive/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('GR_VIEW', 'GR_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_GR_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
     @GetMapping("/api/greige-receive/bpo-lines/{bpoId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('GR_VIEW', 'GR_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAuthority('SCREEN_GR_VIEW')")
     public List<Map<String, Object>> openBpoLines(@PathVariable Long bpoId) {
         return service.openBpoLines(bpoId).stream().map(GreigeReceiveController::toSourceOption).toList();
     }
 
     @PostMapping("/api/greige-receive")
     @ResponseBody
-    @PreAuthorize("hasRole('GR_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_GR_CREATE') or hasAuthority('SCREEN_GR_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument receipt) {
+        AuthorityChecks.require(receipt.getId() == null ? "SCREEN_GR_CREATE" : "SCREEN_GR_AMEND");
         return toDetail(service.save(receipt));
     }
 
     @DeleteMapping("/api/greige-receive/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('GR_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_GR_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

@@ -97,12 +97,12 @@ public enum DocumentType {
     public Family family() { return family; }
 
     /**
-     * The readable root used in this type's role names, e.g. {@code "BOOKING"} for
-     * {@code ROLE_BOOKING_MAKER}. Deliberately not derived from {@link #prefix()} — BPO's
+     * The readable root used in this type's screen authorities, e.g. {@code "BOOKING"} for
+     * {@code SCREEN_BOOKING_CREATE}. Deliberately not derived from {@link #prefix()} — BPO's
      * prefix ("BPO") happens to read the same as its role root, but Booking's prefix
      * ("BKG") does not, and mechanically deriving one from the other would have silently
-     * produced {@code ROLE_BKG_MAKER}, contradicting the literal string already checked by
-     * {@code BookingController}. Null until a type has a controller: {@link #makerRole()}
+     * produced {@code SCREEN_BKG_CREATE}, contradicting the literal string already checked by
+     * {@code BookingController}. Null until a type has a controller: {@link #createAuthority()}
      * fails loudly rather than inventing a name nobody has committed to yet.
      */
     public String roleRoot() {
@@ -114,24 +114,33 @@ public enum DocumentType {
         return roleRoot;
     }
 
-    /** The maker/submitter role, e.g. {@code ROLE_BOOKING_MAKER}. */
-    public String makerRole() {
-        return "ROLE_" + roleRoot() + "_MAKER";
+    /**
+     * The authority that may create a new document of this type, e.g.
+     * {@code SCREEN_BOOKING_CREATE}. See {@code Screen}/{@code Verb} in the {@code security}
+     * package — this used to be a single flat {@code ROLE_BOOKING_MAKER} covering create,
+     * revise and delete together; the verb model grants each separately.
+     */
+    public String createAuthority() {
+        return "SCREEN_" + roleRoot() + "_CREATE";
+    }
+
+    /** The authority that may revise an existing document of this type. */
+    public String amendAuthority() {
+        return "SCREEN_" + roleRoot() + "_AMEND";
     }
 
     /**
-     * The approver role for this type. A single generic {@code ROLE_APPROVAL} today —
-     * asgdynamic's own recovered role model has exactly one such role, used across every
-     * document type except the Commercial family, which instead carries a
-     * {@code ROLE_{TYPE}_MAKER/CHECKER/APPROVAL} triad (seen live as
-     * {@code ROLE_PI_MAKER}/{@code ROLE_LC_CHECKER}/{@code ROLE_CI_APPROVAL} in the legacy
-     * requestmap). No Commercial document type has a controller yet, so that three-stage
-     * path is not implemented here — only single-stage approve/reject exists in
-     * {@code ApprovalService}. Build the checker stage when a Commercial type needs it
-     * rather than half-wiring an untestable one now.
+     * The approve/reject authority for this type — genuinely per-screen now, where the old
+     * model had one global {@code ROLE_APPROVAL} covering every document type. No Commercial
+     * document type has a controller yet, so the three-stage maker/checker/approval path the
+     * legacy requestmap carried for that family
+     * ({@code ROLE_PI_MAKER}/{@code ROLE_LC_CHECKER}/{@code ROLE_CI_APPROVAL}) is still not
+     * implemented here — only single-stage approve/reject exists in {@code ApprovalService}.
+     * Build the checker stage when a Commercial type needs it rather than half-wiring an
+     * untestable one now.
      */
-    public String approverRole() {
-        return "ROLE_APPROVAL";
+    public String approveAuthority() {
+        return "SCREEN_" + roleRoot() + "_APPROVE";
     }
 
     /** Documents that move fabric through weaving/dyeing rather than moving stock. */

@@ -4,6 +4,7 @@ import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
 import com.asg.fabricerp.utility.datatable.SortWhitelist;
@@ -54,7 +55,7 @@ public class BookingController {
     }
 
     @GetMapping("/booking")
-    @PreAuthorize("hasAnyRole('BOOKING_VIEW', 'BOOKING_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Booking");
         model.addAttribute("booking", new BusinessDocument());
@@ -64,7 +65,7 @@ public class BookingController {
 
     @GetMapping("/api/booking")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BOOKING_VIEW', 'BOOKING_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -86,15 +87,16 @@ public class BookingController {
 
     @GetMapping("/api/booking/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BOOKING_VIEW', 'BOOKING_MAKER', 'SALES')")
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
     @PostMapping("/api/booking")
     @ResponseBody
-    @PreAuthorize("hasRole('BOOKING_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_CREATE') or hasAuthority('SCREEN_BOOKING_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument booking) {
+        AuthorityChecks.require(booking.getId() == null ? "SCREEN_BOOKING_CREATE" : "SCREEN_BOOKING_AMEND");
         return toDetail(service.save(booking));
     }
 
@@ -104,7 +106,7 @@ public class BookingController {
 
     @PostMapping("/api/booking/{id}/revise")
     @ResponseBody
-    @PreAuthorize("hasRole('BOOKING_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_AMEND')")
     public Map<String, Object> revise(@PathVariable Long id,
                                       @RequestParam(required = false) String reason) {
         return toDetail(service.revise(id, reason));
@@ -112,7 +114,7 @@ public class BookingController {
 
     @DeleteMapping("/api/booking/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('BOOKING_MAKER')")
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

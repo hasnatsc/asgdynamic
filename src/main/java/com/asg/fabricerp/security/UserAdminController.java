@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 
 /** CRUD for {@link FabricUser} logins — the piece {@code DevUserSeeder} stood in for until now. */
 @Controller
-@PreAuthorize("hasRole('SECURITY_ADMIN')")
 public class UserAdminController {
 
     private static final SortWhitelist SORTABLE = SortWhitelist.of(Map.of(
@@ -36,6 +35,7 @@ public class UserAdminController {
     }
 
     @GetMapping("/setup/users")
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Users");
         model.addAttribute("roles", roleRepository.findAll(Sort.by("name")));
@@ -45,6 +45,7 @@ public class UserAdminController {
 
     @GetMapping("/api/setup/users")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -61,12 +62,14 @@ public class UserAdminController {
 
     @GetMapping("/api/setup/users/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
     @PostMapping("/api/setup/users")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_CREATE')")
     public Map<String, Object> create(@Valid @RequestBody CreateUserRequest request) {
         FabricUser saved = service.create(request.username(), request.password(), request.fullName(),
             request.businessUnitId(), request.businessUnitCode(), request.warehouseId(),
@@ -76,6 +79,7 @@ public class UserAdminController {
 
     @PostMapping("/api/setup/users/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')")
     public Map<String, Object> update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         FabricUser saved = service.update(id, request.fullName(), request.businessUnitId(),
             request.businessUnitCode(), request.warehouseId(), request.roleIds());
@@ -84,6 +88,7 @@ public class UserAdminController {
 
     @PostMapping("/api/setup/users/{id}/reset-password")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')")
     public Map<String, Object> resetPassword(@PathVariable Long id, @Valid @RequestBody ResetPasswordRequest request) {
         service.resetPassword(id, request.password());
         return Map.of("id", id, "passwordReset", true);
@@ -91,6 +96,7 @@ public class UserAdminController {
 
     @PostMapping("/api/setup/users/{id}/lock")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')")
     public Map<String, Object> lock(@PathVariable Long id) {
         service.setLocked(id, true);
         return Map.of("id", id, "accountLocked", true);
@@ -98,6 +104,7 @@ public class UserAdminController {
 
     @PostMapping("/api/setup/users/{id}/unlock")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')")
     public Map<String, Object> unlock(@PathVariable Long id) {
         service.setLocked(id, false);
         return Map.of("id", id, "accountLocked", false);
@@ -105,6 +112,7 @@ public class UserAdminController {
 
     @DeleteMapping("/api/setup/users/{id}")
     @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_SECURITY_ADMIN_DELETE')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);

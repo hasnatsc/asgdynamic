@@ -45,9 +45,9 @@ public class FabricUserPrincipal implements UserDetails {
         this.enabled = Boolean.TRUE.equals(user.getActive());
         this.authorities = user.getRoles().stream()
             .filter(role -> Boolean.TRUE.equals(role.getActive()))
-            .flatMap(role -> role.getPermissions().stream())
-            .filter(permission -> Boolean.TRUE.equals(permission.getActive()))
-            .map(Permission::getName)
+            .flatMap(role -> role.getScreenGrants().stream())
+            .flatMap(grant -> grant.grantedVerbs().stream()
+                .map(verb -> "SCREEN_" + grant.getScreen() + "_" + verb))
             .distinct()
             .map(SimpleGrantedAuthority::new)
             .collect(Collectors.toUnmodifiableSet());

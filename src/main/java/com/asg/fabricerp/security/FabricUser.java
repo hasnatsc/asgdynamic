@@ -25,12 +25,12 @@ import java.util.Set;
  * {@code @PreAuthorize} directly on each controller method (see
  * {@code BookingController}, {@code FabricAttributeController}), so every route is either
  * explicitly guarded or explicitly {@code permitAll} in {@link SecurityConfig} — there is
- * no third, ungoverned state. {@link Role} and {@link Permission} exist so those hardcoded
- * {@code hasRole(...)} strings can be bundled into admin-editable, reusable, reassignable
- * roles instead of hand-granted per user in code ({@code DevUserSeeder} used to do exactly
- * that) — they do not change how a route is protected, only how a user comes to hold the
- * authority a route already checks. See {@code PermissionController}'s javadoc for why
- * {@code Permission} itself stays read-only in the admin UI.
+ * no third, ungoverned state. {@link Role} exists so those hardcoded
+ * {@code hasAuthority("SCREEN_..._...")} strings ({@link Screen} × {@link Verb}, see
+ * {@link RoleScreenGrant}) can be bundled into admin-editable, reusable, reassignable roles
+ * instead of hand-granted per user in code ({@code DevUserSeeder} used to do exactly that) —
+ * they do not change how a route is protected, only how a user comes to hold the authority a
+ * route already checks.
  *
  * <h2>Business unit / warehouse</h2>
  * These are the user's <b>default</b> operating scope, read by {@link SecurityOrgContext}.

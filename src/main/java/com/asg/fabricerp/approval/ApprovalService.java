@@ -4,10 +4,8 @@ import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentRepository;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.security.AuthorityChecks;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,20 +22,22 @@ import java.util.List;
  * <h2>Why the role check is not {@code @PreAuthorize}</h2>
  * Every other authorization decision in this project sits on the controller as a static
  * {@code @PreAuthorize} string, deliberately, so a route's requirement is visible without
- * reading a service. That does not fit here: the required role depends on
- * {@link com.asg.fabricerp.global.documents.DocumentType#makerRole()} /
- * {@code approverRole()}, which is a property of the document being acted on, known only
- * after it is loaded — SpEL can express a bean-method call for this, but a hand-rolled
- * check reading one field is clearer than introducing that indirection for a single caller.
+ * reading a service. That does not fit here: the required authority depends on
+ * {@link com.asg.fabricerp.global.documents.DocumentType#createAuthority()} /
+ * {@code amendAuthority()} / {@code approveAuthority()}, which is a property of the document
+ * being acted on, known only after it is loaded — SpEL can express a bean-method call for
+ * this, but {@link com.asg.fabricerp.security.AuthorityChecks} reading one field is clearer
+ * than introducing that indirection for a single caller.
  *
  * <h2>Four-eyes</h2>
  * The approver may not be the document's own creator, regardless of which roles they hold.
  * asgdynamic's client-side {@code *ChangeStatus()} handlers had no such check — anyone who
  * could reach the button could approve their own submission.
  *
- * <p>Two different sources feed the checks below, deliberately: {@link #requireRole} reads
- * {@code GrantedAuthority} straight off {@code SecurityContextHolder} because role checking
- * is a Spring Security concern; {@link #assertNotSelfApproval} reads {@link OrgContext},
+ * <p>Two different sources feed the checks below, deliberately:
+ * {@link com.asg.fabricerp.security.AuthorityChecks} reads {@code GrantedAuthority} straight
+ * off {@code SecurityContextHolder} because role checking is a Spring Security concern;
+ * {@link #assertNotSelfApproval} reads {@link OrgContext},
  * which is a pure identity/scope abstraction with no framework types in it (see its own
  * javadoc). In production {@link com.asg.fabricerp.security.SecurityOrgContext} resolves
  * both from the same authenticated principal, so they always agree — but folding
@@ -62,7 +62,8 @@ public class ApprovalService {
     @Transactional
     public BusinessDocument submit(Long documentId) {
         BusinessDocument doc = load(documentId);
-        requireRole(doc.getDocumentType().makerRole());
+        AuthorityChecks.requireAny(
+            doc.getDocumentType().createAuthority(), doc.getDocumentType().amendAuthority());
         if (doc.getLineGroups().isEmpty()) {
             throw new IllegalStateException(
                 "%s %s has no lines and cannot be submitted"
@@ -78,7 +79,7 @@ public class ApprovalService {
     @Transactional
     public BusinessDocument approve(Long documentId, String remarks) {
         BusinessDocument doc = load(documentId);
-        requireRole(doc.getDocumentType().approverRole());
+        AuthorityChecks.require(doc.getDocumentType().approveAuthority());
         assertNotSelfApproval(doc);
 
         BusinessDocumentStatus from = doc.getStatus();
@@ -90,7 +91,7 @@ public class ApprovalService {
     @Transactional
     public BusinessDocument reject(Long documentId, String remarks) {
         BusinessDocument doc = load(documentId);
-        requireRole(doc.getDocumentType().approverRole());
+        AuthorityChecks.require(doc.getDocumentType().approveAuthority());
 
         BusinessDocumentStatus from = doc.getStatus();
         doc.transitionTo(BusinessDocumentStatus.REJECTED);
@@ -107,16 +108,6 @@ public class ApprovalService {
     private BusinessDocument load(Long id) {
         return repository.findScopedWithLines(id, context.requireOrganizationId())
             .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
-    }
-
-    private void requireRole(String role) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean granted = auth != null && auth.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .anyMatch(role::equals);
-        if (!granted) {
-            throw new AccessDeniedException("This action requires " + role);
-        }
     }
 
     /**
