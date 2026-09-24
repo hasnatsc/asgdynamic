@@ -1,14 +1,18 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <!--
-  Reference implementation of a fabric master-detail screen.
+  Reference implementation of a fabric master-detail screen — corrected to a genuine
+  two-level structure after a real production API response showed the flat one-row-per-
+  colour shape this template used to have was wrong. See BusinessDocument.lineGroups /
+  FabricSpec's javadoc for the full account.
 
-  Legacy equivalent: /booking/index — 275 KB, 95 fields, a Bootstrap modal and ~88 KB of
-  inline JavaScript. The structure here is what the other fabric document types copy:
-  filter bar, grid, header form, fabric line table, action bar.
+  Shape now matches the real legacy screen: one row per fabric-spec GROUP (construction,
+  composition, weave — entered once), each expanding into a nested "Color breakdown"
+  table of COLOUR lines (colour, quantity, price, lab dip / strike-off / colour references
+  — confirmed genuinely different per colour, not per construction).
 
-  Note what is NOT editable: GSM, line amount and totals are rendered read-only because
-  the server computes them. The legacy screen let the browser calculate and submit them.
+  Note what is NOT editable: GSM and line amounts are rendered read-only because the
+  server computes them. The legacy screen let the browser calculate and submit them.
 -->
 <head>
     <title>Booking</title>
@@ -98,83 +102,113 @@
             </div>
         </div>
 
-        <!-- Fabric lines -->
+        <!-- Fabric specification groups, each with a nested colour breakdown -->
         <section>
             <div class="flex items-center justify-between mb-2">
-                <h2 class="font-medium">Fabric lines</h2>
-                <button type="button" class="btn-ghost" data-action="line-add">Add line</button>
+                <h2 class="font-medium">Fabric specifications</h2>
+                <button type="button" class="btn-ghost" data-action="group-add">Add specification</button>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="table-grid" id="lineTable">
-                    <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Costing code</th>
-                        <th>Construction</th>
-                        <th>Weave type</th>
-                        <th>Weave style</th>
-                        <th>Finish</th>
-                        <th>Light source</th>
-                        <th>Selvedge</th>
-                        <th>Colour</th>
-                        <th class="text-right">GSM</th>
-                        <th class="text-right">Quantity</th>
-                        <th class="text-right">Rate</th>
-                        <th class="text-right">Amount</th>
-                        <th class="text-right">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="line, i : *{lines}">
-                        <td th:text="${line.lineNo}">1</td>
-                        <td><input class="field" th:field="*{lines[__${i.index}__].fabric.costingCode}"></td>
-                        <!-- Construction and GSM arrive from the costing service on save -->
-                        <td><input class="field" th:field="*{lines[__${i.index}__].fabric.construction}"></td>
-                        <td>
+            <div class="space-y-4" id="lineGroups">
+                <div class="card p-4" th:each="group, gi : *{lineGroups}"
+                     th:attr="data-group-index=${gi.index}">
+
+                    <!-- One fabric spec, entered once, shared by every colour below it -->
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-6 mb-3">
+                        <div class="sm:col-span-2">
+                            <label class="label">Costing No</label>
+                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.costingCode}">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label">Construction</label>
+                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.construction}">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label">Composition</label>
+                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.composition}">
+                        </div>
+                        <div>
+                            <label class="label">Weave Type</label>
                             <select class="field" data-lookup="fabric/weave-type"
-                                    th:field="*{lines[__${i.index}__].fabric.weaveType}"></select>
-                        </td>
-                        <td>
+                                    th:field="*{lineGroups[__${gi.index}__].fabric.weaveType}"></select>
+                        </div>
+                        <div>
+                            <label class="label">Weave Style</label>
                             <select class="field" data-lookup="fabric/weave-style"
-                                    th:field="*{lines[__${i.index}__].fabric.weaveStyle}"></select>
-                        </td>
-                        <td>
-                            <select class="field" data-lookup="fabric/finish-type"
-                                    th:field="*{lines[__${i.index}__].fabric.finishType}"></select>
-                        </td>
-                        <td>
-                            <select class="field" data-lookup="fabric/light-source"
-                                    th:field="*{lines[__${i.index}__].fabric.lightSource}"></select>
-                        </td>
-                        <td>
-                            <select class="field" data-lookup="fabric/selvedge"
-                                    th:field="*{lines[__${i.index}__].fabric.selvedge}"></select>
-                        </td>
-                        <td><input class="field" th:field="*{lines[__${i.index}__].fabric.colourName}"></td>
-                        <td class="text-right text-slate-500" th:text="${line.fabric.gsm}">—</td>
-                        <td><input type="number" step="0.0001" class="field text-right"
-                                   th:field="*{lines[__${i.index}__].quantity}"></td>
-                        <td><input type="number" step="0.000001" class="field text-right"
-                                   th:field="*{lines[__${i.index}__].rate}"></td>
-                        <td class="text-right text-slate-500" th:text="${line.lineAmount}">—</td>
-                        <td class="text-right">
-                            <button type="button" class="btn-ghost" data-action="line-remove">Remove</button>
-                        </td>
-                    </tr>
-                    </tbody>
-                    <tfoot>
-                    <tr class="font-medium">
-                        <td colspan="10" class="text-right">Total</td>
-                        <td class="text-right" th:text="*{totalQuantity}">0</td>
-                        <td></td>
-                        <td class="text-right" th:text="*{subtotalAmount}">0</td>
-                        <td></td>
-                    </tr>
-                    </tfoot>
-                </table>
+                                    th:field="*{lineGroups[__${gi.index}__].fabric.weaveStyle}"></select>
+                        </div>
+                        <div>
+                            <label class="label">Finish Width</label>
+                            <input type="number" class="field" th:field="*{lineGroups[__${gi.index}__].fabric.finishWidth}">
+                        </div>
+                        <div>
+                            <label class="label">Cuttable Width</label>
+                            <input type="number" class="field" th:field="*{lineGroups[__${gi.index}__].fabric.cuttableWidth}">
+                        </div>
+                        <div>
+                            <label class="label">Calculated GSM</label>
+                            <input class="field bg-slate-50" readonly th:value="${group.fabric.gsm}">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" class="btn-ghost w-full" data-action="group-remove">Remove spec</button>
+                        </div>
+                    </div>
+
+                    <!-- Nested colour breakdown — the part an earlier version of this
+                         template flattened into the row above, losing the ability to add a
+                         second colour without re-entering the whole specification. -->
+                    <table class="table-grid" data-role="color-lines">
+                        <thead>
+                        <tr>
+                            <th>Color Code</th>
+                            <th>Color Name</th>
+                            <th>Fabrics Style</th>
+                            <th>Color Ref.</th>
+                            <th>Strike Off Ref.</th>
+                            <th>Lab Dip Ref.</th>
+                            <th>Loom Ref.</th>
+                            <th class="text-right">Quantity</th>
+                            <th class="text-right">Price/Yd</th>
+                            <th class="text-right">Price/Mtr</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="line, li : ${group.colorLines}">
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorCode}"></td>
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorName}"></td>
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].fabricsStyle}"></td>
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorReference}"></td>
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].strikeOffReference}"></td>
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].labDipReference}"></td>
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].loomReference}"></td>
+                            <td><input type="number" step="0.0001" class="field text-right"
+                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].quantity}"></td>
+                            <td><input type="number" step="0.000001" class="field text-right"
+                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].rate}"></td>
+                            <td><input type="number" step="0.000001" class="field text-right"
+                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].priceInMeter}"></td>
+                            <td class="text-right text-slate-500" th:text="${line.lineAmount}">—</td>
+                            <td class="text-right">
+                                <button type="button" class="btn-ghost" data-action="color-line-remove">Remove</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn-ghost mt-2" data-action="color-line-add"
+                            th:attr="data-group-index=${gi.index}">Add colour</button>
+                    <p class="text-xs text-slate-500 mt-1" th:text="'Group total: ' + ${group.groupQuantity} + ' @ ' + ${group.groupAmount}">
+                        Group total
+                    </p>
+                </div>
             </div>
         </section>
+
+        <div class="text-right font-medium pt-2 border-t border-slate-200">
+            Total quantity <span th:text="*{totalQuantity}">0</span> ·
+            Amount <span th:text="*{subtotalAmount}">0</span>
+        </div>
 
         <!--
           Submit/approve/reject post to /api/documents/{id}/... (ApprovalController) —

@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en">
 <!--
-  Second fabric document type, same pattern as fabric/booking.html. The addition is the
-  "From Booking" picker: selecting a booking loads its open lines via
-  /api/bpo/booking-lines/{bookingId}, and each BPO line's Source column binds to one of
-  them — the line-to-line link BusinessDocumentLine.sourceLineId records.
+  Second fabric document type, same nested pattern as fabric/booking.html: one fabric-spec
+  GROUP per row, each with a nested colour-breakdown table. The addition here is the "From
+  Booking" picker — selecting a booking loads its open colour lines via
+  /api/bpo/booking-lines/{bookingId}, and each colour's Source column binds to one of them
+  (BusinessDocumentColorLine.sourceColorLineId).
 -->
 <head>
     <title>Bulk Production Order</title>
@@ -64,7 +65,7 @@
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div>
                 <label class="label" for="parentDocumentId">From Booking</label>
-                <!-- Selecting a booking populates the source-line picker in each row below -->
+                <!-- Selecting a booking populates the source-colour picker in each row below -->
                 <select id="parentDocumentId" class="field" th:field="*{parentDocumentId}"
                         data-lookup="booking" data-action="bpo-booking-selected"></select>
             </div>
@@ -84,65 +85,77 @@
 
         <section>
             <div class="flex items-center justify-between mb-2">
-                <h2 class="font-medium">Production lines</h2>
-                <button type="button" class="btn-ghost" data-action="line-add"
-                        title="Enabled once a Booking is selected">Add line</button>
+                <h2 class="font-medium">Fabric specifications</h2>
+                <button type="button" class="btn-ghost" data-action="group-add"
+                        title="Enabled once a Booking is selected">Add specification</button>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="table-grid" id="lineTable">
-                    <thead>
-                    <tr>
-                        <th>#</th>
-                        <!-- Bound to a Booking line id; outstanding qty shown for reference -->
-                        <th>Source (Booking line)</th>
-                        <th>Costing code</th>
-                        <th>Construction</th>
-                        <th>Colour</th>
-                        <th class="text-right">GSM</th>
-                        <th class="text-right">Quantity</th>
-                        <th class="text-right">Rate</th>
-                        <th class="text-right">Amount</th>
-                        <th class="text-right">Action</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="line, i : *{lines}">
-                        <td th:text="${line.lineNo}">1</td>
-                        <td>
-                            <select class="field" data-role="source-line-picker"
-                                    th:field="*{lines[__${i.index}__].sourceLineId}"></select>
-                        </td>
-                        <td><input class="field" th:field="*{lines[__${i.index}__].fabric.costingCode}"></td>
-                        <td><input class="field" th:field="*{lines[__${i.index}__].fabric.construction}"></td>
-                        <td><input class="field" th:field="*{lines[__${i.index}__].fabric.colourName}"></td>
-                        <td class="text-right text-slate-500" th:text="${line.fabric.gsm}">—</td>
-                        <td><input type="number" step="0.0001" class="field text-right"
-                                   th:field="*{lines[__${i.index}__].quantity}"></td>
-                        <td><input type="number" step="0.000001" class="field text-right"
-                                   th:field="*{lines[__${i.index}__].rate}"></td>
-                        <td class="text-right text-slate-500" th:text="${line.lineAmount}">—</td>
-                        <td class="text-right">
-                            <button type="button" class="btn-ghost" data-action="line-remove">Remove</button>
-                        </td>
-                    </tr>
-                    </tbody>
-                    <tfoot>
-                    <tr class="font-medium">
-                        <td colspan="6" class="text-right">Total</td>
-                        <td class="text-right" th:text="*{totalQuantity}">0</td>
-                        <td></td>
-                        <td class="text-right" th:text="*{subtotalAmount}">0</td>
-                        <td></td>
-                    </tr>
-                    </tfoot>
-                </table>
+            <div class="space-y-4" id="lineGroups">
+                <div class="card p-4" th:each="group, gi : *{lineGroups}"
+                     th:attr="data-group-index=${gi.index}">
+
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-3">
+                        <div>
+                            <label class="label">Costing No</label>
+                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.costingCode}">
+                        </div>
+                        <div>
+                            <label class="label">Construction</label>
+                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.construction}">
+                        </div>
+                        <div>
+                            <label class="label">GSM</label>
+                            <input class="field bg-slate-50" readonly th:value="${group.fabric.gsm}">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" class="btn-ghost w-full" data-action="group-remove">Remove spec</button>
+                        </div>
+                    </div>
+
+                    <table class="table-grid" data-role="color-lines">
+                        <thead>
+                        <tr>
+                            <th>Source (Booking colour)</th>
+                            <th>Colour</th>
+                            <th class="text-right">Quantity</th>
+                            <th class="text-right">Rate</th>
+                            <th class="text-right">Amount</th>
+                            <th class="text-right">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="line, li : ${group.colorLines}">
+                            <td>
+                                <select class="field" data-role="source-line-picker"
+                                        th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].sourceColorLineId}"></select>
+                            </td>
+                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorName}"></td>
+                            <td><input type="number" step="0.0001" class="field text-right"
+                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].quantity}"></td>
+                            <td><input type="number" step="0.000001" class="field text-right"
+                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].rate}"></td>
+                            <td class="text-right text-slate-500" th:text="${line.lineAmount}">—</td>
+                            <td class="text-right">
+                                <button type="button" class="btn-ghost" data-action="color-line-remove">Remove</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn-ghost mt-2" data-action="color-line-add"
+                            th:attr="data-group-index=${gi.index}">Add colour</button>
+                </div>
             </div>
+
             <p class="text-xs text-slate-500 mt-2">
-                A line's quantity can never exceed what its source Booking line still has
-                outstanding — the server enforces this on save, not just this form.
+                A colour's quantity can never exceed what its source Booking colour still
+                has outstanding — the server enforces this on save, not just this form.
             </p>
         </section>
+
+        <div class="text-right font-medium pt-2 border-t border-slate-200">
+            Total quantity <span th:text="*{totalQuantity}">0</span> ·
+            Amount <span th:text="*{subtotalAmount}">0</span>
+        </div>
 
         <!-- Same generic /api/documents/{id}/... endpoints as Booking — see its template. -->
         <div class="flex items-center gap-2 pt-2 border-t border-slate-200">

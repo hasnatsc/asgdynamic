@@ -11,20 +11,55 @@ Spring Boot 3 · Java 21 · PostgreSQL · Thymeleaf · Tailwind · Maven · Flyw
 ## The shape of it
 
 One generic document table discriminated by `DocumentType` — SpindleERP's central idea —
-replacing asgdynamic's 42 near-identical controller/table pairs.
+replacing asgdynamic's 42 near-identical controller/table pairs. Three levels deep, not
+two: `BusinessDocument` → `BusinessDocumentLineGroup` (one fabric specification) →
+`BusinessDocumentColorLine` (one colour, with its own quantity, price and reference
+fields). See **"Colour breakdown" — a real correction**, just below, for why it isn't flat.
 
 ```
 common/              AuditableEntity, BaseOrgEntity, BaseOrgLineEntity,
                      OrgContext (injected), OrgContextListener
-global/documents/    BusinessDocument, BusinessDocumentLine, FabricSpec,
-                     DocumentType, BusinessDocumentStatus,
-                     BusinessDocumentRepository, DocumentNumberService
+global/documents/    BusinessDocument, BusinessDocumentLineGroup, BusinessDocumentColorLine,
+                     FabricSpec, DocumentType, BusinessDocumentStatus,
+                     BusinessDocumentRepository, DocumentNumberService,
+                     ParentLineDrawService, DocumentRevisionService
 costing/             CostingService — external fabric costing, server-side only
-fabric/              setup · booking · productionorder · planning · transaction
+fabric/              setup · booking · productionorder · requestforpi · weavingworkorder ·
+                     processingworkorder · greigereceive · deliveryorder · fabricsdelivery
 approval/            maker → checker → approver
 utility/datatable/   grid support
-resources/db/migration/  Flyway; V1 creates the document model
+resources/db/migration/  Flyway; V1 creates the document model, V6 corrects its shape
 ```
+
+## "Colour breakdown" — a real correction, not a preference
+
+An earlier version of this model collapsed asgdynamic's two-level `dtlSet`/`dtlLine`
+structure into one flat row per colour, embedding the fabric spec directly on it. The
+reasoning at the time: *"the middle level only existed to avoid repeating fabric attributes
+per colour, and an embeddable does that without a second table."*
+
+A real production Booking API response settled that this was wrong. One line group —
+construction `20X20/69X56`, `70% Viscose 30% Linen` — carried **six** colours, each with a
+genuinely different `lab_dip_reference` (`25-08A-2279 OPT-C` for White,
+`25-08A-2221 OPT-F` for Black) and a different `fabrics_style`. Flattening that would mean
+re-entering the whole fabric specification six times for one order, and there was nowhere
+to put the per-colour reference fields at all.
+
+Fixed by reinstating the two levels properly: `BusinessDocumentLineGroup` carries the
+fabric spec once; `BusinessDocumentColorLine` carries colour, quantity, price,
+`labDipReference`, `strikeOffReference`, `colorReference`, `loomReference`, `fabricsStyle`.
+`FabricSpec` itself grew — yarn counts/ratios, EPI/PPI, shrinkages, GSM before/after wash,
+wash type/instruction, end use, DISPO reference — all confirmed present on the same real
+payload and missing before. Verified by reproducing that exact payload as real rows (see
+**Verified against a real PostgreSQL database**, below): the same construction, the same
+two lab-dip references, the same totals.
+
+The same crawl had also produced two smaller, separately-caught errors, both now fixed:
+Booking's document-number prefix was guessed as `BKG`; the real codes (`BKAF000017`,
+`BKAF000059`) show it is `BK`. And `ParentLineDrawService` originally drew against a whole
+fabric-spec group; the real payload's `so_line_dtl_id` — what a downstream document
+actually references — is the **colour line's** id, not the group's, so the drawable unit
+moved down a level along with everything else.
 
 ## What was kept from SpindleERP
 
@@ -54,12 +89,13 @@ Naming drift was also fixed: SpindleERP carries `yarn_*` alongside `yrn_*`, `sls
 
 ## Where asgdynamic's logic lives
 
-- **`FabricSpec`** (embedded on every line) — construction, declared construction, weave type
-  and style, fabric type, finish, composition, GSM, finish/cuttable width, light source,
-  selvedge, colour, costing code.
-  asgdynamic modelled these as a middle `dtlSet` level and repeated the columns per screen
-  (`so_dtlSet_weaveType`, `po_dtlSet_weaveType`, …). They are what the line *is*, so they are
-  embedded — one less join, one less table per document type.
+- **`FabricSpec`** (embedded on every `BusinessDocumentLineGroup`) — construction, declared
+  construction, weave type and style, fabric type, finish, composition, yarn counts/ratios,
+  EPI/PPI, shrinkages, GSM (calculated + before/after wash), widths, light source, selvedge,
+  wash type/instruction, end use, DISPO reference, costing code. Colour, quantity, price and
+  the per-colour reference fields (`labDipReference`, `strikeOffReference`, `colorReference`,
+  `loomReference`, `fabricsStyle`) live one level down on `BusinessDocumentColorLine` — see
+  **"Colour breakdown"**, above, for why that split is real and not decorative.
 - **`DocumentType`** — Booking → BPO → Request-for-PI → Delivery Order for sales;
   Rout Card → Weaving WO → Processing WO → Greige Receive → Greige Issue → Finished Fabrics
   Receive for production. Routing, not recipe: no `PRODUCTION_RECIPE`, no `WASTE_RECEIVE`.
@@ -70,9 +106,10 @@ Naming drift was also fixed: SpindleERP carries `yarn_*` alongside `yrn_*`, `sls
 
 ## What is built
 
-**Core** — `BusinessDocument` + `BusinessDocumentLine` + `FabricSpec`, `DocumentType` (33
-types), the status machine, org-scoped repository, numbering service,
-`DocumentRevisionService` (shared — see below).
+**Core** — `BusinessDocument` → `BusinessDocumentLineGroup` → `BusinessDocumentColorLine` +
+`FabricSpec`, `DocumentType` (33 types), the status machine, org-scoped repository,
+numbering service, `DocumentRevisionService` and `ParentLineDrawService` (shared — see
+below).
 
 **Security** — `FabricUser` → `FabricUserPrincipal` → `SecurityOrgContext`, deny-by-default
 HTTP config, form login, remember-me. Every fabric service now has a real `OrgContext` to
@@ -87,12 +124,12 @@ screens.
 (page + grid + detail + actions), Thymeleaf screen with the fabric line table.
 
 **BPO** (2nd document type) — raised against a Booking. This is the one that mattered: a
-BPO line draws against a *specific* Booking line's outstanding quantity
-(`BusinessDocumentLine.sourceLineId`, added after the crawl showed asgdynamic tracking
-exactly this as `transaction_qty_so`). `fulfil()`/`release()`, written for Booking's own
-ceiling, are reused unchanged to enforce it — proof the guard generalizes rather than
-being Booking-specific. Editing a draft BPO releases its old reservation before applying
-the new one, rather than stacking; deleting one releases it entirely.
+BPO colour line draws against a *specific* Booking colour line's outstanding quantity
+(`BusinessDocumentColorLine.sourceColorLineId`, added after the crawl showed asgdynamic
+tracking exactly this as `transaction_qty_so`). `fulfil()`/`release()`, written for
+Booking's own ceiling, are reused unchanged to enforce it — proof the guard generalizes
+rather than being Booking-specific. Editing a draft BPO releases its old reservation
+before applying the new one, rather than stacking; deleting one releases it entirely.
 
 **Request For PI** (3rd) and **Weaving Work Order** (4th) — both draw against a BPO, the
 same way BPO draws against a Booking. Confirmed against the real crawl: `deliveryOrder`'s
@@ -159,18 +196,27 @@ concatenates its `ORDER BY` and `WHERE` over raw `JdbcTemplate`.
 
 ## Verified against a real PostgreSQL database
 
-- V1–V5 apply cleanly in order, **0 unindexed foreign keys** throughout
+- V1–V6 apply cleanly in order, **0 unindexed foreign keys** throughout — including after
+  V6 dropped and rebuilt the document-line tables into two levels
+- **The real BKAF000028 payload reproduced as actual rows**: one `gbl_business_document_
+  line_groups` row (construction `30X30+40D/156X88`) with two `gbl_business_document_
+  color_lines` children (PUMICE STONE and BLACK), each carrying its own `lab_dip_reference`
+  and `fabrics_style`; summed `line_amount` matched the real document total (67,680.00)
+  exactly
+- The fulfilment `CHECK` verified at colour-line depth: drawing 10,000 of PUMICE STONE's
+  15,040 leaves exactly 5,040 outstanding; the 5,041st unit is rejected; BLACK's own
+  ceiling is untouched by White's draw
 - 98 attribute rows seeded — `2/1 S Twill`, `Broken Twill`, `Aero Finish`, `CWF`,
   `10 mm + 10 mm` … with no duplicate codes generated
 - `uk_fab_attr_org_type_code` rejects a duplicate code; the same code under a different
   attribute type is allowed
-- Numbering yields `BPOAF000001`, `000002`, `000003` — the legacy format
+- Numbering yields `BPOAF000001`, `000002`, `000003` — the legacy format (with Booking's
+  own prefix corrected to `BK`, confirmed by the same real payload)
 - `ck_gbd_revision_lineage` rejects a revision with no parent
-- `ck_gbdl_fulfilment` rejects over-fulfilment; valid rows accepted
 - `sec_fabric_users` username uniqueness enforced; deleting a user cascades its authority
   rows (0 remained after delete)
-- `fk_gbdl_source_line` (BPO line → Booking line) blocks deleting a line that has been
-  drawn against, and allows the delete once the dependent line is gone first
+- `fk_gbdcl_source_color_line` (BPO colour → Booking colour) blocks deleting a colour line
+  that has been drawn against, and allows the delete once the dependent line is gone first
 - A full submit → approve round trip written to `apr_document_history` reads back newest
   first with the right actor on each row; deleting the parent document cascades its history
 - A real 4-document chain (Booking → BPO → Request-for-PI → Weaving WO) inserted and
@@ -183,8 +229,9 @@ concatenates its `ORDER BY` and `WHERE` over raw `JdbcTemplate`.
 
 Java sources parse cleanly. **They have not been compiled and the tests have not run** —
 there is no Maven CLI on this machine, so dependencies were never resolved. Eleven test
-classes are written but unexecuted: document rules, revision semantics, ceiling/release
-behaviour across all six draw-against-parent types, security context resolution, approval
+classes are written but unexecuted: document rules (now covering multi-colour groups),
+revision semantics (now covering per-colour reference fields), ceiling/release behaviour
+across all six draw-against-parent types, security context resolution, approval
 role/four-eyes checks.
 
 ## Before it runs
