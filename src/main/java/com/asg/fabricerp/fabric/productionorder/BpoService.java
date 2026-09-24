@@ -10,9 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Bulk Production Order — raised against a Booking to commit weaving capacity.
@@ -26,31 +24,35 @@ import java.util.Map;
  * workaround, which is the outcome worth having: the gap showed up here instead of in
  * production.
  *
- * <p>{@link BusinessDocumentLine#fulfil} and {@link BusinessDocumentLine#release}, built
- * for Booking's own ceiling, are reused unchanged to enforce that a BPO can never commit
- * more than a Booking line has outstanding — proof the guard generalizes rather than being
- * Booking-specific.
+ * <p>The draw/release/loadParent mechanics below now live in {@link ParentLineDrawService},
+ * shared with {@code RequestForPiService} and {@code WeavingWorkOrderService} — this class
+ * was the original, and moving out once a second consumer needed the same logic left it
+ * holding only what is actually BPO-specific: costing, and which fields to copy on edit.
  */
 @Service
 public class BpoService {
 
     private static final DocumentType TYPE = DocumentType.BULK_PRODUCTION_ORDER;
+    private static final DocumentType PARENT_TYPE = DocumentType.BOOKING;
 
     private final BusinessDocumentRepository repository;
     private final DocumentNumberService numbering;
     private final CostingService costing;
     private final DocumentRevisionService revisions;
+    private final ParentLineDrawService parentDraw;
     private final OrgContext context;
 
     public BpoService(BusinessDocumentRepository repository,
                       DocumentNumberService numbering,
                       CostingService costing,
                       DocumentRevisionService revisions,
+                      ParentLineDrawService parentDraw,
                       OrgContext context) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
         this.revisions = revisions;
+        this.parentDraw = parentDraw;
         this.context = context;
     }
 
@@ -70,31 +72,19 @@ public class BpoService {
             .orElseThrow(() -> new IllegalArgumentException("BPO not found: " + id));
     }
 
-    /**
-     * The Booking lines still available to draw against, with what remains on each —
-     * feeds the "raise BPO" form's line picker.
-     */
+    /** The Booking lines still available to draw against — feeds the "raise BPO" line picker. */
     @Transactional(readOnly = true)
     public List<BusinessDocumentLine> openBookingLines(Long bookingId) {
-        return loadParent(bookingId).getLines().stream()
-            .filter(l -> l.outstandingQuantity().signum() > 0)
-            .toList();
+        return parentDraw.openLines(parentDraw.loadParent(bookingId, PARENT_TYPE));
     }
 
     @Transactional
     public BusinessDocument save(BusinessDocument submitted) {
-        if (submitted.getId() == null) {
-            return create(submitted);
-        }
-        return update(submitted);
+        return submitted.getId() == null ? create(submitted) : update(submitted);
     }
 
     private BusinessDocument create(BusinessDocument submitted) {
-        Long bookingId = submitted.getParentDocumentId();
-        if (bookingId == null) {
-            throw new IllegalArgumentException("A BPO must name the Booking it is raised against");
-        }
-        BusinessDocument booking = loadParent(bookingId);
+        BusinessDocument booking = parentDraw.loadParent(submitted.getParentDocumentId(), PARENT_TYPE);
 
         submitted.setDocumentType(TYPE);
         submitted.setOrganizationId(context.requireOrganizationId());
@@ -108,8 +98,8 @@ public class BpoService {
             submitted.setPartyId(booking.getPartyId());
         }
 
-        drawAgainstBooking(booking, submitted.getLines());
-        repository.save(booking);
+        parentDraw.draw(booking, submitted.getLines());
+        parentDraw.save(booking);
 
         refreshCostingFigures(submitted);
         submitted.recalculateTotals();
@@ -120,30 +110,22 @@ public class BpoService {
         BusinessDocument target = get(submitted.getId());
         target.assertEditable();
 
-        BusinessDocument booking = loadParent(target.getParentDocumentId());
-        releaseAgainstBooking(booking, target.getLines());
+        BusinessDocument booking = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
+        parentDraw.release(booking, target.getLines());
 
         applyHeader(submitted, target);
         target.setLines(submitted.getLines());
 
-        drawAgainstBooking(booking, target.getLines());
-        repository.save(booking);
+        parentDraw.draw(booking, target.getLines());
+        parentDraw.save(booking);
 
         refreshCostingFigures(target);
         target.recalculateTotals();
         return repository.save(target);
     }
 
-    @Transactional
-    public BusinessDocument submit(Long id) {
-        BusinessDocument doc = get(id);
-        if (doc.getLines().isEmpty()) {
-            throw new IllegalStateException(
-                "BPO %s has no lines and cannot be submitted".formatted(doc.getDocumentNo()));
-        }
-        doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
-        return repository.save(doc);
-    }
+    // submit/approve/reject live in ApprovalService now — generic over every document
+    // type rather than a one-line copy per service. See BpoController.
 
     @Transactional
     public BusinessDocument revise(Long id, String reason) {
@@ -159,59 +141,12 @@ public class BpoService {
         BusinessDocument doc = get(id);
         doc.assertEditable();
 
-        BusinessDocument booking = loadParent(doc.getParentDocumentId());
-        releaseAgainstBooking(booking, doc.getLines());
-        repository.save(booking);
+        BusinessDocument booking = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
+        parentDraw.release(booking, doc.getLines());
+        parentDraw.save(booking);
 
         doc.markDeleted();
         repository.save(doc);
-    }
-
-    private BusinessDocument loadParent(Long bookingId) {
-        BusinessDocument booking = repository.findScopedWithLines(bookingId, context.requireOrganizationId())
-            .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + bookingId));
-        if (booking.getDocumentType() != DocumentType.BOOKING) {
-            throw new IllegalArgumentException(
-                "Document %s is not a Booking".formatted(booking.getDocumentNo()));
-        }
-        return booking;
-    }
-
-    /** Consumes booking-line capacity for every BPO line that names a source. */
-    private void drawAgainstBooking(BusinessDocument booking, List<BusinessDocumentLine> bpoLines) {
-        Map<Long, BusinessDocumentLine> bookingLinesById = indexById(booking.getLines());
-        int lineNo = 1;
-        for (BusinessDocumentLine bpoLine : bpoLines) {
-            bpoLine.setLineNo(lineNo++);
-            if (bpoLine.getSourceLineId() == null) continue;
-            sourceLine(bookingLinesById, bpoLine, booking).fulfil(bpoLine.getQuantity());
-        }
-    }
-
-    /** Gives back whatever a set of BPO lines had previously drawn. */
-    private void releaseAgainstBooking(BusinessDocument booking, List<BusinessDocumentLine> bpoLines) {
-        Map<Long, BusinessDocumentLine> bookingLinesById = indexById(booking.getLines());
-        for (BusinessDocumentLine bpoLine : bpoLines) {
-            if (bpoLine.getSourceLineId() == null) continue;
-            sourceLine(bookingLinesById, bpoLine, booking).release(bpoLine.getQuantity());
-        }
-    }
-
-    private BusinessDocumentLine sourceLine(Map<Long, BusinessDocumentLine> bookingLinesById,
-                                            BusinessDocumentLine bpoLine, BusinessDocument booking) {
-        BusinessDocumentLine source = bookingLinesById.get(bpoLine.getSourceLineId());
-        if (source == null) {
-            throw new IllegalArgumentException(
-                "Line %d names source line %d, which is not on Booking %s"
-                    .formatted(bpoLine.getLineNo(), bpoLine.getSourceLineId(), booking.getDocumentNo()));
-        }
-        return source;
-    }
-
-    private Map<Long, BusinessDocumentLine> indexById(List<BusinessDocumentLine> lines) {
-        Map<Long, BusinessDocumentLine> byId = new HashMap<>();
-        for (BusinessDocumentLine line : lines) byId.put(line.getId(), line);
-        return byId;
     }
 
     private void applyHeader(BusinessDocument from, BusinessDocument to) {

@@ -1,4 +1,4 @@
-package com.asg.fabricerp.fabric.productionorder;
+package com.asg.fabricerp.fabric.weavingworkorder;
 
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentLine;
@@ -20,40 +20,38 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Same page/grid split as {@code BookingController}; the one addition is
- * {@code /api/bpo/booking-lines/{bookingId}}, which the "raise BPO" form calls to populate
- * its line picker with what each Booking line still has outstanding.
+ * Same page/grid split as its siblings, with no {@code /revise} route — see
+ * {@code WeavingWorkOrderService}'s javadoc for why this type is the first one that isn't
+ * revisable.
  */
 @Controller
-public class BpoController {
+public class WeavingWorkOrderController {
 
     private static final SortWhitelist SORTABLE = SortWhitelist.of(Map.of(
-        "documentNo",     "documentNo",
-        "documentDate",   "documentDate",
-        "status",         "status",
-        "totalQuantity",  "totalQuantity",
-        "subtotalAmount", "subtotalAmount",
-        "revisionNo",     "revisionNo"
+        "documentNo",    "documentNo",
+        "documentDate",  "documentDate",
+        "status",        "status",
+        "totalQuantity", "totalQuantity"
     ));
 
-    private final BpoService service;
+    private final WeavingWorkOrderService service;
 
-    public BpoController(BpoService service) {
+    public WeavingWorkOrderController(WeavingWorkOrderService service) {
         this.service = service;
     }
 
-    @GetMapping("/bpo")
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
+    @GetMapping("/weaving-wo")
+    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
     public String page(Model model) {
-        model.addAttribute("title", "Bulk Production Order");
-        model.addAttribute("bpo", new BusinessDocument());
+        model.addAttribute("title", "Weaving Work Order");
+        model.addAttribute("wo", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/bpo";
+        return "fabric/weaving-wo";
     }
 
-    @GetMapping("/api/bpo")
+    @GetMapping("/api/weaving-wo")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -70,48 +68,33 @@ public class BpoController {
             status, from, to, request.searchOrNull(),
             request.toPageable(SORTABLE, "documentDate"));
 
-        return DataTableResponse.from(draw, page, BpoController::toRow);
+        return DataTableResponse.from(draw, page, WeavingWorkOrderController::toRow);
     }
 
-    @GetMapping("/api/bpo/{id}")
+    @GetMapping("/api/weaving-wo/{id}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
+    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
 
-    /** What the "raise BPO" line picker offers: Booking lines with something left to draw. */
-    @GetMapping("/api/bpo/booking-lines/{bookingId}")
+    @GetMapping("/api/weaving-wo/bpo-lines/{bpoId}")
     @ResponseBody
-    @PreAuthorize("hasAnyRole('BPO_VIEW', 'BPO_MAKER', 'PRODUCTION')")
-    public List<Map<String, Object>> openBookingLines(@PathVariable Long bookingId) {
-        return service.openBookingLines(bookingId).stream()
-            .map(BpoController::toSourceOption)
-            .toList();
+    @PreAuthorize("hasAnyRole('WWO_VIEW', 'WWO_MAKER', 'PRODUCTION')")
+    public List<Map<String, Object>> openBpoLines(@PathVariable Long bpoId) {
+        return service.openBpoLines(bpoId).stream().map(WeavingWorkOrderController::toSourceOption).toList();
     }
 
-    @PostMapping("/api/bpo")
+    @PostMapping("/api/weaving-wo")
     @ResponseBody
-    @PreAuthorize("hasRole('BPO_MAKER')")
-    public Map<String, Object> save(@Valid @RequestBody BusinessDocument bpo) {
-        return toDetail(service.save(bpo));
+    @PreAuthorize("hasRole('WWO_MAKER')")
+    public Map<String, Object> save(@Valid @RequestBody BusinessDocument wo) {
+        return toDetail(service.save(wo));
     }
 
-    // Submit/approve/reject are the same action for every document type — see
-    // /api/documents/{id}/submit|approve|reject in ApprovalController rather than a
-    // per-type route here.
-
-    @PostMapping("/api/bpo/{id}/revise")
+    @DeleteMapping("/api/weaving-wo/{id}")
     @ResponseBody
-    @PreAuthorize("hasRole('BPO_MAKER')")
-    public Map<String, Object> revise(@PathVariable Long id,
-                                      @RequestParam(required = false) String reason) {
-        return toDetail(service.revise(id, reason));
-    }
-
-    @DeleteMapping("/api/bpo/{id}")
-    @ResponseBody
-    @PreAuthorize("hasRole('BPO_MAKER')")
+    @PreAuthorize("hasRole('WWO_MAKER')")
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);
@@ -121,11 +104,9 @@ public class BpoController {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", d.getId());
         row.put("documentNo", d.getDocumentNo());
-        row.put("bookingId", d.getParentDocumentId());
+        row.put("bpoId", d.getParentDocumentId());
         row.put("documentDate", d.getDocumentDate() == null ? "" : d.getDocumentDate().toString());
         row.put("totalQuantity", d.getTotalQuantity());
-        row.put("subtotalAmount", d.getSubtotalAmount());
-        row.put("revisionNo", d.getRevisionNo());
         row.put("status", d.getStatus().name());
         row.put("editable", d.getStatus().isEditable());
         return row;
@@ -134,7 +115,7 @@ public class BpoController {
     private static Map<String, Object> toDetail(BusinessDocument d) {
         Map<String, Object> detail = new LinkedHashMap<>(toRow(d));
         detail.put("remarks", d.getRemarks() == null ? "" : d.getRemarks());
-        detail.put("lines", d.getLines().stream().map(BpoController::toLine).toList());
+        detail.put("lines", d.getLines().stream().map(WeavingWorkOrderController::toLine).toList());
         return detail;
     }
 
@@ -143,25 +124,20 @@ public class BpoController {
         row.put("id", l.getId());
         row.put("lineNo", l.getLineNo());
         row.put("sourceLineId", l.getSourceLineId());
-        row.put("costingCode", l.getFabric().getCostingCode());
         row.put("construction", l.getFabric().getConstruction());
         row.put("weaveType", l.getFabric().getWeaveType());
-        row.put("finishType", l.getFabric().getFinishType());
-        row.put("gsm", l.getFabric().getGsm());
         row.put("colourName", l.getFabric().getColourName());
         row.put("quantity", l.getQuantity());
-        row.put("rate", l.getRate());
-        row.put("lineAmount", l.getLineAmount());
         return row;
     }
 
-    private static Map<String, Object> toSourceOption(BusinessDocumentLine bookingLine) {
+    private static Map<String, Object> toSourceOption(BusinessDocumentLine bpoLine) {
         Map<String, Object> row = new LinkedHashMap<>();
-        row.put("sourceLineId", bookingLine.getId());
-        row.put("construction", bookingLine.getFabric().getConstruction());
-        row.put("colourName", bookingLine.getFabric().getColourName());
-        row.put("orderedQuantity", bookingLine.getQuantity());
-        row.put("outstandingQuantity", bookingLine.outstandingQuantity());
+        row.put("sourceLineId", bpoLine.getId());
+        row.put("construction", bpoLine.getFabric().getConstruction());
+        row.put("colourName", bpoLine.getFabric().getColourName());
+        row.put("orderedQuantity", bpoLine.getQuantity());
+        row.put("outstandingQuantity", bpoLine.outstandingQuantity());
         return row;
     }
 }

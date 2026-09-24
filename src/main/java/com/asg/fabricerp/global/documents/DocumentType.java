@@ -20,73 +20,117 @@ public enum DocumentType {
      * Booking rather than a quotation, and every stage is revisable. SpindleERP's
      * SALES_QUOTATION has no counterpart here.
      */
-    BOOKING("BKG", "Booking", Family.SALES),
-    BULK_PRODUCTION_ORDER("BPO", "Bulk Production Order", Family.SALES),
-    REQUEST_FOR_PI("RPI", "Request For PI", Family.SALES),
-    DELIVERY_ORDER("DO", "Delivery Order", Family.SALES),
-    FABRICS_DELIVERY("FD", "Fabrics Delivery", Family.SALES),
-    SALES_RETURN("SRT", "Sales Return", Family.SALES),
+    BOOKING("BKG", "Booking", Family.SALES, "BOOKING"),
+    BULK_PRODUCTION_ORDER("BPO", "Bulk Production Order", Family.SALES, "BPO"),
+    REQUEST_FOR_PI("RPI", "Request For PI", Family.SALES, "RPI"),
+    DELIVERY_ORDER("DO", "Delivery Order", Family.SALES, "DO"),
+    FABRICS_DELIVERY("FD", "Fabrics Delivery", Family.SALES, "FD"),
+    SALES_RETURN("SRT", "Sales Return", Family.SALES, null),
 
     /* ------------------------------------------------------------- PURCHASE
      * No RFQ / Comparative Statement: fabric inputs (yarn, dyes) are bought on contract,
      * not competitively tendered the way a spinner buys cotton.
      */
-    PURCHASE_REQUISITION("SPR", "Store Purchase Requisition", Family.PURCHASE),
-    CONSUMPTION_SPR("CSPR", "Consumption SPR", Family.PURCHASE),
-    PURCHASE_ORDER("PO", "Purchase Order", Family.PURCHASE),
-    GOODS_RECEIPT_NOTE("MRR", "Material Receive Report", Family.PURCHASE),
-    PURCHASE_RETURN("PRT", "Purchase Return", Family.PURCHASE),
+    PURCHASE_REQUISITION("SPR", "Store Purchase Requisition", Family.PURCHASE, null),
+    CONSUMPTION_SPR("CSPR", "Consumption SPR", Family.PURCHASE, null),
+    PURCHASE_ORDER("PO", "Purchase Order", Family.PURCHASE, null),
+    GOODS_RECEIPT_NOTE("MRR", "Material Receive Report", Family.PURCHASE, null),
+    PURCHASE_RETURN("PRT", "Purchase Return", Family.PURCHASE, null),
 
     /* ---------------------------------------------------------------- STORE */
-    STORE_REQUISITION("SR", "Store Requisition", Family.STORE),
-    MATERIAL_ISSUE("MI", "Material Issue", Family.STORE),
-    MATERIAL_RECEIVE("MR", "Material Receive", Family.STORE),
-    STOCK_TRANSFER("ST", "Stock Transfer", Family.STORE),
-    STOCK_ADJUSTMENT("SA", "Stock Adjustment", Family.STORE),
+    STORE_REQUISITION("SR", "Store Requisition", Family.STORE, null),
+    MATERIAL_ISSUE("MI", "Material Issue", Family.STORE, null),
+    MATERIAL_RECEIVE("MR", "Material Receive", Family.STORE, null),
+    STOCK_TRANSFER("ST", "Stock Transfer", Family.STORE, null),
+    STOCK_ADJUSTMENT("SA", "Stock Adjustment", Family.STORE, null),
 
     /* ----------------------------------------------------------- PRODUCTION
-     * Routing, not recipe. A BPO is decomposed into a Rout Card, then work orders per
-     * operation; greige comes off the loom, goes out for processing, and returns finished.
+     * Routing, not recipe. Confirmed against the crawl: Weaving Work Order, Processing
+     * Work Order and Greige Receive each draw independently against the BPO (legacy
+     * proPopulate/proReceive on all three) — NOT sequentially through each other, which an
+     * earlier pass through this file assumed before actually checking. Greige Issue and
+     * Finished Fabrics Receive, below, are a genuine open question rather than a confirmed
+     * fact — see their javadoc when a controller is built for either.
      */
-    ROUT_CARD("RC", "Rout Card", Family.PRODUCTION),
-    WEAVING_WORK_ORDER("WWO", "Weaving Work Order", Family.PRODUCTION),
-    PROCESSING_WORK_ORDER("PWO", "Processing Work Order", Family.PRODUCTION),
-    GREIGE_RECEIVE("GR", "Greige Fabrics Received", Family.PRODUCTION),
-    GREIGE_ISSUE("GI", "Greige Issue For Processing", Family.PRODUCTION),
-    FINISHED_FABRICS_RECEIVE("FFR", "Finished Fabrics Received", Family.PRODUCTION),
-    RAW_MATERIAL_ISSUE("RMI", "Raw Material Issue", Family.PRODUCTION),
+    ROUT_CARD("RC", "Rout Card", Family.PRODUCTION, null),
+    WEAVING_WORK_ORDER("WWO", "Weaving Work Order", Family.PRODUCTION, "WWO"),
+    PROCESSING_WORK_ORDER("PWO", "Processing Work Order", Family.PRODUCTION, "PWO"),
+    GREIGE_RECEIVE("GR", "Greige Fabrics Received", Family.PRODUCTION, "GR"),
+    GREIGE_ISSUE("GI", "Greige Issue For Processing", Family.PRODUCTION, null),
+    FINISHED_FABRICS_RECEIVE("FFR", "Finished Fabrics Received", Family.PRODUCTION, null),
+    RAW_MATERIAL_ISSUE("RMI", "Raw Material Issue", Family.PRODUCTION, null),
 
     /* ----------------------------------------------------------- COMMERCIAL
      * Taken from SpindleERP wholesale, including the back-to-back instruments asgdynamic
      * never had. A fabric exporter needs EBLC/IBLC more than a spinner does: the export LC
      * collateralises the import LC for yarn and dyes.
      */
-    EXPORT_PROFORMA_INVOICE("EPI", "Export Proforma Invoice", Family.COMMERCIAL),
-    IMPORT_PROFORMA_INVOICE("IPI", "Import Proforma Invoice", Family.COMMERCIAL),
-    EXPORT_LETTER_OF_CREDIT("ELC", "Export Letter Of Credit", Family.COMMERCIAL),
-    IMPORT_LETTER_OF_CREDIT("ILC", "Import Letter Of Credit", Family.COMMERCIAL),
-    EXPORT_BACK_TO_BACK_LC("EBLC", "Export Back-to-Back LC", Family.COMMERCIAL),
-    IMPORT_BACK_TO_BACK_LC("IBLC", "Import Back-to-Back LC", Family.COMMERCIAL),
-    EXPORT_COMMERCIAL_INVOICE("ECI", "Export Commercial Invoice", Family.COMMERCIAL),
-    IMPORT_COMMERCIAL_INVOICE("ICI", "Import Commercial Invoice", Family.COMMERCIAL),
-    DEBIT_NOTE("DN", "Debit Note", Family.COMMERCIAL),
-    CREDIT_NOTE("CN", "Credit Note", Family.COMMERCIAL);
+    EXPORT_PROFORMA_INVOICE("EPI", "Export Proforma Invoice", Family.COMMERCIAL, null),
+    IMPORT_PROFORMA_INVOICE("IPI", "Import Proforma Invoice", Family.COMMERCIAL, null),
+    EXPORT_LETTER_OF_CREDIT("ELC", "Export Letter Of Credit", Family.COMMERCIAL, null),
+    IMPORT_LETTER_OF_CREDIT("ILC", "Import Letter Of Credit", Family.COMMERCIAL, null),
+    EXPORT_BACK_TO_BACK_LC("EBLC", "Export Back-to-Back LC", Family.COMMERCIAL, null),
+    IMPORT_BACK_TO_BACK_LC("IBLC", "Import Back-to-Back LC", Family.COMMERCIAL, null),
+    EXPORT_COMMERCIAL_INVOICE("ECI", "Export Commercial Invoice", Family.COMMERCIAL, null),
+    IMPORT_COMMERCIAL_INVOICE("ICI", "Import Commercial Invoice", Family.COMMERCIAL, null),
+    DEBIT_NOTE("DN", "Debit Note", Family.COMMERCIAL, null),
+    CREDIT_NOTE("CN", "Credit Note", Family.COMMERCIAL, null);
 
     public enum Family { SALES, PURCHASE, STORE, PRODUCTION, COMMERCIAL }
 
     private final String prefix;
     private final String label;
     private final Family family;
+    private final String roleRoot;
 
-    DocumentType(String prefix, String label, Family family) {
+    DocumentType(String prefix, String label, Family family, String roleRoot) {
         this.prefix = prefix;
         this.label = label;
         this.family = family;
+        this.roleRoot = roleRoot;
     }
 
     public String prefix() { return prefix; }
     public String label()  { return label; }
     public Family family() { return family; }
+
+    /**
+     * The readable root used in this type's role names, e.g. {@code "BOOKING"} for
+     * {@code ROLE_BOOKING_MAKER}. Deliberately not derived from {@link #prefix()} — BPO's
+     * prefix ("BPO") happens to read the same as its role root, but Booking's prefix
+     * ("BKG") does not, and mechanically deriving one from the other would have silently
+     * produced {@code ROLE_BKG_MAKER}, contradicting the literal string already checked by
+     * {@code BookingController}. Null until a type has a controller: {@link #makerRole()}
+     * fails loudly rather than inventing a name nobody has committed to yet.
+     */
+    public String roleRoot() {
+        if (roleRoot == null) {
+            throw new UnsupportedOperationException(
+                "No role-name root registered for " + this + " — add one to DocumentType "
+              + "alongside its controller, matching whatever @PreAuthorize already checks.");
+        }
+        return roleRoot;
+    }
+
+    /** The maker/submitter role, e.g. {@code ROLE_BOOKING_MAKER}. */
+    public String makerRole() {
+        return "ROLE_" + roleRoot() + "_MAKER";
+    }
+
+    /**
+     * The approver role for this type. A single generic {@code ROLE_APPROVAL} today —
+     * asgdynamic's own recovered role model has exactly one such role, used across every
+     * document type except the Commercial family, which instead carries a
+     * {@code ROLE_{TYPE}_MAKER/CHECKER/APPROVAL} triad (seen live as
+     * {@code ROLE_PI_MAKER}/{@code ROLE_LC_CHECKER}/{@code ROLE_CI_APPROVAL} in the legacy
+     * requestmap). No Commercial document type has a controller yet, so that three-stage
+     * path is not implemented here — only single-stage approve/reject exists in
+     * {@code ApprovalService}. Build the checker stage when a Commercial type needs it
+     * rather than half-wiring an untestable one now.
+     */
+    public String approverRole() {
+        return "ROLE_APPROVAL";
+    }
 
     /** Documents that move fabric through weaving/dyeing rather than moving stock. */
     public boolean isFabricProcess() {

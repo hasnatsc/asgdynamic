@@ -94,9 +94,46 @@ ceiling, are reused unchanged to enforce it — proof the guard generalizes rath
 being Booking-specific. Editing a draft BPO releases its old reservation before applying
 the new one, rather than stacking; deleting one releases it entirely.
 
+**Request For PI** (3rd) and **Weaving Work Order** (4th) — both draw against a BPO, the
+same way BPO draws against a Booking. Confirmed against the real crawl: `deliveryOrder`'s
+`transactionQtySchedule` field shows Delivery Order draws against Request-for-PI, not BPO
+directly, and `textileWoByPro`'s `proPopulate`/`proReceive` functions show Weaving WO,
+Processing WO and Greige Receive **each draw independently against the BPO**, not through
+each other. Verified end to end against a real database: a BPO line drawn on by both RPI
+(300) and WWO (250) simultaneously shows 550/700 fulfilled, and the DB `CHECK` still
+rejects exceeding it.
+
+Weaving Work Order is also the **first type with no revision path** — its legacy screen's
+captured functions carry no revision handler, unlike every type built before it. A real
+branch in the pattern, not an oversight: documented on `WeavingWorkOrderService` rather
+than silently omitted.
+
 **`DocumentRevisionService`** — extracted out of `BookingService` the moment `BpoService`
-needed the same revision logic, rather than copy-pasting a second time. Both services now
-call one implementation.
+needed the same revision logic, rather than copy-pasting a second time. Every revisable
+type now calls one implementation.
+
+**`ParentLineDrawService`** — the loadParent/draw/release mechanics lived inline in
+`BpoService` until a second consumer (`RequestForPiService`) needed the identical logic;
+extracted the same way `DocumentRevisionService` was. What stayed **out** of it: each type's
+own header-copy-on-edit fields and whether it refreshes costing (neither RPI nor WWO does —
+confirmed by the absence of any `fabricsCost`/`gsmCalculated` function in their captured
+screens, unlike Booking and BPO) — forcing those into one generic shape would have papered
+over real differences rather than removing actual duplication.
+
+**Approval engine** — `ApprovalService` + `ApprovalController` (`/api/documents/{id}/submit
+|approve|reject`, `/history`), generic over every document type, not one per fabric service.
+`BookingService`/`BpoService` lost their duplicated one-line `submit()` to it. Enforces:
+
+- the maker role for submit, the approver role for approve/reject — both resolved per
+  `DocumentType` (`makerRole()`/`approverRole()`), not hardcoded per controller
+- **four-eyes**: the document's own creator cannot approve it, even holding the role.
+  asgdynamic's client-side `*ChangeStatus()` handlers had no such check
+- a full audit trail in `apr_document_history` — who, when, what transition, remarks —
+  which the legacy status-change handlers left no server-side record of at all
+
+Two dev accounts (`admin`/`approver`) are seeded, not one, specifically so four-eyes is
+exercisable locally without weakening it — a single account could submit but could never
+legally approve its own document.
 
 **Grid** — `DataTableRequest`/`Response` with a `SortWhitelist`, so a client-supplied sort
 column can never reach the query planner unchecked. SpindleERP's `BaseDataTableService`
@@ -104,7 +141,7 @@ concatenates its `ORDER BY` and `WHERE` over raw `JdbcTemplate`.
 
 ## Verified against a real PostgreSQL database
 
-- V1–V4 apply cleanly in order, **0 unindexed foreign keys** throughout
+- V1–V5 apply cleanly in order, **0 unindexed foreign keys** throughout
 - 98 attribute rows seeded — `2/1 S Twill`, `Broken Twill`, `Aero Finish`, `CWF`,
   `10 mm + 10 mm` … with no duplicate codes generated
 - `uk_fab_attr_org_type_code` rejects a duplicate code; the same code under a different
@@ -116,18 +153,25 @@ concatenates its `ORDER BY` and `WHERE` over raw `JdbcTemplate`.
   rows (0 remained after delete)
 - `fk_gbdl_source_line` (BPO line → Booking line) blocks deleting a line that has been
   drawn against, and allows the delete once the dependent line is gone first
+- A full submit → approve round trip written to `apr_document_history` reads back newest
+  first with the right actor on each row; deleting the parent document cascades its history
+- A real 4-document chain (Booking → BPO → Request-for-PI → Weaving WO) inserted and
+  queried end to end: the BPO line correctly shows 550/700 fulfilled with RPI and WWO
+  drawing against it independently, and the fulfilment `CHECK` still rejects exceeding it
+  at that depth
 
 Java sources parse cleanly. **They have not been compiled and the tests have not run** —
-there is no Maven CLI on this machine, so dependencies were never resolved. Four test
-classes are written but unexecuted: document rules, Booking revision semantics, BPO
-ceiling/release behaviour, security context resolution.
+there is no Maven CLI on this machine, so dependencies were never resolved. Seven test
+classes are written but unexecuted: document rules, Booking revision semantics, BPO/RPI/WWO
+ceiling and release behaviour, security context resolution, approval role/four-eyes checks.
 
 ## Before it runs
 
 1. **Rotate the costing API credential** (compromised — it was in client JS), then set
    `COSTING_USER` / `COSTING_PASSWORD`.
 2. Create the database and set `DB_URL` / `DB_USER` / `DB_PASSWORD`.
-3. Implement `OrgContext` against your session/security setup.
+3. Create the first login: `app.seed-dev-user=true` + `FABRIC_ADMIN_PASSWORD`, start once,
+   then turn the property back off (see **Security** below).
 4. Seed `gbl_document_sequence` from the legacy high-water mark per `(org, TYPE+UNIT)`, or
    numbers already in circulation will be reissued.
 5. `mvn -N wrapper:wrapper`, or open in IntelliJ (bundles Maven).
@@ -152,17 +196,36 @@ comment records why an unmatched route currently **grants** access rather than d
 a live fail-open path kept for migration safety. There is no equivalent gap here: a
 controller method with no `@PreAuthorize` is unreachable, not ungoverned.
 
-**First login:** nothing is seeded by default. Set `app.seed-dev-user=true` and the
-`FABRIC_ADMIN_PASSWORD` environment variable, start the app once, then turn the property
-back off. `DevUserSeeder` refuses to run without that env var rather than generating or
-printing a password — same rule as every other secret in this project.
+**First login:** nothing is seeded by default. Set `app.seed-dev-user=true` plus
+`FABRIC_ADMIN_PASSWORD` (a maker) and `FABRIC_APPROVER_PASSWORD` (an approver — needed to
+actually exercise the four-eyes rule, since the maker can never approve its own document),
+start the app once, then turn the property back off. `DevUserSeeder` refuses to create an
+account without its env var rather than generating or printing a password — same rule as
+every other secret in this project.
 
 ## Still to build
 
-- **Approval engine** — maker → checker → approver, with the four-eyes rule.
-- **The remaining fabric documents** — BPO, Request-for-PI, Rout Card, Weaving/Processing
-  WO, Greige Receive/Issue, Finished Fabrics Receive. Each is a service + controller +
-  template following `fabric/booking`; the document model needs no change.
+- **The remaining fabric documents** — Delivery Order (draws against Request-for-PI),
+  Fabrics Delivery (draws against Delivery Order), Processing Work Order (draws against
+  BPO, same shape as Weaving WO), Greige Receive (draws against BPO), Greige Issue (draws
+  against Greige Receive), Finished Fabrics Receive (draws against Greige Issue), Sales
+  Return. Each is now a thin service + controller + template on top of
+  `ParentLineDrawService` and `ApprovalService` — see `fabric/requestforpi` and
+  `fabric/weavingworkorder` as the templates, one drawing-against-parent example with
+  revision, one without. Each new type needs one line added to `DocumentType`'s `roleRoot`
+  (see its javadoc) before its controller can call `ApprovalService`.
+  **`ROUT_CARD` has no captured legacy data at all** — it was one of the 14 dead menu
+  entries found 404ing even at the bare controller root (see
+  `business-logic-capture/missing-screens-report.md`). It was never actually implemented
+  in the legacy system, so build it from a real requirements conversation, not by guessing
+  at asgdynamic's intent the way every other type here was grounded in its capture.
+- **The maker/checker/approver triad** for the Commercial family (PI/LC/CI) — today every
+  document type uses the single-stage `ROLE_APPROVAL` path; the three-stage version is a
+  documented extension point on `DocumentType.approverRole()`, deliberately not built until
+  a Commercial document type exists to test it against.
+- **A `Role`/`Permission` table**, if the flat `ROLE_*` string set on `FabricUser` ever
+  needs to be editable at runtime rather than a fixed set of `@PreAuthorize` strings /
+  `DocumentType.roleRoot()` values.
 - **Front-end JS** — the grid and line-table behaviour the templates declare via
   `data-action` / `data-lookup` attributes.
 - **Party, item and UoM masters** — currently referenced by id only.

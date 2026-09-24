@@ -97,12 +97,9 @@ public class BookingController {
         return toDetail(service.save(booking));
     }
 
-    @PostMapping("/api/booking/{id}/submit")
-    @ResponseBody
-    @PreAuthorize("hasRole('BOOKING_MAKER')")
-    public Map<String, Object> submit(@PathVariable Long id) {
-        return toDetail(service.submit(id));
-    }
+    // Submit/approve/reject are the same action for every document type — see
+    // /api/documents/{id}/submit|approve|reject in ApprovalController rather than a
+    // per-type route here.
 
     @PostMapping("/api/booking/{id}/revise")
     @ResponseBody

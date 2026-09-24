@@ -176,10 +176,18 @@
             </div>
         </section>
 
+        <!--
+          Submit/approve/reject post to /api/documents/{id}/... (ApprovalController) —
+          the same three endpoints every document type uses, not a booking-specific route.
+          Buttons are rendered for every status; the server is the actual gate (a maker
+          who is also the only approver on their own booking gets a 403 on approve, by
+          design — see ApprovalService's four-eyes rule).
+        -->
         <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
             <button type="submit" class="btn-primary">Save</button>
-            <button type="button" class="btn-ghost" data-action="booking-submit">Submit</button>
-            <!-- Only offered on a committed booking; the server enforces it regardless -->
+            <button type="button" class="btn-ghost" data-action="doc-submit">Submit</button>
+            <button type="button" class="btn-ghost" data-action="doc-approve">Approve</button>
+            <button type="button" class="btn-ghost" data-action="doc-reject">Reject</button>
             <button type="button" class="btn-ghost" data-action="booking-revise">Raise revision</button>
         </div>
     </form>

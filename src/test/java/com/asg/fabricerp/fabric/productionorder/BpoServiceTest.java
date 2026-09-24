@@ -47,7 +47,8 @@ class BpoServiceTest {
             @Override public String username()         { return "tester"; }
         };
 
-        service = new BpoService(repository, numbering, costing, revisions, context);
+        ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);
+        service = new BpoService(repository, numbering, costing, revisions, parentDraw, context);
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 

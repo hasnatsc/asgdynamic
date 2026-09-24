@@ -94,16 +94,8 @@ public class BookingService {
         return repository.save(target);
     }
 
-    @Transactional
-    public BusinessDocument submit(Long id) {
-        BusinessDocument doc = get(id);
-        if (doc.getLines().isEmpty()) {
-            throw new IllegalStateException(
-                "Booking %s has no lines and cannot be submitted".formatted(doc.getDocumentNo()));
-        }
-        doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
-        return repository.save(doc);
-    }
+    // submit/approve/reject live in ApprovalService now — generic over every document
+    // type rather than a one-line copy per service. See BookingController.
 
     /**
      * Raises revision n+1 as a new document, leaving the approved original untouched.
