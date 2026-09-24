@@ -34,8 +34,8 @@ public interface FabricUserRepository extends JpaRepository<FabricUser, Long> {
            where u.organizationId = :orgId
              and u.deleted = false
              and (:q is null
-                  or lower(u.username) like lower(concat('%', :q, '%'))
-                  or lower(u.fullName) like lower(concat('%', :q, '%')))
+                  or lower(u.username) like lower(concat('%', cast(:q as string), '%'))
+                  or lower(u.fullName) like lower(concat('%', cast(:q as string), '%')))
              and (:locked is null or u.accountLocked = :locked)
              and (:mustChange is null or u.mustChangePassword = :mustChange)
              and (:unrestricted is null or u.unrestricted = :unrestricted)

@@ -30,8 +30,8 @@ public interface FabricAttributeRepository extends JpaRepository<FabricAttribute
              and a.attributeType = :type
              and a.deleted = false
              and (:q is null
-                  or lower(a.code) like lower(concat('%', :q, '%'))
-                  or lower(a.name) like lower(concat('%', :q, '%')))
+                  or lower(a.code) like lower(concat('%', cast(:q as string), '%'))
+                  or lower(a.name) like lower(concat('%', cast(:q as string), '%')))
            """)
     Page<FabricAttribute> search(@Param("orgId") Long orgId,
                                  @Param("type") AttributeType type,

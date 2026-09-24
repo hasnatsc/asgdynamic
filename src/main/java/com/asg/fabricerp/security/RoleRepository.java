@@ -23,8 +23,8 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     @Query("""
            select r from Role r
            where (:q is null
-                  or lower(r.name) like lower(concat('%', :q, '%'))
-                  or lower(r.description) like lower(concat('%', :q, '%')))
+                  or lower(r.name) like lower(concat('%', cast(:q as string), '%'))
+                  or lower(r.description) like lower(concat('%', cast(:q as string), '%')))
              and (:hasGrants is null
                   or (:hasGrants = true and exists (select g.id from RoleScreenGrant g where g.role = r))
                   or (:hasGrants = false and not exists (select g.id from RoleScreenGrant g where g.role = r)))

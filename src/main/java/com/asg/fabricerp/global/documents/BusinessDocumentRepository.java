@@ -77,8 +77,8 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
              and (:from is null or d.documentDate >= :from)
              and (:to is null or d.documentDate <= :to)
              and (:q is null
-                  or lower(d.documentNo) like lower(concat('%', :q, '%'))
-                  or lower(d.referenceNo) like lower(concat('%', :q, '%')))
+                  or lower(d.documentNo) like lower(concat('%', cast(:q as string), '%'))
+                  or lower(d.referenceNo) like lower(concat('%', cast(:q as string), '%')))
              and (:allUnits = true or d.businessUnitId in :unitIds)
              and (:allWarehouses = true or d.warehouseId is null or d.warehouseId in :warehouseIds)
              and (:allTeams = true or d.marketingTeamId in :teamIds)
