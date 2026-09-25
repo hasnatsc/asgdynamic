@@ -24,6 +24,9 @@
     const COLOR_TEXT = ['colorCode', 'colorName', 'fabricsStyle', 'colorReference', 'strikeOffReference',
                         'labDipReference', 'loomReference'];
 
+    /** Fabric types are compared as ColourStructure.key does on the server: lower case, letters and digits only. */
+    const typeKey = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('bookingForm');
         if (!form) return;
@@ -36,6 +39,10 @@
         const specLines = document.getElementById('specLines');
         const termsBody = document.querySelector('#termsTable tbody');
         const canAmend = !!document.getElementById('canAmendBooking');
+        const fabricTypeSelect = document.getElementById('spFabricType');
+        /** Solid-dyed types: one colour per fabric line (ColourStructure.SINGLE). */
+        const singleColourTypes = new Set((fabricTypeSelect.dataset.singleColour || '').split('|').filter(Boolean).map(typeKey));
+        const isSingleColour = type => singleColourTypes.has(typeKey(type));
 
         const party = () => App.RemoteSelect.of(document.getElementById('bkParty'));
         const brand = () => App.RemoteSelect.of(document.getElementById('bkBrand'));
@@ -471,6 +478,7 @@
             updateConstruction();
             syncGsmLock();
             [...colorBody.rows].forEach(recalcRow);
+            syncColourLimit();
         }
 
         function readSpec() {
@@ -558,28 +566,49 @@
             return true;
         }
 
-        function commitSpec() {
-            if (!validSpec()) return false;
+        /**
+         * Puts the editor's line on the booking. A single-colour fabric keyed with several colours
+         * (a costing's colour plan, say) goes on as one line per colour, same specification, once
+         * the user agrees. Resolves with the number of lines written, 0 when nothing was.
+         */
+        async function commitSpec() {
+            if (!validSpec()) return 0;
             const itemSelect = document.getElementById('spItem');
             if (!document.getElementById('spLead').value) fillLeadTime(false);
-            const group = {
+            const fabric = readSpec();
+            const lines = readColorRows().filter(hasContent);
+            const split = isSingleColour(fabric.fabricType) && lines.length > 1;
+            if (split && !await App.confirm({
+                    title: `Split into ${lines.length} fabric lines?`,
+                    message: `${fabric.fabricType} is a single-colour fabric, so each colour is booked as a line of its own with this specification.`,
+                    confirmText: `Add ${lines.length} lines` })) return 0;
+            const made = (split ? lines.map(l => [l]) : [lines]).map(colorLines => ({
                 itemId: itemSelect.value ? Number(itemSelect.value) : null,
                 itemName: itemSelect.value ? items.get(itemSelect.value) : null,
-                fabric: readSpec(),
-                colorLines: readColorRows().filter(hasContent)
-            };
-            if (editingGroup >= 0) groups[editingGroup] = group;
-            else groups.push(group);
+                fabric: Object.assign({}, fabric),
+                colorLines
+            }));
+            if (editingGroup >= 0) {
+                // Lines after the one edited move down; keep their "Item detail" open.
+                const at = editingGroup;
+                const shift = made.length - 1;
+                openGroups = new Set([...openGroups].map(k => k > at ? k + shift : k));
+                groups.splice(at, 1, ...made);
+            } else {
+                groups.push(...made);
+            }
             dirty = true;
             resetSpec();
             renderGroups();
-            return true;
+            return made.length;
         }
-        form.querySelector('[data-action="spec-commit"]').addEventListener('click', () => {
+        form.querySelector('[data-action="spec-commit"]').addEventListener('click', async () => {
             const updating = editingGroup >= 0;
-            if (commitSpec()) {
+            const count = await commitSpec();
+            if (count) {
                 specEditor.close();
-                App.toast(updating ? 'Fabric line updated.' : 'Fabric line added to the booking.', 'success');
+                App.toast(count > 1 ? `Added as ${count} fabric lines, one per colour.`
+                    : updating ? 'Fabric line updated.' : 'Fabric line added to the booking.', 'success');
                 specLines.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
@@ -621,7 +650,24 @@
 
         function syncColorEmpty() {
             document.querySelector('[data-color-empty]').hidden = colorBody.rows.length > 0;
+            syncColourLimit();
         }
+
+        /** A single-colour fabric type takes one colour: "Add colour" stops at one, and says why. */
+        function syncColourLimit() {
+            const type = fabricTypeSelect.value;
+            const single = isSingleColour(type);
+            const rows = colorBody.rows.length;
+            const add = form.querySelector('[data-action="color-add"]');
+            add.disabled = single && rows >= 1;
+            add.title = add.disabled ? `${type} takes one colour per fabric line` : '';
+            const note = document.querySelector('[data-color-single]');
+            note.hidden = !single;
+            note.textContent = !single ? ''
+                : rows > 1 ? `${type} takes one colour per line — these ${rows} colours will be added as ${rows} fabric lines.`
+                : `${type} is a single-colour fabric: one colour per line. Book each further colour as a line of its own.`;
+        }
+        fabricTypeSelect.addEventListener('change', syncColourLimit);
 
         function readColorRows() {
             return [...colorBody.rows].map(tr => {
@@ -1006,7 +1052,7 @@
                         message: 'It has not been added to the booking yet. Add it and save, or cancel and clear it.',
                         confirmText: 'Add and save' })) return;
                 editorTabs.select('items');
-                if (!commitSpec()) return;
+                if (!await commitSpec()) return;
             }
             const f = name => form.elements.namedItem(name).value;
             const idOrNull = rs => rs.select.value ? { id: Number(rs.select.value) } : null;

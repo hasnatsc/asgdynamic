@@ -372,7 +372,7 @@ public class BookingService {
     /**
      * A draft may have no specifications yet; a specification may not have no colours, and a
      * colour may not be booked at nothing - the legacy form required quantity and price on
-     * every colour line too.
+     * every colour line too. A single-colour fabric type takes exactly one colour per line.
      */
     private static void validateLines(BusinessDocument doc) {
         for (BusinessDocumentLineGroup group : doc.getLineGroups()) {
@@ -380,6 +380,12 @@ public class BookingService {
                 isBlank(group.getFabric().getConstruction()) ? "no construction" : group.getFabric().getConstruction());
             if (group.getColorLines().isEmpty()) {
                 throw new IllegalArgumentException(name + " has no colours. Add at least one colour line.");
+            }
+            String fabricType = group.getFabric().getFabricType();
+            if (ColourStructure.of(fabricType) == ColourStructure.SINGLE && group.getColorLines().size() > 1) {
+                throw new IllegalArgumentException(
+                    "%s: %s is a single-colour fabric and takes one colour per line, not %d. Book each further colour as a line of its own."
+                        .formatted(name, fabricType, group.getColorLines().size()));
             }
             for (BusinessDocumentColorLine line : group.getColorLines()) {
                 String colour = isBlank(line.getColorName()) ? "colour " + line.getColorLineNo() : line.getColorName();

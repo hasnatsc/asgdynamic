@@ -12,7 +12,8 @@ import java.util.List;
 
 /**
  * What a Booking must be before it goes for approval: a buyer and a delivery date, and every
- * fabric line carrying at least one colour with a quantity and a price. A draft may be saved
+ * fabric line carrying at least one colour with a quantity and a price - and only one colour
+ * when its fabric type is a single-colour one ({@link ColourStructure}). A draft may be saved
  * half-keyed; a booking that is signed must be one somebody can plan and invoice from.
  *
  * <p>The amount the approval matrix bands on is the booking's total, so a colour with no price
@@ -41,6 +42,11 @@ public class BookingSubmissionCheck implements SubmissionCheck {
             if (colours.isEmpty()) {
                 throw new IllegalStateException("Fabric line %d of %s has no colours. Add its colour breakdown before submitting."
                     .formatted(i + 1, no));
+            }
+            String fabricType = lines.get(i).getFabric().getFabricType();
+            if (ColourStructure.of(fabricType) == ColourStructure.SINGLE && colours.size() > 1) {
+                throw new IllegalStateException("Fabric line %d of %s is %s, a single-colour fabric, but carries %d colours. Split it into one line per colour before submitting."
+                    .formatted(i + 1, no, fabricType, colours.size()));
             }
             for (int c = 0; c < colours.size(); c++) {
                 BusinessDocumentColorLine colour = colours.get(c);

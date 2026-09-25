@@ -268,7 +268,8 @@
 
                     <div class="col-span-2">
                         <label class="label" for="spFabricType">Fabrics type <span class="req">*</span></label>
-                        <select id="spFabricType" class="field" data-spec="fabricType" data-options="fabric-type" required></select>
+                        <select id="spFabricType" class="field" data-spec="fabricType" data-options="fabric-type" required
+                                th:data-single-colour="${#strings.listJoin(singleColourFabricTypes, '|')}"></select>
                     </div>
                     <div>
                         <label class="label" for="spFabricSource">In-house / Export</label>
@@ -478,6 +479,7 @@
                                 <button type="button" class="btn-subtle btn-sm -ml-2.5 text-brand-700 dark:text-brand-300" data-action="color-add">
                                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add colour</button>
                                 <span class="ml-2" data-color-empty>No colours yet — fetch a costing, or add them one by one.</span>
+                                <span class="ml-2 text-amber-700 dark:text-amber-400" data-color-single hidden></span>
                             </td>
                             <td class="num" data-color-total="qty">0</td>
                             <td colspan="2"></td>
