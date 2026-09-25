@@ -24,6 +24,11 @@ public enum Screen {
     ITEM_SETUP("Item setup", Section.INVENTORY, "/inventory/categories"),
     PARTY("Parties", Section.SETUP, "/setup/parties"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
+    ACC_CHART("Chart of accounts", Section.ACCOUNTS, "/accounts/chart"),
+    ACC_JOURNAL("Journal entries", Section.ACCOUNTS, "/accounts/journals"),
+    ACC_REPORTS("Financial reports", Section.ACCOUNTS, "/accounts/reports"),
+    ACC_CREDIT("Credit control", Section.ACCOUNTS, "/accounts/credit"),
+    ACC_SETUP("Accounting setup", Section.ACCOUNTS, "/accounts/setup"),
     NUMBERING("Document numbering", Section.ADMINISTRATION, "/setup/numbering"),
     SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security");
 
@@ -33,6 +38,7 @@ public enum Screen {
         SALES("Sales"),
         INVENTORY("Inventory"),
         PRODUCTION("Production"),
+        ACCOUNTS("Accounts"),
         ADMINISTRATION("Administration");
 
         private final String label;

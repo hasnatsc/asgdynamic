@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><title>Accounting setup</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Accounting setup</h1>
+            <p class="page-sub">The fiscal calendar, the rules that turn business events into ledger entries, and the cost
+                centres costs are charged to.</p>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden" id="stRoot">
+        <div class="tabs" role="tablist">
+            <button type="button" class="tab" role="tab" data-tab="periods" aria-selected="true">Fiscal periods</button>
+            <button type="button" class="tab" role="tab" data-tab="rules">Posting rules</button>
+            <button type="button" class="tab" role="tab" data-tab="centres">Cost centres</button>
+        </div>
+
+        <!-- ============================== Periods ============================== -->
+        <div data-panel="periods">
+            <div class="toolbar">
+                <label class="text-sm text-gray-500" for="pYear">Fiscal year</label>
+                <select id="pYear" class="field w-auto"></select>
+                <span class="text-sm text-gray-500" id="pFyNote"></span>
+                <button type="button" class="btn-primary toolbar-spacer" id="pGenerate">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#calendar}"/></svg>Generate fiscal year
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table class="table-grid" id="pTable">
+                    <thead>
+                    <tr><th>#</th><th>Period</th><th>Starts</th><th>Ends</th><th>Status</th><th>Closed</th><th class="w-px">Actions</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============================== Rules ============================== -->
+        <div data-panel="rules" hidden>
+            <div class="toolbar">
+                <p class="text-sm text-gray-600">Each event posts through its current rule. A new rule for an event replaces the
+                    current one from its start date; old postings keep the rule they were made with.</p>
+                <button type="button" class="btn-primary toolbar-spacer" id="rNew">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New rule
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table class="table-grid" id="rTable">
+                    <thead>
+                    <tr><th>Event</th><th>Debit</th><th>Credit</th><th>Effective</th><th>Status</th><th class="w-px">Actions</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ============================== Cost centres ============================== -->
+        <div data-panel="centres" hidden>
+            <div class="toolbar">
+                <p class="text-sm text-gray-600">Production centres carry direct cost; their unabsorbed cost falls back to an overhead centre.</p>
+                <button type="button" class="btn-primary toolbar-spacer" id="cNew">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New cost centre
+                </button>
+            </div>
+            <div class="table-wrap">
+                <table class="table-grid" id="cTable">
+                    <thead>
+                    <tr><th>Code</th><th>Name</th><th>Type</th><th>Parent</th><th>Absorbs into</th><th>Section</th><th class="w-px">Actions</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================== Rule editor ============================== -->
+    <dialog id="rDialog" class="modal modal-lg" data-sticky aria-labelledby="rDialogTitle">
+        <form id="rForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="rDialogTitle" class="modal-title">New posting rule</h2>
+                    <p class="mt-1 text-sm text-gray-500">Each amount a posting carries must be debited and credited equally.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="modal-body space-y-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-2">
+                        <label class="label" for="rEvent">Event <span class="req">*</span></label>
+                        <select id="rEvent" class="field" required></select>
+                    </div>
+                    <div>
+                        <label class="label" for="rFrom">Effective from <span class="req">*</span></label>
+                        <input id="rFrom" type="date" class="field" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="label" for="rDescription">Description</label>
+                    <input id="rDescription" class="field" maxlength="500">
+                </div>
+                <div class="rounded-xl border border-gray-200">
+                    <table class="table-grid table-lines" id="rLines">
+                        <thead><tr><th class="w-32">Side</th><th>Account</th><th class="w-40">Amount</th><th class="w-px"></th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="flex items-center justify-between">
+                    <button type="button" class="btn-subtle btn-sm" id="rAddLine">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add line
+                    </button>
+                    <span id="rBalance" class="text-sm"></span>
+                </div>
+                <p class="hint">Amount names: <code>amount</code> for single-amount events; an invoice carries <code>net</code> and <code>vat</code>.</p>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close>Cancel</button>
+                <button type="submit" class="btn-primary">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save rule
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- ============================== Cost centre editor ============================== -->
+    <dialog id="cDialog" class="modal" data-sticky aria-labelledby="cDialogTitle">
+        <form id="cForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="cDialogTitle" class="modal-title">New cost centre</h2>
+                    <p class="mt-1 text-sm text-gray-500">The code is fixed once saved.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2 -mt-1" data-dismiss aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="modal-body space-y-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="label" for="cCode">Code <span class="req">*</span></label>
+                        <input id="cCode" class="field font-mono uppercase" maxlength="40" required>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label" for="cName">Name <span class="req">*</span></label>
+                        <input id="cName" class="field" maxlength="200" required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label" for="cType">Type <span class="req">*</span></label>
+                        <select id="cType" class="field" required>
+                            <option value="PRODUCTION">Production - direct cost</option>
+                            <option value="OVERHEAD">Overhead pool</option>
+                            <option value="ADMINISTRATIVE">Administrative</option>
+                            <option value="SERVICE">Service department</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label" for="cSection">Section</label>
+                        <input id="cSection" class="field" maxlength="40" placeholder="Weaving, dyeing...">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label" for="cParent">Rolls up into</label>
+                        <select id="cParent" class="field"></select>
+                    </div>
+                    <div>
+                        <label class="label" for="cAbsorbs">Unabsorbed cost to</label>
+                        <select id="cAbsorbs" class="field"></select>
+                    </div>
+                </div>
+                <div>
+                    <label class="label" for="cRemarks">Remarks</label>
+                    <input id="cRemarks" class="field" maxlength="500">
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-dismiss>Cancel</button>
+                <button type="submit" class="btn-primary" id="cSaveBtn">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save cost centre
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, fmt, toast } = App;
+        const $ = s => document.querySelector(s);
+        const CAN = {
+            create:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_SETUP_CREATE'')')}]]*/ false,
+            amend:   /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_SETUP_AMEND'')')}]]*/ false,
+            approve: /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_SETUP_APPROVE'')')}]]*/ false
+        };
+        const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const PERIOD_STATUS = {
+            OPEN: '<span class="badge-green badge-dot">Open</span>',
+            TEMPORARILY_OPEN: '<span class="badge-amber badge-dot">Reopened</span>',
+            CLOSED: '<span class="badge-gray badge-dot">Closed</span>'
+        };
+        const CENTRE_TYPE = { PRODUCTION: 'Production', OVERHEAD: 'Overhead', ADMINISTRATIVE: 'Administrative', SERVICE: 'Service' };
+        let events = {};
+        let chart = [];
+
+        ['#pGenerate', '#rNew', '#cNew'].forEach(s => { if (!CAN.create) $(s).hidden = true; });
+        App.tabs($('#stRoot'), name => { if (name === 'rules') loadRules(); if (name === 'centres') loadCentres(); });
+
+        // ================================================================== periods
+        let periods = [];
+        async function loadPeriods(year) {
+            let data;
+            try { data = await api('/api/accounts/periods', { query: { year } }); } catch (e) { return fail(e); }
+            periods = data.periods;
+            $('#pFyNote').textContent = `Starts in ${MONTHS[data.fiscalStartMonth - 1]} (set under Document numbering).`;
+            const now = new Date();
+            const currentStart = now.getMonth() + 1 >= data.fiscalStartMonth ? now.getFullYear() : now.getFullYear() - 1;
+            const years = new Set(data.years);
+            $('#pYear').innerHTML = [...years].sort((a, b) => b - a).map(y =>
+                `<option value="${y}"${y === data.year ? ' selected' : ''}>FY ${y}-${String(y + 1).slice(2)}</option>`).join('')
+                || '<option value="">No fiscal years yet</option>';
+            $('#pGenerate').dataset.suggest = years.has(currentStart) ? Math.max(...years) + 1 : currentStart;
+            $('#pTable tbody').innerHTML = periods.length ? periods.map(p => `<tr>
+                <td class="tabular-nums text-gray-500">${p.periodNo}</td>
+                <td class="font-medium">${esc(p.name)} <span class="font-mono text-xs text-gray-400">${esc(p.code)}</span>
+                    ${p.reopenReason ? `<div class="text-xs text-amber-700">Reopened: ${esc(p.reopenReason)}</div>` : ''}</td>
+                <td>${esc(fmt.date(p.startsOn))}</td>
+                <td>${esc(fmt.date(p.endsOn))}</td>
+                <td>${PERIOD_STATUS[p.status]}</td>
+                <td class="text-sm text-gray-500">${p.closedOn ? esc(fmt.date(p.closedOn)) + (p.closedBy ? ' · ' + esc(p.closedBy) : '') : ''}</td>
+                <td>${App.rowActions(!CAN.approve ? '' : p.status === 'CLOSED'
+                        ? App.rowButton('Reopen', 'unlock', `data-reopen="${p.id}"`)
+                        : App.rowButton('Close', 'lock', `data-close-period="${p.id}"`))}</td>
+            </tr>`).join('') : `<tr><td colspan="7"><div class="empty"><span class="empty-icon">${App.icon('calendar', 'icon-lg')}</span>
+                <p class="empty-title">No fiscal periods yet</p>
+                <p class="empty-text">Nothing can post until a period covers the posting date. Generate the current fiscal year to start.</p></div></td></tr>`;
+        }
+        $('#pYear').addEventListener('change', () => loadPeriods($('#pYear').value || undefined));
+
+        $('#pGenerate').addEventListener('click', async () => {
+            const values = await App.form({ title: 'Generate a fiscal year', message: 'Creates its twelve monthly periods, all open.',
+                fields: [{ name: 'year', label: 'First calendar year of the fiscal year', type: 'number', required: true,
+                           value: String($('#pGenerate').dataset.suggest || new Date().getFullYear()) }], confirmText: 'Generate' });
+            if (!values) return;
+            try {
+                await api('/api/accounts/periods/generate', { method: 'POST', query: { year: values.year } });
+                toast(`Fiscal year ${values.year} created.`, 'success');
+                loadPeriods(values.year);
+            } catch (e) { fail(e); }
+        });
+
+        $('#pTable').addEventListener('click', async e => {
+            const close = e.target.closest('[data-close-period]');
+            const reopen = e.target.closest('[data-reopen]');
+            if (close) {
+                const p = periods.find(x => String(x.id) === close.dataset.closePeriod);
+                if (!(await App.confirm({ title: `Close ${p.name}?`, message: 'Nothing more can post into it. Reopening needs a stated reason.',
+                        confirmText: 'Close period', danger: true }))) return;
+                try { await api(`/api/accounts/periods/${p.id}/close`, { method: 'POST' }); toast(`${p.name} closed.`, 'success'); loadPeriods($('#pYear').value); }
+                catch (err) { fail(err); }
+            }
+            if (reopen) {
+                const p = periods.find(x => String(x.id) === reopen.dataset.reopen);
+                const values = await App.form({ title: `Reopen ${p.name}?`, message: 'The close checklist no longer holds once it is reopened.',
+                    fields: [{ name: 'reason', label: 'Reason', type: 'textarea', required: true, maxlength: 500 }], confirmText: 'Reopen' });
+                if (!values) return;
+                try { await api(`/api/accounts/periods/${p.id}/reopen`, { method: 'POST', query: values }); toast(`${p.name} reopened.`, 'success'); loadPeriods($('#pYear').value); }
+                catch (err) { fail(err); }
+            }
+        });
+
+        // ================================================================== rules
+        let rules = [];
+        const legs = (r, side) => r.lines.filter(l => l.side === side).map(l =>
+            `<div class="whitespace-nowrap"><span class="font-mono text-[13px]">${esc(l.accountCode)}</span>
+             ${l.amountKey !== 'amount' ? `<span class="text-xs text-gray-500">(${esc(l.amountKey)})</span>` : ''}
+             <span class="text-xs text-gray-500">${esc((chart.find(a => a.code === l.accountCode) || {}).name || '')}</span></div>`).join('');
+
+        async function loadRules() {
+            try { [rules, chart] = await Promise.all([api('/api/accounts/rules'), chart.length ? chart : api('/api/accounts/chart')]); }
+            catch (e) { return fail(e); }
+            $('#rTable tbody').innerHTML = rules.length ? rules.map(r => `<tr class="cursor-pointer is-clickable" data-id="${r.id}">
+                <td><span class="font-medium">${esc(r.eventLabel)}</span><div class="font-mono text-xs text-gray-400">${esc(r.eventType)}</div></td>
+                <td>${legs(r, 'DEBIT')}</td>
+                <td>${legs(r, 'CREDIT')}</td>
+                <td class="whitespace-nowrap text-sm">${esc(fmt.date(r.effectiveFrom))}${r.effectiveTo ? ' – ' + esc(fmt.date(r.effectiveTo)) : ' onward'}</td>
+                <td>${r.current ? '<span class="badge-green badge-dot">Current</span>'
+                      : r.effectiveTo ? '<span class="badge-gray badge-dot">Superseded</span>' : '<span class="badge-blue badge-dot">Future</span>'}</td>
+                <td>${App.rowActions(App.viewButton(r.id))}</td>
+            </tr>`).join('') : `<tr><td colspan="6"><div class="empty"><span class="empty-icon">${App.icon('workflow', 'icon-lg')}</span>
+                <p class="empty-title">No posting rules yet</p>
+                <p class="empty-text">Load the standard textile chart on the Chart of accounts screen, or add rules one by one.</p></div></td></tr>`;
+        }
+
+        $('#rTable').addEventListener('click', e => {
+            const tr = e.target.closest('tr[data-id]');
+            if (!tr) return;
+            const r = rules.find(x => String(x.id) === tr.dataset.id);
+            App.viewRecord({ title: r.eventLabel, subtitle: `Rule ${r.code}`, fields: [
+                ['Event', `<span class="font-mono">${esc(r.eventType)}</span>`],
+                ['Debit', legs(r, 'DEBIT')], ['Credit', legs(r, 'CREDIT')],
+                ['Effective', esc(fmt.date(r.effectiveFrom)) + (r.effectiveTo ? ' – ' + esc(fmt.date(r.effectiveTo)) : ' onward')],
+                ['Description', esc(r.description || '')] ] });
+        });
+
+        const rDialog = $('#rDialog');
+        const rBody = $('#rLines tbody');
+        rDialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => rDialog.close()));
+
+        function ruleLine(side, account, key) {
+            const leafs = chart.filter(a => a.postable);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><select class="field field-sm" data-f="side"><option value="DEBIT">Debit</option><option value="CREDIT">Credit</option></select></td>
+                <td><select class="field field-sm" data-f="account" required><option value="">Choose account</option>${leafs.map(a =>
+                    `<option value="${esc(a.code)}">${esc(a.code)} · ${esc(a.name)}${a.usage === 'CONTROL' ? ' (control)' : ''}</option>`).join('')}</select></td>
+                <td><input class="field field-sm font-mono" data-f="key" value="amount" maxlength="40"></td>
+                <td>${App.rowActions(App.rowButton('Remove', 'trash', 'data-remove'))}</td>`;
+            tr.querySelector('[data-f=side]').value = side;
+            if (account) tr.querySelector('[data-f=account]').value = account;
+            if (key) tr.querySelector('[data-f=key]').value = key;
+            rBody.appendChild(tr);
+            checkBalance();
+        }
+        function checkBalance() {
+            const tally = {};
+            rBody.querySelectorAll('tr').forEach(tr => {
+                const key = tr.querySelector('[data-f=key]').value.trim() || 'amount';
+                tally[key] = (tally[key] || 0) + (tr.querySelector('[data-f=side]').value === 'DEBIT' ? 1 : -1);
+            });
+            const off = Object.entries(tally).filter(([, n]) => n !== 0).map(([k]) => k);
+            $('#rBalance').innerHTML = off.length
+                ? `<span class="badge-red badge-dot">Not balanced for: ${esc(off.join(', '))}</span>`
+                : '<span class="badge-green badge-dot">Balanced for every amount</span>';
+        }
+        rBody.addEventListener('change', checkBalance);
+        rBody.addEventListener('input', checkBalance);
+        rBody.addEventListener('click', e => { if (e.target.closest('[data-remove]')) { e.target.closest('tr').remove(); checkBalance(); } });
+        $('#rAddLine').addEventListener('click', () => ruleLine('DEBIT'));
+
+        $('#rNew').addEventListener('click', async () => {
+            try {
+                if (!Object.keys(events).length) events = await api('/api/accounts/events');
+                if (!chart.length) chart = await api('/api/accounts/chart');
+            } catch (e) { return fail(e); }
+            if (!chart.some(a => a.postable)) return toast('The chart has no posting accounts yet.', 'warn');
+            $('#rEvent').innerHTML = Object.entries(events).filter(([code]) => code !== 'MANUAL_JOURNAL')
+                .map(([code, label]) => `<option value="${esc(code)}">${esc(label)}</option>`).join('');
+            $('#rFrom').value = new Date().toLocaleDateString('en-CA');
+            $('#rDescription').value = '';
+            rBody.innerHTML = '';
+            ruleLine('DEBIT'); ruleLine('CREDIT');
+            rDialog.showModal();
+        });
+
+        $('#rForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!$('#rForm').reportValidity()) return;
+            const lines = [...rBody.querySelectorAll('tr')].map(tr => ({
+                side: tr.querySelector('[data-f=side]').value, accountCode: tr.querySelector('[data-f=account]').value,
+                amountKey: tr.querySelector('[data-f=key]').value.trim() || 'amount' }));
+            const event = $('#rEvent').value;
+            try {
+                await api('/api/accounts/rules', { method: 'POST', body: { eventType: event, name: events[event],
+                    effectiveFrom: $('#rFrom').value, description: $('#rDescription').value.trim() || null, lines } });
+                toast('Posting rule saved.', 'success');
+                rDialog.close();
+                loadRules();
+            } catch (err) { fail(err); }
+        });
+
+        // ================================================================== cost centres
+        let centres = [];
+        let currentCentre = null;
+        const cDialog = $('#cDialog');
+        cDialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => cDialog.close()));
+
+        async function loadCentres() {
+            try { centres = await api('/api/accounts/cost-centres'); } catch (e) { return fail(e); }
+            $('#cTable tbody').innerHTML = centres.length ? centres.map(c => `<tr class="cursor-pointer is-clickable" data-id="${c.id}">
+                <td class="font-mono text-[13px]">${esc(c.code)}</td>
+                <td class="font-medium">${esc(c.name)}</td>
+                <td>${c.direct ? '<span class="badge-brand">Production</span>' : `<span class="badge-gray">${esc(CENTRE_TYPE[c.centreType])}</span>`}</td>
+                <td class="font-mono text-xs">${esc(c.parentCode || '')}</td>
+                <td class="font-mono text-xs">${esc(c.absorbsIntoCode || '')}</td>
+                <td>${esc(c.sectionCode || '')}</td>
+                <td>${App.rowActions(App.recordButtons(c.id, CAN.amend))}</td>
+            </tr>`).join('') : `<tr><td colspan="7"><div class="empty"><span class="empty-icon">${App.icon('production', 'icon-lg')}</span>
+                <p class="empty-text">No cost centres yet. Add your weaving sheds, dyeing lines and overhead pools.</p></div></td></tr>`;
+        }
+
+        function openCentre(id, mode) {
+            currentCentre = id ? centres.find(c => c.id === id) : null;
+            const c = currentCentre;
+            $('#cDialogTitle').textContent = c ? `${c.code} · ${c.name}` : 'New cost centre';
+            $('#cCode').value = c ? c.code : '';
+            $('#cName').value = c ? c.name : '';
+            $('#cType').value = c ? c.centreType : 'PRODUCTION';
+            $('#cSection').value = c ? (c.sectionCode || '') : '';
+            $('#cRemarks').value = c ? (c.remarks || '') : '';
+            const others = centres.filter(x => !c || x.id !== c.id);
+            $('#cParent').innerHTML = '<option value="">- None -</option>' + others.map(x => `<option value="${esc(x.code)}">${esc(x.code)} · ${esc(x.name)}</option>`).join('');
+            $('#cAbsorbs').innerHTML = '<option value="">- None -</option>' + others.filter(x => x.centreType === 'OVERHEAD')
+                .map(x => `<option value="${esc(x.code)}">${esc(x.code)} · ${esc(x.name)}</option>`).join('');
+            $('#cParent').value = c ? (c.parentCode || '') : '';
+            $('#cAbsorbs').value = c ? (c.absorbsIntoCode || '') : '';
+            const writable = c ? CAN.amend : CAN.create;
+            $('#cForm').querySelectorAll('input, select').forEach(el => { el.disabled = !writable; });
+            $('#cCode').disabled = !!c || !writable;
+            $('#cSaveBtn').hidden = !writable;
+            cDialog.showModal();
+            App.viewMode(cDialog, mode === 'view' && !!c, { canEdit: CAN.amend });
+        }
+        $('#cNew').addEventListener('click', () => openCentre(null));
+        $('#cTable').addEventListener('click', e => {
+            const edit = e.target.closest('[data-edit]');
+            if (edit) return openCentre(Number(edit.dataset.edit));
+            const tr = e.target.closest('tr[data-id]');
+            if (tr) openCentre(Number(tr.dataset.id), 'view');
+        });
+        $('#cForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!$('#cForm').reportValidity()) return;
+            const body = { code: $('#cCode').value.trim(), name: $('#cName').value.trim(), centreType: $('#cType').value,
+                parentCode: $('#cParent').value || null, absorbsIntoCode: $('#cAbsorbs').value || null,
+                sectionCode: $('#cSection').value.trim() || null, remarks: $('#cRemarks').value.trim() || null };
+            try {
+                if (currentCentre) await api(`/api/accounts/cost-centres/${currentCentre.id}`, { method: 'PUT', body });
+                else await api('/api/accounts/cost-centres', { method: 'POST', body });
+                toast('Cost centre saved.', 'success');
+                cDialog.close();
+                loadCentres();
+            } catch (err) { fail(err); }
+        });
+
+        loadPeriods();
+    });
+    </script>
+</div>
+</body>
+</html>

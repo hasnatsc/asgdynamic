@@ -356,7 +356,8 @@ headers and zebra rows. Never add per-page table classes or colours.
 | **Inventory / Store** | A+B, C, G | Items & yarn masters (C); requisition, issue, receive, transfer, adjustment (B); stock ledger & ageing (G) |
 | **Purchase** | A+B, E | SPR / consumption SPR → PO → MRR → purchase return (no RFQ — contract buying) |
 | **Commercial** | A+B | Export/import PI, LC, back-to-back LC, commercial invoice, debit/credit note |
-| **Finance** | A+B, G, D | Vouchers, party ledgers, receivables vs LC maturity; trial balance & P&L reports |
+| **Accounts** (built) | A, B, G | Chart of accounts (tree), journal entries (ledger + review drawer + manual journal), financial reports (trial balance, account and party ledgers, CSV/print), credit control, accounting setup (fiscal periods, posting rules, cost centres). Documents post through posting rules - never by naming accounts in code. |
+| **Finance** (next) | A+B, G, D | Vouchers (payment/receipt), receivables vs LC maturity; P&L and balance sheet |
 | **HR** | C, A+B, G | Employees (as parties), attendance, leave; headcount reports |
 | **Reports** | G | Cross-module, parameterised, exportable |
 | **Setup / Admin** | C, A | Parties, fabric attributes, numbering, users, roles, access log |

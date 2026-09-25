@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title>Journal entries</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Journal entries</h1>
+            <p class="page-sub">Every posting in the general ledger. Entries are never edited or deleted: a mistake is corrected
+                with a reversing entry, so the history stays readable.</p>
+        </div>
+        <div class="page-actions">
+            <button type="button" class="btn-primary" id="jvNewBtn" sec:authorize="hasAuthority('SCREEN_ACC_JOURNAL_CREATE')">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New journal
+            </button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input id="jvSearch" type="search" class="field pr-8" placeholder="Search entry no or narration" aria-label="Search entries"
+                       data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select id="jvEvent" class="field w-auto" aria-label="Event"><option value="">All events</option></select>
+            <div class="flex items-center gap-2">
+                <input id="jvFrom" type="date" class="field w-auto" aria-label="From date">
+                <span class="text-gray-400">–</span>
+                <input id="jvTo" type="date" class="field w-auto" aria-label="To date">
+            </div>
+            <button type="button" class="btn-subtle toolbar-spacer" id="jvReset">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset
+            </button>
+        </div>
+        <div class="table-wrap">
+            <table id="jvTable" class="table-grid table-stack">
+                <thead>
+                <tr>
+                    <th data-sort="entryNo">Entry no</th>
+                    <th data-sort="postingDate">Date</th>
+                    <th data-sort="eventType">Event</th>
+                    <th>Narration</th>
+                    <th class="text-right">Amount</th>
+                    <th>Status</th>
+                    <th class="w-px">Actions</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="jvPager" class="pager"></div>
+    </div>
+
+    <!-- ============================== Entry (read-only) ============================== -->
+    <dialog id="entryDrawer" class="drawer" aria-labelledby="entryTitle">
+        <div class="modal-head">
+            <div class="min-w-0">
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Ledger entry</p>
+                <h2 id="entryTitle" class="modal-title mt-0.5 flex flex-wrap items-center gap-2"></h2>
+            </div>
+            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+            </button>
+        </div>
+        <div class="modal-body p-0" id="entryBody"></div>
+        <div class="modal-foot justify-between">
+            <button type="button" class="btn-ghost" data-close>Close</button>
+            <button type="button" class="btn-danger-ghost" id="entryReverseBtn" hidden>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reverse entry
+            </button>
+        </div>
+    </dialog>
+
+    <!-- ============================== New journal ============================== -->
+    <dialog id="jvDialog" class="modal modal-xl" data-sticky aria-labelledby="jvDialogTitle">
+        <form id="jvForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="jvDialogTitle" class="modal-title">New journal</h2>
+                    <p class="mt-1 text-sm text-gray-500">For adjustments, accruals and opening balances. Receivable and payable
+                        control accounts are posted through customer and supplier transactions, not here.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="modal-body space-y-4">
+                <div class="grid gap-4 sm:grid-cols-4">
+                    <div>
+                        <label class="label" for="jvDate">Posting date <span class="req">*</span></label>
+                        <input id="jvDate" type="date" class="field" required>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="label" for="jvNarration">Narration <span class="req">*</span></label>
+                        <input id="jvNarration" class="field" maxlength="1000" required placeholder="What this journal records and why">
+                    </div>
+                </div>
+                <div class="table-wrap rounded-xl border border-gray-200">
+                    <table class="table-grid table-lines" id="jvLines">
+                        <thead>
+                        <tr>
+                            <th class="w-[34%]">Account</th>
+                            <th class="w-[14%] text-right">Debit</th>
+                            <th class="w-[14%] text-right">Credit</th>
+                            <th>Cost centre</th>
+                            <th>Line note</th>
+                            <th class="w-px"></th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                        <tr class="border-t border-gray-200 text-sm font-semibold">
+                            <td class="px-2 py-2 text-right text-gray-500">Totals</td>
+                            <td class="px-2 py-2 text-right tabular-nums" id="jvTotalDr">0.00</td>
+                            <td class="px-2 py-2 text-right tabular-nums" id="jvTotalCr">0.00</td>
+                            <td class="px-2 py-2" colspan="3"><span id="jvBalance"></span></td>
+                        </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <button type="button" class="btn-subtle btn-sm" id="jvAddLine">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add line
+                </button>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close>Cancel</button>
+                <button type="submit" class="btn-primary" id="jvPostBtn" disabled>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#send}"/></svg>Post journal
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, fmt, toast } = App;
+        const $ = s => document.querySelector(s);
+        const CAN = {
+            create:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_JOURNAL_CREATE'')')}]]*/ false,
+            reverse: /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_JOURNAL_APPROVE'')')}]]*/ false
+        };
+        let postable = [];     // leaf, active, non-control accounts - what a journal may name
+        let centres = [];
+
+        // ------------------------------------------------------------------ list
+        function statusCell(r) {
+            if (r.reversed) return '<span class="badge-gray badge-dot">Reversed</span>';
+            if (r.isReversal) return '<span class="badge-amber badge-dot">Reversal</span>';
+            return '<span class="badge-green badge-dot">Posted</span>';
+        }
+        const grid = new App.Grid({
+            url: '/api/accounts/entries',
+            table: $('#jvTable'),
+            search: $('#jvSearch'),
+            pager: $('#jvPager'),
+            sort: { column: 'postingDate', dir: 'desc' },
+            emptyText: 'No entries match. Postings appear here as documents are approved or journals are posted.',
+            emptyIcon: 'journal',
+            params: () => ({ event: $('#jvEvent').value, from: $('#jvFrom').value, to: $('#jvTo').value }),
+            columns: [
+                r => `<span class="doc-no">${esc(r.entryNo)}</span>`,
+                r => esc(fmt.date(r.postingDate)),
+                r => `<span class="whitespace-nowrap">${esc(r.eventLabel)}</span>`,
+                r => `<span class="block max-w-md truncate text-gray-600" title="${esc(r.narration || '')}">${esc(r.narration || '')}</span>`,
+                r => `<span class="block text-right tabular-nums">${esc(fmt.money(r.amount))} <span class="text-xs text-gray-400">${esc(r.currency)}</span></span>`,
+                statusCell,
+                r => App.rowActions(App.viewButton(r.id))
+            ],
+            onRowClick: row => openEntry(row.id)
+        });
+        ['#jvEvent', '#jvFrom', '#jvTo'].forEach(s => $(s).addEventListener('change', () => grid.reload(true)));
+        $('#jvReset').addEventListener('click', () => {
+            ['#jvSearch', '#jvEvent', '#jvFrom', '#jvTo'].forEach(s => { $(s).value = ''; });
+            grid.reload(true);
+        });
+        $('#jvTable').addEventListener('click', e => {
+            const view = e.target.closest('[data-view]');
+            if (view) openEntry(Number(view.dataset.view));
+        });
+
+        // ------------------------------------------------------------------ entry drawer
+        const drawer = $('#entryDrawer');
+        let currentEntry = null;
+
+        async function openEntry(id) {
+            $('#entryBody').innerHTML = '<div class="space-y-3 p-6">' + '<div class="skeleton h-5 w-2/3"></div>'.repeat(4) + '</div>';
+            if (!drawer.open) drawer.showModal();
+            try { currentEntry = await api(`/api/accounts/entries/${id}`); } catch (e) { drawer.close(); return fail(e); }
+            const e = currentEntry;
+            $('#entryTitle').innerHTML = `${esc(e.entryNo)} ${statusCell(e)}`;
+            const debit = e.lines.filter(l => l.side === 'DEBIT').reduce((s, l) => s + Number(l.amount), 0);
+            const credit = e.lines.filter(l => l.side === 'CREDIT').reduce((s, l) => s + Number(l.amount), 0);
+            const fact = (label, value) => value ? `<div><dt class="text-xs text-gray-500">${esc(label)}</dt>
+                <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">${value}</dd></div>` : '';
+            $('#entryBody').innerHTML = `
+                <section class="form-section">
+                    <dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+                        ${fact('Posting date', esc(fmt.date(e.postingDate)))}
+                        ${fact('Period', esc(e.period))}
+                        ${fact('Event', esc(e.eventLabel))}
+                        ${fact('Currency', esc(e.currency) + (Number(e.fxRate) !== 1 ? ` @ ${esc(e.fxRate)}` : ''))}
+                        ${fact('Posted by', esc(e.createdBy) + (e.createdAt ? ` · ${fmt.timeTag(e.createdAt)}` : ''))}
+                        ${fact('Source', e.docTypeCode === 'MANUAL' ? 'Manual journal' : esc(e.docTypeCode + (e.documentId ? ' #' + e.documentId : '')))}
+                    </dl>
+                    ${e.narration ? `<p class="mt-4 text-sm text-gray-700 dark:text-gray-300">${esc(e.narration)}</p>` : ''}
+                    ${e.reversesEntry ? `<p class="alert-warn mt-4">${App.icon('refresh', 'icon-lg')}This entry reverses ${esc(e.reversesEntry)}.</p>` : ''}
+                    ${e.reversedBy ? `<p class="alert-info mt-4">${App.icon('info', 'icon-lg')}Reversed by ${esc(e.reversedBy)}.</p>` : ''}
+                </section>
+                <section class="form-section">
+                    <div class="form-section-head"><h3 class="form-section-title">Lines</h3></div>
+                    <div class="table-wrap -mx-5 border-y border-gray-100 dark:border-gray-800">
+                        <table class="table-grid table-lines">
+                            <thead><tr><th>Account</th><th>Customer / supplier</th><th>Cost centre</th>
+                                <th class="text-right">Debit</th><th class="text-right">Credit</th></tr></thead>
+                            <tbody>${e.lines.map(l => `<tr>
+                                <td><span class="font-mono text-xs text-gray-500">${esc(l.accountCode)}</span> ${esc(l.accountName || '')}
+                                    ${l.narration && l.narration !== e.narration ? `<div class="text-xs text-gray-500">${esc(l.narration)}</div>` : ''}</td>
+                                <td>${esc(l.party || '')}</td>
+                                <td class="font-mono text-xs">${esc(l.costCentre || '')}</td>
+                                <td class="text-right tabular-nums">${l.side === 'DEBIT' ? esc(fmt.money(l.amount)) : ''}</td>
+                                <td class="text-right tabular-nums">${l.side === 'CREDIT' ? esc(fmt.money(l.amount)) : ''}</td></tr>`).join('')}
+                            </tbody>
+                            <tfoot><tr class="border-t border-gray-200 font-semibold">
+                                <td colspan="3" class="px-2 py-2 text-right text-gray-500">Totals</td>
+                                <td class="px-2 py-2 text-right tabular-nums">${esc(fmt.money(debit))}</td>
+                                <td class="px-2 py-2 text-right tabular-nums">${esc(fmt.money(credit))}</td></tr></tfoot>
+                        </table>
+                    </div>
+                </section>`;
+            $('#entryReverseBtn').hidden = !(CAN.reverse && !e.reversed && !e.isReversal);
+        }
+
+        $('#entryReverseBtn').addEventListener('click', async () => {
+            const e = currentEntry;
+            const values = await App.form({
+                title: `Reverse ${e.entryNo}?`,
+                message: 'A mirror-image entry is posted today; the original stays on the ledger, marked reversed.',
+                fields: [{ name: 'reason', label: 'Reason', type: 'textarea', required: true, maxlength: 500 }],
+                confirmText: 'Reverse entry', danger: true
+            });
+            if (!values) return;
+            try {
+                const r = await api(`/api/accounts/entries/${e.id}/reversal`, { method: 'POST', query: { reason: values.reason } });
+                toast(`Reversed by ${r.entryNo}.`, 'success');
+                grid.reload();
+                openEntry(e.id);
+            } catch (err) { fail(err); }
+        });
+
+        // ------------------------------------------------------------------ new journal
+        const jvDialog = $('#jvDialog');
+        const tbody = $('#jvLines tbody');
+
+        function accountOptions() {
+            return '<option value="">Choose account</option>' + postable.map(a =>
+                `<option value="${esc(a.code)}">${esc(a.code)} · ${esc(a.name)}</option>`).join('');
+        }
+        function centreOptions() {
+            return '<option value="">-</option>' + centres.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.name)}</option>`).join('');
+        }
+        function addLine() {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><select class="field field-sm" data-f="account" required>${accountOptions()}</select></td>
+                <td><input type="number" min="0" step="0.01" class="field field-sm text-right" data-f="dr" inputmode="decimal"></td>
+                <td><input type="number" min="0" step="0.01" class="field field-sm text-right" data-f="cr" inputmode="decimal"></td>
+                <td><select class="field field-sm" data-f="centre">${centreOptions()}</select></td>
+                <td><input class="field field-sm" data-f="note" maxlength="500"></td>
+                <td>${App.rowActions(App.rowButton('Remove', 'trash', 'data-remove'))}</td>`;
+            tbody.appendChild(tr);
+            recalc();
+        }
+        function recalc() {
+            let dr = 0, cr = 0;
+            tbody.querySelectorAll('tr').forEach(tr => {
+                dr += Number(tr.querySelector('[data-f=dr]').value || 0);
+                cr += Number(tr.querySelector('[data-f=cr]').value || 0);
+            });
+            $('#jvTotalDr').textContent = fmt.money(dr);
+            $('#jvTotalCr').textContent = fmt.money(cr);
+            const diff = Math.round((dr - cr) * 100) / 100;
+            const balanced = diff === 0 && dr > 0;
+            $('#jvBalance').innerHTML = balanced
+                ? '<span class="badge-green badge-dot">Balanced</span>'
+                : `<span class="badge-red badge-dot">Difference ${esc(fmt.money(Math.abs(diff)))} ${diff > 0 ? 'more debit' : diff < 0 ? 'more credit' : ''}</span>`;
+            $('#jvPostBtn').disabled = !balanced;
+        }
+        tbody.addEventListener('input', e => {
+            // A line is a debit or a credit, never both.
+            const tr = e.target.closest('tr');
+            if (e.target.dataset.f === 'dr' && e.target.value) tr.querySelector('[data-f=cr]').value = '';
+            if (e.target.dataset.f === 'cr' && e.target.value) tr.querySelector('[data-f=dr]').value = '';
+            recalc();
+        });
+        tbody.addEventListener('click', e => {
+            if (!e.target.closest('[data-remove]')) return;
+            if (tbody.querySelectorAll('tr').length > 2) e.target.closest('tr').remove();
+            recalc();
+        });
+        $('#jvAddLine').addEventListener('click', addLine);
+        jvDialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => jvDialog.close()));
+
+        $('#jvNewBtn')?.addEventListener('click', async () => {
+            try {
+                const [chart, cc] = await Promise.all([api('/api/accounts/chart'), api('/api/accounts/cost-centres').catch(() => [])]);
+                postable = chart.filter(a => a.postable && a.usage !== 'CONTROL');
+                centres = cc.filter(c => c.active);
+            } catch (e) { return fail(e); }
+            if (!postable.length) {
+                return toast('The chart has no posting accounts yet. Set it up under Chart of accounts first.', 'warn');
+            }
+            $('#jvDate').value = new Date().toLocaleDateString('en-CA');   // local date, not UTC
+            $('#jvNarration').value = '';
+            tbody.innerHTML = '';
+            addLine(); addLine();
+            jvDialog.showModal();
+            $('#jvNarration').focus();
+        });
+
+        $('#jvForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!$('#jvForm').reportValidity()) return;
+            const lines = [...tbody.querySelectorAll('tr')].map(tr => {
+                const dr = Number(tr.querySelector('[data-f=dr]').value || 0);
+                const cr = Number(tr.querySelector('[data-f=cr]').value || 0);
+                return { accountCode: tr.querySelector('[data-f=account]').value, side: dr > 0 ? 'DEBIT' : 'CREDIT',
+                         amount: dr > 0 ? dr : cr, costCentreCode: tr.querySelector('[data-f=centre]').value || null,
+                         narration: tr.querySelector('[data-f=note]').value.trim() || null };
+            }).filter(l => l.amount > 0);
+            try {
+                const r = await api('/api/accounts/journals', { method: 'POST',
+                    body: { postingDate: $('#jvDate').value, narration: $('#jvNarration').value.trim(), lines } });
+                toast(`Journal ${r.entryNo} posted.`, 'success');
+                jvDialog.close();
+                grid.reload(true);
+            } catch (err) { fail(err); }
+        });
+
+        // ------------------------------------------------------------------ boot
+        api('/api/accounts/events').then(events => {
+            Object.entries(events).forEach(([code, label]) =>
+                $('#jvEvent').insertAdjacentHTML('beforeend', `<option value="${esc(code)}">${esc(label)}</option>`));
+        }).catch(() => {});
+        grid.reload(true);
+    });
+    </script>
+</div>
+</body>
+</html>

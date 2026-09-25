@@ -92,6 +92,11 @@ public final class Navigation {
             case ITEM_SETUP     -> "tag";
             case PARTY          -> "users";
             case FABRIC_SETUP   -> "swatch";
+            case ACC_CHART      -> "ledger";
+            case ACC_JOURNAL    -> "journal";
+            case ACC_REPORTS    -> "chart-bar";
+            case ACC_CREDIT     -> "credit-card";
+            case ACC_SETUP      -> "calendar";
             case NUMBERING      -> "hash";
             case SECURITY_ADMIN -> "shield";
         };
@@ -103,6 +108,7 @@ public final class Navigation {
             case SALES          -> "sales";
             case INVENTORY      -> "inventory";
             case PRODUCTION     -> "production";
+            case ACCOUNTS       -> "ledger";
             case ADMINISTRATION -> "admin";
         };
     }

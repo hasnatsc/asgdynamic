@@ -56,11 +56,32 @@
             if (!iso) return `<span class="text-gray-400">${esc(empty || 'Never')}</span>`;
             return `<time datetime="${esc(iso)}" title="${esc(fmt.dateTime(iso))}">${esc(fmt.relative(iso))}</time>`;
         },
+        /** 1234567.5 -> '1,234,567.50'. Accounting figures always show two decimals. */
+        money(value) {
+            if (value === null || value === undefined || value === '') return '';
+            return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
         initials(name) {
             return String(name || '?').trim().split(/[\s._-]+/).filter(Boolean).slice(0, 2)
                 .map(part => part[0].toUpperCase()).join('') || '?';
         }
     };
+
+    /** Downloads rows (arrays of cells) as a CSV file; the first row is the header. */
+    function downloadCsv(filename, rows) {
+        const cell = v => {
+            const text = v === null || v === undefined ? '' : String(v);
+            return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+        };
+        // A byte-order mark so Excel reads the file as UTF-8 (Taka signs, names in Bangla).
+        const csv = '\ufeff' + rows.map(r => r.map(cell).join(',')).join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
 
     function debounce(fn, wait) {
         let timer;
@@ -1094,5 +1115,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, status, debounce, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, debounce, downloadCsv, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
 })();

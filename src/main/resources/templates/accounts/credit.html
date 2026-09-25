@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title>Credit control</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Credit control</h1>
+            <p class="page-sub">What each customer may owe. The receivable is read live from the ledger; LC or bank-guarantee
+                cover is deducted before the limit applies. A hold stops a customer whatever the headroom.</p>
+        </div>
+        <div class="page-actions">
+            <button type="button" class="btn-primary" id="clNewBtn" sec:authorize="hasAuthority('SCREEN_ACC_CREDIT_CREATE')">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New credit limit
+            </button>
+        </div>
+    </div>
+
+    <div id="clKpis" class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4"></div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input id="clSearch" type="search" class="field pr-8" placeholder="Search customer" aria-label="Search customers"
+                       data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <div class="segmented" role="group" aria-label="Verdict" id="clFilter">
+                <button type="button" data-v="" aria-pressed="true">All</button>
+                <button type="button" data-v="OVER_LIMIT" aria-pressed="false">Over limit</button>
+                <button type="button" data-v="ON_HOLD" aria-pressed="false">On hold</button>
+                <button type="button" data-v="REVIEW" aria-pressed="false">Review due</button>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table id="clTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th class="text-right">Limit</th>
+                    <th class="text-right">Secured</th>
+                    <th class="text-right">Receivable</th>
+                    <th class="text-right">Headroom</th>
+                    <th>Standing</th>
+                    <th>Review</th>
+                    <th class="w-px">Actions</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================== New limit ============================== -->
+    <dialog id="clDialog" class="modal modal-lg" data-sticky aria-labelledby="clDialogTitle">
+        <form id="clForm" novalidate>
+            <div class="modal-head">
+                <div>
+                    <h2 id="clDialogTitle" class="modal-title">New credit limit</h2>
+                    <p class="mt-1 text-sm text-gray-500">A customer's current limit is superseded from the effective date, never
+                        edited, so earlier decisions stay explainable.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="modal-body space-y-4">
+                <div>
+                    <label class="label" for="clParty">Customer <span class="req">*</span></label>
+                    <input id="clParty" class="field" list="clPartyList" placeholder="Type a code or name" autocomplete="off" required>
+                    <datalist id="clPartyList"></datalist>
+                    <p class="hint" id="clPartyHint"></p>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-2">
+                        <label class="label" for="clLimit">Limit <span class="req">*</span></label>
+                        <input id="clLimit" type="number" min="0" step="0.01" class="field text-right" required inputmode="decimal">
+                        <p class="hint">Zero means cash in advance.</p>
+                    </div>
+                    <div>
+                        <label class="label" for="clCurrency">Currency</label>
+                        <input id="clCurrency" class="field font-mono uppercase" maxlength="3" value="BDT">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="label" for="clSecured">Secured by LC / guarantee</label>
+                        <input id="clSecured" type="number" min="0" step="0.01" class="field text-right" value="0" inputmode="decimal">
+                    </div>
+                    <div>
+                        <label class="label" for="clFrom">Effective from</label>
+                        <input id="clFrom" type="date" class="field">
+                    </div>
+                    <div>
+                        <label class="label" for="clReview">Review by</label>
+                        <input id="clReview" type="date" class="field">
+                    </div>
+                </div>
+                <div>
+                    <label class="label" for="clRemarks">Remarks</label>
+                    <textarea id="clRemarks" class="field" rows="2" maxlength="500" placeholder="Basis for the decision"></textarea>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close>Cancel</button>
+                <button type="submit" class="btn-primary">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Grant limit
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, fmt, toast } = App;
+        const $ = s => document.querySelector(s);
+        const CAN = {
+            create: /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_CREDIT_CREATE'')')}]]*/ false,
+            amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_CREDIT_AMEND'')')}]]*/ false
+        };
+        const VERDICT = {
+            WITHIN_LIMIT: '<span class="badge-green badge-dot">Within limit</span>',
+            OVER_LIMIT: '<span class="badge-red badge-dot">Over limit</span>',
+            ON_HOLD: '<span class="badge-amber badge-dot">On hold</span>',
+            NO_LIMIT: '<span class="badge-gray badge-dot">No limit</span>'
+        };
+        let rows = [];
+        let filter = '';
+        let partyMatches = [];
+
+        async function load() {
+            try { rows = await api('/api/accounts/credit'); } catch (e) { return fail(e); }
+            renderKpis();
+            render();
+        }
+
+        function renderKpis() {
+            const sum = key => rows.reduce((s, r) => s + Number(r[key] || 0), 0);
+            const kpi = (icon, label, value, meta) => `<div class="kpi"><span class="kpi-icon">${App.icon(icon)}</span>
+                <span class="kpi-label">${esc(label)}</span><span class="kpi-value">${value}</span><span class="kpi-meta">${meta}</span></div>`;
+            $('#clKpis').innerHTML =
+                kpi('users', 'Customers with a limit', rows.length, `${rows.filter(r => r.onHold).length} on hold`)
+                + kpi('credit-card', 'Total limits', esc(fmt.money(sum('limit'))), 'BDT')
+                + kpi('ledger', 'Receivable', esc(fmt.money(sum('receivable'))), 'From the ledger, today')
+                + kpi('alert', 'Over limit', rows.filter(r => r.verdict === 'OVER_LIMIT').length,
+                      `${rows.filter(r => r.reviewOverdue).length} review(s) overdue`);
+        }
+
+        function render() {
+            const q = $('#clSearch').value.trim().toLowerCase();
+            const shown = rows.filter(r => (!q || (r.party || '').toLowerCase().includes(q))
+                && (!filter || (filter === 'REVIEW' ? r.reviewOverdue : r.verdict === filter)));
+            $('#clTable tbody').innerHTML = shown.length ? shown.map(r => `<tr class="cursor-pointer is-clickable" data-id="${r.id}">
+                <td><span class="font-medium text-gray-900 dark:text-white">${esc(r.party || '#' + r.partyId)}</span></td>
+                <td class="num">${esc(fmt.money(r.limit))} <span class="text-xs text-gray-400">${esc(r.currency)}</span></td>
+                <td class="num">${Number(r.secured) ? esc(fmt.money(r.secured)) : '<span class="text-gray-400">-</span>'}</td>
+                <td class="num">${esc(fmt.money(r.receivable))}</td>
+                <td class="num ${Number(r.headroom) < 0 ? 'font-semibold text-red-700' : ''}">${esc(fmt.money(r.headroom))}</td>
+                <td>${VERDICT[r.verdict] || ''}</td>
+                <td>${r.reviewOn ? `<span class="${r.reviewOverdue ? 'font-medium text-amber-700' : ''}">${esc(fmt.date(r.reviewOn))}</span>` : '<span class="text-gray-400">-</span>'}</td>
+                <td>${App.rowActions(App.viewButton(r.id),
+                        CAN.amend ? (r.onHold ? App.rowButton('Release', 'unlock', `data-release="${r.id}"`)
+                                              : App.rowButton('Hold', 'lock', `data-hold="${r.id}"`)) : '')}</td>
+            </tr>`).join('') : `<tr><td colspan="8"><div class="empty"><span class="empty-icon">${App.icon('credit-card', 'icon-lg')}</span>
+                <p class="empty-text">${rows.length ? 'No customer matches.' : 'No credit limits yet.'}</p></div></td></tr>`;
+        }
+
+        $('#clSearch').addEventListener('input', App.debounce(render, 120));
+        $('#clFilter').addEventListener('click', e => {
+            const b = e.target.closest('[data-v]');
+            if (!b) return;
+            filter = b.dataset.v;
+            $('#clFilter').querySelectorAll('[data-v]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+            render();
+        });
+
+        function view(r) {
+            App.viewRecord({
+                title: r.party || '#' + r.partyId, subtitle: 'Credit limit',
+                fields: [ ['Limit', `${esc(fmt.money(r.limit))} ${esc(r.currency)}`],
+                          ['Secured by LC / guarantee', esc(fmt.money(r.secured))],
+                          ['Receivable (ledger, today)', esc(fmt.money(r.receivable))],
+                          ['Headroom', esc(fmt.money(r.headroom))],
+                          ['Standing', VERDICT[r.verdict] || ''],
+                          ['Hold reason', esc(r.holdReason || '')],
+                          ['Effective from', esc(fmt.date(r.effectiveFrom))],
+                          ['Review by', r.reviewOn ? esc(fmt.date(r.reviewOn)) : ''],
+                          ['Remarks', esc(r.remarks || '')] ]
+            });
+        }
+
+        $('#clTable tbody').addEventListener('click', async e => {
+            const hold = e.target.closest('[data-hold]');
+            const release = e.target.closest('[data-release]');
+            if (hold) {
+                const values = await App.form({ title: 'Place on credit hold?', message: 'Stops new business with this customer until released.',
+                    fields: [{ name: 'reason', label: 'Reason', type: 'textarea', required: true, maxlength: 300 }],
+                    confirmText: 'Place on hold', danger: true });
+                if (!values) return;
+                try { await api(`/api/accounts/credit/${hold.dataset.hold}/hold`, { method: 'POST', query: values }); toast('Customer placed on hold.', 'success'); load(); }
+                catch (err) { fail(err); }
+                return;
+            }
+            if (release) {
+                if (!(await App.confirm({ title: 'Release the hold?', confirmText: 'Release' }))) return;
+                try { await api(`/api/accounts/credit/${release.dataset.release}/release`, { method: 'POST' }); toast('Hold released.', 'success'); load(); }
+                catch (err) { fail(err); }
+                return;
+            }
+            const tr = e.target.closest('tr[data-id]');
+            if (tr) view(rows.find(r => String(r.id) === tr.dataset.id));
+        });
+
+        // ------------------------------------------------------------------ new limit
+        const dialog = $('#clDialog');
+        dialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        const findCustomers = App.debounce(async () => {
+            try {
+                const page = await api('/api/parties/directory', { query: { role: 'CUSTOMER', q: $('#clParty').value.trim(), size: 20 } });
+                partyMatches = page.rows;
+                $('#clPartyList').innerHTML = page.rows.map(p => `<option value="${esc(p.code + ' · ' + p.name)}">`).join('');
+            } catch (e) { /* list stays empty */ }
+        }, 200);
+        $('#clParty').addEventListener('input', async () => {
+            findCustomers();
+            const p = partyMatches.find(x => `${x.code} · ${x.name}` === $('#clParty').value);
+            $('#clPartyHint').textContent = '';
+            if (p) {
+                try {
+                    const ex = await api('/api/accounts/credit/exposure', { query: { partyId: p.id } });
+                    $('#clPartyHint').textContent = `Owes ${fmt.money(ex.receivable)} BDT today` + (ex.hasLimit ? `; current limit ${fmt.money(ex.limit)} will be superseded.` : '; no limit yet.');
+                } catch (e) { /* hint stays empty */ }
+            }
+        });
+
+        $('#clNewBtn')?.addEventListener('click', () => {
+            $('#clForm').reset();
+            $('#clCurrency').value = 'BDT';
+            $('#clSecured').value = '0';
+            $('#clFrom').value = new Date().toLocaleDateString('en-CA');
+            $('#clPartyHint').textContent = '';
+            findCustomers();
+            dialog.showModal();
+            $('#clParty').focus();
+        });
+
+        $('#clForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!$('#clForm').reportValidity()) return;
+            const party = partyMatches.find(x => `${x.code} · ${x.name}` === $('#clParty').value);
+            if (!party) return toast('Pick the customer from the list.', 'warn');
+            try {
+                await api('/api/accounts/credit', { method: 'POST', body: {
+                    partyId: party.id, limitAmount: Number($('#clLimit').value), currencyCode: $('#clCurrency').value.trim().toUpperCase() || 'BDT',
+                    effectiveFrom: $('#clFrom').value || null, securedAmount: Number($('#clSecured').value || 0),
+                    reviewOn: $('#clReview').value || null, remarks: $('#clRemarks').value.trim() || null } });
+                toast('Credit limit granted.', 'success');
+                dialog.close();
+                load();
+            } catch (err) { fail(err); }
+        });
+
+        load();
+    });
+    </script>
+</div>
+</body>
+</html>
