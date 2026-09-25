@@ -91,6 +91,18 @@ class SecurityAdminWebTest {
     // ---------------------------------------------------------------------------- pages render
 
     @Test
+    void visitorsGetTheCompanyPageWithLogin_andNothingElseOpensUp() throws Exception {
+        mvc.perform(get("/"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Amanat Shah Fabrics")))
+            .andExpect(content().string(containsString("href=\"/login\"")))
+            .andExpect(content().string(not(containsString("id=\"sidebar\""))));   // not the app shell
+
+        // Opening "/" opens exactly "/": every screen still sends a visitor to sign in.
+        mvc.perform(get("/setup/users")).andExpect(status().is3xxRedirection());
+    }
+
+    @Test
     void homeShowsOnlyTheScreensTheUserMayView() throws Exception {
         mvc.perform(get("/").with(signedIn(admin)))
             .andExpect(status().isOk())

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en" class="scroll-smooth">
+<!--
+  The public company page at "/" for anyone not signed in (HomeController); signed-in users get
+  the dashboard at the same address. Standalone like login.html: no layout, no session needed.
+  Facts are from amanatshahfabrics.com (capacities, units, products, offices), in our own words.
+  Every "Login" goes to /login; sections are anchors on this one page.
+-->
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ed1c24">
+    <meta name="description" content="Amanat Shah Fabrics Ltd. - export-oriented woven fabric manufacturer in Bangladesh: spinning, weaving, dyeing, printing and finishing under one group.">
+    <title>Amanat Shah Fabrics Ltd. · FABRICS LTD.</title>
+    <link rel="icon" type="image/png" th:href="@{/images/logo-mark.png}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="bg-white font-sans text-[15px] text-gray-900 antialiased">
+
+<a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 btn-primary">Skip to content</a>
+
+<!-- ============================== Header ============================== -->
+<header id="siteHeader" class="sticky top-0 z-30 border-b border-transparent bg-white/90 backdrop-blur transition-[border-color,box-shadow]">
+    <div class="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <a href="#top" class="shrink-0" aria-label="Amanat Shah Fabrics - top of page">
+            <img th:src="@{/images/logo.png}" alt="FABRICS LTD." class="h-9 w-auto" width="645" height="175">
+        </a>
+        <nav class="ml-6 hidden items-center gap-1 lg:flex" aria-label="Sections">
+            <a href="#units" class="nav-anchor">Business units</a>
+            <a href="#capacity" class="nav-anchor">Capacity</a>
+            <a href="#products" class="nav-anchor">Products</a>
+            <a href="#sustainability" class="nav-anchor">Sustainability</a>
+            <a href="#contact" class="nav-anchor">Contact</a>
+        </nav>
+        <div class="ml-auto flex items-center gap-2">
+            <a th:href="@{/login}" class="btn-primary">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#log-in}"/></svg>Login
+            </a>
+            <details class="relative lg:hidden" data-menu>
+                <summary class="btn-icon list-none" aria-label="Open sections menu">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#menu}"/></svg>
+                </summary>
+                <div class="menu">
+                    <a href="#units" class="menu-item">Business units</a>
+                    <a href="#capacity" class="menu-item">Capacity</a>
+                    <a href="#products" class="menu-item">Products</a>
+                    <a href="#sustainability" class="menu-item">Sustainability</a>
+                    <a href="#contact" class="menu-item">Contact</a>
+                </div>
+            </details>
+        </div>
+    </div>
+</header>
+
+<main id="main">
+    <!-- ============================== Hero ============================== -->
+    <section id="top" class="relative overflow-hidden">
+        <div class="weave-light absolute inset-0" aria-hidden="true"></div>
+        <div class="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
+            <div>
+                <span class="badge-brand">
+                    <svg class="icon h-3 w-3" aria-hidden="true"><use th:href="@{/images/icons.svg#globe}"/></svg>
+                    100% export-oriented · since 2017
+                </span>
+                <h1 class="display mt-5 max-w-xl">Woven fabric, made end to end - from yarn to finished roll.</h1>
+                <p class="section-lead max-w-xl">
+                    Amanat Shah Fabrics Ltd. (ASFL) spins, weaves, dyes, prints and finishes woven fabric in
+                    Bangladesh for global brands and fashion houses, with every step under one group.
+                </p>
+                <div class="mt-8 flex flex-wrap gap-3">
+                    <a th:href="@{/login}" class="btn-primary btn-lg">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#log-in}"/></svg>Login to ERP
+                    </a>
+                    <a href="#units" class="btn-ghost btn-lg">Explore our capabilities
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+                    </a>
+                </div>
+                <dl class="mt-10 grid max-w-lg grid-cols-3 gap-6 border-t border-gray-200 pt-6">
+                    <div><dt class="text-xs text-gray-500">Working space</dt><dd class="mt-1 whitespace-nowrap text-lg font-semibold">400K sq ft</dd></div>
+                    <div><dt class="text-xs text-gray-500">Spindles</dt><dd class="mt-1 text-lg font-semibold">93,000</dd></div>
+                    <div><dt class="text-xs text-gray-500">People</dt><dd class="mt-1 text-lg font-semibold">1,200+</dd></div>
+                </dl>
+            </div>
+
+            <!-- A woven "swatch board": the four product families in CSS. -->
+            <div class="relative mx-auto w-full max-w-md lg:max-w-none">
+                <div class="weave absolute -inset-4 rounded-3xl bg-brand-600 lg:-inset-6" aria-hidden="true"></div>
+                <div class="relative grid grid-cols-2 gap-3 rounded-2xl bg-white p-3 shadow-float">
+                    <div class="overflow-hidden rounded-xl border border-gray-200"><div class="swatch swatch-solid"></div>
+                        <p class="px-3 py-2 text-xs font-semibold text-gray-700">Solid dyed</p></div>
+                    <div class="overflow-hidden rounded-xl border border-gray-200"><div class="swatch swatch-yarn"></div>
+                        <p class="px-3 py-2 text-xs font-semibold text-gray-700">Yarn dyed</p></div>
+                    <div class="overflow-hidden rounded-xl border border-gray-200"><div class="swatch swatch-print"></div>
+                        <p class="px-3 py-2 text-xs font-semibold text-gray-700">Printed</p></div>
+                    <div class="overflow-hidden rounded-xl border border-gray-200"><div class="swatch swatch-aop"></div>
+                        <p class="px-3 py-2 text-xs font-semibold text-gray-700">Yarn-dyed AOP</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================== Capacity ============================== -->
+    <section id="capacity" class="scroll-mt-16 border-y border-gray-200 bg-gray-50">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <dl class="grid grid-cols-2 divide-gray-200 lg:grid-cols-4 lg:divide-x">
+                <div class="stat"><dt class="stat-label order-last">Yarn</dt>
+                    <dd><span class="stat-value">2,200</span> <span class="stat-unit">t / month</span></dd></div>
+                <div class="stat"><dt class="stat-label order-last">Weaving</dt>
+                    <dd><span class="stat-value">1.6M</span> <span class="stat-unit">yd / month</span></dd></div>
+                <div class="stat"><dt class="stat-label order-last">Dyeing, printing &amp; finishing</dt>
+                    <dd><span class="stat-value">3.2M</span> <span class="stat-unit">yd / month</span></dd></div>
+                <div class="stat"><dt class="stat-label order-last">Skilled employees</dt>
+                    <dd><span class="stat-value">1,200+</span> <span class="stat-unit">people</span></dd></div>
+            </dl>
+        </div>
+    </section>
+
+    <!-- ============================== Business units ============================== -->
+    <section id="units" class="scroll-mt-16 py-20">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="section-head">
+                <p class="eyebrow">Business units</p>
+                <h2 class="section-h2">Six specialised units, one supply chain</h2>
+                <p class="section-lead">Backward linkage from our own spinning means yarn, fabric and finish are planned together,
+                    so quality and lead times are ours to control.</p>
+            </div>
+            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                <article class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#spool}"/></svg></span>
+                    <h3 class="text-base font-semibold">Spinning</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Cotton, viscose and blended yarns from 6 to 100 count on
+                        93,000 spindles at Hazrat Amanat Shah Spinning Mills, feeding our woven and knit programmes.</p>
+                </article>
+                <article class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#loom}"/></svg></span>
+                    <h3 class="text-base font-semibold">Weaving</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Picanol rapier and air-jet looms from Belgium, running up to
+                        1,000 rpm for around 60,000 metres a day.</p>
+                </article>
+                <article class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#dyeing}"/></svg></span>
+                    <h3 class="text-base font-semibold">Yarn dyeing</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">European dyeing machinery and proven dyestuffs, with a
+                        biological effluent plant treating every litre of process water.</p>
+                </article>
+                <article class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#swatch}"/></svg></span>
+                    <h3 class="text-base font-semibold">Solid dyeing</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">A computerised colour kitchen and automatic dosing keep shades
+                        consistent from lab dip to bulk.</p>
+                </article>
+                <article class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#sparkles}"/></svg></span>
+                    <h3 class="text-base font-semibold">Printing</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Italian rotary screen printing with up to 16 colours in a single
+                        pass, for anything from subtle prints to bold all-overs.</p>
+                </article>
+                <article class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#qc}"/></svg></span>
+                    <h3 class="text-base font-semibold">Finishing</h3>
+                    <p class="text-sm leading-relaxed text-gray-600">Peach, soft, regular, wrinkle-free and easy-care finishes to
+                        international standards, tuned for look, performance and hand feel.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================== Process ============================== -->
+    <section class="bg-gray-950 py-20 text-white">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="section-head">
+                <p class="eyebrow text-brand-300">How we work</p>
+                <h2 class="section-h2 text-white">From idea to delivered roll</h2>
+                <p class="section-lead text-gray-400">A seasonal R&amp;D team with a full sample archive, and a process tracked
+                    step by step in our own ERP.</p>
+            </div>
+            <ol class="grid gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-3 lg:grid-cols-6">
+                <li class="flex flex-col gap-2 bg-gray-950 p-5">
+                    <span class="text-xs font-semibold text-brand-400">01</span><span class="font-semibold">R&amp;D</span>
+                    <span class="text-sm text-gray-400">Trend forecasting and fast sample swatches</span></li>
+                <li class="flex flex-col gap-2 bg-gray-950 p-5">
+                    <span class="text-xs font-semibold text-brand-400">02</span><span class="font-semibold">Sourcing</span>
+                    <span class="text-sm text-gray-400">Trusted raw materials only</span></li>
+                <li class="flex flex-col gap-2 bg-gray-950 p-5">
+                    <span class="text-xs font-semibold text-brand-400">03</span><span class="font-semibold">Planning</span>
+                    <span class="text-sm text-gray-400">Bookings into production orders</span></li>
+                <li class="flex flex-col gap-2 bg-gray-950 p-5">
+                    <span class="text-xs font-semibold text-brand-400">04</span><span class="font-semibold">Manufacturing</span>
+                    <span class="text-sm text-gray-400">Spin, weave, dye, print, finish</span></li>
+                <li class="flex flex-col gap-2 bg-gray-950 p-5">
+                    <span class="text-xs font-semibold text-brand-400">05</span><span class="font-semibold">Quality assurance</span>
+                    <span class="text-sm text-gray-400">Strength, colour and durability checks</span></li>
+                <li class="flex flex-col gap-2 bg-gray-950 p-5">
+                    <span class="text-xs font-semibold text-brand-400">06</span><span class="font-semibold">Delivery</span>
+                    <span class="text-sm text-gray-400">In-house shipping and logistics</span></li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- ============================== Products ============================== -->
+    <section id="products" class="scroll-mt-16 py-20">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="section-head">
+                <p class="eyebrow">Products</p>
+                <h2 class="section-h2">Four fabric families, designed with you</h2>
+                <p class="section-lead">Pick from our woven range or bring your own design. Samples are available before bulk orders.</p>
+            </div>
+            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                <article class="card overflow-hidden"><div class="swatch swatch-solid"></div>
+                    <div class="p-5"><h3 class="font-semibold">Solid dyed</h3>
+                        <p class="mt-1 text-sm text-gray-600">Soft single-colour fabric with lasting colour and fastness.</p></div></article>
+                <article class="card overflow-hidden"><div class="swatch swatch-yarn"></div>
+                    <div class="p-5"><h3 class="font-semibold">Yarn dyed</h3>
+                        <p class="mt-1 text-sm text-gray-600">Durable checks and stripes with precise pattern registration.</p></div></article>
+                <article class="card overflow-hidden"><div class="swatch swatch-print"></div>
+                    <div class="p-5"><h3 class="font-semibold">Printed</h3>
+                        <p class="mt-1 text-sm text-gray-600">A wide design range in eco-friendly dyes that hold their colour.</p></div></article>
+                <article class="card overflow-hidden"><div class="swatch swatch-aop"></div>
+                    <div class="p-5"><h3 class="font-semibold">Yarn-dyed AOP</h3>
+                        <p class="mt-1 text-sm text-gray-600">Premium all-over prints that meet every required standard.</p></div></article>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================== Sustainability ============================== -->
+    <section id="sustainability" class="scroll-mt-16 border-t border-gray-200 bg-gray-50 py-20">
+        <div class="mx-auto grid max-w-7xl items-start gap-10 px-4 sm:px-6 lg:grid-cols-5 lg:px-8">
+            <div class="lg:col-span-2">
+                <p class="eyebrow">Sustainability</p>
+                <h2 class="section-h2">Cleaner water, lower energy, safer floors</h2>
+                <p class="section-lead">Energy-saving machinery, lower CO₂ emissions and managed fire, electrical and structural
+                    safety are part of how every unit runs.</p>
+            </div>
+            <div class="grid gap-5 sm:grid-cols-3 lg:col-span-3">
+                <div class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#dyeing}"/></svg></span>
+                    <p class="text-2xl font-semibold tabular-nums">220 m³/h</p>
+                    <p class="text-sm text-gray-600">Chemical and biological effluent treatment; treated water goes back into production.</p>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg></span>
+                    <p class="text-base font-semibold">Caustic recovery</p>
+                    <p class="text-sm text-gray-600">A planned plant to recycle weak lye to the mercerizer, cutting energy, discharge and treatment cost.</p>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#shield}"/></svg></span>
+                    <p class="text-base font-semibold">Inspection standard</p>
+                    <p class="text-sm text-gray-600">International inspection standards, with fire, electrical and structural safety management.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================== ERP call-out ============================== -->
+    <section class="py-16">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="weave relative overflow-hidden rounded-3xl bg-brand-600 px-6 py-12 text-white sm:px-12">
+                <div class="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
+                    <div class="max-w-2xl">
+                        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-brand-100">For ASFL staff</p>
+                        <h2 class="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">FABRICS LTD. ERP</h2>
+                        <p class="mt-3 text-brand-50">Bookings, production orders, weaving and processing work orders, greige receipts
+                            and deliveries in one place, with approvals and access limited to your roles.</p>
+                    </div>
+                    <a th:href="@{/login}" class="btn btn-lg shrink-0 bg-white text-brand-700 shadow-float hover:bg-brand-50">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#log-in}"/></svg>Login to ERP
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================== Contact ============================== -->
+    <section id="contact" class="scroll-mt-16 pb-20">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="section-head">
+                <p class="eyebrow">Contact</p>
+                <h2 class="section-h2">Talk to our team</h2>
+                <p class="section-lead">For products, samples, orders or sustainability questions.</p>
+            </div>
+            <div class="grid gap-5 md:grid-cols-3">
+                <address class="card p-6 not-italic">
+                    <p class="flex items-center gap-2 font-semibold"><svg class="icon text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#building}"/></svg>Corporate head office</p>
+                    <p class="mt-3 text-sm leading-relaxed text-gray-600">City Center, Level 24, 90/1 Motijheel C/A<br>Dhaka 1000, Bangladesh</p>
+                </address>
+                <address class="card p-6 not-italic">
+                    <p class="flex items-center gap-2 font-semibold"><svg class="icon text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#map-pin}"/></svg>Marketing office</p>
+                    <p class="mt-3 text-sm leading-relaxed text-gray-600">House 232, Lane 03, DOHS Baridhara<br>Dhaka 1206, Bangladesh</p>
+                </address>
+                <address class="card p-6 not-italic">
+                    <p class="flex items-center gap-2 font-semibold"><svg class="icon text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#production}"/></svg>Factory</p>
+                    <p class="mt-3 text-sm leading-relaxed text-gray-600">Bhatpara, Maizdi Road 1603, Pachdona<br>Narsingdi, Bangladesh</p>
+                </address>
+            </div>
+            <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-8">
+                <a href="tel:+8801321118200" class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-brand-700">
+                    <svg class="icon text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#phone}"/></svg>+88 01321 118200</a>
+                <a href="mailto:info@amanatshahfabrics.com" class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-brand-700">
+                    <svg class="icon text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#mail}"/></svg>info@amanatshahfabrics.com</a>
+                <a href="https://amanatshahfabrics.com" rel="noopener" class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-brand-700">
+                    <svg class="icon text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#globe}"/></svg>amanatshahfabrics.com</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ============================== Footer ============================== -->
+<footer class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
+        <img th:src="@{/images/logo.png}" alt="FABRICS LTD." class="h-7 w-auto" width="645" height="175">
+        <p class="text-xs text-gray-500">© <span th:text="${#temporals.format(#temporals.createNow(), 'yyyy')}">2026</span>
+            Amanat Shah Fabrics Ltd. All rights reserved.</p>
+        <a th:href="@{/login}" class="btn-ghost btn-sm">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#log-in}"/></svg>Staff login</a>
+    </div>
+</footer>
+
+<script>
+    // Header gains its edge once the page scrolls; the section menu closes after a jump.
+    (function () {
+        const header = document.getElementById('siteHeader');
+        const onScroll = () => {
+            const scrolled = window.scrollY > 8;
+            header.classList.toggle('shadow-xs', scrolled);
+            header.classList.toggle('border-gray-200', scrolled);
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        document.querySelectorAll('details[data-menu] a').forEach(a =>
+            a.addEventListener('click', () => a.closest('details').removeAttribute('open')));
+    })();
+</script>
+</body>
+</html>

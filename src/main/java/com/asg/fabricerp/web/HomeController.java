@@ -4,7 +4,6 @@ import com.asg.fabricerp.security.CurrentUser;
 import com.asg.fabricerp.security.FabricUserRepository;
 import com.asg.fabricerp.security.Role;
 import com.asg.fabricerp.web.DashboardService;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -30,9 +29,15 @@ public class HomeController {
         this.dashboard = dashboard;
     }
 
+    /**
+     * "/" is open to everyone: a visitor sees the public company page with its Login button, a
+     * signed-in user the dashboard. SecurityConfig permits exactly this path and nothing under it.
+     */
     @GetMapping("/")
-    @PreAuthorize("isAuthenticated()")
     public String home(@RequestParam(required = false) String passwordChanged, Model model) {
+        if (CurrentUser.principal().isEmpty()) {
+            return "landing";
+        }
         model.addAttribute("title", "Dashboard");
         model.addAttribute("passwordChanged", passwordChanged != null);
         Long userId = CurrentUser.id();

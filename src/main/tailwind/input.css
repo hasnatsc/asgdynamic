@@ -362,6 +362,35 @@
 
   .notification-dot { @apply absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-brand-500 ring-2 ring-white; }
 
+  /* ---- Public company page (landing.html) --------------------------------------------- */
+  .eyebrow      { @apply text-xs font-semibold uppercase tracking-[0.16em] text-brand-700; }
+  .display      { @apply text-3xl font-semibold leading-tight tracking-tight text-gray-900 sm:text-4xl lg:text-5xl; }
+  .section-head { @apply mx-auto mb-10 max-w-2xl text-center; }
+  .section-h2   { @apply mt-2 text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl; }
+  .section-lead { @apply mt-3 text-[15px] leading-relaxed text-gray-600; }
+  .stat         { @apply flex flex-col gap-1 border-gray-200 px-6 py-6; }
+  .stat-value   { @apply text-3xl font-semibold tabular-nums tracking-tight text-gray-900 sm:text-4xl; }
+  .stat-unit    { @apply text-sm font-medium text-brand-700; }
+  .stat-label   { @apply text-sm text-gray-500; }
+  .feature      { @apply card flex flex-col gap-3 p-6 transition-colors hover:border-brand-200; }
+  .feature-icon { @apply inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600; }
+  .feature-icon .icon { @apply h-5 w-5; }
+  .nav-anchor   { @apply rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900; }
+
+  /* Fabric swatches drawn in CSS - the four product families, no photography needed. */
+  .swatch       { @apply h-36 w-full rounded-t-xl; }
+  .swatch-solid { background: linear-gradient(135deg, #b3121a 0%, #d7141b 45%, #92141a 100%); }
+  .swatch-yarn  { background-color: #f3f4f6;
+                  background-image: repeating-linear-gradient(0deg, rgb(215 20 27 / .55) 0 6px, transparent 6px 22px),
+                                    repeating-linear-gradient(90deg, rgb(38 41 47 / .45) 0 6px, transparent 6px 22px); }
+  .swatch-print { background-color: #fff7f7;
+                  background-image: radial-gradient(circle at 25% 30%, #ed1c24 0 7px, transparent 8px),
+                                    radial-gradient(circle at 75% 70%, #26292f 0 5px, transparent 6px);
+                  background-size: 34px 34px; }
+  .swatch-aop   { background-color: #26292f;
+                  background-image: repeating-linear-gradient(45deg, rgb(237 28 36 / .8) 0 3px, transparent 3px 16px),
+                                    repeating-linear-gradient(-45deg, rgb(255 255 255 / .18) 0 3px, transparent 3px 16px); }
+
   /* ---- Brand texture: a faint twill weave for hero bands and the sign-in panel ------------ */
   .weave {
     background-image:

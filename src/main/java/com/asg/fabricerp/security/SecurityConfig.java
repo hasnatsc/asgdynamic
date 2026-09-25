@@ -68,6 +68,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
                 .requestMatchers("/login", "/login/**").permitAll()
+                // Exactly "/": visitors get the public company page, signed-in users the dashboard
+                // (HomeController decides). Nothing below it is opened.
+                .requestMatchers("/").permitAll()
                 // The error page renders nothing but the status; without this an anonymous 404
                 // is bounced to the login page instead of saying "not found".
                 .requestMatchers("/error").permitAll()
