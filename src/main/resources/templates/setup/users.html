@@ -18,7 +18,8 @@
 
     <div class="card overflow-hidden">
         <div class="toolbar">
-            <div class="relative w-full sm:w-72">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
                 <input id="userSearch" type="search" class="field pr-8" placeholder="Search username or name"
                        aria-label="Search users" data-search autocomplete="off">
                 <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
@@ -31,17 +32,18 @@
                 <option value="UNRESTRICTED">All-rows access</option>
             </select>
         </div>
-        <div class="overflow-x-auto">
-            <table id="userTable" class="table-grid">
+        <div class="table-wrap">
+            <table id="userTable" class="table-grid table-striped">
                 <thead>
                 <tr>
-                    <th data-sort="username">User</th>
+                    <th data-sort="fullName">Name</th>
+                    <th data-sort="username">Username</th>
                     <th data-sort="businessUnitCode">Unit</th>
                     <th>Roles</th>
                     <th>Access</th>
                     <th>Status</th>
                     <th data-sort="lastLoginAt">Last sign-in</th>
-                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                    <th class="col-actions w-px text-right">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -229,36 +231,43 @@
         const statusFilter = $('#userStatus');
 
         // ------------------------------------------------------------------ grid
+        // One line per user: rows stay about 40 px high and every column reads straight across.
         function userCell(r) {
             const name = r.fullName || r.username;
-            const you = r.id === SELF_ID ? ' <span class="badge-blue">You</span>' : '';
-            return `<div class="flex items-center gap-3">
-                <span class="avatar">${esc(fmt.initials(name))}</span>
-                <div class="min-w-0"><div class="truncate font-medium text-gray-900">${esc(name)}${you}</div>
-                <div class="truncate text-xs text-gray-500">${esc(r.username)}</div></div></div>`;
+            const you = r.id === SELF_ID ? '<span class="badge-brand">You</span>' : '';
+            return `<div class="flex items-center gap-2.5">
+                <span class="avatar h-7 w-7 text-[11px]">${esc(fmt.initials(name))}</span>
+                <span class="truncate font-semibold text-gray-900 dark:text-white">${esc(name)}</span>${you}</div>`;
+        }
+        function usernameCell(r) {
+            return `<span class="font-mono text-[13px] text-gray-700 dark:text-gray-300">${esc(r.username)}</span>`;
         }
         function rolesCell(r) {
             const roles = r.roles || [];
             if (!roles.length) return '<span class="text-gray-400">None</span>';
-            const shown = roles.slice(0, 2).map(n => `<span class="badge-gray">${esc(n)}</span>`).join(' ');
+            const shown = roles.slice(0, 2).map(n => `<span class="badge-gray">${esc(n)}</span>`).join('');
             const more = roles.length > 2
-                ? ` <span class="badge-gray" title="${esc(roles.slice(2).join(', '))}">+${roles.length - 2}</span>` : '';
-            return `<div class="flex flex-wrap gap-1">${shown}${more}</div>`;
+                ? `<span class="badge-gray" title="${esc(roles.slice(2).join(', '))}">+${roles.length - 2}</span>` : '';
+            return `<div class="flex flex-nowrap gap-1">${shown}${more}</div>`;
         }
         function statusCell(r) {
             const out = [];
-            if (r.accountLocked) out.push('<span class="badge-red">Locked</span>');
-            if (!r.active) out.push('<span class="badge-gray">Inactive</span>');
-            if (r.cannotSignIn && !r.accountLocked) out.push('<span class="badge-amber" title="Scoped access with no grant held today">No scope</span>');
-            if (r.mustChangePassword) out.push('<span class="badge-amber" title="Administrator-set password not yet replaced">Password pending</span>');
-            if (!out.length) out.push('<span class="badge-green">Active</span>');
-            return `<div class="flex flex-wrap gap-1">${out.join('')}</div>`;
+            if (r.accountLocked) out.push('<span class="badge-red badge-dot">Locked</span>');
+            if (!r.active) out.push('<span class="badge-gray badge-dot">Inactive</span>');
+            if (r.cannotSignIn && !r.accountLocked) out.push('<span class="badge-amber badge-dot" title="Scoped access with no grant held today">No scope</span>');
+            if (r.mustChangePassword) out.push('<span class="badge-amber badge-dot" title="Administrator-set password not yet replaced">Password pending</span>');
+            if (!out.length) out.push('<span class="badge-green badge-dot">Active</span>');
+            return `<div class="flex flex-nowrap gap-1">${out.join('')}</div>`;
         }
         function actionsCell(r) {
+            const name = esc(r.fullName || r.username);
             const unlock = r.accountLocked && CAN.amend && r.id !== SELF_ID
-                ? `<button type="button" class="btn-ghost btn-sm" data-unlock="${r.id}">Unlock</button>` : '';
-            return `<div class="flex justify-end gap-1">${unlock}
-                <button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`;
+                ? `<button type="button" class="btn-ghost btn-sm" data-unlock="${r.id}" title="Unlock ${name}">
+                       ${App.icon('unlock')}Unlock</button>` : '';
+            const label = CAN.amend ? 'Edit' : 'View';
+            return `<div class="row-actions">${unlock}
+                <button type="button" class="btn-ghost btn-sm" data-edit="${r.id}" title="${label} ${name}">
+                    ${App.icon(CAN.amend ? 'edit' : 'eye')}${label}</button></div>`;
         }
 
         const grid = new App.Grid({
@@ -271,7 +280,8 @@
             params: () => ({ status: statusFilter.value }),
             columns: [
                 userCell,
-                r => `<span class="font-mono text-xs">${esc(r.businessUnitCode)}</span>`,
+                usernameCell,
+                r => `<span class="font-mono text-[13px] font-semibold text-gray-800 dark:text-gray-200">${esc(r.businessUnitCode)}</span>`,
                 rolesCell,
                 r => r.unrestricted ? '<span class="badge-violet">All rows</span>' : '<span class="badge-gray">Scoped</span>',
                 statusCell,
