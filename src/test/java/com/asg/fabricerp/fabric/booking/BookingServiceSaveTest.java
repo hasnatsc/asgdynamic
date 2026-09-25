@@ -59,7 +59,7 @@ class BookingServiceSaveTest {
             new CostingTranslator(new ObjectMapper()),
             new DocumentRevisionService(repository, numbering), DocumentRefs.references(10L),
             terms, mock(FabricUserRepository.class), context,
-            teams);
+            teams, mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class));
 
         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BKAF000031");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));

@@ -71,6 +71,7 @@
                     <th data-col="subtotalAmount" data-format="num" data-sort="subtotalAmount" class="text-right">Amount</th>
                     <th data-col="revisionNo" data-format="num" data-sort="revisionNo" class="text-right">Rev.</th>
                     <th data-col="status" data-format="status" data-sort="status">Status</th>
+                    <th data-col="approvalProgress">Approval</th>
                     <th class="w-px" data-format="actions">Actions</th>
                 </tr>
                 </thead>
@@ -90,7 +91,7 @@
         <div class="modal-head items-center">
             <div class="min-w-0">
                 <h2 id="bookingDialogTitle" class="modal-title" data-editor-title>New booking</h2>
-                <p class="mt-0.5 text-sm text-gray-500">Saved as a draft; submit it for approval from the list once it is complete.</p>
+                <p class="mt-0.5 text-sm text-gray-500">Save it as a draft while it is being keyed; Save &amp; submit sends it to its team&rsquo;s approvers once it is complete.</p>
             </div>
             <div class="ml-auto hidden md:block" data-editor-rail><th:block th:replace="~{fragments/ui :: workflow(${draft})}"></th:block></div>
             <button type="button" class="btn-icon -mr-2" data-editor-close data-view-keep aria-label="Close editor">
@@ -99,6 +100,11 @@
         </div>
 
         <div class="min-h-0 flex-1 overflow-y-auto scroll-thin" data-editor-body>
+
+        <!-- Approval: where the booking stands, who it is waiting for, and the decisions so far -
+             or, on a returned draft, why it came back. A div, not a section: the header must stay
+             the body's first section (the save check finds its required fields that way). -->
+        <div class="border-b border-gray-200 px-5 py-4 dark:border-gray-800" data-approval-panel hidden></div>
 
         <!-- Header ----------------------------------------------------------------------
              Floating captions (.form-float), as asfl-erp's booking header: the document's
@@ -556,8 +562,11 @@
             <!-- Viewing: the document's workflow buttons (Edit, Submit, Approve / Reject, Revise). -->
             <div class="flex flex-wrap items-center justify-end gap-2" data-view-actions data-view-keep hidden></div>
             <button type="button" class="btn-ghost" data-editor-close data-view-keep data-cancel>Cancel</button>
-            <button type="submit" class="btn-primary">
+            <button type="submit" class="btn-ghost" data-save-draft>
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
+            <!-- Saves, then submits: checked for completeness, routed by the booking's team and total. -->
+            <button type="submit" class="btn-primary" data-submit-for-approval>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#send}"/></svg>Save &amp; submit</button>
         </div>
     </form>
     </dialog>

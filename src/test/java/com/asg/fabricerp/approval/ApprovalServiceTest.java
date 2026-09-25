@@ -75,7 +75,8 @@ class ApprovalServiceTest {
             @Override public String username()         { return "whoever"; }
             @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
         };
-        service = new ApprovalService(repository, history, requests, matrices, actors, labels, context);
+        service = new ApprovalService(repository, history, requests, matrices, actors, labels, context,
+            List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()));
     }
 
     @AfterEach
@@ -99,11 +100,15 @@ class ApprovalServiceTest {
         doc.setDocumentNo("BKAF000001");
         doc.setDocumentDate(LocalDate.now());
         doc.setBusinessUnit(DocumentRefs.unit(UNIT));
+        doc.setParty(DocumentRefs.party(77L));
+        doc.setRequiredDate(LocalDate.now().plusMonths(2));
         if (teamId != null) doc.stampMarketingTeam(DocumentRefs.team(teamId));
         setCreatedBy(doc, creator);
 
         BusinessDocumentColorLine line = new BusinessDocumentColorLine();
         line.setQuantity(new BigDecimal("10"));
+        line.setRate(new BigDecimal("2.50"));
+        line.setColorName("Navy");
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
         group.addColorLine(line);
         doc.addLineGroup(group);
@@ -244,6 +249,38 @@ class ApprovalServiceTest {
 
         assertThatThrownBy(() -> service.submit(DOC_ID))
             .isInstanceOf(IllegalStateException.class).hasMessageContaining("already awaiting approval");
+    }
+
+    @Test
+    void aBookingWithAnUnpricedColourIsRefusedAndStaysADraft() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        doc.getLineGroups().get(0).getColorLines().get(0).setRate(null);
+        actingAs(1L, "maker", Set.of(), "SCREEN_BOOKING_CREATE");
+
+        assertThatThrownBy(() -> service.submit(DOC_ID))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("Navy on fabric line 1 has no price");
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
+        verify(requests, never()).save(any());
+    }
+
+    @Test
+    void aBookingWithNoBuyerIsRefused() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        doc.setParty(null);
+        actingAs(1L, "maker", Set.of(), "SCREEN_BOOKING_CREATE");
+
+        assertThatThrownBy(() -> service.submit(DOC_ID))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("Choose the buyer");
+    }
+
+    @Test
+    void aFabricLineWithNoColoursIsRefused() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        doc.addLineGroup(new BusinessDocumentLineGroup());
+        actingAs(1L, "maker", Set.of(), "SCREEN_BOOKING_CREATE");
+
+        assertThatThrownBy(() -> service.submit(DOC_ID))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("Fabric line 2").hasMessageContaining("no colours");
     }
 
     // ------------------------------------------------------------------ decide

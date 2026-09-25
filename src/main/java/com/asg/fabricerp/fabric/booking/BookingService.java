@@ -1,5 +1,7 @@
 package com.asg.fabricerp.fabric.booking;
 
+import com.asg.fabricerp.approval.ApprovalRequest;
+import com.asg.fabricerp.approval.ApprovalRequestRepository;
 import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.common.MarketingTeam;
 import com.asg.fabricerp.common.MarketingTeamRepository;
@@ -57,6 +59,7 @@ public class BookingService {
     private final FabricUserRepository users;
     private final OrgContext context;
     private final MarketingTeamRepository marketingTeams;
+    private final ApprovalRequestRepository approvals;
 
     public BookingService(BusinessDocumentRepository repository,
                           BusinessNumberService numbering,
@@ -67,7 +70,8 @@ public class BookingService {
                           TermsConditionService terms,
                           FabricUserRepository users,
                           OrgContext context,
-                          MarketingTeamRepository marketingTeams) {
+                          MarketingTeamRepository marketingTeams,
+                          ApprovalRequestRepository approvals) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
@@ -78,6 +82,7 @@ public class BookingService {
         this.users = users;
         this.context = context;
         this.marketingTeams = marketingTeams;
+        this.approvals = approvals;
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +100,19 @@ public class BookingService {
     public Page<Map<String, Object>> searchRows(BusinessDocumentStatus status,
                                                 LocalDate from, LocalDate to,
                                                 String query, Pageable pageable) {
-        return search(status, from, to, query, pageable).map(BookingView::row);
+        Page<BusinessDocument> page = search(status, from, to, query, pageable);
+        // Where each submitted booking has got to in approval: one query for the page.
+        Map<Long, ApprovalRequest> live = page.isEmpty() ? Map.of()
+            : approvals.findByDocumentIdInAndPendingTrue(page.map(BusinessDocument::getId).getContent()).stream()
+                .collect(java.util.stream.Collectors.toMap(ApprovalRequest::getDocumentId, r -> r, (a, b) -> a));
+        return page.map(d -> {
+            Map<String, Object> row = BookingView.row(d);
+            ApprovalRequest request = live.get(d.getId());
+            row.put("approvalProgress", request == null ? null
+                : request.getTotalLevels() > 1 ? "Level %d of %d".formatted(request.getCurrentLevel(), request.getTotalLevels())
+                : "Awaiting approval");
+            return row;
+        });
     }
 
     /**

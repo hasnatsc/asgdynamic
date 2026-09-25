@@ -94,7 +94,7 @@
             closeEditor();
         });
 
-        async function openEditor(existing) {
+        async function openEditor(existing, approvalInfo) {
             if (dialog.open && dirty && !await App.confirm({
                 title: 'Discard the booking you are editing?', message: 'Changes not saved yet will be lost.',
                 confirmText: 'Discard', danger: true })) return;
@@ -118,6 +118,86 @@
             dirty = false;
             if (!dialog.open) dialog.showModal();
             form.querySelector('[data-editor-body]').scrollTop = 0;
+            renderApproval(existing, approvalInfo || null);
+            if (existing && !approvalInfo) {
+                // Editing a returned or rejected draft: say why it came back.
+                Promise.all([
+                    App.api(`/api/documents/${existing.id}/history`).catch(() => []),
+                    App.api(`/api/documents/${existing.id}/approval`).catch(() => null)
+                ]).then(([history, approval]) => { if (doc === existing) renderApproval(existing, { history, approval }); });
+            }
+        }
+
+        // ------------------------------------------------------------------ approval
+
+        const DECISION = {
+            APPROVED: ['Approved', 'text-emerald-700 dark:text-emerald-400', 'check'],
+            RETURNED: ['Returned', 'text-amber-700 dark:text-amber-400', 'arrow-right'],
+            REJECTED: ['Rejected', 'text-red-700 dark:text-red-400', 'x'],
+            SUBMITTED: ['Submitted', 'text-gray-600 dark:text-gray-300', 'send']
+        };
+
+        /**
+         * The booking's approval, as asfl-erp's booking shows it: where it stands, who it is waiting
+         * for, which matrix (the team's own or the unit's), and the decisions of this round - or, on a
+         * draft that came back, the reason it came back. Nothing on a booking never submitted.
+         */
+        function renderApproval(d, info) {
+            const panel = form.querySelector('[data-approval-panel]');
+            const history = (info && info.history) || [];
+            const approval = info && info.approval;
+            // This round: newest first, back to (and including) the latest submission.
+            const round = [];
+            for (const h of history) {
+                round.push(h);
+                if (h.action === 'SUBMITTED') break;
+            }
+            if (!d || !round.length) {
+                panel.hidden = true;
+                panel.innerHTML = '';
+                return;
+            }
+            const last = round[0];
+            const when = h => App.fmt.timeTag ? App.fmt.timeTag(h.at) : esc(h.at || '');
+            const trail = round.map(h => {
+                const [label, tone, glyph] = DECISION[h.action] || [h.action, 'text-gray-600', 'send'];
+                return `<li class="flex items-start gap-3">
+                    <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 ${tone}">${App.icon(glyph, 'h-3 w-3')}</span>
+                    <div class="min-w-0 text-sm">
+                        <p><span class="font-semibold ${tone}">${esc(label)}</span>${h.level ? ` <span class="text-gray-500">level ${esc(h.level)}</span>` : ''}
+                           <span class="text-gray-500">·</span> <span class="font-medium text-gray-900 dark:text-white">${esc(h.actor || 'System')}</span>
+                           <span class="text-xs text-gray-500">${when(h)}</span></p>
+                        ${h.remarks ? `<p class="mt-1 rounded-lg bg-gray-50 px-3 py-1.5 text-gray-700 dark:bg-gray-800 dark:text-gray-300">${esc(h.remarks)}</p>` : ''}
+                    </div></li>`;
+            }).join('');
+
+            let headline;
+            if (d.status === 'SUBMITTED' && approval && approval.pending !== false) {
+                const levels = approval.totalLevels > 1 ? `Level ${approval.level} of ${approval.totalLevels}` : 'Awaiting approval';
+                headline = `<span class="badge-amber badge-dot">${esc(levels)}</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">${approval.canAct ? 'Waiting for you'
+                        : esc(approval.waitingReason || ('Waiting for ' + (approval.approver || 'an approver')))}</span>`;
+            } else if (last.action === 'RETURNED' && d.status === 'DRAFT') {
+                headline = `<span class="badge-amber badge-dot">Returned for correction</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">Correct it and submit again - a new approval round starts.</span>`;
+            } else if (last.action === 'REJECTED' || d.status === 'REJECTED') {
+                headline = `<span class="badge-red badge-dot">Rejected</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">Edit it to make it a draft again, or cancel it.</span>`;
+            } else if (last.action === 'APPROVED' && last.fromStatus !== last.toStatus) {
+                headline = '<span class="badge-green badge-dot">Approved</span>';
+            } else {
+                headline = App.statusBadge(d.status);
+            }
+            const matrix = approval && (approval.matrixName || approval.scope)
+                ? `<span class="ml-auto text-xs text-gray-500">${esc(approval.matrixName || 'No matrix')}${approval.scope ? ' · ' + esc(approval.scope) : ''}</span>` : '';
+
+            panel.innerHTML = `
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-white">${App.icon('check-circle', 'h-4 w-4 text-brand-600')}Approval</span>
+                    ${headline}${matrix}
+                </div>
+                <ol class="mt-3 space-y-3">${trail}</ol>`;
+            panel.hidden = false;
         }
 
         /**
@@ -125,7 +205,7 @@
          * Item detail, the terms - plus the document's workflow buttons and its approval history.
          */
         async function viewBooking(d, history) {
-            await openEditor(d);
+            await openEditor(d, { history, approval: screen.approval });
             if (doc !== d) return;                       // the user declined to leave unsaved edits
             setViewChrome(d, history);
             App.viewMode(dialog, true);
@@ -913,6 +993,7 @@
 
         form.addEventListener('submit', async event => {
             event.preventDefault();
+            const andSubmit = !!event.submitter?.hasAttribute('data-submit-for-approval');
             const header = $$('[data-editor-body] > .form-section:first-of-type [required]').find(el => !String(el.value).trim());
             if (header) {
                 const label = form.querySelector(`label[for="${header.id}"]`)?.textContent.replace('*', '').trim() || 'A required field';
@@ -954,18 +1035,32 @@
                 })),
                 terms: terms.map(t => ({ serialNo: t.serialNo, bodyText: t.bodyText }))
             };
-            const submit = form.querySelector('[type="submit"]');
-            submit.disabled = true;
+            if (andSubmit && !await App.confirm({
+                    title: `Submit ${doc?.documentNo || 'this booking'} for approval?`,
+                    message: 'It is saved, checked for completeness and sent to the approvers of its team. It cannot be edited while it is being decided.',
+                    confirmText: 'Save & submit' })) return;
+            const buttons = [...form.querySelectorAll('[type="submit"]')];
+            buttons.forEach(b => { b.disabled = true; });
             try {
                 const saved = await App.api('/api/booking', { method: 'POST', body });
-                App.toast(`${saved.documentNo} saved as a draft.`, 'success');
+                if (andSubmit) {
+                    try {
+                        await App.api(`/api/documents/${saved.id}/submit`, { method: 'POST' });
+                        App.toast(`${saved.documentNo} submitted for approval.`, 'success');
+                    } catch (error) {
+                        // Saved, not submitted: it stays a draft its maker can correct.
+                        App.toast(`${saved.documentNo} was saved as a draft but not submitted: ${error.message || 'refused'}`, 'warn');
+                    }
+                } else {
+                    App.toast(`${saved.documentNo} saved as a draft.`, 'success');
+                }
                 await closeEditor(true);
                 screen.grid.reload();
                 screen.open(saved.id);
             } catch (error) {
                 App.fail(error);
             } finally {
-                submit.disabled = false;
+                buttons.forEach(b => { b.disabled = false; });
             }
         });
     });

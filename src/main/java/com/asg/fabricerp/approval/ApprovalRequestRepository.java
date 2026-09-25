@@ -13,6 +13,9 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
 
     Optional<ApprovalRequest> findByDocumentIdAndPendingTrue(Long documentId);
 
+    /** The live requests of one page of documents - a list shows progress without a query per row. */
+    List<ApprovalRequest> findByDocumentIdInAndPendingTrue(java.util.Collection<Long> documentIds);
+
     Optional<ApprovalRequest> findFirstByDocumentIdOrderByIdDesc(Long documentId);
 
     boolean existsByMatrixId(Long matrixId);

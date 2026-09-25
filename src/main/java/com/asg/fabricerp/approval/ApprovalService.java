@@ -53,6 +53,7 @@ public class ApprovalService {
     private final ApprovalActors actors;
     private final ApprovalLabels labels;
     private final OrgContext context;
+    private final List<SubmissionCheck> checks;
 
     public ApprovalService(BusinessDocumentRepository repository,
                            ApprovalHistoryRepository historyRepository,
@@ -60,7 +61,8 @@ public class ApprovalService {
                            ApprovalMatrixRepository matrices,
                            ApprovalActors actors,
                            ApprovalLabels labels,
-                           OrgContext context) {
+                           OrgContext context,
+                           List<SubmissionCheck> checks) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.requests = requests;
@@ -68,6 +70,7 @@ public class ApprovalService {
         this.actors = actors;
         this.labels = labels;
         this.context = context;
+        this.checks = List.copyOf(checks);
     }
 
     // ------------------------------------------------------------------------------ submit
@@ -82,6 +85,8 @@ public class ApprovalService {
                 "%s %s has no lines and cannot be submitted"
                     .formatted(doc.getDocumentType().label(), doc.getDocumentNo()));
         }
+        // The type's own rules - a booking with an unpriced colour is refused here, not signed.
+        checks.stream().filter(c -> c.type() == doc.getDocumentType()).forEach(c -> c.check(doc));
         requests.findByDocumentIdAndPendingTrue(documentId).ifPresent(live -> {
             throw new IllegalStateException("%s is already awaiting approval at level %d of %d"
                 .formatted(doc.getDocumentNo(), live.getCurrentLevel(), live.getTotalLevels()));
