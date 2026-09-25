@@ -560,35 +560,41 @@
     // Document status
     // ------------------------------------------------------------------------------------------
 
-    /** BusinessDocumentStatus -> [label, badge class]. Colour is backed by the label, never alone. */
-    const STATUS = {
-        DRAFT:      ['Draft', 'badge-gray'],
-        SUBMITTED:  ['Pending approval', 'badge-amber'],
-        APPROVED:   ['Approved', 'badge-green'],
-        PARTIAL:    ['Partly fulfilled', 'badge-blue'],
-        PROCESSING: ['In progress', 'badge-blue'],
-        COMPLETED:  ['Completed', 'badge-green'],
-        CLOSED:     ['Closed', 'badge-gray'],
-        CANCELLED:  ['Cancelled', 'badge-gray'],
-        REJECTED:   ['Rejected', 'badge-red']
-    };
-
-    function statusBadge(status) {
-        const [label, cls] = STATUS[status] || [status || '—', 'badge-gray'];
-        return `<span class="${cls} badge-dot">${esc(label)}</span>`;
+    /**
+     * Document status badge - the client twin of fragments/ui :: status. Colour comes from
+     * [data-status] in input.css; the label is BusinessDocumentStatus.label()'s rule.
+     */
+    function status(value) {
+        if (!value) return '';
+        const name = String(value);
+        const label = name.charAt(0) + name.slice(1).toLowerCase();
+        return `<span class="badge" data-status="${esc(name)}">${esc(label)}</span>`;
     }
 
-    /** The approval path as a stepper: Draft -> Submitted -> Approved -> Completed. */
-    function statusSteps(status) {
-        const steps = ['Draft', 'Submitted', 'Approved', 'Completed'];
-        const reached = { DRAFT: 0, SUBMITTED: 1, REJECTED: 1, APPROVED: 2, PARTIAL: 2, PROCESSING: 2,
-                          COMPLETED: 3, CLOSED: 3 }[status] ?? 0;
-        return `<ol class="steps" aria-label="Approval workflow">${steps.map((label, i) => {
-            const rejected = status === 'REJECTED' && i === reached;
-            const done = i < reached || (i === reached && reached === 3);
-            const state = rejected ? 'is-rejected' : done ? 'is-done' : i === reached ? 'is-current' : '';
-            const dot = rejected ? icon('x', 'h-3 w-3') : done ? icon('check', 'h-3 w-3') : i + 1;
-            return `<li class="step ${state}"><span class="step-dot">${dot}</span>${esc(rejected ? 'Rejected' : label)}</li>`;
+    /** status() with a leading dot, for grids and the review drawer. */
+    function statusBadge(value) {
+        return value ? status(value).replace('class="badge"', 'class="badge badge-dot"')
+                     : '<span class="text-gray-400">—</span>';
+    }
+
+    /**
+     * The Draft -> Submitted -> Approved -> Completed rail - the client twin of
+     * fragments/ui :: workflow, positioned by the same rule as BusinessDocumentStatus.workflowStep():
+     * the current stage's index, 4 once past the end, -1 (badge only) when cancelled.
+     */
+    const WORKFLOW_STEP = { DRAFT: 0, SUBMITTED: 1, REJECTED: 1, APPROVED: 2, PARTIAL: 3, PROCESSING: 3,
+                            COMPLETED: 4, CLOSED: 4, CANCELLED: -1 };
+
+    function statusSteps(docStatus) {
+        const step = WORKFLOW_STEP[docStatus] ?? 0;
+        if (step < 0) return statusBadge(docStatus);
+        const label = docStatus.charAt(0) + docStatus.slice(1).toLowerCase();
+        return `<ol class="steps" aria-label="Document workflow">${['Draft', 'Submitted', 'Approved', 'Completed'].map((stage, i) => {
+            const failed = i === step && docStatus === 'REJECTED';
+            const state = i < step ? 'is-done' : i === step ? (failed ? 'is-failed' : 'is-current') : '';
+            const dot = failed ? icon('x', 'h-3 w-3') : i < step ? icon('check', 'h-3 w-3') : i + 1;
+            return `<li class="step ${state}"${i === step ? ' aria-current="step"' : ''}>`
+                + `<span class="step-dot">${dot}</span>${esc(i === step ? label : stage)}</li>`;
         }).join('')}</ol>`;
     }
 
@@ -791,16 +797,22 @@
                     ${timeline}
                 </section>`;
 
+            // Offered exactly as BusinessDocumentStatus.allowedNext() permits; the server still decides
+            // who may (four-eyes included). A rejected document goes back to draft by being edited.
             const s = doc.status;
+            const committed = ['APPROVED', 'PARTIAL', 'PROCESSING', 'COMPLETED', 'CLOSED'].includes(s);
             const actions = [];
-            if (s === 'DRAFT' || s === 'REJECTED') {
+            if (s === 'DRAFT') {
                 actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}Submit for approval</button>`);
             }
             if (s === 'SUBMITTED') {
                 actions.push(`<button type="button" class="btn-danger-ghost" data-doc-action="reject">${icon('x')}Reject</button>`);
                 actions.push(`<button type="button" class="btn-primary" data-doc-action="approve">${icon('check')}Approve</button>`);
             }
-            if (this.opts.revise && s === 'APPROVED') {
+            if (s === 'REJECTED') {
+                actions.push('<p class="text-sm text-gray-500">Rejected - edit and save it to return it to draft.</p>');
+            }
+            if (this.opts.revise && committed) {
                 actions.push(`<button type="button" class="btn-ghost" data-doc-action="revise">${icon('refresh')}Raise revision</button>`);
             }
             d.querySelector('[data-foot]').innerHTML = `
@@ -938,5 +950,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, debounce, icon, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, debounce, icon, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
 })();

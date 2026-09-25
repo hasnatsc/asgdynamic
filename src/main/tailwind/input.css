@@ -236,6 +236,39 @@
   .kpi-label  { @apply text-[13px] font-medium text-gray-500; }
   .kpi-meta   { @apply text-xs text-gray-500; }
 
+  /* ---- Document status: the ONE mapping of BusinessDocumentStatus to colour -------------- */
+  /* <span class="badge" data-status="APPROVED">, rendered by fragments/ui :: status and      */
+  /* App.status(), so server and client can never disagree. Keyed on the attribute alone: a  */
+  /* `.badge[…]` selector gets cloned onto every class that @applies badge.                  */
+  [data-status="DRAFT"]      { @apply bg-gray-50 text-gray-600 ring-gray-500/20; }
+  [data-status="SUBMITTED"]  { @apply bg-amber-50 text-amber-800 ring-amber-600/25; }
+  [data-status="REJECTED"]   { @apply bg-red-50 text-red-700 ring-red-600/20; }
+  [data-status="APPROVED"]   { @apply bg-emerald-50 text-emerald-700 ring-emerald-600/20; }
+  [data-status="PARTIAL"]    { @apply bg-sky-50 text-sky-700 ring-sky-600/20; }
+  [data-status="PROCESSING"] { @apply bg-violet-50 text-violet-700 ring-violet-600/20; }
+  [data-status="COMPLETED"]  { @apply bg-emerald-600 text-white ring-emerald-600; }
+  [data-status="CLOSED"]     { @apply bg-gray-600 text-white ring-gray-600; }
+  [data-status="CANCELLED"]  { @apply bg-gray-50 text-gray-500 line-through ring-gray-500/20; }
+
+  /* ---- Document editors: sections, computed values, dense line grids, totals, action bar - */
+  .section-title { @apply text-sm font-semibold text-gray-900; }
+  .fieldset   { @apply rounded-xl border border-gray-200 p-4; }
+  .legend     { @apply px-1 text-xs font-semibold uppercase tracking-wide text-gray-500; }
+  .num        { @apply whitespace-nowrap text-right tabular-nums; }
+  /* Inline-editable line grid (colour breakdown, requisition lines): same as .table-lines. */
+  .table-edit thead th { @apply px-2 py-2; }
+  .table-edit tbody td { @apply px-2 py-1.5; }
+  .table-edit tbody tr { @apply hover:bg-transparent; }
+  .table-edit .field   { @apply py-1.5; }
+  .totals     { @apply flex flex-wrap items-baseline justify-end gap-x-6 gap-y-1 border-t border-gray-200 pt-3 text-sm; }
+  .totals dt  { @apply text-gray-500; }
+  .totals dd  { @apply font-semibold tabular-nums text-gray-900; }
+  /* Pinned to the viewport bottom while a long `.card p-5` form is on screen; the negative
+     margins bleed it to the card's edges. Forms built from .form-section use .form-actions. */
+  .action-bar { @apply sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-wrap items-center gap-2 rounded-b-xl
+                       border-t border-gray-200 bg-white/95 px-5 py-3 backdrop-blur; }
+  .empty-state { @apply empty text-sm text-gray-500; }
+
   /* ---- Workflow stepper (document status) ------------------------------------------------ */
   .steps      { @apply flex items-center gap-0 overflow-x-auto scroll-thin; }
   .step       { @apply flex shrink-0 items-center gap-2 text-xs font-medium text-gray-400; }
@@ -246,8 +279,9 @@
   .step.is-done              { @apply text-gray-700; }
   .step.is-current .step-dot { @apply border-brand-600 text-brand-700 ring-4 ring-brand-100; }
   .step.is-current           { @apply text-gray-900; }
-  .step.is-rejected .step-dot { @apply border-red-700 bg-red-700 text-white ring-4 ring-red-100; }
-  .step.is-rejected          { @apply text-red-700; }
+  /* is-failed is the server fragment's name for the same state (fragments/ui :: workflow). */
+  .step.is-rejected .step-dot, .step.is-failed .step-dot { @apply border-red-700 bg-red-700 text-white ring-4 ring-red-100; }
+  .step.is-rejected, .step.is-failed { @apply text-red-700; }
 
   /* ---- Manufacturing flow (dashboard) ----------------------------------------------------- */
   .flow       { @apply grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200
@@ -353,6 +387,24 @@
   .dark .segmented          { @apply bg-gray-800; }
   .dark .segmented > [aria-pressed="true"], .dark .segmented > [aria-selected="true"] { @apply bg-gray-700 text-white; }
   .dark .notification-dot   { @apply ring-gray-900; }
+  .dark .section-title, .dark .totals dd { @apply text-white; }
+  .dark .fieldset           { @apply border-gray-800 bg-gray-900; }
+  .dark .totals             { @apply border-gray-800; }
+  .dark .action-bar         { @apply border-gray-800 bg-gray-900/95; }
+  .dark .badge-gray, .dark [data-status="DRAFT"], .dark [data-status="CANCELLED"] { @apply bg-gray-700/40 text-gray-300 ring-gray-500/30; }
+  .dark .badge-green, .dark [data-status="APPROVED"]   { @apply bg-emerald-500/10 text-emerald-300 ring-emerald-500/30; }
+  .dark .badge-amber, .dark [data-status="SUBMITTED"]  { @apply bg-amber-500/10 text-amber-300 ring-amber-500/30; }
+  .dark .badge-red, .dark [data-status="REJECTED"]     { @apply bg-red-500/10 text-red-300 ring-red-500/30; }
+  .dark .badge-blue, .dark [data-status="PARTIAL"]     { @apply bg-sky-500/10 text-sky-300 ring-sky-500/30; }
+  .dark .badge-violet, .dark [data-status="PROCESSING"] { @apply bg-violet-500/10 text-violet-300 ring-violet-500/30; }
+  .dark .badge-brand        { @apply bg-brand-500/10 text-brand-300 ring-brand-500/30; }
+  .dark .alert-error        { @apply border-red-500/30 bg-red-500/10 text-red-300; }
+  .dark .alert-success      { @apply border-emerald-500/30 bg-emerald-500/10 text-emerald-300; }
+  .dark .alert-warn         { @apply border-amber-500/30 bg-amber-500/10 text-amber-300; }
+  .dark .alert-info         { @apply border-sky-500/30 bg-sky-500/10 text-sky-300; }
+  .dark .chip               { @apply text-gray-300 ring-gray-700 hover:bg-gray-800; }
+  .dark .chip-count         { @apply bg-gray-800 text-gray-300; }
+  .dark .hint               { @apply text-gray-400; }
 }
 
 /* ---- Responsive table stacking (opt-in: add .table-stack to .table-grid) -------------- */

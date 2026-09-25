@@ -31,7 +31,7 @@
             <select class="field w-auto" aria-label="Status" data-filter="status">
                 <option value="">All statuses</option>
                 <option th:each="s : ${statuses}" th:value="${s}"
-                        th:text="${#strings.capitalize(#strings.toLowerCase(s))}">Draft</option>
+                        th:text="${s.label()}">Draft</option>
             </select>
             <div class="flex items-center gap-2">
                 <input type="date" class="field w-auto" aria-label="From date" data-filter="from">
@@ -66,6 +66,7 @@
                 <h2 class="card-title">New delivery order</h2>
                 <p class="card-sub">Saved as a draft; submit it for approval from the list once it is complete.</p>
             </div>
+            <div class="ml-auto hidden md:block"><th:block th:replace="~{fragments/ui :: workflow(*{status})}"></th:block></div>
             <button type="button" class="btn-icon" data-editor-close aria-label="Close editor">
                 <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
             </button>
