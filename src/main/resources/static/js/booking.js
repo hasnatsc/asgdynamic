@@ -33,7 +33,7 @@
 
         const specEditor = document.getElementById('specEditor');
         const colorBody = document.querySelector('#colorTable tbody');
-        const specBody = document.querySelector('#specTable tbody');
+        const specLines = document.getElementById('specLines');
         const termsBody = document.querySelector('#termsTable tbody');
         const canAmend = !!document.getElementById('canAmendBooking');
 
@@ -48,8 +48,10 @@
         let terms = [];            // [{ serialNo, bodyText }]
         let editingGroup = -1;     // index into groups, -1 while adding a new specification
         let editingTerm = -1;
+        let openGroups = new Set();  // fabric lines whose "Item detail" is open
         let benchmark = {};        // { quoted, breakEven } of the specification in the editor
         let dirty = false;
+        let lineDirty = false;     // the fabric-line modal has been typed into since it opened
         const items = new Map();   // item id -> label
 
         const screen = new App.DocumentScreen(Object.assign({}, window.BOOKING_SCREEN,
@@ -102,6 +104,7 @@
             if (!existing) {
                 terms = await App.api('/api/terms/defaults', { query: { type: 'BOOKING' } }).catch(error => { App.fail(error); return []; });
             }
+            openGroups = new Set();
             resetSpec();
             resetTerm();
             renderGroups();
@@ -118,6 +121,7 @@
             if (!force && dirty && !await App.confirm({
                 title: 'Close without saving?', message: 'Changes not saved yet will be lost.',
                 confirmText: 'Close', danger: true })) return;
+            if (specEditor.open) specEditor.close();
             dialog.close();
             doc = null;
             dirty = false;
@@ -157,13 +161,22 @@
         /** Yard-priced: the metre price is derived and read-only; metre-priced, the reverse. */
         function syncPriceBasis() {
             const meter = priceInMeter();
-            document.querySelector('[data-price-head="yard"]').innerHTML = 'Price / yd' + (meter ? '' : ' <span class="req">*</span>');
-            document.querySelector('[data-price-head="meter"]').innerHTML = 'Price / m' + (meter ? ' <span class="req">*</span>' : '');
+            syncColorHeads();
             [...colorBody.rows].forEach(tr => {
                 tr.querySelector('[data-col="rate"]').readOnly = meter;
                 tr.querySelector('[data-col="priceInMeter"]').readOnly = !meter;
                 recalcRow(tr);
             });
+        }
+
+        /** Units once, in the header: the currency on each money column, the asterisk on the price that is keyed. */
+        function syncColorHeads() {
+            const meter = priceInMeter();
+            const unit = `<span class="unit">${esc(currency())}</span>`;
+            const req = ' <span class="req text-brand-600">*</span>';
+            document.querySelector('[data-price-head="yard"]').innerHTML = `Price / yd ${unit}${meter ? '' : req}`;
+            document.querySelector('[data-price-head="meter"]').innerHTML = `Price / m ${unit}${meter ? req : ''}`;
+            document.querySelector('[data-currency-unit]').textContent = currency();
         }
 
         // ------------------------------------------------------------------ costing
@@ -252,6 +265,40 @@
             if (match) select.value = match.value;
         }
 
+        // ------------------------------------------------------------------ fabric-line modal
+
+        /** Opens the line editor: empty to add a line, or filled with line `index` to edit it. */
+        function openLine(index) {
+            if (index >= 0) editGroup(index);
+            else resetSpec();
+            lineDirty = false;
+            if (!specEditor.open) specEditor.showModal();
+            specEditor.querySelector('[data-line-body]').scrollTop = 0;
+            (index >= 0 ? specEditor.querySelector('[data-spec]:not([readonly])') : costingInput).focus();
+        }
+
+        async function closeLine(force) {
+            if (!force && lineDirty && specHasContent() && !await App.confirm({
+                title: editingGroup >= 0 ? 'Discard the changes to this line?' : 'Discard this fabric line?',
+                message: 'What was keyed here has not been added to the booking.',
+                confirmText: 'Discard', danger: true })) return;
+            resetSpec();
+            specEditor.close();
+        }
+
+        form.querySelector('[data-action="line-add"]').addEventListener('click', () => openLine(-1));
+        specEditor.querySelectorAll('[data-line-close]').forEach(b => b.addEventListener('click', () => closeLine()));
+        // Esc asks the same question Cancel does; it does not reach the booking dialog underneath.
+        specEditor.addEventListener('cancel', event => {
+            event.preventDefault();
+            closeLine();
+        });
+        ['input', 'change'].forEach(type => specEditor.addEventListener(type, () => { lineDirty = true; }));
+        // Enter in a line field would submit the whole booking (the fields belong to #bookingForm).
+        specEditor.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && event.target.tagName === 'INPUT') event.preventDefault();
+        });
+
         // ------------------------------------------------------------------ specification editor
 
         const specInputs = () => $$('#specEditor [data-spec]');
@@ -328,8 +375,9 @@
             renderCostingInfo(null);
             updateConstruction();
             syncGsmLock();
-            specEditor.querySelector('[data-spec-title]').textContent = 'Add a fabric specification';
+            specEditor.querySelector('[data-spec-title]').textContent = 'Add a fabric line';
             specEditor.querySelector('[data-commit-label]').textContent = 'Add to booking';
+            if (specLines.querySelector('.is-editing')) renderGroups();
         }
         form.querySelector('[data-action="spec-reset"]').addEventListener('click', resetSpec);
 
@@ -382,8 +430,9 @@
         form.querySelector('[data-action="spec-commit"]').addEventListener('click', () => {
             const updating = editingGroup >= 0;
             if (commitSpec()) {
-                App.toast(updating ? 'Specification updated.' : 'Specification added to the booking.', 'success');
-                document.getElementById('specTable').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                specEditor.close();
+                App.toast(updating ? 'Fabric line updated.' : 'Fabric line added to the booking.', 'success');
+                specLines.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
 
@@ -394,9 +443,9 @@
             applySpec(g.fabric, false);
             setSelect(document.getElementById('spItem'), g.itemId == null ? '' : String(g.itemId));
             setColorRows(g.colorLines);
-            specEditor.querySelector('[data-spec-title]').textContent = `Edit specification ${index + 1}`;
-            specEditor.querySelector('[data-commit-label]').textContent = 'Update specification';
-            specEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            specEditor.querySelector('[data-spec-title]').textContent = `Edit fabric line ${index + 1}`;
+            specEditor.querySelector('[data-commit-label]').textContent = 'Update line';
+            renderGroups();
         }
 
         // ------------------------------------------------------------------ colour breakdown
@@ -419,6 +468,7 @@
             colorBody.innerHTML = (lines || []).map(colorRow).join('');
             [...colorBody.rows].forEach(recalcRow);
             syncColorEmpty();
+            updateColorTotals();
         }
 
         function syncColorEmpty() {
@@ -454,6 +504,7 @@
                 total = q != null && perYard != null ? q * perYard : null;
             }
             tr.querySelector('[data-col="total"]').textContent = total == null ? '—' : nf.format(total);
+            updateColorTotals();
 
             yd.classList.remove('text-red-700', 'text-amber-700');
             yd.title = '';
@@ -466,6 +517,14 @@
             }
         }
 
+        function updateColorTotals() {
+            let qty = 0;
+            let amount = 0;
+            readColorRows().forEach(l => { qty += l.quantity || 0; amount += lineAmount(l); });
+            document.querySelector('[data-color-total="qty"]').textContent = nf.format(qty);
+            document.querySelector('[data-color-total="amount"]').textContent = nf.format(amount);
+        }
+
         colorBody.addEventListener('input', event => {
             const tr = event.target.closest('tr');
             if (tr) recalcRow(tr);
@@ -474,6 +533,7 @@
             if (!event.target.closest('[data-color-remove]')) return;
             event.target.closest('tr').remove();
             syncColorEmpty();
+            updateColorTotals();
             dirty = true;
         });
         form.querySelector('[data-action="color-add"]').addEventListener('click', () => {
@@ -504,61 +564,181 @@
             return (l.quantity || 0) * (price || 0);
         }
 
+        const currency = () => form.elements.namedItem('currencyCode').value;
+        const filled = v => v != null && String(v).trim() !== '';
+        const joined = (...parts) => parts.filter(filled).join(' · ');
+        const itemLabel = g => g.itemName ? (g.itemName.split('|')[1] || g.itemName).trim() : '';
+        const widthOf = f => filled(f.finishWidth) || filled(f.cuttableWidth)
+            ? `${f.finishWidth ?? '—'}″ finished · ${f.cuttableWidth ?? '—'}″ cuttable` : '';
+
+        /** Label/value rows; a value the specification does not have shows as a dash. */
+        const dlRows = pairs => pairs.map(([label, value, cls]) =>
+            `<dt>${esc(label)}</dt><dd class="${cls || ''}">${filled(value) ? esc(value) : '—'}</dd>`).join('');
+
+        /**
+         * One fabric line as asfl-erp draws it: title and meta line, the identifying facts as a
+         * strip, the full specification behind "Item detail", then the colour breakdown.
+         */
+        function groupCard(g, i, meter, cur) {
+            const f = g.fabric;
+            const open = openGroups.has(i);
+            const item = itemLabel(g);
+            const meta = [f.fabricType, f.fabricSource, f.costingCode && `Costing ${f.costingCode}`,
+                          filled(f.leadTimeDays) && `Lead time ${f.leadTimeDays} days`,
+                          f.qualityReference && `Quality ref ${f.qualityReference}`].filter(Boolean);
+            const strip = [['Composition', f.composition], ['Weave', joined(f.weaveType, f.weaveStyle)],
+                           ['EPI × PPI', filled(f.epi) && filled(f.ppi) ? `${f.epi} × ${f.ppi}` : ''],
+                           ['Width', widthOf(f)], ['GSM', f.gsm]].filter(([, v]) => filled(v));
+            const qty = g.colorLines.reduce((t, l) => t + (l.quantity || 0), 0);
+            const amount = g.colorLines.reduce((t, l) => t + lineAmount(l), 0);
+
+            return `<article class="line-card${editingGroup === i ? ' is-editing' : ''}">
+                <header class="line-head">
+                    <span class="line-no">${i + 1}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex min-w-0 items-baseline gap-2">
+                            <h4 class="line-title font-mono">${esc(f.construction || item || `Fabric line ${i + 1}`)}</h4>
+                            ${f.construction && item ? `<span class="line-sub" title="${esc(item)}">${esc(item)}</span>` : ''}
+                        </div>
+                        ${meta.length ? `<p class="line-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</p>` : ''}
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1.5">
+                        <button type="button" class="line-toggle" data-group-detail="${i}" aria-expanded="${open}"
+                                title="The full specification of this line">${App.icon('chevron-right', 'transition-transform')}Item detail</button>
+                        <button type="button" class="btn-subtle btn-sm" data-group-edit="${i}" title="Edit this line">${App.icon('edit')}Edit</button>
+                        <button type="button" class="btn-icon btn-sm hover:text-red-700" data-group-remove="${i}"
+                                aria-label="Remove line ${i + 1}" title="Remove this line">${App.icon('trash')}</button>
+                    </div>
+                </header>
+                ${strip.length ? `<dl class="line-strip">${strip.map(([k, v]) =>
+                    `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
+                ${open ? specPanel(g) : ''}
+                <div class="table-wrap">
+                    <table class="line-colours">
+                        <thead><tr>
+                            <th>Colour</th><th>Fabrics style</th><th>References</th>
+                            <th class="num w-32">Quantity</th>
+                            <th class="num w-36">${meter ? 'Price / m' : 'Price / yd'} <span class="unit">${esc(cur)}</span></th>
+                            <th class="num w-40">Amount <span class="unit">${esc(cur)}</span></th>
+                        </tr></thead>
+                        <tbody>${g.colorLines.map(l => `<tr>
+                            <td class="font-medium">${esc(joined(l.colorCode, l.colorName) || '—')}</td>
+                            <td class="text-gray-600 dark:text-gray-400">${esc(l.fabricsStyle || '—')}</td>
+                            <td class="text-xs text-gray-500 dark:text-gray-400" title="${esc(l.remarks || '')}">${esc(joined(
+                                l.colorReference && `Colour ${l.colorReference}`, l.labDipReference && `Lab dip ${l.labDipReference}`,
+                                l.strikeOffReference && `Strike off ${l.strikeOffReference}`, l.loomReference && `Loom ${l.loomReference}`) || '—')}</td>
+                            <td class="num">${nf.format(l.quantity || 0)}</td>
+                            <td class="num">${pf.format((meter ? l.priceInMeter : l.rate) || 0)}</td>
+                            <td class="num">${nf.format(lineAmount(l))}</td>
+                        </tr>`).join('')}</tbody>
+                        <tfoot><tr>
+                            <td colspan="3">${g.colorLines.length} ${g.colorLines.length === 1 ? 'colour' : 'colours'}</td>
+                            <td class="num">${nf.format(qty)}</td>
+                            <td></td>
+                            <td class="num">${nf.format(amount)}</td>
+                        </tr></tfoot>
+                    </table>
+                </div>
+            </article>`;
+        }
+
+        /** "Item detail": the whole specification, read-only - three label/value columns, then what the buyer stated. */
+        function specPanel(g) {
+            const f = g.fabric;
+            const yarns = ['warp', 'weft'].flatMap(dir => [1, 2, 3].map(n => ({
+                dir: dir === 'warp' ? 'Warp' : 'Weft', n,
+                count: f[`${dir}Count${n}`], ratio: f[`${dir}CountRatio${n}`] }))).filter(y => filled(y.count));
+            const facts = [
+                ['Style', f.styleReference], ['Swatch No', f.swatchNo], ['DISPO reference', f.dispoReference],
+                ['LC tenure', f.lcTenure], ['LC payment type', f.lcPaymentType],
+                ['Wash type', f.washType], ['End use', f.endUse],
+                ['Warp shrinkage', filled(f.shrinkageWarp) ? `${f.shrinkageWarp} %` : ''],
+                ['Weft shrinkage', filled(f.shrinkageWeft) ? `${f.shrinkageWeft} %` : ''],
+                ['Mech. shrinkage', filled(f.shrinkageMechanical) ? `${f.shrinkageMechanical} %` : ''],
+                ['GSM before / after wash', filled(f.gsmBeforeWash) || filled(f.gsmAfterWash) ? `${f.gsmBeforeWash ?? '—'} / ${f.gsmAfterWash ?? '—'}` : ''],
+                ['Light source', joined(f.lightSource, f.lightSourceType)], ['Base material', f.baseMaterial],
+                ['Wash instruction', f.washInstruction, true], ['Target quality parameter', f.targetQualityParameter, true],
+                ['Item description', f.itemDescription, true]
+            ].filter(([, v]) => filled(v));
+
+            return `<section class="spec-panel">
+                <div class="grid gap-x-10 gap-y-5 md:grid-cols-2 xl:grid-cols-3">
+                    <dl class="spec-dl"><div class="spec-group">Fabric</div>${dlRows([
+                        ['Costing No', f.costingCode, 'font-mono'], ['Amendment No', f.costingAmendmentNo],
+                        ['Item', itemLabel(g)], ['Fabrics type', f.fabricType], ['In-house / Export', f.fabricSource],
+                        ['Finish type', joined(f.finishType, f.finishTypeRef)],
+                        ['Quoted / break-even', filled(f.quotedPrice) || filled(f.breakEvenPrice)
+                            ? `${filled(f.quotedPrice) ? pf.format(f.quotedPrice) : '—'} / ${filled(f.breakEvenPrice) ? pf.format(f.breakEvenPrice) : '—'} per yd` : '']])}</dl>
+                    <dl class="spec-dl"><div class="spec-group">Construction</div>${dlRows([
+                        ['Construction', f.construction, 'font-mono'], ['PI construction', f.declaredConstruction, 'font-mono'],
+                        ['Composition', f.composition], ['PI composition', f.declaredComposition],
+                        ['Weave', joined(f.weaveType, f.weaveStyle)],
+                        ['EPI × PPI', filled(f.epi) && filled(f.ppi) ? `${f.epi} × ${f.ppi}` : ''],
+                        ['Width', widthOf(f)], ['Calculated GSM', f.gsm]])}</dl>
+                    <div class="md:col-span-2 xl:col-span-1">
+                        <div class="spec-group">Yarns</div>
+                        ${yarns.length ? `<table class="w-full text-[13px]">
+                            <thead><tr class="text-left text-[11px] text-gray-500 dark:text-gray-400">
+                                <th class="pb-1 font-semibold"></th><th class="pb-1 font-semibold">Count</th><th class="pb-1 text-right font-semibold">Ratio</th></tr></thead>
+                            <tbody>${yarns.map(y => `<tr class="border-t border-dashed border-gray-200 dark:border-gray-700">
+                                <td class="py-1.5 text-gray-500 dark:text-gray-400">${y.dir} ${y.n}</td>
+                                <td class="py-1.5 font-mono">${esc(y.count)}</td>
+                                <td class="py-1.5 text-right tabular-nums">${esc(y.ratio ?? '—')}</td></tr>`).join('')}</tbody>
+                        </table>` : '<p class="text-xs text-gray-500">No yarn counts recorded.</p>'}
+                        ${filled(f.warpYarnName) || filled(f.weftYarnName) ? `<dl class="spec-dl mt-3">${dlRows([
+                            ['Warp yarn', f.warpYarnName], ['Weft yarn', f.weftYarnName]])}</dl>` : ''}
+                    </div>
+                </div>
+                <div class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-800">
+                    <h5 class="mb-3 text-[13px] font-semibold text-gray-900 dark:text-white">Keyed on this order
+                        <span class="ml-1 text-xs font-normal text-gray-500">what the buyer will test this cloth against</span></h5>
+                    ${facts.length ? `<dl class="spec-facts">${facts.map(([k, v, wide]) =>
+                        `<div class="${wide ? 'is-wide' : ''}"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>`
+                        : '<p class="text-xs text-gray-500">The buyer has not stated a specification for this line.</p>'}
+                </div>
+            </section>`;
+        }
+
         function renderGroups() {
             const meter = priceInMeter();
-            specBody.innerHTML = groups.length ? groups.map((g, i) => {
-                const f = g.fabric;
-                const colours = `<table class="w-full text-xs"><thead><tr class="text-gray-500">
-                        <th class="py-1 pr-2 text-left font-medium">Colour</th><th class="py-1 pr-2 text-left font-medium">Style</th>
-                        <th class="py-1 pr-2 text-left font-medium">Lab dip</th>
-                        <th class="py-1 pr-2 text-right font-medium">Qty</th><th class="py-1 pr-2 text-right font-medium">${meter ? 'Price / m' : 'Price / yd'}</th>
-                        <th class="py-1 text-right font-medium">Total</th></tr></thead><tbody>
-                    ${g.colorLines.map(l => `<tr>
-                        <td class="py-0.5 pr-2">${esc([l.colorCode, l.colorName].filter(Boolean).join(' · ') || '—')}</td>
-                        <td class="py-0.5 pr-2">${esc(l.fabricsStyle || '')}</td>
-                        <td class="py-0.5 pr-2">${esc(l.labDipReference || '')}</td>
-                        <td class="py-0.5 pr-2 text-right tabular-nums">${nf.format(l.quantity || 0)}</td>
-                        <td class="py-0.5 pr-2 text-right tabular-nums">${pf.format((meter ? l.priceInMeter : l.rate) || 0)}</td>
-                        <td class="py-0.5 text-right tabular-nums">${nf.format(lineAmount(l))}</td></tr>`).join('')}
-                    </tbody></table>`;
-                return `<tr>
-                    <td class="tabular-nums">${i + 1}</td>
-                    <td><div class="font-medium text-gray-900 dark:text-white">${esc(g.itemName ? (g.itemName.split('|')[1] || g.itemName).trim() : '—')}</div>
-                        ${f.costingCode ? `<div class="font-mono text-xs text-gray-500">Costing ${esc(f.costingCode)}</div>` : ''}</td>
-                    <td class="font-mono text-xs">${esc(f.construction || '—')}</td>
-                    <td>${esc(f.composition || '—')}</td>
-                    <td>${esc([f.weaveType, f.weaveStyle].filter(Boolean).join(' · ') || '—')}</td>
-                    <td class="text-right tabular-nums">${esc(f.finishWidth ?? '—')} / ${esc(f.cuttableWidth ?? '—')}</td>
-                    <td class="min-w-[22rem]">${colours}</td>
-                    <td>${App.rowActions(App.rowButton('Edit', 'edit', `data-group-edit="${i}"`),
-                                         App.rowButton('Remove', 'trash', `data-group-remove="${i}"`, 'text-red-700'))}</td>
-                </tr>`;
-            }).join('') : `<tr><td colspan="8" class="py-6 text-center text-sm text-gray-500">No specifications yet. Fill the form above and choose “Add to booking”.</td></tr>`;
+            const cur = currency();
+            specLines.innerHTML = groups.length
+                ? groups.map((g, i) => groupCard(g, i, meter, cur)).join('')
+                : `<div class="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-gray-700">
+                       No fabric lines yet. Choose “Add fabric line” to key one, or fetch it from a costing.</div>`;
 
             form.querySelector('[data-count="groups"]').textContent = groups.length;
+            const colours = groups.reduce((s, g) => s + g.colorLines.length, 0);
             const qty = groups.reduce((s, g) => s + g.colorLines.reduce((t, l) => t + (l.quantity || 0), 0), 0);
             const amount = groups.reduce((s, g) => s + g.colorLines.reduce((t, l) => t + lineAmount(l), 0), 0);
+            form.querySelector('[data-total="lines"]').textContent = groups.length;
+            form.querySelector('[data-total="colours"]').textContent = colours;
             form.querySelector('[data-total="qty"]').textContent = nf.format(qty);
-            form.querySelector('[data-total="amount"]').textContent =
-                `${form.elements.namedItem('currencyCode').value} ${nf.format(amount)}`;
+            form.querySelector('[data-total="amount"]').textContent = `${cur} ${nf.format(amount)}`;
+            syncColorHeads();
         }
         form.elements.namedItem('currencyCode').addEventListener('change', renderGroups);
 
-        specBody.addEventListener('click', async event => {
+        specLines.addEventListener('click', async event => {
+            const detail = event.target.closest('[data-group-detail]');
+            if (detail) {
+                const i = Number(detail.dataset.groupDetail);
+                if (!openGroups.delete(i)) openGroups.add(i);
+                renderGroups();
+                return;
+            }
             const edit = event.target.closest('[data-group-edit]');
             if (edit) {
-                if (specHasContent() && !await App.confirm({ title: 'Replace what is in the editor?',
-                        message: 'The specification being entered above has not been added to the booking.',
-                        confirmText: 'Replace' })) return;
-                editGroup(Number(edit.dataset.groupEdit));
+                openLine(Number(edit.dataset.groupEdit));
                 return;
             }
             const remove = event.target.closest('[data-group-remove]');
             if (remove) {
                 const i = Number(remove.dataset.groupRemove);
-                if (!await App.confirm({ title: `Remove specification ${i + 1}?`,
+                if (!await App.confirm({ title: `Remove fabric line ${i + 1}?`,
                         message: 'Its colour breakdown is removed with it.', confirmText: 'Remove', danger: true })) return;
                 groups.splice(i, 1);
+                openGroups = new Set([...openGroups].filter(k => k !== i).map(k => k > i ? k - 1 : k));
                 if (editingGroup === i) resetSpec();
                 else if (editingGroup > i) editingGroup--;
                 dirty = true;

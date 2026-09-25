@@ -1511,7 +1511,8 @@
 
         buildDrawer() {
             const dialog = document.createElement('dialog');
-            dialog.className = 'drawer';
+            // Centred: a document is reviewed, not worked alongside the list.
+            dialog.className = 'modal modal-review';
             dialog.setAttribute('aria-labelledby', 'docDrawerTitle');
             dialog.innerHTML = `
                 <div class="modal-head">
@@ -1545,25 +1546,51 @@
                             <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">${esc(value)}</dd></div>`;
                 }).join('');
 
+            // Each specification as a line card - the booking editor's own card, read-only: a title
+            // and meta line, the identifying facts as a strip, the rest as label/value pairs, then
+            // the colour lines with one totals row.
+            const filled = v => v != null && String(v).trim() !== '';
+            const stripKeys = ['itemName', 'costingCode', 'fabricType', 'composition', 'weaveType', 'weaveStyle',
+                               'epi', 'ppi', 'finishWidth', 'cuttableWidth', 'gsm', 'leadTimeDays'];
             const groups = (doc.lineGroups || []).map((g, i) => {
-                const gFacts = Object.entries(GROUP_FIELDS).filter(([key]) => g[key] != null && g[key] !== '')
-                    .map(([key, label]) => `<span><span class="text-gray-500">${esc(label)}</span>
-                        <span class="font-medium text-gray-800 dark:text-gray-200">${esc(g[key])}</span></span>`).join('');
+                const item = filled(g.itemName) ? (String(g.itemName).split('|')[1] || g.itemName).trim() : '';
+                const meta = [g.fabricType, filled(g.costingCode) && `Costing ${g.costingCode}`,
+                              filled(g.leadTimeDays) && `Lead time ${g.leadTimeDays} days`].filter(Boolean);
+                const strip = [['Composition', g.composition],
+                               ['Weave', [g.weaveType, g.weaveStyle].filter(filled).join(' · ')],
+                               ['EPI × PPI', filled(g.epi) && filled(g.ppi) ? `${g.epi} × ${g.ppi}` : ''],
+                               ['Width', filled(g.finishWidth) || filled(g.cuttableWidth)
+                                   ? `${g.finishWidth ?? '—'}″ finished · ${g.cuttableWidth ?? '—'}″ cuttable` : ''],
+                               ['GSM', g.gsm]].filter(([, v]) => filled(v));
+                const rest = Object.entries(GROUP_FIELDS).filter(([key]) => !stripKeys.includes(key) && filled(g[key]));
                 const lines = g.colorLines || [];
-                const cols = LINE_COLUMNS.filter(([key]) => lines.some(l => l[key] != null && l[key] !== ''));
-                return `<div class="row-card">
-                    <div class="row-card-head">
-                        <p class="min-w-0 truncate text-sm font-semibold text-gray-900 dark:text-white">
-                            Spec ${esc(g.groupNo || i + 1)} · ${esc(g.construction || 'No construction')}</p>
-                        <span class="shrink-0 text-xs tabular-nums text-gray-500">${esc(formatNumber(g.groupQuantity))} total</span>
-                    </div>
-                    ${gFacts ? `<div class="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">${gFacts}</div>` : ''}
-                    ${lines.length ? `<div class="table-wrap -mx-4 -mb-4 border-t border-gray-100 dark:border-gray-800"><table class="table-grid table-lines">
-                        <thead><tr>${cols.map(([, label, n]) => `<th class="${n ? 'text-right' : ''}">${esc(label)}</th>`).join('')}</tr></thead>
+                const cols = LINE_COLUMNS.filter(([key]) => lines.some(l => filled(l[key])));
+                const sum = key => lines.reduce((t, l) => t + (Number(l[key]) || 0), 0);
+                return `<article class="line-card">
+                    <header class="line-head">
+                        <span class="line-no">${esc(g.groupNo || i + 1)}</span>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex min-w-0 items-baseline gap-2">
+                                <h4 class="line-title font-mono">${esc(g.construction || item || 'No construction')}</h4>
+                                ${g.construction && item ? `<span class="line-sub" title="${esc(item)}">${esc(item)}</span>` : ''}
+                            </div>
+                            ${meta.length ? `<p class="line-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</p>` : ''}
+                        </div>
+                    </header>
+                    ${strip.length ? `<dl class="line-strip">${strip.map(([k, v]) =>
+                        `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
+                    ${rest.length ? `<dl class="spec-facts border-t border-gray-100 px-4 py-3 dark:border-gray-800">${rest.map(([key, label]) =>
+                        `<div><dt>${esc(label)}</dt><dd>${esc(g[key])}</dd></div>`).join('')}</dl>` : ''}
+                    ${lines.length ? `<div class="table-wrap"><table class="line-colours">
+                        <thead><tr>${cols.map(([, label, n]) => `<th class="${n ? 'num' : ''}">${esc(label)}</th>`).join('')}</tr></thead>
                         <tbody>${lines.map(l => `<tr>${cols.map(([key, , n]) =>
-                            `<td class="${n ? 'text-right tabular-nums' : ''}">${esc(n ? formatNumber(l[key]) : l[key])}</td>`).join('')}</tr>`).join('')}
-                        </tbody></table></div>` : '<p class="text-xs text-gray-500">No colour lines.</p>'}
-                </div>`;
+                            `<td class="${n ? 'num' : ''}">${esc(n ? formatNumber(l[key]) : (l[key] ?? '—'))}</td>`).join('')}</tr>`).join('')}</tbody>
+                        <tfoot><tr>${cols.map(([key, , n], c) => c === 0
+                            ? `<td>${lines.length} ${lines.length === 1 ? 'colour' : 'colours'}</td>`
+                            : `<td class="${n ? 'num' : ''}">${['quantity', 'lineAmount', 'fulfilled', 'outstanding'].includes(key)
+                                ? esc(formatNumber(sum(key))) : ''}</td>`).join('')}</tr></tfoot>
+                        </table></div>` : '<p class="border-t border-gray-100 px-4 py-3 text-xs text-gray-500 dark:border-gray-800">No colour lines.</p>'}
+                </article>`;
             }).join('');
 
             const timeline = history.length ? `<ol class="space-y-4">${history.map(h => `
@@ -1585,8 +1612,8 @@
                     ${doc.remarks ? `<p class="mt-4 text-sm text-gray-600 dark:text-gray-300"><span class="text-gray-500">Remarks:</span> ${esc(doc.remarks)}</p>` : ''}
                 </section>
                 <section class="form-section">
-                    <div class="form-section-head"><h3 class="form-section-title">Fabric specifications</h3>
-                        <span class="text-xs text-gray-500">${(doc.lineGroups || []).length} spec(s)</span></div>
+                    <div class="form-section-head"><h3 class="form-section-title">Fabric lines</h3>
+                        <span class="text-xs text-gray-500">${(doc.lineGroups || []).length} line(s)</span></div>
                     <div class="space-y-3">${groups || '<p class="text-sm text-gray-500">No specifications on this document.</p>'}</div>
                 </section>
                 ${Array.isArray(doc.terms) ? `<section class="form-section">

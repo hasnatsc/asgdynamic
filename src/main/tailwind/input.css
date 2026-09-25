@@ -58,12 +58,32 @@
   .field      { @apply block w-full rounded-lg border-gray-300 bg-white py-2 text-sm text-gray-900 shadow-xs
                        placeholder:text-gray-400 transition-colors
                        hover:border-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15
-                       disabled:bg-gray-50 disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-600; }
+                       disabled:bg-gray-50 disabled:text-gray-500 [&[readonly]]:bg-gray-50 [&[readonly]]:text-gray-600; }
+  /* [readonly], not :read-only - the pseudo-class also matches every <select> and the picker's <div>
+     trigger, which then drew grey, as if disabled. */
   select.field{ @apply pr-9; }
   .field-sm   { @apply py-1.5 text-xs; }
   .field[aria-invalid="true"], .field.is-invalid { @apply border-red-500 focus:border-red-500 focus:ring-red-500/15; }
   .label      { @apply mb-1.5 block text-[13px] font-medium text-gray-700; }
   .label .req { @apply text-brand-600; }
+
+  /* Floating captions (asfl-erp's field): inside .form-float the .label sits ON the field's top
+     border instead of above it. Every caption is in the same place on every field and nothing
+     moves as you tab, and a dense document header reads as one tidy block. Markup is unchanged:
+     any <div> holding a .label and its control becomes the anchor. */
+  .form-float div:has(> .label) { @apply relative; }
+  .form-float .label { @apply pointer-events-none absolute left-2.5 top-0 z-[2] m-0 -translate-y-1/2 truncate
+                              bg-white px-1 text-[11px] font-semibold leading-none text-gray-600;
+                       max-width: calc(100% - 1.25rem); }
+  .form-float .label .req { @apply ml-0.5; }
+  /* A read-only field is filled: the caption's lower half takes the fill so it does not sit in a white notch. */
+  .form-float div:has(> .field[readonly]) > .label,
+  .form-float div:has(> div > .field[readonly]) > .label {
+    background-image: linear-gradient(theme('colors.white') 50%, theme('colors.gray.50') 50%); }
+  .form-float .field { @apply py-2.5; }
+  .form-float .rselect-trigger { @apply min-h-[42px]; }
+  /* A checkbox in the grid reads as a field too, not as loose text. */
+  .field-check { @apply field flex cursor-pointer items-center gap-2.5 border py-2.5 pl-3 text-gray-700; }
   .hint       { @apply mt-1 text-xs text-gray-500; }
   .error-text { @apply mt-1 text-xs font-medium text-red-700; }
   .checkbox   { @apply h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50; }
@@ -78,7 +98,8 @@
      The menu is a popover, so it floats above a dialog's overflow and the dialog itself. */
   .rselect             { @apply relative; }
   .rselect-native      { @apply pointer-events-none absolute bottom-0 left-1/2 h-px w-px opacity-0; }
-  .rselect-trigger     { @apply flex min-h-[38px] cursor-pointer items-center gap-2 pr-2 text-left focus:outline-none; }
+  .rselect-trigger     { @apply flex min-h-[38px] cursor-pointer items-center gap-2 border pl-3 pr-2 text-left focus:outline-none; }
+  /* A <div>, so the forms plugin never gave it the border and padding an input gets. */
   .rselect.is-open .rselect-trigger { @apply border-brand-500 ring-2 ring-brand-500/15; }
   .rselect-trigger.is-disabled { @apply cursor-default bg-gray-50 text-gray-500 hover:border-gray-300; }
   .rselect-value       { @apply flex min-w-0 flex-1 items-center gap-2; }
@@ -280,6 +301,14 @@
   .modal-title{ @apply text-base font-semibold text-gray-900; }
   .modal-body { @apply max-h-[70vh] overflow-y-auto px-6 py-5 scroll-thin; }
   .modal-foot { @apply flex items-center justify-end gap-2 border-t border-gray-200 bg-gray-50 px-6 py-3; }
+  /* A document under review (App.DocumentScreen): centred, wide enough for its line cards, and a
+     column whose body scrolls between a fixed head and action bar. */
+  .modal-review { @apply max-h-[92vh] w-[94vw] max-w-5xl; }
+  .modal-review[open] { @apply flex flex-col; }
+  .modal-review .modal-body { @apply max-h-none min-h-0 flex-1; }
+  /* The fabric-line editor, stacked over the booking editor. */
+  .modal-line { @apply max-h-[92vh] w-[96vw] max-w-[88rem]; }
+  .modal-line[open] { @apply flex flex-col; }
   .drawer     { @apply m-0 ml-auto h-full max-h-full w-full max-w-2xl rounded-none border-0 p-0 shadow-float; }
   .drawer[open] { @apply flex animate-drawer-in flex-col; }
   .drawer > form { @apply flex min-h-0 flex-1 flex-col; }
@@ -343,6 +372,71 @@
   .table-edit .field   { @apply py-1.5; }
   .totals     { @apply flex flex-wrap items-baseline justify-end gap-x-6 gap-y-1 border-t border-gray-200 pt-3 text-sm; }
   .totals dt  { @apply text-gray-500; }
+
+  /* ---- Fabric line cards (booking) ---------------------------------------------------------
+     One card per specification, as asfl-erp draws a booking line: a title and one meta line, the
+     identifying facts as a quiet strip, the full specification behind "Item detail", and the
+     colour breakdown with its units in the header and one totals row. */
+  .line-card   { @apply overflow-hidden rounded-xl border border-gray-200 bg-white
+                        dark:border-gray-800 dark:bg-gray-900; }
+  .line-card.is-editing { @apply border-brand-300 ring-2 ring-brand-500/10 dark:border-brand-700; }
+  .line-head   { @apply flex items-start gap-3 px-4 py-3; }
+  .line-no     { @apply mt-px grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gray-100 text-[11px]
+                        font-semibold tabular-nums text-gray-600 dark:bg-gray-800 dark:text-gray-300; }
+  .line-title  { @apply truncate text-sm font-semibold text-gray-900 dark:text-white; }
+  .line-sub    { @apply min-w-0 truncate text-[13px] text-gray-500 dark:text-gray-400; }
+  .line-meta   { @apply mt-0.5 flex flex-wrap gap-x-2 text-xs text-gray-500 dark:text-gray-400; }
+  .line-meta > span + span::before { content: '\00B7'; @apply mr-2 text-gray-300 dark:text-gray-600; }
+  .line-toggle { @apply btn-subtle btn-sm border border-gray-200 dark:border-gray-700; }
+  .line-toggle[aria-expanded="true"] { @apply border-brand-200 bg-brand-50 text-brand-700
+                                              dark:border-brand-800 dark:bg-brand-950/40 dark:text-brand-300; }
+  .line-toggle[aria-expanded="true"] .icon { @apply rotate-90; }
+  .line-strip  { @apply flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-gray-100 bg-gray-50 px-4 py-2
+                        text-xs dark:border-gray-800 dark:bg-gray-800/40; }
+  .line-strip > div { @apply flex gap-1.5; }
+  .line-strip dt { @apply text-gray-500 dark:text-gray-400; }
+  .line-strip dd { @apply font-medium text-gray-800 dark:text-gray-200; }
+
+  /* Colour breakdown: numbers only in the cells; the unit and currency sit once in the header. */
+  .line-colours { @apply w-full text-sm; }
+  .line-colours th { @apply whitespace-nowrap border-y border-gray-200 px-4 py-2 text-left text-[11px] font-semibold
+                            text-gray-500 dark:border-gray-800 dark:text-gray-400; }
+  .line-colours td { @apply px-4 py-2 text-gray-800 dark:text-gray-200; }
+  .line-colours tbody tr + tr td { @apply border-t border-gray-100 dark:border-gray-800; }
+  .line-colours tbody tr:hover td { @apply bg-gray-50 dark:bg-gray-800/40; }
+  .line-colours tfoot td { @apply border-t border-gray-200 px-4 py-2.5 text-xs text-gray-500
+                                  dark:border-gray-800 dark:text-gray-400; }
+  .line-colours tfoot td.num { @apply text-sm font-semibold text-gray-900 dark:text-white; }
+  .line-colours .unit { @apply ml-0.5 font-medium normal-case text-gray-400; }
+  .line-colours .num  { @apply text-right; }
+  /* The editor's colour grid: the same table, with inputs filling tighter cells. */
+  .line-colours-edit th, .line-colours-edit td { @apply px-2; }
+  .line-colours-edit tbody td { @apply py-1.5; }
+  .line-colours-edit tbody td:first-child { @apply pl-6; }
+  .line-colours-edit tbody tr:hover td { @apply bg-transparent; }
+  .line-colours-edit tbody tr + tr td { @apply border-t-0; }
+  .line-colours-edit .field { @apply py-1.5; }
+
+  /* "Item detail": the whole specification, read-only, as label/value columns, not boxes. */
+  .spec-panel  { @apply border-t border-gray-200 px-4 py-4 dark:border-gray-800; }
+  .spec-group  { @apply mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400; }
+  .spec-dl     { @apply grid content-start gap-x-4 text-[13px]; grid-template-columns: minmax(7.5rem, auto) 1fr; }
+  .spec-dl > .spec-group { grid-column: 1 / -1; }
+  .spec-dl dt, .spec-dl dd { @apply border-b border-dashed border-gray-200 py-1.5 dark:border-gray-700; }
+  .spec-dl dt  { @apply text-gray-500 dark:text-gray-400; }
+  .spec-dl dd  { @apply min-w-0 break-words text-gray-900 dark:text-gray-100; }
+  .spec-facts  { @apply grid gap-x-6 gap-y-3 text-[13px]; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+  .spec-facts dt { @apply text-[11px] text-gray-500 dark:text-gray-400; }
+  .spec-facts dd { @apply text-gray-900 dark:text-gray-100; }
+  .spec-facts .is-wide { grid-column: span 2; }
+
+  /* Warp and weft counts as a 2 x 3 grid of count/ratio pairs rather than twelve labelled boxes. */
+  .yarn-grid   { @apply w-full table-fixed text-sm; }
+  .yarn-grid th { @apply px-1.5 pb-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400; }
+  .yarn-grid th[scope="row"] { @apply pl-0 text-[13px] font-medium text-gray-700 dark:text-gray-300; }
+  .yarn-grid thead th:first-child { @apply w-14; }
+  .yarn-grid td { @apply px-1.5 py-1; }
+  .yarn-grid td:nth-child(odd) { @apply pr-3; }
   .totals dd  { @apply font-semibold tabular-nums text-gray-900; }
   /* Pinned to the viewport bottom while a long `.card p-5` form is on screen; the negative
      margins bleed it to the card's edges. Forms built from .form-section use .form-actions. */
@@ -473,8 +567,13 @@
   .dark .table-grid:has(td > .row-actions) thead th:last-child { @apply bg-gray-900; }
   .dark .table-lines tbody tr, .dark .table-edit tbody tr { @apply bg-transparent; }
   .dark .table-grid tbody tr{ @apply hover:bg-gray-800/60; }
-  .dark .field              { @apply border-gray-700 bg-gray-900 text-gray-100 read-only:bg-gray-800; }
+  .dark .field              { @apply border-gray-700 bg-gray-900 text-gray-100 [&[readonly]]:bg-gray-800; }
   .dark .label              { @apply text-gray-300; }
+  .dark .form-float .label  { @apply bg-gray-900 text-gray-400; }
+  .dark .form-float div:has(> .field[readonly]) > .label,
+  .dark .form-float div:has(> div > .field[readonly]) > .label {
+    background-image: linear-gradient(theme('colors.gray.900') 50%, theme('colors.gray.800') 50%); }
+  .dark .field-check        { @apply text-gray-200; }
   .dark .rselect-menu       { @apply border-gray-700 bg-gray-900 text-gray-100; }
   .dark .rselect-search     { @apply border-gray-800; }
   .dark .rselect-search > input { @apply text-gray-100; }
