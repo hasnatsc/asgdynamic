@@ -43,6 +43,14 @@ public class ApprovalHistory extends AuditableEntity {
     @Column(length = 1000)
     private String remarks;
 
+    /** The approval request this entry belongs to; null on the submission-less legacy rows. */
+    @Column(name = "request_id")
+    private Long requestId;
+
+    /** Which level of the request was decided; null on a submission. */
+    @Column(name = "level")
+    private Integer level;
+
     protected ApprovalHistory() { }
 
     public ApprovalHistory(Long documentId, DocumentType documentType, ApprovalAction action,
@@ -62,4 +70,13 @@ public class ApprovalHistory extends AuditableEntity {
     public BusinessDocumentStatus getFromStatus() { return fromStatus; }
     public BusinessDocumentStatus getToStatus()   { return toStatus; }
     public String getRemarks()                    { return remarks; }
+    public Long getRequestId()                    { return requestId; }
+    public Integer getLevel()                     { return level; }
+
+    /** Ties the entry to the request and level it records. */
+    public ApprovalHistory forRequest(Long requestId, Integer level) {
+        this.requestId = requestId;
+        this.level = level;
+        return this;
+    }
 }

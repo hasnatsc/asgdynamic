@@ -33,10 +33,15 @@ public enum Screen {
     ACC_SETUP("Accounting setup", Section.ACCOUNTS, "/accounts/setup"),
     NUMBERING("Document numbering", Section.ADMINISTRATION, "/setup/numbering"),
     SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security"),
-    MARKETING_TEAM("Marketing teams", Section.SETUP, "/setup/marketing-teams");
+    MARKETING_TEAM("Marketing teams", Section.SETUP, "/setup/marketing-teams"),
+    /** What is waiting for the signed-in user's signature, and every request in the unit. */
+    APPROVALS("Approvals", Section.WORKFLOW, "/approvals"),
+    APPROVAL_SETUP("Approval matrices", Section.ADMINISTRATION, "/setup/approval-matrices");
 
     /** Declaration order is menu order: reference data first, then the order-to-delivery modules. */
     public enum Section {
+        /** First: an approver opens the app to what is waiting for them. */
+        WORKFLOW("Workflow"),
         SETUP("Master data"),
         SALES("Sales"),
         INVENTORY("Inventory"),

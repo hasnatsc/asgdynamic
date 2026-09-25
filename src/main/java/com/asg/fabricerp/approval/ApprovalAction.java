@@ -4,5 +4,7 @@ package com.asg.fabricerp.approval;
 public enum ApprovalAction {
     SUBMITTED,
     APPROVED,
+    /** Sent back to the maker as a draft to correct - asfl-erp's RETURNED. */
+    RETURNED,
     REJECTED
 }

@@ -14,7 +14,9 @@ import java.util.Map;
  * <pre>
  *   POST /api/documents/{id}/submit
  *   POST /api/documents/{id}/approve?remarks=
- *   POST /api/documents/{id}/reject?remarks=
+ *   POST /api/documents/{id}/reject?remarks=     (remarks required)
+ *   POST /api/documents/{id}/return?remarks=     back to the maker as a draft (remarks required)
+ *   GET  /api/documents/{id}/approval            where its approval stands, and whether you may act
  *   GET  /api/documents/{id}/history
  * </pre>
  *
@@ -53,6 +55,17 @@ public class ApprovalController {
         return toStatus(service.reject(id, remarks));
     }
 
+    @PostMapping("/{id}/return")
+    public Map<String, Object> returnToMaker(@PathVariable Long id,
+                                             @RequestParam(required = false) String remarks) {
+        return toStatus(service.returnToMaker(id, remarks));
+    }
+
+    @GetMapping("/{id}/approval")
+    public ApprovalStateView approval(@PathVariable Long id) {
+        return service.stateOf(id);
+    }
+
     @GetMapping("/{id}/history")
     public List<Map<String, Object>> history(@PathVariable Long id) {
         return service.historyOf(id).stream().map(ApprovalController::toHistoryRow).toList();
@@ -72,6 +85,7 @@ public class ApprovalController {
         row.put("fromStatus", h.getFromStatus() == null ? null : h.getFromStatus().name());
         row.put("toStatus", h.getToStatus().name());
         row.put("remarks", h.getRemarks());
+        row.put("level", h.getLevel());
         row.put("actor", h.getCreatedBy());
         row.put("at", h.getCreatedAt() == null ? null : h.getCreatedAt().toString());
         return row;

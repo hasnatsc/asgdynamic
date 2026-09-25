@@ -35,7 +35,8 @@ public enum BusinessDocumentStatus {
     public Set<BusinessDocumentStatus> allowedNext() {
         return switch (this) {
             case DRAFT      -> EnumSet.of(SUBMITTED, CANCELLED);
-            case SUBMITTED  -> EnumSet.of(APPROVED, REJECTED, CANCELLED);
+            // DRAFT: returned to the maker to correct (the approval engine's Return).
+            case SUBMITTED  -> EnumSet.of(APPROVED, REJECTED, DRAFT, CANCELLED);
             case REJECTED   -> EnumSet.of(DRAFT, CANCELLED);
             case APPROVED   -> EnumSet.of(PARTIAL, PROCESSING, COMPLETED, CANCELLED);
             case PARTIAL    -> EnumSet.of(PARTIAL, COMPLETED, CANCELLED);

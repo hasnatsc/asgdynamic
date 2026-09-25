@@ -39,6 +39,16 @@ public final class AuthorityChecks {
             "This action requires one of " + String.join(", ", authorities));
     }
 
+    /** Whether the signed-in user holds an authority - for a decision that is not a refusal. */
+    public static boolean holds(String authority) {
+        return held().contains(authority);
+    }
+
+    /** Every authority the signed-in user holds. */
+    public static Set<String> heldAuthorities() {
+        return held();
+    }
+
     private static Set<String> held() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) {

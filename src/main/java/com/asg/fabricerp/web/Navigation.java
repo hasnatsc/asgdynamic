@@ -102,11 +102,14 @@ public final class Navigation {
             case NUMBERING      -> "hash";
             case SECURITY_ADMIN -> "shield";
             case MARKETING_TEAM -> "users";
+            case APPROVALS      -> "check-circle";
+            case APPROVAL_SETUP -> "workflow";
         };
     }
 
     static String iconFor(Screen.Section section) {
         return switch (section) {
+            case WORKFLOW       -> "workflow";
             case SETUP          -> "master-data";
             case SALES          -> "sales";
             case INVENTORY      -> "inventory";
