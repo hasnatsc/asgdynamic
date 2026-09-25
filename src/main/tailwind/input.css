@@ -2,182 +2,379 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * FABRICS LTD. ERP design system.
+ *
+ *   Colour   brand red for identity and the one primary action per view; neutral gray for everything
+ *            else; green / amber / blue / red only for status. Red is the brand, so errors are always
+ *            paired with an icon or a word - colour alone never carries "bad".
+ *   Surfaces white cards on a gray-50 canvas, separated by a 1px border; shadows stay faint.
+ *   Density  36px controls, 44px table rows, 14px body text, 12px meta text. Built for all-day use.
+ *
+ * Every class below is shared: templates and app.js compose screens from them, so a change here
+ * restyles the whole ERP. Add to this file rather than repeating utility strings in templates.
+ */
+
 @layer base {
   [x-cloak], [hidden] { display: none !important; }
-  dialog::backdrop    { background: rgb(15 23 42 / .45); backdrop-filter: blur(2px); }
+  html                { -webkit-tap-highlight-color: transparent; }
+  body                { font-feature-settings: 'cv11', 'ss01'; }
+  dialog::backdrop    { background: rgb(14 15 18 / .45); backdrop-filter: blur(2px); }
+  ::selection         { @apply bg-brand-100 text-brand-900; }
+
+  /* Sprite icons: <svg class="icon"><use href="/images/icons.svg#name"/></svg> */
+  .icon { @apply h-4 w-4 shrink-0; fill: none; stroke: currentColor; stroke-width: 1.75;
+          stroke-linecap: round; stroke-linejoin: round; }
+  .icon-lg { @apply h-5 w-5; }
+
+  /* Thin, quiet scrollbars for the sidebar and scroll containers. */
+  .scroll-thin { scrollbar-width: thin; scrollbar-color: theme('colors.gray.300') transparent; }
+  .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { @apply rounded-full bg-gray-300; }
 }
 
 @layer components {
   /* ---- Buttons --------------------------------------------------------------------------- */
-  .btn        { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium
-                       transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1
+  .btn        { @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 text-sm
+                       font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
                        disabled:cursor-not-allowed disabled:opacity-50; }
-  .btn-primary{ @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:ring-brand-500; }
-  .btn-ghost  { @apply btn bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50
+  .btn-primary{ @apply btn bg-brand-600 text-white shadow-xs hover:bg-brand-700 active:bg-brand-800
                        focus-visible:ring-brand-500; }
-  .btn-danger { @apply btn bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-500; }
-  .btn-subtle { @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-brand-500; }
-  .btn-sm     { @apply px-2.5 py-1.5 text-xs; }
-  .btn-icon   { @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500
-                       hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2
-                       focus-visible:ring-brand-500; }
+  .btn-ghost  { @apply btn border border-gray-300 bg-white text-gray-700 shadow-xs hover:border-gray-400
+                       hover:bg-gray-50 hover:text-gray-900 focus-visible:ring-brand-500; }
+  .btn-secondary { @apply btn-ghost; }
+  .btn-danger { @apply btn bg-red-700 text-white shadow-xs hover:bg-red-800 focus-visible:ring-red-600; }
+  .btn-danger-ghost { @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50 focus-visible:ring-red-600; }
+  .btn-subtle { @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-brand-500; }
+  .btn-sm     { @apply h-8 gap-1 rounded-md px-2.5 text-xs; }
+  .btn-lg     { @apply h-11 px-5 text-[15px]; }
+  .btn-icon   { @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors
+                       hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2
+                       focus-visible:ring-brand-500 disabled:pointer-events-none disabled:opacity-40; }
+  .btn-icon.btn-sm { @apply h-8 w-8 rounded-md; }
+  .btn-group  { @apply inline-flex items-center gap-2; }
 
   /* ---- Forms ----------------------------------------------------------------------------- */
-  .field      { @apply block w-full rounded-md border-slate-300 text-sm shadow-sm
-                       focus:border-brand-500 focus:ring-brand-500
-                       disabled:bg-slate-50 disabled:text-slate-500; }
-  .label      { @apply block text-sm font-medium text-slate-700 mb-1; }
-  .hint       { @apply mt-1 text-xs text-slate-500; }
-  .checkbox   { @apply h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500
-                       disabled:opacity-50; }
+  .field      { @apply block w-full rounded-lg border-gray-300 bg-white py-2 text-sm text-gray-900 shadow-xs
+                       placeholder:text-gray-400 transition-colors
+                       hover:border-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15
+                       disabled:bg-gray-50 disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-600; }
+  select.field{ @apply pr-9; }
+  .field-sm   { @apply py-1.5 text-xs; }
+  .field[aria-invalid="true"], .field.is-invalid { @apply border-red-500 focus:border-red-500 focus:ring-red-500/15; }
+  .label      { @apply mb-1.5 block text-[13px] font-medium text-gray-700; }
+  .label .req { @apply text-brand-600; }
+  .hint       { @apply mt-1 text-xs text-gray-500; }
+  .error-text { @apply mt-1 text-xs font-medium text-red-700; }
+  .checkbox   { @apply h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50; }
+  .radio      { @apply h-4 w-4 border-gray-300 text-brand-600 focus:ring-brand-500; }
+
+  /* Input with a leading icon: <div class="input-icon"><svg class="icon">…</svg><input class="field"></div> */
+  .input-icon          { @apply relative; }
+  .input-icon > .icon  { @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400; }
+  .input-icon > .field { @apply pl-9; }
+
+  /* Form layout: titled sections of a responsive grid, and a sticky action bar. */
+  .form-section        { @apply border-b border-gray-200 px-5 py-5 last:border-b-0; }
+  .form-section-head   { @apply mb-4 flex flex-wrap items-center justify-between gap-2; }
+  .form-section-title  { @apply text-sm font-semibold text-gray-900; }
+  .form-section-sub    { @apply mt-0.5 text-xs text-gray-500; }
+  .form-grid           { @apply grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 lg:grid-cols-4; }
+  .form-actions        { @apply sticky bottom-0 z-10 flex flex-wrap items-center gap-2 rounded-b-xl border-t border-gray-200
+                                bg-white/95 px-5 py-3 backdrop-blur; }
 
   /* ---- Surfaces -------------------------------------------------------------------------- */
-  .card       { @apply bg-white rounded-lg shadow-sm ring-1 ring-slate-200; }
-  .card-header{ @apply flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3; }
-  .card-title { @apply text-sm font-semibold text-slate-800; }
-  .page-header{ @apply mb-5 flex flex-wrap items-end justify-between gap-3; }
-  .page-title { @apply text-xl font-semibold tracking-tight text-slate-900; }
-  .page-sub   { @apply mt-0.5 text-sm text-slate-500; }
+  .card       { @apply rounded-xl border border-gray-200 bg-white shadow-card; }
+  .card-header{ @apply flex min-h-[3.25rem] items-center justify-between gap-3 border-b border-gray-200 px-5 py-3; }
+  .card-title { @apply text-[15px] font-semibold text-gray-900; }
+  .card-sub   { @apply mt-0.5 text-xs text-gray-500; }
+  .card-body  { @apply p-5; }
+  .card-footer{ @apply flex items-center justify-between gap-2 border-t border-gray-200 px-5 py-3 text-sm; }
+  .card-link  { @apply inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800; }
 
-  /* ---- Grid ------------------------------------------------------------------------------ */
-  .table-grid { @apply min-w-full divide-y divide-slate-200 text-sm; }
-  .table-grid thead th { @apply px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide
-                                text-slate-500 bg-slate-50 whitespace-nowrap; }
-  .table-grid thead th[data-sort] { @apply cursor-pointer select-none hover:text-slate-800; }
-  .table-grid thead th[aria-sort="ascending"]::after  { content: ' \25B2'; @apply text-brand-600; }
-  .table-grid thead th[aria-sort="descending"]::after { content: ' \25BC'; @apply text-brand-600; }
-  .table-grid tbody td { @apply px-3 py-2.5 text-slate-700 align-middle; }
-  .table-grid tbody tr { @apply hover:bg-slate-50/70; }
-  .toolbar    { @apply flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3; }
-  .pager      { @apply flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-2.5
-                       text-xs text-slate-500; }
+  .page-header{ @apply mb-6 flex flex-wrap items-end justify-between gap-4; }
+  .page-title { @apply text-[22px] font-semibold leading-tight tracking-tight text-gray-900; }
+  .page-sub   { @apply mt-1 max-w-3xl text-sm text-gray-500; }
+  .page-actions { @apply flex flex-wrap items-center gap-2; }
+
+  .breadcrumb      { @apply flex min-w-0 items-center gap-1.5 text-sm text-gray-500; }
+  .breadcrumb a    { @apply hover:text-gray-900; }
+  .breadcrumb .icon{ @apply h-3.5 w-3.5 text-gray-300; }
+  .breadcrumb [aria-current] { @apply truncate font-medium text-gray-900; }
+
+  /* ---- Data grid ------------------------------------------------------------------------- */
+  .table-grid { @apply min-w-full text-sm; }
+  .table-grid thead th { @apply whitespace-nowrap border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-left text-xs
+                                font-semibold text-gray-600; }
+  .table-grid thead th[data-sort] { @apply cursor-pointer select-none hover:text-gray-900; }
+  .table-grid thead th[data-sort]::after { content: ' \2195'; @apply text-gray-300; }
+  .table-grid thead th[aria-sort="ascending"]::after  { content: ' \2191'; @apply text-brand-600; }
+  .table-grid thead th[aria-sort="descending"]::after { content: ' \2193'; @apply text-brand-600; }
+  .table-grid tbody td { @apply border-b border-gray-100 px-4 py-3 align-middle text-gray-700; }
+  .table-grid tbody tr:last-child td { @apply border-b-0; }
+  .table-grid tbody tr { @apply transition-colors hover:bg-gray-50; }
+  .table-grid tbody tr.is-clickable:hover td:first-child { box-shadow: inset 2px 0 0 theme('colors.brand.500'); }
+  .table-grid .num     { @apply text-right tabular-nums; }
+  .table-grid .doc-no  { @apply font-medium text-brand-700; }
+  /* Line-entry tables inside forms: tighter, inputs fill the cell. */
+  .table-lines thead th { @apply px-2 py-2; }
+  .table-lines tbody td { @apply px-2 py-1.5; }
+  .table-lines tbody tr { @apply hover:bg-transparent; }
+  .table-lines .field   { @apply py-1.5; }
+
+  .table-wrap { @apply overflow-x-auto scroll-thin; }
+  .toolbar    { @apply flex flex-wrap items-center gap-2 border-b border-gray-200 px-4 py-3; }
+  .toolbar-spacer { @apply ml-auto; }
+  .pager      { @apply flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-4 py-2.5
+                       text-xs text-gray-500; }
 
   /* ---- Badges ---------------------------------------------------------------------------- */
-  .badge        { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset
-                         whitespace-nowrap; }
-  .badge-gray   { @apply badge bg-slate-50 text-slate-600 ring-slate-500/20; }
+  .badge        { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium
+                         ring-1 ring-inset; }
+  .badge-gray   { @apply badge bg-gray-50 text-gray-600 ring-gray-500/20; }
   .badge-green  { @apply badge bg-emerald-50 text-emerald-700 ring-emerald-600/20; }
   .badge-red    { @apply badge bg-red-50 text-red-700 ring-red-600/20; }
-  .badge-amber  { @apply badge bg-amber-50 text-amber-800 ring-amber-600/20; }
-  .badge-blue   { @apply badge bg-brand-50 text-brand-700 ring-brand-600/20; }
+  .badge-amber  { @apply badge bg-amber-50 text-amber-800 ring-amber-600/25; }
+  .badge-blue   { @apply badge bg-sky-50 text-sky-700 ring-sky-600/20; }
   .badge-violet { @apply badge bg-violet-50 text-violet-700 ring-violet-600/20; }
+  .badge-brand  { @apply badge bg-brand-50 text-brand-700 ring-brand-600/20; }
+  /* Status pill with a leading dot: add .badge-dot to any badge colour. */
+  .badge-dot::before { content: ''; @apply h-1.5 w-1.5 rounded-full bg-current opacity-80; }
 
   /* ---- Alerts ---------------------------------------------------------------------------- */
-  .alert        { @apply flex gap-2 rounded-md px-3 py-2 text-sm; }
-  .alert-error  { @apply alert bg-red-50 text-red-700; }
-  .alert-success{ @apply alert bg-emerald-50 text-emerald-700; }
-  .alert-warn   { @apply alert bg-amber-50 text-amber-800; }
-  .alert-info   { @apply alert bg-brand-50 text-brand-800; }
+  .alert        { @apply flex gap-2.5 rounded-lg border px-3.5 py-2.5 text-sm; }
+  .alert-error  { @apply alert border-red-200 bg-red-50 text-red-800; }
+  .alert-success{ @apply alert border-emerald-200 bg-emerald-50 text-emerald-800; }
+  .alert-warn   { @apply alert border-amber-200 bg-amber-50 text-amber-900; }
+  .alert-info   { @apply alert border-sky-200 bg-sky-50 text-sky-900; }
 
-  /* ---- Navigation ------------------------------------------------------------------------ */
-  .nav-section { @apply px-3 pt-5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400; }
-  .nav-link    { @apply flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-slate-600
-                        hover:bg-slate-100 hover:text-slate-900; }
+  /* ---- Sidebar navigation ------------------------------------------------------------------
+     Sections are <details> so they collapse without JS; app.js remembers which are closed. */
+  .nav-group            { @apply mt-1; }
+  .nav-section          { @apply flex w-full cursor-pointer list-none items-center gap-2 rounded-md px-3 pb-1.5 pt-4
+                                 text-2xs font-semibold uppercase tracking-[0.08em] text-gray-400 hover:text-gray-600; }
+  .nav-section::-webkit-details-marker { display: none; }
+  .nav-section .icon    { @apply ml-auto h-3.5 w-3.5 transition-transform; }
+  .nav-group:not([open]) > .nav-section .icon { @apply -rotate-90; }
+  .nav-link    { @apply relative flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-gray-600 transition-colors
+                        hover:bg-gray-100 hover:text-gray-900; }
+  .nav-link > .icon { @apply h-[18px] w-[18px] text-gray-400 transition-colors; }
+  .nav-link:hover > .icon { @apply text-gray-600; }
   .nav-link.is-active { @apply bg-brand-50 font-medium text-brand-700; }
-  .nav-sublink { @apply block rounded-md py-1 pl-8 pr-3 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-900; }
-  .nav-sublink.is-active { @apply font-medium text-brand-700; }
+  .nav-link.is-active > .icon { @apply text-brand-600; }
+  .nav-link.is-active::before { content: ''; @apply absolute -left-3 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-brand-500; }
+  .nav-label   { @apply min-w-0 flex-1 truncate; }
+  .nav-caret   { @apply ml-auto h-3.5 w-3.5 text-gray-400 transition-transform; }
+  details[open] > summary > .nav-caret { @apply rotate-90; }
+  .nav-parent.is-current { @apply font-medium text-gray-900; }
+  .nav-parent.is-current > .icon { @apply text-brand-600; }
+  .dark .nav-parent.is-current { @apply text-white; }
+  .nav-children { @apply relative ml-[21px] mt-0.5 space-y-0.5 border-l border-gray-200 pb-1 pl-3; }
+  .nav-sublink { @apply block truncate rounded-md px-2.5 py-1.5 text-[13px] text-gray-500 transition-colors
+                        hover:bg-gray-100 hover:text-gray-900; }
+  .nav-sublink.is-active { @apply bg-brand-50 font-medium text-brand-700; }
+  .nav-badge   { @apply ml-auto rounded-full bg-gray-100 px-1.5 text-2xs font-semibold tabular-nums text-gray-600; }
+
+  /* Collapsed rail (desktop): icons only, labels on hover via title. Toggled on <html>. */
+  .sidebar-rail #sidebar                 { @apply lg:w-[72px]; }
+  .sidebar-rail #sidebar .rail-hide      { @apply lg:hidden; }
+  .sidebar-rail #sidebar .nav-link       { @apply lg:justify-center lg:px-0; }
+  .sidebar-rail #sidebar .nav-link::before { @apply lg:-left-2; }
+  .sidebar-rail #sidebar .nav-section    { @apply lg:justify-center lg:px-0; }
+  .sidebar-rail #sidebar .nav-children   { @apply lg:hidden; }
+  .sidebar-rail #sidebar .brand-full     { @apply lg:hidden; }
+  .sidebar-rail #sidebar .brand-mark     { @apply lg:block; }
+  .sidebar-rail #shell                   { @apply lg:pl-[72px]; }
 
   /* ---- Tabs ------------------------------------------------------------------------------ */
-  .tabs       { @apply flex gap-1 overflow-x-auto border-b border-slate-200 px-5; }
-  .tab        { @apply -mb-px shrink-0 whitespace-nowrap border-b-2 border-transparent px-3 py-2.5 text-sm font-medium text-slate-500
-                       hover:text-slate-800 disabled:cursor-not-allowed disabled:opacity-40; }
+  .tabs       { @apply flex gap-1 overflow-x-auto border-b border-gray-200 px-5 scroll-thin; }
+  .tab        { @apply -mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2.5
+                       text-sm font-medium text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-800
+                       disabled:cursor-not-allowed disabled:opacity-40; }
   .tab[aria-selected="true"] { @apply border-brand-600 text-brand-700; }
 
-  /* ---- Dialogs (native <dialog>) --------------------------------------------------------- */
-  .modal      { @apply w-full max-w-lg rounded-xl p-0 shadow-2xl ring-1 ring-slate-900/10; }
+  /* Segmented control: a compact alternative to tabs for view switches inside a toolbar. */
+  .segmented  { @apply inline-flex rounded-lg bg-gray-100 p-0.5; }
+  .segmented > * { @apply rounded-md px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900; }
+  .segmented > [aria-pressed="true"], .segmented > [aria-selected="true"] { @apply bg-white text-gray-900 shadow-xs; }
+
+  /* ---- Dialogs (native <dialog>) ---------------------------------------------------------
+     .modal centres; .drawer docks to the right edge at full height - use it for record editors
+     that the user works through alongside the list. */
+  .modal      { @apply w-full max-w-lg overflow-hidden rounded-2xl border-0 p-0 shadow-float; }
   .modal-lg   { @apply max-w-3xl; }
   .modal-xl   { @apply max-w-6xl; }
-  .modal-head { @apply flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4; }
-  .modal-body { @apply max-h-[70vh] overflow-y-auto px-5 py-4; }
-  .modal-foot { @apply flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 rounded-b-xl; }
+  .modal-head { @apply flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4; }
+  .modal-title{ @apply text-base font-semibold text-gray-900; }
+  .modal-body { @apply max-h-[70vh] overflow-y-auto px-6 py-5 scroll-thin; }
+  .modal-foot { @apply flex items-center justify-end gap-2 border-t border-gray-200 bg-gray-50 px-6 py-3; }
+  .drawer     { @apply m-0 ml-auto h-full max-h-full w-full max-w-2xl rounded-none border-0 p-0 shadow-float; }
+  .drawer[open] { @apply flex animate-drawer-in flex-col; }
+  .drawer > form { @apply flex min-h-0 flex-1 flex-col; }
+  .drawer .modal-body { @apply max-h-none flex-1; }
 
   /* ---- Filter chips: a segmented role filter with live counts ----------------------------- */
   .chip       { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium
-                       text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50 focus:outline-none
+                       text-gray-600 ring-1 ring-inset ring-gray-200 transition-colors hover:bg-gray-50 focus:outline-none
                        focus-visible:ring-2 focus-visible:ring-brand-500; }
-  .chip[aria-pressed="true"] { @apply bg-brand-50 text-brand-700 ring-brand-300; }
-  .chip-count { @apply rounded-full bg-slate-100 px-1.5 text-xs tabular-nums text-slate-600; }
+  .chip[aria-pressed="true"] { @apply bg-brand-50 text-brand-700 ring-brand-200; }
+  .chip-count { @apply rounded-full bg-gray-100 px-1.5 text-xs tabular-nums text-gray-600; }
   .chip[aria-pressed="true"] .chip-count { @apply bg-brand-100 text-brand-700; }
 
-  /* ---- Repeating-row editors (addresses, contacts, accounts) ----------------------------- */
-  .row-card   { @apply rounded-lg border border-slate-200 bg-white p-3 shadow-sm; }
-  .row-card.is-primary { @apply border-brand-300 ring-1 ring-brand-200; }
+  /* ---- Repeating-row editors (addresses, contacts, accounts, fabric specs) ---------------- */
+  .row-card   { @apply rounded-xl border border-gray-200 bg-white p-4; }
+  .row-card.is-primary { @apply border-brand-300 ring-1 ring-brand-100; }
+  .row-card-head { @apply -mx-4 -mt-4 mb-4 flex items-center justify-between gap-2 rounded-t-xl border-b border-gray-200
+                          bg-gray-50 px-4 py-2.5; }
+
+  /* ---- KPI tiles ------------------------------------------------------------------------- */
+  .kpi        { @apply card flex flex-col gap-1 p-4; }
+  a.kpi       { @apply transition-colors hover:border-gray-300 hover:shadow-xs; }
+  .kpi-icon   { @apply mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600; }
+  .kpi-icon .icon { @apply h-[18px] w-[18px]; }
+  .kpi-value  { @apply text-2xl font-semibold tabular-nums tracking-tight text-gray-900; }
+  .kpi-label  { @apply text-[13px] font-medium text-gray-500; }
+  .kpi-meta   { @apply text-xs text-gray-500; }
+
+  /* ---- Workflow stepper (document status) ------------------------------------------------ */
+  .steps      { @apply flex items-center gap-0 overflow-x-auto scroll-thin; }
+  .step       { @apply flex shrink-0 items-center gap-2 text-xs font-medium text-gray-400; }
+  .step + .step::before { content: ''; @apply mx-2 h-px w-6 bg-gray-300 sm:w-10; }
+  .step-dot   { @apply inline-flex h-6 w-6 items-center justify-center rounded-full border border-gray-300 bg-white text-2xs
+                       font-semibold text-gray-500; }
+  .step.is-done .step-dot    { @apply border-brand-600 bg-brand-600 text-white; }
+  .step.is-done              { @apply text-gray-700; }
+  .step.is-current .step-dot { @apply border-brand-600 text-brand-700 ring-4 ring-brand-100; }
+  .step.is-current           { @apply text-gray-900; }
+  .step.is-rejected .step-dot { @apply border-red-700 bg-red-700 text-white ring-4 ring-red-100; }
+  .step.is-rejected          { @apply text-red-700; }
+
+  /* ---- Manufacturing flow (dashboard) ----------------------------------------------------- */
+  .flow       { @apply grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200
+                       sm:grid-cols-4 xl:grid-cols-8; }
+  .flow-stage { @apply relative flex min-h-[7.5rem] flex-col gap-2 bg-white p-4; }
+  .flow-num   { @apply text-2xs font-semibold uppercase tracking-wider text-gray-400; }
+  .flow-icon  { @apply inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500; }
+  .flow-stage.is-live .flow-icon { @apply bg-brand-50 text-brand-600; }
+  .flow-title { @apply text-sm font-semibold leading-snug text-gray-900; }
+  .flow-stage:not(.is-live) .flow-title { @apply text-gray-500; }
+  .flow-links { @apply mt-auto flex flex-col gap-0.5; }
+  .flow-links a { @apply inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800 hover:underline; }
+
+  /* ---- Empty states ---------------------------------------------------------------------- */
+  .empty       { @apply flex flex-col items-center justify-center gap-2 px-6 py-12 text-center; }
+  .empty-icon  { @apply mb-1 inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400; }
+  .empty-title { @apply text-sm font-semibold text-gray-900; }
+  .empty-text  { @apply max-w-sm text-sm text-gray-500; }
 
   /* ---- Misc ------------------------------------------------------------------------------ */
-  .kpi        { @apply card flex flex-col gap-1 p-4; }
-  .kpi-value  { @apply text-2xl font-semibold tracking-tight text-slate-900; }
-  .kpi-label  { @apply text-xs font-medium uppercase tracking-wide text-slate-500; }
-  .avatar     { @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100
-                       text-xs font-semibold text-brand-700; }
-  .skeleton   { @apply animate-pulse rounded bg-slate-200; }
-  .kbd        { @apply rounded border border-slate-300 bg-slate-50 px-1.5 text-[11px] font-medium text-slate-500; }
+  .avatar     { @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600
+                       text-xs font-semibold text-white; }
+  .skeleton   { @apply animate-pulse rounded bg-gray-200; }
+  .kbd        { @apply inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border border-gray-200 bg-white
+                       px-1 font-sans text-[11px] font-medium text-gray-500 shadow-xs; }
+  .divider    { @apply my-4 border-t border-gray-200; }
+  .dl-row     { @apply flex justify-between gap-4 px-5 py-2.5 text-sm; }
+  .dl-row dt  { @apply text-gray-500; }
+  .dl-row dd  { @apply text-right font-medium text-gray-900; }
+
+  /* ---- Menus (details[data-menu]) -------------------------------------------------------- */
+  .menu       { @apply absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white py-1
+                       shadow-float; }
+  .menu-item  { @apply flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50
+                       hover:text-gray-900; }
+  .menu-item .icon { @apply text-gray-400; }
+  .menu-item-danger { @apply text-red-700 hover:bg-red-50 hover:text-red-800; }
+  .menu-item-danger .icon { @apply text-red-600; }
 
   /* ---- Command palette ------------------------------------------------------------------- */
-  .cmd-palette     { @apply w-full max-w-xl rounded-xl p-0 shadow-2xl ring-1 ring-slate-900/10; }
-  .cmd-input       { @apply w-full border-0 bg-transparent px-4 py-3 text-base text-slate-900 placeholder-slate-400
+  .cmd-palette     { @apply mt-[12vh] w-full max-w-xl overflow-hidden rounded-2xl border-0 p-0 shadow-float; }
+  .cmd-input       { @apply w-full border-0 bg-transparent py-3.5 pl-11 pr-4 text-base text-gray-900 placeholder-gray-400
                             focus:outline-none focus:ring-0; }
-  .cmd-list        { @apply max-h-72 overflow-y-auto border-t border-slate-200 py-1; }
-  .cmd-item        { @apply flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-slate-700
-                            hover:bg-brand-50 hover:text-brand-700; }
-  .cmd-item.is-active { @apply bg-brand-50 text-brand-700; }
-  .cmd-section     { @apply px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400; }
+  .cmd-list        { @apply max-h-80 overflow-y-auto border-t border-gray-200 py-1 scroll-thin; }
+  .cmd-item        { @apply mx-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700; }
+  .cmd-item.is-active { @apply bg-brand-50 text-brand-800; }
+  .cmd-section     { @apply px-4 pb-1 pt-3 text-2xs font-semibold uppercase tracking-widest text-gray-400; }
   .cmd-kbd         { @apply ml-auto flex gap-0.5; }
 
-  .notification-dot { @apply absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500
-                             ring-2 ring-white; }
-  .dark .notification-dot { @apply ring-slate-800; }
+  .notification-dot { @apply absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-brand-500 ring-2 ring-white; }
+
+  /* ---- Brand texture: a faint twill weave for hero bands and the sign-in panel ------------ */
+  .weave {
+    background-image:
+      repeating-linear-gradient(45deg, rgb(255 255 255 / .06) 0 2px, transparent 2px 9px),
+      repeating-linear-gradient(-45deg, rgb(0 0 0 / .05) 0 2px, transparent 2px 9px);
+  }
+  .weave-light {
+    background-image:
+      repeating-linear-gradient(45deg, theme('colors.brand.500 / 4%') 0 1.5px, transparent 1.5px 10px),
+      repeating-linear-gradient(-45deg, theme('colors.gray.900 / 2.5%') 0 1.5px, transparent 1.5px 10px);
+  }
 }
 
 @layer base {
   /* ---- Dark mode overrides -------------------------------------------------------------- */
-  .dark                     { @apply bg-slate-900 text-slate-100; }
-  .dark .card               { @apply bg-slate-800 ring-slate-700; }
-  .dark .card-header        { @apply border-slate-700; }
-  .dark .table-grid thead th{ @apply bg-slate-800 text-slate-400; }
-  .dark .table-grid tbody td{ @apply text-slate-300; }
-  .dark .table-grid tbody tr{ @apply hover:bg-slate-700/50; }
-  .dark .toolbar            { @apply border-slate-700; }
-  .dark .pager              { @apply border-slate-700 text-slate-400; }
-  .dark .field              { @apply border-slate-600 bg-slate-800 text-slate-100; }
-  .dark .nav-section        { @apply text-slate-500; }
-  .dark .nav-link           { @apply text-slate-400 hover:bg-slate-800 hover:text-slate-100; }
-  .dark .nav-link.is-active { @apply bg-brand-900/50 text-brand-400; }
-  .dark .nav-sublink        { @apply text-slate-500 hover:bg-slate-800 hover:text-slate-100; }
-  .dark .nav-sublink.is-active { @apply text-brand-400; }
-  .dark .page-title         { @apply text-white; }
-  .dark .page-sub           { @apply text-slate-400; }
-  .dark .modal              { @apply bg-slate-800 ring-slate-700; }
-  .dark .modal-head         { @apply border-slate-700; }
-  .dark .modal-body         { @apply text-slate-200; }
-  .dark .modal-foot         { @apply border-slate-700 bg-slate-800; }
-  .dark .label              { @apply text-slate-300; }
-  .dark .kpi                { @apply bg-slate-800 ring-slate-700; }
-  .dark .kpi-value          { @apply text-white; }
-  .dark .kpi-label          { @apply text-slate-400; }
-  .dark .tabs               { @apply border-slate-700; }
-  .dark .tab                { @apply text-slate-400 hover:text-slate-200; }
-  .dark .tab[aria-selected="true"] { @apply border-brand-500 text-brand-400; }
-  .dark .cmd-palette        { @apply bg-slate-800 ring-slate-700; }
-  .dark .cmd-input          { @apply text-white placeholder-slate-500; }
-  .dark .cmd-list           { @apply border-slate-700; }
-  .dark .cmd-item           { @apply text-slate-300 hover:bg-slate-700 hover:text-white; }
-  .dark .cmd-item.is-active { @apply bg-slate-700 text-white; }
+  .dark                     { @apply bg-gray-950 text-gray-100; }
+  .dark .card, .dark .kpi   { @apply border-gray-800 bg-gray-900; }
+  .dark .card-header, .dark .card-footer, .dark .toolbar, .dark .pager,
+  .dark .form-section, .dark .tabs, .dark .modal-head { @apply border-gray-800; }
+  .dark .card-title, .dark .page-title, .dark .kpi-value, .dark .form-section-title,
+  .dark .modal-title, .dark .flow-title, .dark .empty-title { @apply text-white; }
+  .dark .page-sub, .dark .kpi-label, .dark .card-sub  { @apply text-gray-400; }
+  .dark .table-grid thead th{ @apply border-gray-800 bg-gray-900 text-gray-400; }
+  .dark .table-grid tbody td{ @apply border-gray-800 text-gray-300; }
+  .dark .table-grid tbody tr{ @apply hover:bg-gray-800/60; }
+  .dark .field              { @apply border-gray-700 bg-gray-900 text-gray-100 read-only:bg-gray-800; }
+  .dark .label              { @apply text-gray-300; }
+  .dark .btn-ghost          { @apply border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-800; }
+  .dark .btn-icon, .dark .btn-subtle { @apply text-gray-400 hover:bg-gray-800 hover:text-gray-100; }
+  .dark .nav-link           { @apply text-gray-400 hover:bg-gray-800 hover:text-gray-100; }
+  .dark .nav-link.is-active { @apply bg-brand-500/10 text-brand-300; }
+  .dark .nav-link.is-active > .icon { @apply text-brand-400; }
+  .dark .nav-children       { @apply border-gray-800; }
+  .dark .nav-sublink        { @apply text-gray-500 hover:bg-gray-800 hover:text-gray-100; }
+  .dark .nav-sublink.is-active { @apply bg-brand-500/10 text-brand-300; }
+  .dark .nav-section        { @apply text-gray-500; }
+  .dark .modal, .dark .cmd-palette, .dark .drawer, .dark .menu { @apply bg-gray-900 text-gray-200; }
+  .dark .modal-foot, .dark .form-actions { @apply border-gray-800 bg-gray-900; }
+  .dark .tab                { @apply text-gray-400 hover:text-gray-200; }
+  .dark .tab[aria-selected="true"] { @apply border-brand-500 text-brand-300; }
+  .dark .cmd-input          { @apply text-white placeholder-gray-500; }
+  .dark .cmd-list           { @apply border-gray-800; }
+  .dark .cmd-item           { @apply text-gray-300; }
+  .dark .cmd-item.is-active { @apply bg-gray-800 text-white; }
+  .dark .row-card           { @apply border-gray-800 bg-gray-900; }
+  .dark .row-card-head      { @apply border-gray-800 bg-gray-800/60; }
+  .dark .flow               { @apply border-gray-800 bg-gray-800; }
+  .dark .flow-stage         { @apply bg-gray-900; }
+  .dark .flow-icon, .dark .empty-icon { @apply bg-gray-800; }
+  .dark .menu-item          { @apply text-gray-300 hover:bg-gray-800 hover:text-white; }
+  .dark .kbd                { @apply border-gray-700 bg-gray-800 text-gray-400; }
+  .dark .segmented          { @apply bg-gray-800; }
+  .dark .segmented > [aria-pressed="true"], .dark .segmented > [aria-selected="true"] { @apply bg-gray-700 text-white; }
+  .dark .notification-dot   { @apply ring-gray-900; }
 }
 
 /* ---- Responsive table stacking (opt-in: add .table-stack to .table-grid) -------------- */
 @media (max-width: 640px) {
   .table-grid.table-stack thead { display: none; }
   .table-grid.table-stack tbody tr {
-    display: block; margin-bottom: .75rem; border-radius: .5rem;
-    border: 1px solid theme('colors.slate.200'); padding: .75rem;
+    display: block; margin: .75rem; border-radius: .75rem;
+    border: 1px solid theme('colors.gray.200'); padding: .5rem .75rem;
   }
   .table-grid.table-stack tbody td {
-    display: flex; justify-content: space-between; padding: .25rem 0;
+    display: flex; justify-content: space-between; gap: 1rem; padding: .375rem 0; border: 0;
   }
   .table-grid.table-stack tbody td::before {
-    content: attr(data-label); font-weight: 500; color: theme('colors.slate.500');
+    content: attr(data-label); font-weight: 500; color: theme('colors.gray.500');
   }
   .dark .table-grid.table-stack tbody tr {
-    border-color: theme('colors.slate.700');
+    border-color: theme('colors.gray.800');
   }
+}
+
+@media print {
+  #sidebar, #topbar, .form-actions, .page-actions, .toolbar { display: none !important; }
+  #shell { padding-left: 0 !important; }
+  .card  { box-shadow: none; }
 }

@@ -31,7 +31,7 @@
 
     <div class="card overflow-hidden">
         <!-- Role filter, with live counts -->
-        <div class="flex gap-2 overflow-x-auto border-b border-slate-200 px-4 py-3" id="roleChips"
+        <div class="flex gap-2 overflow-x-auto border-b border-gray-200 px-4 py-3" id="roleChips"
              role="group" aria-label="Filter by role">
             <button type="button" class="chip" data-role="" aria-pressed="true">All <span class="chip-count" data-count="">…</span></button>
             <button type="button" class="chip" data-role="CUSTOMER" aria-pressed="false">Customers <span class="chip-count" data-count="CUSTOMER">…</span></button>
@@ -61,7 +61,7 @@
                 <option value="false">Inactive</option>
                 <option value="">Active and inactive</option>
             </select>
-            <span class="ml-auto hidden text-xs text-slate-500 lg:inline" id="inactiveNote"></span>
+            <span class="ml-auto hidden text-xs text-gray-500 lg:inline" id="inactiveNote"></span>
         </div>
 
         <div class="overflow-x-auto">
@@ -91,8 +91,8 @@
                 <div class="flex min-w-0 items-center gap-3">
                     <span class="avatar h-11 w-11 text-sm" id="partyAvatar">+</span>
                     <div class="min-w-0">
-                        <h2 id="partyDialogTitle" class="truncate text-base font-semibold text-slate-900">New party</h2>
-                        <p id="partyDialogSub" class="text-sm text-slate-500">One record per company - give it every role it plays.</p>
+                        <h2 id="partyDialogTitle" class="truncate text-base font-semibold text-gray-900">New party</h2>
+                        <p id="partyDialogSub" class="text-sm text-gray-500">One record per company - give it every role it plays.</p>
                         <div id="partyHeaderRoles" class="mt-1 flex flex-wrap gap-1"></div>
                     </div>
                 </div>
@@ -135,7 +135,7 @@
                                 </select>
                             </div>
                             <div class="sm:col-span-4">
-                                <label class="label" for="pLegalName">Legal name <span class="font-normal text-slate-400">(if different)</span></label>
+                                <label class="label" for="pLegalName">Legal name <span class="font-normal text-gray-400">(if different)</span></label>
                                 <input id="pLegalName" class="field" maxlength="300" autocomplete="off">
                             </div>
                             <div class="sm:col-span-2">
@@ -149,8 +149,8 @@
                             </div>
                         </div>
 
-                        <fieldset class="rounded-lg border border-slate-200 p-4">
-                            <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Statutory registration</legend>
+                        <fieldset class="rounded-lg border border-gray-200 p-4">
+                            <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Statutory registration</legend>
                             <div class="grid gap-4 sm:grid-cols-3">
                                 <div>
                                     <label class="label" for="pTin">TIN</label>
@@ -167,21 +167,21 @@
                             </div>
                         </fieldset>
 
-                        <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+                        <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
                             <input type="checkbox" id="pActive" class="checkbox mt-0.5" checked>
                             <span class="text-sm">
-                                <span class="font-medium text-slate-800">Active</span>
-                                <span class="block text-slate-500">An inactive party stays on every document that already names it, but is
+                                <span class="font-medium text-gray-800">Active</span>
+                                <span class="block text-gray-500">An inactive party stays on every document that already names it, but is
                                     no longer offered in pickers.</span>
                             </span>
                         </label>
 
-                        <p id="pAudit" class="text-xs text-slate-400"></p>
+                        <p id="pAudit" class="text-xs text-gray-400"></p>
                     </div>
 
                     <!-- ---------- Roles ---------- -->
                     <div data-panel="roles" hidden>
-                        <p class="mb-3 text-sm text-slate-500">
+                        <p class="mb-3 text-sm text-gray-500">
                             What this party is to us. A document can only name a party holding the role it needs - a booking a
                             customer, a purchase order a supplier. Unticking a role keeps its history; ticking it again restores it.
                         </p>
@@ -211,7 +211,7 @@
 
                     <!-- ---------- Other details ---------- -->
                     <div data-panel="details" hidden>
-                        <p class="mb-3 text-sm text-slate-500">
+                        <p class="mb-3 text-sm text-gray-500">
                             Registrations and memberships that are recorded but rarely searched - IRC, ERC, bond licence, BTMA.
                         </p>
                         <div id="detailList" class="space-y-2"></div>
@@ -229,7 +229,7 @@
                 <button type="button" class="btn-subtle mr-auto text-red-600" id="partyDeleteBtn" hidden
                         sec:authorize="hasAuthority('SCREEN_PARTY_DELETE')">Delete party</button>
                 <span id="partyDirtyNote" class="text-xs text-amber-700" hidden>Unsaved changes</span>
-                <span class="hidden text-xs text-slate-400 sm:inline"><span class="kbd">Ctrl</span> <span class="kbd">S</span> to save</span>
+                <span class="hidden text-xs text-gray-400 sm:inline"><span class="kbd">Ctrl</span> <span class="kbd">S</span> to save</span>
                 <button type="button" class="btn-ghost" data-dismiss>Close</button>
                 <button type="submit" class="btn-primary" id="partySaveBtn">Save party</button>
             </div>
@@ -282,21 +282,21 @@
             emptyText: 'No party matches these filters.',
             params: () => ({ role: state.role, active: state.active, partyType: state.type }),
             columns: [
-                r => `<span class="font-mono text-xs text-slate-600">${esc(r.code)}</span>`,
-                r => `<div class="font-medium text-slate-900">${esc(r.name)}</div>`
-                   + (r.legalName && r.legalName !== r.name ? `<div class="max-w-xs truncate text-xs text-slate-500">${esc(r.legalName)}</div>` : '')
-                   + (r.partyType === 'INDIVIDUAL' ? '<div class="text-xs text-slate-400">Individual</div>' : ''),
+                r => `<span class="font-mono text-xs text-gray-600">${esc(r.code)}</span>`,
+                r => `<div class="font-medium text-gray-900">${esc(r.name)}</div>`
+                   + (r.legalName && r.legalName !== r.name ? `<div class="max-w-xs truncate text-xs text-gray-500">${esc(r.legalName)}</div>` : '')
+                   + (r.partyType === 'INDIVIDUAL' ? '<div class="text-xs text-gray-400">Individual</div>' : ''),
                 r => (r.roles || []).length
                     ? `<div class="flex max-w-xs flex-wrap gap-1">${r.roles.map(roleBadge).join('')}</div>`
                     : '<span class="badge-red">No role</span>',
                 r => r.contactName
-                    ? `<div class="text-slate-800">${esc(r.contactName)}</div>`
-                      + (r.contactPhone ? `<div class="text-xs text-slate-500">${esc(r.contactPhone)}</div>` : '')
-                    : '<span class="text-slate-400">-</span>',
-                r => r.location ? `<div class="max-w-[14rem] truncate" title="${esc(r.location)}">${esc(r.location)}</div>` : '<span class="text-slate-400">-</span>',
+                    ? `<div class="text-gray-800">${esc(r.contactName)}</div>`
+                      + (r.contactPhone ? `<div class="text-xs text-gray-500">${esc(r.contactPhone)}</div>` : '')
+                    : '<span class="text-gray-400">-</span>',
+                r => r.location ? `<div class="max-w-[14rem] truncate" title="${esc(r.location)}">${esc(r.location)}</div>` : '<span class="text-gray-400">-</span>',
                 r => (r.tin || r.bin)
                     ? `<div class="font-mono text-xs">${r.tin ? 'TIN ' + esc(r.tin) : ''}${r.tin && r.bin ? '<br>' : ''}${r.bin ? 'BIN ' + esc(r.bin) : ''}</div>`
-                    : '<span class="text-slate-400">-</span>',
+                    : '<span class="text-gray-400">-</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
                 r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
             ],
@@ -377,7 +377,7 @@
                         <input class="field" data-f="postcode" maxlength="20" value="${val(a.postcode)}"></div>
                 </div>
                 <div class="mt-2 flex items-center justify-between">
-                    <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+                    <label class="inline-flex items-center gap-2 text-sm text-gray-600">
                         <input type="checkbox" class="checkbox" data-f="primary"${a.primary ? ' checked' : ''}> Primary for its purpose</label>
                     ${removeBtn}
                 </div></div>`;
@@ -398,7 +398,7 @@
                     <div class="sm:col-span-4"><label class="label">Phone</label>
                         <input class="field" type="tel" data-f="phone" maxlength="40" value="${val(c.phone)}"></div>
                     <div class="flex items-end justify-between gap-2 sm:col-span-4">
-                        <label class="inline-flex items-center gap-2 pb-2 text-sm text-slate-600">
+                        <label class="inline-flex items-center gap-2 pb-2 text-sm text-gray-600">
                             <input type="radio" name="contactPrimary" class="checkbox rounded-full" data-f="primary"${c.primary ? ' checked' : ''}> Primary contact</label>
                         ${removeBtn}
                     </div>
@@ -428,7 +428,7 @@
                         <input class="field font-mono uppercase" data-f="currencyCode" maxlength="3" pattern="[A-Za-z]{3}" value="${val(a.currencyCode)}"></div>
                 </div>
                 <div class="mt-2 flex items-center justify-between">
-                    <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+                    <label class="inline-flex items-center gap-2 text-sm text-gray-600">
                         <input type="radio" name="accountPrimary" class="checkbox rounded-full" data-f="primary"${a.primary ? ' checked' : ''}> Primary account</label>
                     ${removeBtn}
                 </div></div>`;
@@ -446,7 +446,7 @@
 
         function renderList(kind, rows) {
             lists[kind].innerHTML = rows.map(RENDER[kind]).join('')
-                || `<p class="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500" data-empty>Nothing yet.</p>`;
+                || `<p class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500" data-empty>Nothing yet.</p>`;
         }
 
         function addRow(kind) {
@@ -511,14 +511,14 @@
                 const history = !r ? '' : r.current
                     ? `Since ${esc(fmt.date(r.grantedOn))}`
                     : `Revoked ${esc(fmt.date(r.revokedOn))} - tick to restore`;
-                return `<label class="row-card flex cursor-pointer items-start gap-3 hover:bg-slate-50${on ? ' is-primary' : ''}" data-role-card="${role.key}">
+                return `<label class="row-card flex cursor-pointer items-start gap-3 hover:bg-gray-50${on ? ' is-primary' : ''}" data-role-card="${role.key}">
                     <input type="checkbox" class="checkbox mt-1" data-role-key="${role.key}"${on ? ' checked' : ''}>
                     <span class="min-w-0 flex-1 text-sm">
                         <span class="flex items-center justify-between gap-2">
-                            <span class="font-medium text-slate-800">${esc(role.label)}</span>
-                            <span class="text-xs ${r && !r.current ? 'text-amber-700' : 'text-slate-400'}">${history}</span>
+                            <span class="font-medium text-gray-800">${esc(role.label)}</span>
+                            <span class="text-xs ${r && !r.current ? 'text-amber-700' : 'text-gray-400'}">${history}</span>
                         </span>
-                        <span class="block text-slate-500">${esc(role.hint)}</span>
+                        <span class="block text-gray-500">${esc(role.hint)}</span>
                         <input class="field mt-2 font-mono" data-role-code="${role.key}" maxlength="40"
                                placeholder="Code in this role (optional, e.g. the legacy customer code)"
                                value="${val(r && r.roleCode)}"${on ? '' : ' hidden'}>
@@ -587,7 +587,7 @@
 
             $('#pCode').value = editing ? party.code : '';
             $('#pCode').readOnly = editing;
-            $('#pCode').classList.toggle('bg-slate-50', editing);
+            $('#pCode').classList.toggle('bg-gray-50', editing);
             $('#pCodeHint').textContent = editing ? 'Printed on documents, so it cannot change.' : 'Printed on documents. Fixed once saved.';
             $('#pName').value = editing ? party.name : '';
             $('#pType').value = editing ? party.partyType : 'ORGANISATION';

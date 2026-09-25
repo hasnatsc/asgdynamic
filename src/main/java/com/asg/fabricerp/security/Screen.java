@@ -27,11 +27,12 @@ public enum Screen {
     NUMBERING("Document numbering", Section.ADMINISTRATION, "/setup/numbering"),
     SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security");
 
+    /** Declaration order is menu order: reference data first, then the order-to-delivery modules. */
     public enum Section {
+        SETUP("Master data"),
         SALES("Sales"),
-        PRODUCTION("Production"),
         INVENTORY("Inventory"),
-        SETUP("Setup"),
+        PRODUCTION("Production"),
         ADMINISTRATION("Administration");
 
         private final String label;

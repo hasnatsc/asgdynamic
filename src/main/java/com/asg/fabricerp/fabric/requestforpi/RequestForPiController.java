@@ -51,7 +51,8 @@ public class RequestForPiController {
         model.addAttribute("title", "Request For PI");
         model.addAttribute("rpi", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/requestforpi";
+        model.addAttribute("content", "fabric/requestforpi :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/requestforpi")

@@ -46,7 +46,8 @@ public class ProcessingWorkOrderController {
         model.addAttribute("title", "Processing Work Order");
         model.addAttribute("wo", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/processing-wo";
+        model.addAttribute("content", "fabric/processing-wo :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/processing-wo")

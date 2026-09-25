@@ -47,8 +47,8 @@
         <form id="blendForm" novalidate>
             <div class="modal-head">
                 <div>
-                    <h2 id="blendDialogTitle" class="text-base font-semibold text-slate-900">New blend</h2>
-                    <p id="blendDialogSub" class="text-sm text-slate-500"></p>
+                    <h2 id="blendDialogTitle" class="text-base font-semibold text-gray-900">New blend</h2>
+                    <p id="blendDialogSub" class="text-sm text-gray-500"></p>
                 </div>
                 <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
@@ -61,7 +61,7 @@
                         <span class="label mb-0">Fibers</span>
                         <span id="blendTotal" class="badge-gray">Total 0%</span>
                     </div>
-                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
                         <table class="table-grid" id="componentTable">
                             <thead>
                             <tr>
@@ -81,17 +81,17 @@
 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label class="label" for="blendName">Name <span class="font-normal text-slate-400">(optional)</span></label>
+                        <label class="label" for="blendName">Name <span class="font-normal text-gray-400">(optional)</span></label>
                         <input id="blendName" class="field" maxlength="500" autocomplete="off">
                         <p class="hint">Blank: the composition, e.g. "60% Cotton 40% Viscose".</p>
                     </div>
                     <div>
-                        <label class="label" for="blendShortName">Short name <span class="font-normal text-slate-400">(optional)</span></label>
+                        <label class="label" for="blendShortName">Short name <span class="font-normal text-gray-400">(optional)</span></label>
                         <input id="blendShortName" class="field" maxlength="500" autocomplete="off">
                     </div>
                 </div>
                 <div>
-                    <label class="label" for="blendDescription">Description <span class="font-normal text-slate-400">(optional)</span></label>
+                    <label class="label" for="blendDescription">Description <span class="font-normal text-gray-400">(optional)</span></label>
                     <textarea id="blendDescription" class="field" rows="2"></textarea>
                 </div>
                 <label class="inline-flex items-center gap-2 text-sm">
@@ -135,9 +135,9 @@
             sort: { column: 'name', dir: 'asc' },
             emptyText: 'No blends yet.',
             columns: [
-                r => `<span class="font-mono text-xs text-slate-600">${esc(r.code)}</span>`,
-                r => `<span class="font-medium text-slate-900">${esc(r.name)}</span>`,
-                r => `<span class="text-slate-600">${esc(r.composition)}</span>`,
+                r => `<span class="font-mono text-xs text-gray-600">${esc(r.code)}</span>`,
+                r => `<span class="font-medium text-gray-900">${esc(r.name)}</span>`,
+                r => `<span class="text-gray-600">${esc(r.composition)}</span>`,
                 r => r.approved ? `<span class="badge-green" title="${esc(r.approvedBy)}">Approved</span>` : '<span class="badge-amber">Pending</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
                 r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`

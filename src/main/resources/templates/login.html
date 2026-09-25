@@ -4,78 +4,100 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in · ASG FabricERP</title>
+    <meta name="theme-color" content="#ed1c24">
+    <title>Sign in · FABRICS LTD. ERP</title>
+    <link rel="icon" type="image/png" th:href="@{/images/logo-mark.png}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
-<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+<body class="min-h-screen bg-white font-sans text-[14px] text-gray-900 antialiased">
 
 <div class="flex min-h-screen">
     <!-- Brand panel -->
-    <div class="relative hidden w-1/2 overflow-hidden bg-brand-700 lg:block">
-        <div class="absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900"></div>
-        <div class="relative flex h-full flex-col justify-between p-12 text-white">
-            <div class="flex items-center gap-2 text-lg font-semibold">
-                <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white/15 text-sm font-bold">A</span>
-                ASG FabricERP
-            </div>
-            <div>
-                <p class="text-3xl font-semibold leading-tight">Weaving &amp; dyeing operations,<br>from booking to delivery.</p>
-                <p class="mt-3 max-w-md text-sm text-brand-100">Every action is checked against your roles and recorded.
-                    Sign in with the account your administrator issued.</p>
-            </div>
-            <p class="text-xs text-brand-200">Authorized users only. Sign-ins and refusals are logged.</p>
+    <div class="weave relative hidden w-[44%] max-w-2xl flex-col justify-between overflow-hidden bg-brand-600 p-12 text-white lg:flex">
+        <img th:src="@{/images/logo-reverse.png}" alt="FABRICS LTD." class="h-11 w-auto self-start" width="645" height="175">
+
+        <div class="relative">
+            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-brand-100">Enterprise resource planning</p>
+            <p class="mt-3 text-[34px] font-semibold leading-tight tracking-tight">Weaving, dyeing and finishing.<br>From booking to delivery.</p>
+            <ul class="mt-8 space-y-3 text-sm text-brand-50">
+                <li class="flex items-center gap-3">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#production}"/></svg></span>
+                    Orders, work orders and greige receipts in one flow
+                </li>
+                <li class="flex items-center gap-3">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#workflow}"/></svg></span>
+                    Maker, checker and approver on every document
+                </li>
+                <li class="flex items-center gap-3">
+                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#shield}"/></svg></span>
+                    Screens and rows limited to what your roles grant
+                </li>
+            </ul>
         </div>
+
+        <p class="relative text-xs text-brand-100">Authorized users only. Sign-ins and refusals are logged.</p>
     </div>
 
     <!-- Form -->
-    <div class="flex flex-1 items-center justify-center px-4 py-12">
-        <div class="w-full max-w-sm">
-            <div class="mb-8 text-center lg:text-left">
+    <div class="flex flex-1 flex-col bg-gray-50/60">
+        <div class="flex flex-1 items-center justify-center px-5 py-12">
+            <div class="w-full max-w-[380px]">
+                <img th:src="@{/images/logo.png}" alt="FABRICS LTD." class="mb-10 h-10 w-auto lg:hidden" width="645" height="175">
+
                 <h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
-                <p class="mt-1 text-sm text-slate-500">
-                    <span class="lg:hidden"><span class="text-brand-600">ASG</span> FabricERP · </span>Welcome back.
-                </p>
-            </div>
+                <p class="mt-1.5 text-sm text-gray-500">Welcome back. Use the account your administrator issued.</p>
 
-            <div class="space-y-4">
-                <p th:if="${error and accountStatus != null}" th:text="${accountStatus}" class="alert-error" role="alert">
-                    Account status.
-                </p>
-                <p th:if="${error and accountStatus == null}" class="alert-error" role="alert">
-                    Invalid username or password.
-                </p>
-                <p th:if="${loggedOut}" class="alert-success" role="status">
-                    You have been signed out.
-                </p>
+                <div class="mt-8 space-y-4">
+                    <p th:if="${error and accountStatus != null}" class="alert-error" role="alert">
+                        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#lock}"/></svg>
+                        <span th:text="${accountStatus}">Account status.</span>
+                    </p>
+                    <p th:if="${error and accountStatus == null}" class="alert-error" role="alert">
+                        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x-circle}"/></svg>
+                        Invalid username or password.
+                    </p>
+                    <p th:if="${loggedOut}" class="alert-success" role="status">
+                        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#check-circle}"/></svg>
+                        You have been signed out.
+                    </p>
 
-                <form th:action="@{/login}" method="post" class="space-y-4">
-                    <div>
-                        <label class="label" for="username">Username</label>
-                        <input id="username" name="username" class="field" autocomplete="username"
-                               autocapitalize="none" spellcheck="false" required autofocus>
-                    </div>
-                    <div>
-                        <label class="label" for="password">Password</label>
-                        <div class="relative">
-                            <input id="password" name="password" type="password" class="field pr-16"
-                                   autocomplete="current-password" required>
-                            <button type="button" data-reveal="password"
-                                    class="absolute inset-y-0 right-0 px-3 text-xs font-medium text-slate-500 hover:text-slate-800">Show</button>
+                    <form th:action="@{/login}" method="post" class="space-y-5">
+                        <div>
+                            <label class="label" for="username">Username</label>
+                            <div class="input-icon">
+                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#user}"/></svg>
+                                <input id="username" name="username" class="field h-11" autocomplete="username"
+                                       autocapitalize="none" spellcheck="false" required autofocus>
+                            </div>
                         </div>
-                        <p id="capsWarning" class="hint text-amber-700" hidden>Caps Lock is on.</p>
-                    </div>
-                    <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-                        <input type="checkbox" name="remember-me" class="checkbox">
-                        <span>Keep me signed in for 14 days</span>
-                    </label>
-                    <button type="submit" class="btn-primary w-full py-2.5">Sign in</button>
-                </form>
+                        <div>
+                            <label class="label" for="password">Password</label>
+                            <div class="input-icon">
+                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#lock}"/></svg>
+                                <input id="password" name="password" type="password" class="field h-11 pr-16"
+                                       autocomplete="current-password" required>
+                                <button type="button" data-reveal="password"
+                                        class="absolute inset-y-0 right-0 px-3 text-xs font-medium text-gray-500 hover:text-gray-900">Show</button>
+                            </div>
+                            <p id="capsWarning" class="hint font-medium text-amber-700" hidden>Caps Lock is on.</p>
+                        </div>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" name="remember-me" class="checkbox">
+                            <span>Keep me signed in for 14 days</span>
+                        </label>
+                        <button type="submit" class="btn-primary btn-lg w-full">Sign in</button>
+                    </form>
 
-                <p class="text-center text-xs text-slate-500">
-                    Forgotten your password or locked out? Your administrator can reset or unlock your account.
-                </p>
+                    <p class="pt-2 text-center text-xs leading-relaxed text-gray-500">
+                        Forgotten your password or locked out?<br>Your administrator can reset or unlock your account.
+                    </p>
+                </div>
             </div>
         </div>
+        <p class="px-5 pb-6 text-center text-xs text-gray-400">© FABRICS LTD. · <span class="lg:hidden">Authorized users only.</span><span class="hidden lg:inline">ERP</span></p>
     </div>
 </div>
 

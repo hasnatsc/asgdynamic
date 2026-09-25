@@ -1,112 +1,257 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<head><title>Home</title></head>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title>Dashboard</title></head>
 <body>
+<!--
+  The dashboard. Every link on it is permission-filtered: KPI tiles by sec:authorize, the flow by
+  ManufacturingFlow, the module list by the same ${nav} that draws the sidebar.
+-->
 <div th:fragment="content">
 
     <div th:if="${passwordChanged}" class="alert-success mb-5" role="status">
+        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#check-circle}"/></svg>
         Your password has been changed.
     </div>
 
-    <!-- KPI dashboard -->
-    <div th:if="${stats != null}" class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-        <a th:href="@{/booking}" class="kpi hover:ring-brand-300">
-            <span class="kpi-label">Bookings</span>
-            <span class="kpi-value" th:text="${stats.bookings}">0</span>
-            <span class="text-xs text-slate-500"><span th:text="${stats.draftBookings}">0</span> drafts</span>
-        </a>
-        <a th:href="@{/bpo}" class="kpi hover:ring-brand-300">
-            <span class="kpi-label">Production orders</span>
-            <span class="kpi-value" th:text="${stats.productionOrders}">0</span>
-            <span class="text-xs text-slate-500"><span th:text="${stats.activeProductionOrders}">0</span> active</span>
-        </a>
-        <a th:href="@{/inventory/items}" class="kpi hover:ring-brand-300">
-            <span class="kpi-label">Inventory items</span>
-            <span class="kpi-value" th:text="${stats.inventoryItems}">0</span>
-        </a>
-        <a th:href="@{/setup/parties}" class="kpi hover:ring-brand-300">
-            <span class="kpi-label">Parties</span>
-            <span class="kpi-value" th:text="${stats.parties}">0</span>
-        </a>
-        <a th:href="@{/setup/security}" class="kpi hover:ring-brand-300">
-            <span class="kpi-label">Users</span>
-            <span class="kpi-value" th:text="${stats.users}">0</span>
-            <span class="text-xs text-slate-500"><span th:text="${stats.lockedUsers}">0</span> locked</span>
-        </a>
-    </div>
-
-    <div class="page-header">
-        <div>
-            <h1 class="page-title">Welcome<th:block th:if="${currentUser != null}">, <span th:text="${currentUser.displayName}">name</span></th:block></h1>
-            <p class="page-sub">Everything your roles open is listed below and in the menu.</p>
+    <!-- ============================== Welcome band ============================== -->
+    <section class="card mb-6 overflow-hidden">
+        <div class="flex flex-col lg:flex-row">
+            <div class="weave-light flex-1 px-6 py-6 sm:px-8">
+                <p class="text-sm font-medium text-brand-700 dark:text-brand-300">
+                    <span data-greeting>Welcome</span><th:block th:if="${currentUser != null}">, <span th:text="${currentUser.displayName}">name</span></th:block>
+                </p>
+                <h1 class="mt-1 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Here's what's happening at the mill today.</h1>
+                <p class="page-sub">Your modules, the order-to-delivery flow and your account, all limited to what your roles open.</p>
+                <div class="mt-5 flex flex-wrap gap-2">
+                    <button type="button" class="btn-primary" data-cmd-trigger>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                        Go to a screen
+                        <span class="ml-1 rounded bg-white/20 px-1.5 text-[11px] font-medium">Ctrl K</span>
+                    </button>
+                    <a th:href="@{/account/password}" class="btn-ghost">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#key}"/></svg>
+                        Change password
+                    </a>
+                </div>
+            </div>
+            <div class="weave relative flex shrink-0 flex-col justify-center bg-brand-600 px-8 py-6 text-white lg:w-72 lg:text-right">
+                <p class="text-lg font-semibold" th:text="${#temporals.format(#temporals.createNow(), 'EEEE')}">Wednesday</p>
+                <p class="text-sm text-brand-100" th:text="${#temporals.format(#temporals.createNow(), 'd MMMM yyyy')}">24 December 2025</p>
+                <p th:if="${operatingContext != null}" class="mt-3 text-xs text-brand-100">
+                    <span class="font-semibold text-white" th:text="${operatingContext.businessUnitCode}">AF</span>
+                    <th:block th:if="${operatingContext.businessUnitName}"> · <span th:text="${operatingContext.businessUnitName}">Unit</span></th:block>
+                </p>
+            </div>
         </div>
+    </section>
+
+    <!-- ============================== KPI tiles ==============================
+         Each tile shows only when the user may VIEW the screen it links to. -->
+    <div th:if="${stats != null}" class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <a th:href="@{/booking}" sec:authorize="hasAuthority('SCREEN_BOOKING_VIEW')" class="kpi group">
+            <div class="flex items-start justify-between">
+                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#booking}"/></svg></span>
+                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
+            </div>
+            <span class="kpi-label">Bookings</span>
+            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.bookings, 1, 'COMMA')}">0</span>
+            <span class="kpi-meta"><span th:text="${stats.draftBookings}">0</span> in draft</span>
+        </a>
+        <a th:href="@{/bpo}" sec:authorize="hasAuthority('SCREEN_BPO_VIEW')" class="kpi group">
+            <div class="flex items-start justify-between">
+                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#planning}"/></svg></span>
+                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
+            </div>
+            <span class="kpi-label">Production orders</span>
+            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.productionOrders, 1, 'COMMA')}">0</span>
+            <span class="kpi-meta"><span th:text="${stats.activeProductionOrders}">0</span> active</span>
+        </a>
+        <a th:href="@{/inventory/items}" sec:authorize="hasAuthority('SCREEN_ITEM_VIEW')" class="kpi group">
+            <div class="flex items-start justify-between">
+                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#package}"/></svg></span>
+                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
+            </div>
+            <span class="kpi-label">Inventory items</span>
+            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.inventoryItems, 1, 'COMMA')}">0</span>
+            <span class="kpi-meta">In the item master</span>
+        </a>
+        <a th:href="@{/setup/parties}" sec:authorize="hasAuthority('SCREEN_PARTY_VIEW')" class="kpi group">
+            <div class="flex items-start justify-between">
+                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#users}"/></svg></span>
+                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
+            </div>
+            <span class="kpi-label">Parties</span>
+            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.parties, 1, 'COMMA')}">0</span>
+            <span class="kpi-meta">Customers and suppliers</span>
+        </a>
+        <a th:href="@{/setup/security}" sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')" class="kpi group">
+            <div class="flex items-start justify-between">
+                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#shield}"/></svg></span>
+                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
+            </div>
+            <span class="kpi-label">Users</span>
+            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.users, 1, 'COMMA')}">0</span>
+            <span class="kpi-meta" th:classappend="${stats.lockedUsers > 0} ? 'font-medium text-amber-700'">
+                <span th:text="${stats.lockedUsers}">0</span> locked
+            </span>
+        </a>
     </div>
 
     <div class="grid gap-6 xl:grid-cols-3">
-        <!-- Screens -->
-        <div class="space-y-6 xl:col-span-2">
-            <section th:each="section : ${nav}" class="card">
-                <div class="card-header"><h2 class="card-title" th:text="${section.label}">Section</h2></div>
-                <div class="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <th:block th:each="item : ${section.items}">
-                        <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}"
-                           class="group rounded-lg border border-slate-200 p-3 transition hover:border-brand-300 hover:bg-brand-50/40">
-                            <span class="block text-sm font-medium text-slate-800 group-hover:text-brand-700" th:text="${item.label}">Item</span>
-                            <span class="block text-xs text-slate-500" th:text="${item.path}">/path</span>
-                        </a>
-                        <div th:if="${item.hasChildren()}" class="rounded-lg border border-slate-200 p-3">
-                            <span class="block text-sm font-medium text-slate-800" th:text="${item.label}">Group</span>
-                            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                                <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
-                                   class="text-xs text-brand-700 hover:underline">Child</a>
+        <div class="min-w-0 space-y-6 xl:col-span-2">
+
+            <!-- ============================== Order to delivery ============================== -->
+            <section class="card" th:if="${flow != null}">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Order to delivery</h2>
+                        <p class="card-sub">The mill's production chain. Stages link to the screens that carry them.</p>
+                    </div>
+                    <span class="hidden items-center gap-3 text-xs text-gray-500 sm:flex">
+                        <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-brand-500"></span>Live</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-gray-300"></span>Planned</span>
+                    </span>
+                </div>
+                <div class="p-4">
+                    <ol class="flow">
+                        <li th:each="stage : ${flow}" class="flow-stage" th:classappend="${stage.built} ? 'is-live'">
+                            <div class="flex items-center justify-between">
+                                <span class="flow-icon"><svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${stage.icon}}"/></svg></span>
+                                <span class="flow-num" th:text="${stage.number < 10 ? '0' + stage.number : stage.number}">01</span>
                             </div>
-                        </div>
-                    </th:block>
+                            <p class="flow-title" th:text="${stage.title}">Stage</p>
+                            <p class="text-xs leading-snug text-gray-500" th:text="${stage.caption}">Caption</p>
+                            <div class="flow-links">
+                                <a th:each="link : ${stage.links}" th:href="@{${link.path}}">
+                                    <span th:text="${link.label}">Screen</span>
+                                    <svg class="icon h-3 w-3" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+                                </a>
+                                <span th:if="${stage.built and #lists.isEmpty(stage.links)}" class="text-xs text-gray-400">Not in your roles</span>
+                                <span th:unless="${stage.built}" class="text-xs text-gray-400">Planned</span>
+                            </div>
+                        </li>
+                    </ol>
                 </div>
             </section>
 
-            <div th:if="${#lists.isEmpty(nav)}" class="card p-8 text-center">
-                <p class="text-sm font-medium text-slate-800">No screens yet</p>
-                <p class="mt-1 text-sm text-slate-500">Your account has no role granting access to any screen.
-                    An administrator can assign one on the Users screen.</p>
-            </div>
+            <!-- ============================== Modules ============================== -->
+            <section class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Your modules</h2>
+                        <p class="card-sub">Everything your roles open, also in the menu and under <span class="kbd">Ctrl</span> <span class="kbd">K</span>.</p>
+                    </div>
+                </div>
+                <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    <div th:each="section : ${nav}" class="grid gap-3 px-5 py-4 md:grid-cols-[10rem_1fr]">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-gray-900 md:items-start md:pt-2 dark:text-white">
+                            <svg class="icon text-gray-400" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${section.icon}}"/></svg>
+                            <span th:text="${section.label}">Section</span>
+                        </div>
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            <th:block th:each="item : ${section.items}">
+                                <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}"
+                                   class="group flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-colors
+                                          hover:border-brand-200 hover:bg-brand-50/50 dark:border-gray-800 dark:hover:bg-gray-800">
+                                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500
+                                                 group-hover:bg-white group-hover:text-brand-600 dark:bg-gray-800">
+                                        <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                                    </span>
+                                    <span class="min-w-0">
+                                        <span class="block truncate text-sm font-medium text-gray-800 group-hover:text-brand-700 dark:text-gray-100" th:text="${item.label}">Item</span>
+                                        <span class="block truncate text-xs text-gray-400" th:text="${item.path}">/path</span>
+                                    </span>
+                                </a>
+                                <div th:if="${item.hasChildren()}" class="rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-800">
+                                    <div class="flex items-center gap-3">
+                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-800">
+                                            <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                                        </span>
+                                        <span class="text-sm font-medium text-gray-800 dark:text-gray-100" th:text="${item.label}">Group</span>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 pl-11">
+                                        <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
+                                           class="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">Child</a>
+                                    </div>
+                                </div>
+                            </th:block>
+                        </div>
+                    </div>
+
+                    <div th:if="${#lists.isEmpty(nav)}" class="empty">
+                        <span class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#lock}"/></svg></span>
+                        <p class="empty-title">No screens yet</p>
+                        <p class="empty-text">Your account has no role granting access to any screen.
+                            An administrator can assign one on the Users screen.</p>
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <!-- Account -->
-        <aside th:if="${account != null}" class="card h-fit">
-            <div class="card-header"><h2 class="card-title">Your account</h2></div>
-            <dl class="divide-y divide-slate-100 text-sm">
-                <div class="flex justify-between gap-4 px-4 py-2.5">
-                    <dt class="text-slate-500">Username</dt>
-                    <dd class="font-medium" th:text="${account.username}">user</dd>
+        <!-- ============================== Side column ============================== -->
+        <div class="space-y-6">
+            <aside th:if="${account != null}" class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Your account</h2>
+                    <a th:href="@{/account/password}" class="card-link">Change password</a>
                 </div>
-                <div class="flex justify-between gap-4 px-4 py-2.5">
-                    <dt class="text-slate-500">Last sign-in</dt>
-                    <dd th:text="${account.lastLoginAt != null} ? ${#temporals.format(account.lastLoginAt, 'dd MMM yyyy, HH:mm')} : 'First time'">-</dd>
+                <div class="flex items-center gap-3 px-5 pt-4">
+                    <span class="avatar h-11 w-11 text-base"
+                          th:text="${#strings.toUpperCase(#strings.substring(currentUser != null ? currentUser.displayName : account.username, 0, 1))}">A</span>
+                    <div class="min-w-0">
+                        <p class="truncate font-semibold text-gray-900 dark:text-white"
+                           th:text="${currentUser != null ? currentUser.displayName : account.username}">Name</p>
+                        <p class="truncate text-xs text-gray-500" th:text="${account.username}">user</p>
+                    </div>
                 </div>
-                <div class="flex justify-between gap-4 px-4 py-2.5">
-                    <dt class="text-slate-500">Password changed</dt>
-                    <dd th:text="${account.passwordChangedAt != null} ? ${#temporals.format(account.passwordChangedAt, 'dd MMM yyyy')} : 'Not recorded'">-</dd>
-                </div>
-                <div class="flex justify-between gap-4 px-4 py-2.5">
-                    <dt class="text-slate-500">Data access</dt>
-                    <dd>
-                        <span th:if="${account.unrestricted}" class="badge-violet">All rows</span>
-                        <span th:unless="${account.unrestricted}" class="badge-gray">Scoped</span>
-                    </dd>
-                </div>
-                <div class="px-4 py-2.5">
-                    <dt class="mb-1.5 text-slate-500">Roles</dt>
-                    <dd class="flex flex-wrap gap-1">
-                        <span th:each="role : ${accountRoles}" class="badge-blue" th:text="${role}">Role</span>
-                        <span th:if="${#lists.isEmpty(accountRoles)}" class="text-slate-400">None</span>
-                    </dd>
-                </div>
-            </dl>
-            <div class="border-t border-slate-100 p-4">
-                <a th:href="@{/account/password}" class="btn-ghost w-full">Change password</a>
-            </div>
-        </aside>
+                <dl class="mt-3 divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800">
+                    <div class="dl-row">
+                        <dt>Last sign-in</dt>
+                        <dd th:text="${account.lastLoginAt != null} ? ${#temporals.format(account.lastLoginAt, 'dd MMM yyyy, HH:mm')} : 'First time'">-</dd>
+                    </div>
+                    <div class="dl-row">
+                        <dt>Password changed</dt>
+                        <dd th:text="${account.passwordChangedAt != null} ? ${#temporals.format(account.passwordChangedAt, 'dd MMM yyyy')} : 'Not recorded'">-</dd>
+                    </div>
+                    <div class="dl-row">
+                        <dt>Data access</dt>
+                        <dd>
+                            <span th:if="${account.unrestricted}" class="badge-violet">All rows</span>
+                            <span th:unless="${account.unrestricted}" class="badge-gray">Scoped</span>
+                        </dd>
+                    </div>
+                    <div class="px-5 py-3">
+                        <dt class="mb-2 text-sm text-gray-500">Roles</dt>
+                        <dd class="flex flex-wrap gap-1.5">
+                            <span th:each="role : ${accountRoles}" class="badge-brand" th:text="${role}">Role</span>
+                            <span th:if="${#lists.isEmpty(accountRoles)}" class="text-sm text-gray-400">None</span>
+                        </dd>
+                    </div>
+                </dl>
+            </aside>
+
+            <section class="card">
+                <div class="card-header"><h2 class="card-title">Work faster</h2></div>
+                <ul class="divide-y divide-gray-100 text-sm dark:divide-gray-800">
+                    <li class="flex items-center justify-between gap-3 px-5 py-3">
+                        <span class="text-gray-600 dark:text-gray-300">Jump to any screen</span>
+                        <span class="flex gap-1"><span class="kbd">Ctrl</span><span class="kbd">K</span></span>
+                    </li>
+                    <li class="flex items-center justify-between gap-3 px-5 py-3">
+                        <span class="text-gray-600 dark:text-gray-300">Search the current list</span>
+                        <span class="kbd">/</span>
+                    </li>
+                    <li class="flex items-center justify-between gap-3 px-5 py-3">
+                        <span class="text-gray-600 dark:text-gray-300">Close a dialog</span>
+                        <span class="kbd">Esc</span>
+                    </li>
+                    <li class="hidden items-center justify-between gap-3 px-5 py-3 lg:flex">
+                        <span class="text-gray-600 dark:text-gray-300">More room for work</span>
+                        <button type="button" class="card-link" data-rail-toggle-proxy>Toggle sidebar</button>
+                    </li>
+                </ul>
+            </section>
+        </div>
     </div>
 </div>
 </body>

@@ -62,7 +62,8 @@ public class BookingController {
         model.addAttribute("title", "Booking");
         model.addAttribute("booking", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/booking";
+        model.addAttribute("content", "fabric/booking :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/booking")

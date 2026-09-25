@@ -18,24 +18,29 @@ import java.util.Set;
  *
  * <p>Hiding a link is presentation, not protection: every route still carries its own
  * {@code @PreAuthorize}.
+ *
+ * <p>Icons name symbols in {@code static/images/icons.svg}.
  */
 public final class Navigation {
 
-    public record Item(String label, String path, boolean active, List<Item> children) {
+    public record Item(String label, String path, String icon, boolean active, List<Item> children) {
 
-        static Item leaf(String label, String path, String currentPath) {
-            return new Item(label, path, matches(path, currentPath), List.of());
+        static Item leaf(String label, String path, String icon, String currentPath) {
+            return new Item(label, path, icon, matches(path, currentPath), List.of());
         }
 
-        static Item group(String label, List<Item> children) {
+        static Item group(String label, String icon, List<Item> children) {
             boolean anyActive = children.stream().anyMatch(Item::active);
-            return new Item(label, children.getFirst().path(), anyActive, children);
+            return new Item(label, children.getFirst().path(), icon, anyActive, children);
         }
 
         public boolean hasChildren() { return !children.isEmpty(); }
     }
 
-    public record Section(String label, List<Item> items) { }
+    public record Section(String key, String label, String icon, List<Item> items) {
+
+        public boolean active() { return items.stream().anyMatch(Item::active); }
+    }
 
     private Navigation() { }
 
@@ -48,27 +53,71 @@ public final class Navigation {
                 .map(screen -> itemFor(screen, currentPath))
                 .toList();
             if (!items.isEmpty()) {
-                sections.add(new Section(section.label(), items));
+                sections.add(new Section(section.name().toLowerCase(), section.label(), iconFor(section), items));
             }
         }
         return sections;
     }
 
     private static Item itemFor(Screen screen, String currentPath) {
+        String icon = iconFor(screen);
         return switch (screen) {
-            case FABRIC_SETUP -> Item.group(screen.label(), Arrays.stream(AttributeType.values())
-                .map(type -> Item.leaf(type.label(), "/setup/fabric/" + type.slug(), currentPath))
+            case FABRIC_SETUP -> Item.group(screen.label(), icon, Arrays.stream(AttributeType.values())
+                .map(type -> Item.leaf(type.label(), "/setup/fabric/" + type.slug(), null, currentPath))
                 .toList());
-            case ITEM_SETUP -> Item.group(screen.label(), ItemSetupMenu.PAGES.stream()
-                .map(page -> Item.leaf(page.label(), page.path(), currentPath))
+            case ITEM_SETUP -> Item.group(screen.label(), icon, ItemSetupMenu.PAGES.stream()
+                .map(page -> Item.leaf(page.label(), page.path(), null, currentPath))
                 .toList());
-            case SECURITY_ADMIN -> Item.group("Security", List.of(
-                Item.leaf("Overview", "/setup/security", currentPath),
-                Item.leaf("Users", "/setup/users", currentPath),
-                Item.leaf("Roles", "/setup/roles", currentPath),
-                Item.leaf("Access log", "/setup/access-log", currentPath)));
-            default -> Item.leaf(screen.label(), screen.path(), currentPath);
+            case SECURITY_ADMIN -> Item.group("Security", icon, List.of(
+                Item.leaf("Overview", "/setup/security", null, currentPath),
+                Item.leaf("Users", "/setup/users", null, currentPath),
+                Item.leaf("Roles", "/setup/roles", null, currentPath),
+                Item.leaf("Access log", "/setup/access-log", null, currentPath)));
+            default -> Item.leaf(screen.label(), screen.path(), icon, currentPath);
         };
+    }
+
+    /** The sprite symbol drawn beside a screen in the sidebar, the dashboard and the command palette. */
+    public static String iconFor(Screen screen) {
+        return switch (screen) {
+            case BOOKING        -> "booking";
+            case RPI            -> "document";
+            case DO             -> "clipboard-check";
+            case FD             -> "truck";
+            case BPO            -> "planning";
+            case WWO            -> "loom";
+            case PWO            -> "dyeing";
+            case GR             -> "receive";
+            case ITEM           -> "package";
+            case ITEM_SETUP     -> "tag";
+            case PARTY          -> "users";
+            case FABRIC_SETUP   -> "swatch";
+            case NUMBERING      -> "hash";
+            case SECURITY_ADMIN -> "shield";
+        };
+    }
+
+    static String iconFor(Screen.Section section) {
+        return switch (section) {
+            case SETUP          -> "master-data";
+            case SALES          -> "sales";
+            case INVENTORY      -> "inventory";
+            case PRODUCTION     -> "production";
+            case ADMINISTRATION -> "admin";
+        };
+    }
+
+    /** Labels from section down to the active screen, for the header breadcrumb; empty on the dashboard. */
+    public static List<String> trail(List<Section> sections) {
+        for (Section section : sections) {
+            for (Item item : section.items()) {
+                if (!item.active()) continue;
+                List<String> trail = new ArrayList<>(List.of(section.label(), item.label()));
+                item.children().stream().filter(Item::active).findFirst().ifPresent(child -> trail.add(child.label()));
+                return trail;
+            }
+        }
+        return List.of();
     }
 
     static boolean matches(String path, String currentPath) {

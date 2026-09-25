@@ -50,8 +50,8 @@
         <form id="masterForm" novalidate>
             <div class="modal-head">
                 <div>
-                    <h2 id="masterDialogTitle" class="text-base font-semibold text-slate-900">New</h2>
-                    <p id="masterDialogSub" class="text-sm text-slate-500"></p>
+                    <h2 id="masterDialogTitle" class="text-base font-semibold text-gray-900">New</h2>
+                    <p id="masterDialogSub" class="text-sm text-gray-500"></p>
                 </div>
                 <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
@@ -60,7 +60,7 @@
                 <div id="masterFields" class="grid gap-4 sm:grid-cols-2"></div>
                 <label class="inline-flex items-center gap-2 text-sm">
                     <input type="checkbox" id="masterActive" class="checkbox" checked>
-                    <span><b>Active</b> <span class="text-slate-500">- inactive entries stay on records but leave the pickers.</span></span>
+                    <span><b>Active</b> <span class="text-gray-500">- inactive entries stay on records but leave the pickers.</span></span>
                 </label>
             </div>
             <div class="modal-foot">
@@ -90,10 +90,10 @@
 
         // ------------------------------------------------------------------ grid
         const cell = {
-            text:     (v) => v == null || v === '' ? '<span class="text-slate-400">-</span>' : esc(v),
-            mono:     (v) => `<span class="font-mono text-xs text-slate-600">${esc(v)}</span>`,
-            number:   (v) => `<div class="text-right tabular-nums">${v == null ? '<span class="text-slate-400">-</span>' : esc(v)}</div>`,
-            yesno:    (v) => v ? '<span class="badge-blue">Yes</span>' : '<span class="text-slate-400">-</span>',
+            text:     (v) => v == null || v === '' ? '<span class="text-gray-400">-</span>' : esc(v),
+            mono:     (v) => `<span class="font-mono text-xs text-gray-600">${esc(v)}</span>`,
+            number:   (v) => `<div class="text-right tabular-nums">${v == null ? '<span class="text-gray-400">-</span>' : esc(v)}</div>`,
+            yesno:    (v) => v ? '<span class="badge-blue">Yes</span>' : '<span class="text-gray-400">-</span>',
             active:   (v) => v ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
             approval: (v, r) => v ? `<span class="badge-green" title="${esc(r.approvedBy || '')}">Approved</span>`
                                   : '<span class="badge-amber">Pending</span>'
@@ -136,7 +136,7 @@
                 control = `<input id="${id}" name="${esc(f.name)}" class="field" type="${f.type === 'number' ? 'number' : 'text'}"
                                   ${extra} ${req} autocomplete="off">`;
             }
-            return `<div class="${wide.trim()}"><label class="label" for="${id}">${esc(f.label)}${f.required ? '' : ' <span class="font-normal text-slate-400">(optional)</span>'}</label>
+            return `<div class="${wide.trim()}"><label class="label" for="${id}">${esc(f.label)}${f.required ? '' : ' <span class="font-normal text-gray-400">(optional)</span>'}</label>
                       ${control}${f.hint ? `<p class="hint">${esc(f.hint)}</p>` : ''}</div>`;
         }).join('');
 

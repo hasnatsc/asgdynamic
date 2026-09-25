@@ -8,6 +8,8 @@ import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.security.AccessLogEntry.Event;
 import com.asg.fabricerp.security.SecurityOverviewService.Overview;
 import com.asg.fabricerp.security.SecurityOverviewService.RoleCounts;
+import com.asg.fabricerp.web.DashboardService;
+import com.asg.fabricerp.web.DashboardService.DashboardStats;
 import com.asg.fabricerp.web.HomeController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,6 +66,7 @@ class SecurityAdminWebTest {
     @MockitoBean private WarehouseRepository warehouses;
     @MockitoBean private MarketingTeamRepository marketingTeams;
     @MockitoBean private OrgContext orgContext;
+    @MockitoBean private DashboardService dashboardService;
 
     private FabricUser admin;
     private FabricUser clerk;
@@ -77,6 +80,7 @@ class SecurityAdminWebTest {
         when(userDetailsService.reload("clerk")).thenAnswer(i -> Optional.of(new FabricUserPrincipal(clerk)));
         when(orgContext.requireOrganizationId()).thenReturn(ORG);
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
+        when(dashboardService.stats()).thenReturn(new DashboardStats(0, 0, 0, 0, 0, 0, 2, 0));
 
         BusinessUnit unit = new BusinessUnit("AF", "Weaving Unit");
         unit.setId(10L);
@@ -98,7 +102,8 @@ class SecurityAdminWebTest {
         mvc.perform(get("/").with(signedIn(clerk)))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("href=\"/booking\"")))
-            .andExpect(content().string(not(containsString("href=\"/setup/users\""))));
+            .andExpect(content().string(not(containsString("href=\"/setup/users\""))))
+            .andExpect(content().string(not(containsString("href=\"/setup/security\"")))); // KPI user-count tile
     }
 
     @Test

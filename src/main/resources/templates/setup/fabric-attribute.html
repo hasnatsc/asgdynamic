@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
 <!--
   One template for all seven fabric reference lists. The heading, endpoints and grid all
   derive from the ${slug} on the route, so adding a list adds no markup.
@@ -10,63 +10,172 @@
 <body>
 <div th:fragment="content" th:attr="data-slug=${slug}">
 
-    <div class="flex items-center justify-between mb-5">
+    <div class="page-header">
         <div>
-            <h1 class="text-xl font-semibold" th:text="${title}">Weave Type</h1>
-            <p class="text-sm text-slate-500">Reference list used by booking and production lines.</p>
+            <h1 class="page-title" th:text="${title}">Weave Type</h1>
+            <p class="page-sub">Reference list used by booking and production lines.</p>
         </div>
-        <button type="button" class="btn-primary" data-action="attr-new">Add</button>
+        <div class="page-actions">
+            <button type="button" class="btn-primary" data-action="attr-new">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>
+                <span th:text="|New ${#strings.toLowerCase(title)}|">New entry</span>
+            </button>
+        </div>
     </div>
 
-    <div class="card overflow-hidden">
-        <table id="attributeTable" class="table-grid">
-            <thead>
-            <tr>
-                <th data-sort="code">Code</th>
-                <th data-sort="name">Name</th>
-                <th>Description</th>
-                <th data-sort="displayOrder" class="text-right">Order</th>
-                <th data-sort="active">Active</th>
-                <th class="text-right">Action</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div class="card min-w-0 overflow-hidden">
+            <div class="toolbar">
+                <div class="input-icon w-full sm:w-72">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                    <input id="attrSearch" type="search" class="field pr-8" placeholder="Search code or name"
+                           aria-label="Search" data-search autocomplete="off">
+                    <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table id="attributeTable" class="table-grid table-stack">
+                    <thead>
+                    <tr>
+                        <th data-sort="code">Code</th>
+                        <th data-sort="name">Name</th>
+                        <th>Description</th>
+                        <th data-sort="displayOrder" class="text-right">Order</th>
+                        <th data-sort="active">Status</th>
+                        <th class="w-px"><span class="sr-only">Actions</span></th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="attrPager" class="pager"></div>
+        </div>
+
+        <form id="attributeForm" class="card h-fit xl:sticky xl:top-24" th:object="${attribute}">
+            <input type="hidden" th:field="*{id}">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title" th:text="|${title} details|">Details</h2>
+                    <p class="card-sub">Codes are unique within this list.</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 p-5">
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="label" for="code">Code <span class="req">*</span></label>
+                        <input id="code" class="field font-mono uppercase" th:field="*{code}" maxlength="40" required>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label" for="name">Name <span class="req">*</span></label>
+                        <input id="name" class="field" th:field="*{name}" maxlength="120" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="label" for="description">Description</label>
+                    <input id="description" class="field" th:field="*{description}" maxlength="300">
+                </div>
+                <div class="grid grid-cols-3 items-end gap-4">
+                    <div>
+                        <label class="label" for="displayOrder">Order</label>
+                        <input id="displayOrder" type="number" class="field" th:field="*{displayOrder}">
+                    </div>
+                    <label class="col-span-2 inline-flex h-9 items-center gap-2 text-sm text-gray-700">
+                        <input type="checkbox" class="checkbox" th:field="*{active}">
+                        <span>Active - offered on new documents</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save
+                </button>
+                <button type="button" class="btn-ghost" data-action="attr-reset">Reset</button>
+            </div>
+        </form>
     </div>
 
-    <form id="attributeForm" class="card mt-6 p-5 space-y-4" th:object="${attribute}">
-        <input type="hidden" th:field="*{id}">
+    <span sec:authorize="hasAuthority('SCREEN_FABRIC_SETUP_DELETE')" id="canDelete" hidden></span>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div>
-                <label class="label" for="code">Code</label>
-                <input id="code" class="field" th:field="*{code}" maxlength="40" required>
-            </div>
-            <div class="sm:col-span-2">
-                <label class="label" for="name">Name</label>
-                <input id="name" class="field" th:field="*{name}" maxlength="120" required>
-            </div>
-            <div>
-                <label class="label" for="displayOrder">Display order</label>
-                <input id="displayOrder" type="number" class="field" th:field="*{displayOrder}">
-            </div>
-        </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const slug = document.querySelector('[data-slug]').dataset.slug;
+            const endpoint = '/api/setup/fabric/' + slug;
+            const form = document.getElementById('attributeForm');
+            const title = form.querySelector('.card-title');
+            const baseTitle = title.textContent;
+            const canDelete = !!document.getElementById('canDelete');
+            const field = name => form.elements.namedItem(name);
 
-        <div>
-            <label class="label" for="description">Description</label>
-            <input id="description" class="field" th:field="*{description}" maxlength="300">
-        </div>
+            const grid = new App.Grid({
+                url: endpoint,
+                table: document.getElementById('attributeTable'),
+                search: document.getElementById('attrSearch'),
+                pager: document.getElementById('attrPager'),
+                sort: { column: 'displayOrder', dir: 'asc' },
+                emptyText: 'No entries yet. Add the first one with the form.',
+                emptyIcon: 'swatch',
+                columns: [
+                    r => `<span class="font-mono text-xs font-semibold text-gray-900 dark:text-white">${App.esc(r.code)}</span>`,
+                    r => `<span class="font-medium text-gray-800 dark:text-gray-100">${App.esc(r.name)}</span>`,
+                    r => `<span class="text-gray-500">${App.esc(r.description)}</span>`,
+                    r => `<span class="block text-right tabular-nums">${App.esc(r.displayOrder)}</span>`,
+                    r => r.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>',
+                    r => canDelete ? `<button type="button" class="btn-icon btn-sm" data-delete="${r.id}"
+                                         aria-label="Delete ${App.esc(r.name)}">${App.icon('trash')}</button>` : ''
+                ],
+                onRowClick: row => edit(row)
+            });
+            grid.reload(true);
 
-        <label class="inline-flex items-center gap-2 text-sm">
-            <input type="checkbox" class="rounded border-slate-300" th:field="*{active}">
-            <span>Active</span>
-        </label>
+            function edit(row) {
+                field('id').value = row ? row.id : '';
+                field('code').value = row ? row.code : '';
+                field('name').value = row ? row.name : '';
+                field('description').value = row ? row.description : '';
+                field('displayOrder').value = row ? row.displayOrder : 0;
+                field('active').checked = row ? !!row.active : true;
+                title.textContent = row ? 'Edit ' + row.name : baseTitle;
+                field('code').focus();
+            }
 
-        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
-            <button type="submit" class="btn-primary">Save</button>
-            <button type="button" class="btn-ghost" data-action="attr-reset">Reset</button>
-        </div>
-    </form>
+            document.querySelector('[data-action="attr-new"]').addEventListener('click', () => edit(null));
+            form.querySelector('[data-action="attr-reset"]').addEventListener('click', () => edit(null));
+
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (!form.reportValidity()) return;
+                const body = {
+                    id: field('id').value ? Number(field('id').value) : null,
+                    code: field('code').value.trim(),
+                    name: field('name').value.trim(),
+                    description: field('description').value.trim(),
+                    displayOrder: Number(field('displayOrder').value || 0),
+                    active: field('active').checked
+                };
+                try {
+                    await App.api(endpoint, { method: 'POST', body });
+                    App.toast(body.id ? 'Saved.' : 'Added.', 'success');
+                    edit(null);
+                    grid.reload();
+                } catch (error) { App.fail(error); }
+            });
+
+            document.getElementById('attributeTable').addEventListener('click', async event => {
+                const btn = event.target.closest('[data-delete]');
+                if (!btn) return;
+                const row = grid.rows.find(r => String(r.id) === btn.dataset.delete);
+                if (!await App.confirm({ title: `Delete ${row ? row.name : 'this entry'}?`,
+                        message: 'Documents that already use it keep their value.', confirmText: 'Delete', danger: true })) return;
+                try {
+                    await App.api(`${endpoint}/${btn.dataset.delete}`, { method: 'DELETE' });
+                    App.toast('Deleted.', 'success');
+                    grid.reload();
+                } catch (error) { App.fail(error); }
+            });
+        });
+    </script>
 
 </div>
 </body>

@@ -45,7 +45,8 @@ public class FabricsDeliveryController {
         model.addAttribute("title", "Fabrics Delivery");
         model.addAttribute("delivery", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/fabrics-delivery";
+        model.addAttribute("content", "fabric/fabrics-delivery :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/fabrics-delivery")

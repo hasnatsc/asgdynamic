@@ -23,7 +23,7 @@
                        aria-label="Filter categories" data-search autocomplete="off">
                 <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
             </div>
-            <label class="ml-auto inline-flex items-center gap-2 text-sm text-slate-600">
+            <label class="ml-auto inline-flex items-center gap-2 text-sm text-gray-600">
                 <input type="checkbox" id="catShowInactive" class="checkbox" checked> Show inactive
             </label>
         </div>
@@ -49,8 +49,8 @@
         <form id="catForm" novalidate>
             <div class="modal-head">
                 <div>
-                    <h2 id="catDialogTitle" class="text-base font-semibold text-slate-900">New category</h2>
-                    <p id="catDialogSub" class="text-sm text-slate-500"></p>
+                    <h2 id="catDialogTitle" class="text-base font-semibold text-gray-900">New category</h2>
+                    <p id="catDialogSub" class="text-sm text-gray-500"></p>
                 </div>
                 <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
@@ -66,13 +66,13 @@
                         <input id="catName" class="field" maxlength="100" required autocomplete="off">
                     </div>
                     <div id="catPrefixBox">
-                        <label class="label" for="catPrefix">Code prefix <span class="font-normal text-slate-400">(optional)</span></label>
+                        <label class="label" for="catPrefix">Code prefix <span class="font-normal text-gray-400">(optional)</span></label>
                         <input id="catPrefix" class="field uppercase" maxlength="20" autocomplete="off">
                         <p class="hint">Blank: first two consonants of the name.</p>
                     </div>
                 </div>
                 <div>
-                    <label class="label" for="catItemType">Item type <span id="catItemTypeOptional" class="font-normal text-slate-400">(optional)</span></label>
+                    <label class="label" for="catItemType">Item type <span id="catItemTypeOptional" class="font-normal text-gray-400">(optional)</span></label>
                     <select id="catItemType" class="field">
                         <option value="">None</option>
                         <option th:each="t : ${itemTypes}" th:value="${t.name()}" th:text="${t.label()}">Type</option>
@@ -80,7 +80,7 @@
                     <p class="hint">Only items of this type can be filed under an item-level category.</p>
                 </div>
                 <div>
-                    <label class="label" for="catDescription">Description <span class="font-normal text-slate-400">(optional)</span></label>
+                    <label class="label" for="catDescription">Description <span class="font-normal text-gray-400">(optional)</span></label>
                     <textarea id="catDescription" class="field" rows="2"></textarea>
                 </div>
                 <label class="inline-flex items-center gap-2 text-sm">
@@ -133,18 +133,18 @@
             $('#catTable tbody').innerHTML = visible.length ? visible.map(r => `
                 <tr data-id="${r.id}" class="cursor-pointer">
                     <td><div class="flex items-center gap-2" style="padding-left:${r.depth * 1.5}rem">
-                        <span class="${r.layer === 'ITEM' ? 'text-slate-700' : 'font-medium text-slate-900'}">${esc(r.name)}</span>
-                        ${r.childCount ? `<span class="text-xs text-slate-400">${r.childCount}</span>` : ''}</div></td>
-                    <td><span class="font-mono text-xs text-slate-600">${esc(r.code)}</span></td>
+                        <span class="${r.layer === 'ITEM' ? 'text-gray-700' : 'font-medium text-gray-900'}">${esc(r.name)}</span>
+                        ${r.childCount ? `<span class="text-xs text-gray-400">${r.childCount}</span>` : ''}</div></td>
+                    <td><span class="font-mono text-xs text-gray-600">${esc(r.code)}</span></td>
                     <td><span class="${LAYER_BADGE[r.layer]}">${LAYER_LABEL[r.layer]}</span></td>
-                    <td>${r.itemType ? esc(r.itemType) : '<span class="text-slate-400">-</span>'}</td>
+                    <td>${r.itemType ? esc(r.itemType) : '<span class="text-gray-400">-</span>'}</td>
                     <td>${r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>'}</td>
                     <td><div class="flex justify-end gap-1">
                         ${CAN.create && r.layer !== 'ITEM' ? `<button type="button" class="btn-subtle btn-sm" data-add="${r.id}">Add ${r.layer === 'ROOT' ? 'group' : 'item category'}</button>` : ''}
                         <button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button>
                     </div></td>
                 </tr>`).join('')
-                : `<tr><td colspan="6" class="py-12 text-center text-slate-500">${rows.length ? 'No category matches.' : 'No categories yet.'}</td></tr>`;
+                : `<tr><td colspan="6" class="py-12 text-center text-gray-500">${rows.length ? 'No category matches.' : 'No categories yet.'}</td></tr>`;
         }
 
         $('#catSearch').addEventListener('input', App.debounce(render, 150));

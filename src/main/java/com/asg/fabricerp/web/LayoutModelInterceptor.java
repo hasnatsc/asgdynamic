@@ -14,6 +14,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.util.UrlPathHelper;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -55,7 +56,9 @@ public class LayoutModelInterceptor implements HandlerInterceptor {
             Set<String> authorities = principal.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
-            mav.addObject("nav", Navigation.build(authorities, currentPath));
+            List<Navigation.Section> nav = Navigation.build(authorities, currentPath);
+            mav.addObject("nav", nav);
+            mav.addObject("trail", Navigation.trail(nav));
             mav.addObject("currentUser", principal);
             mav.addObject("operatingContext", operatingContext(principal));
         });

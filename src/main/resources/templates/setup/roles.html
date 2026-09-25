@@ -51,8 +51,8 @@
         <form id="roleForm" novalidate>
             <div class="modal-head">
                 <div>
-                    <h2 id="roleDialogTitle" class="text-base font-semibold text-slate-900">New role</h2>
-                    <p id="roleDialogSub" class="text-sm text-slate-500">Tick what this role may do on each screen.</p>
+                    <h2 id="roleDialogTitle" class="text-base font-semibold text-gray-900">New role</h2>
+                    <p id="roleDialogSub" class="text-sm text-gray-500">Tick what this role may do on each screen.</p>
                 </div>
                 <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
@@ -73,15 +73,15 @@
 
                 <label class="inline-flex items-center gap-2 text-sm">
                     <input type="checkbox" id="roleActive" class="checkbox" checked>
-                    <span><b>Active</b> <span class="text-slate-500">- an inactive role grants nothing, without being unassigned.</span></span>
+                    <span><b>Active</b> <span class="text-gray-500">- an inactive role grants nothing, without being unassigned.</span></span>
                 </label>
 
                 <div>
                     <div class="mb-2 flex items-center justify-between">
                         <span class="label mb-0">Permissions</span>
-                        <span class="text-xs text-slate-500">Any permission includes View. Click a header to toggle a whole column.</span>
+                        <span class="text-xs text-gray-500">Any permission includes View. Click a header to toggle a whole column.</span>
                     </div>
-                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
                         <table class="table-grid" id="grantTable">
                             <thead>
                             <tr>
@@ -95,15 +95,15 @@
                             </thead>
                             <tbody>
                             <th:block th:each="entry : ${screensBySection}">
-                                <tr class="bg-slate-50/60 hover:bg-slate-50/60">
+                                <tr class="bg-gray-50/60 hover:bg-gray-50/60">
                                     <td th:attr="colspan=${#arrays.length(verbs) + 2}"
-                                        class="py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                                        class="py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500"
                                         th:text="${entry.key}">Section</td>
                                 </tr>
                                 <tr th:each="screen : ${entry.value}" th:attr="data-screen=${screen.name()}">
                                     <td>
-                                        <span class="font-medium text-slate-800" th:text="${screen.label()}">Screen</span>
-                                        <span class="block font-mono text-[11px] text-slate-400" th:text="${screen.name()}">CODE</span>
+                                        <span class="font-medium text-gray-800" th:text="${screen.label()}">Screen</span>
+                                        <span class="block font-mono text-[11px] text-gray-400" th:text="${screen.name()}">CODE</span>
                                     </td>
                                     <td th:each="verb : ${verbs}" class="text-center">
                                         <input type="checkbox" class="checkbox grant"
@@ -157,16 +157,16 @@
             emptyText: 'No roles match.',
             params: () => ({ grants: grantsFilter }),
             columns: [
-                r => `<div class="font-medium text-slate-900">${esc(r.name)}</div>`
-                   + (r.description ? `<div class="max-w-md truncate text-xs text-slate-500">${esc(r.description)}</div>` : ''),
+                r => `<div class="font-medium text-gray-900">${esc(r.name)}</div>`
+                   + (r.description ? `<div class="max-w-md truncate text-xs text-gray-500">${esc(r.description)}</div>` : ''),
                 r => {
                     const pct = Math.round(100 * r.screenCount / SCREEN_TOTAL);
                     return r.screenCount === 0 ? '<span class="badge-gray">Grants nothing</span>'
-                        : `<div class="flex items-center gap-2"><div class="h-1.5 w-20 rounded-full bg-slate-100">
+                        : `<div class="flex items-center gap-2"><div class="h-1.5 w-20 rounded-full bg-gray-100">
                              <div class="h-1.5 rounded-full bg-brand-500" style="width:${pct}%"></div></div>
-                             <span class="text-xs text-slate-600">${r.screenCount} of ${SCREEN_TOTAL}</span></div>`;
+                             <span class="text-xs text-gray-600">${r.screenCount} of ${SCREEN_TOTAL}</span></div>`;
                 },
-                r => r.userCount ? `<span class="font-medium">${r.userCount}</span>` : '<span class="text-slate-400">0</span>',
+                r => r.userCount ? `<span class="font-medium">${r.userCount}</span>` : '<span class="text-gray-400">0</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
                 r => `<div class="flex justify-end gap-1">
                         ${CAN.create ? `<button type="button" class="btn-subtle btn-sm" data-duplicate="${r.id}" title="Start a new role from this one">Duplicate</button>` : ''}

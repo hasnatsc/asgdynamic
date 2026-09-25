@@ -50,7 +50,8 @@ public class WeavingWorkOrderController {
         model.addAttribute("title", "Weaving Work Order");
         model.addAttribute("wo", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/weaving-wo";
+        model.addAttribute("content", "fabric/weaving-wo :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/weaving-wo")

@@ -4,133 +4,204 @@
       lang="en" class="h-full">
 <!--
   The application shell. Controllers render this view with ${content} naming the page fragment;
-  LayoutModelInterceptor supplies ${nav}, ${operatingContext}, ${currentUser} and ${currentPath}.
+  LayoutModelInterceptor supplies ${nav}, ${trail}, ${operatingContext}, ${currentUser} and ${currentPath}.
   Page scripts inside a fragment run after app.js by waiting for DOMContentLoaded.
+
+  Icons: <svg class="icon"><use href="/images/icons.svg#name"/></svg> - see static/images/icons.svg.
 -->
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title th:text="|${title ?: 'Home'} · ASG FabricERP|">ASG FabricERP</title>
+    <meta name="theme-color" content="#ed1c24">
+    <title th:text="|${title ?: 'Dashboard'} · FABRICS LTD. ERP|">FABRICS LTD. ERP</title>
+    <link rel="icon" type="image/png" th:href="@{/images/logo-mark.png}">
 
     <!-- CSRF for AJAX: Spring Security CSRF stays enabled. app.js reads these. -->
     <meta name="_csrf" th:content="${_csrf?.token}">
     <meta name="_csrf_header" th:content="${_csrf?.headerName}">
 
+    <!-- Theme and sidebar rail applied before first paint, so neither flashes on navigation. -->
+    <script>
+        (function (d) {
+            var t = localStorage.getItem('theme');
+            if (t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches) d.classList.add('dark');
+            if (localStorage.getItem('sidebar') === 'rail') d.classList.add('sidebar-rail');
+        })(document.documentElement);
+    </script>
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <script th:src="@{/js/app.js}" defer></script>
 </head>
-<body class="h-full bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100">
+<body class="h-full bg-gray-50 font-sans text-[14px] text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
 
 <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 btn-primary">Skip to content</a>
 
 <!-- Mobile scrim -->
-<div id="sidebar-scrim" class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" hidden data-sidebar-toggle></div>
+<div id="sidebar-scrim" class="fixed inset-0 z-30 bg-gray-950/40 backdrop-blur-[1px] lg:hidden" hidden data-sidebar-toggle></div>
 
 <!-- ============================== Sidebar ============================== -->
 <aside id="sidebar"
-       class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white
-              transition-transform duration-200 lg:translate-x-0 dark:border-slate-700 dark:bg-slate-900">
-    <div class="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-700">
-        <a th:href="@{/}" class="flex items-center gap-2 font-semibold tracking-tight">
-            <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-white">A</span>
-            <span><span class="text-brand-600">ASG</span> FabricERP</span>
+       class="fixed inset-y-0 left-0 z-40 flex w-[264px] -translate-x-full flex-col border-r border-gray-200 bg-white
+              transition-[transform,width] duration-200 lg:translate-x-0 dark:border-gray-800 dark:bg-gray-900">
+    <div class="flex h-16 shrink-0 items-center gap-2 border-b border-gray-200 px-5 dark:border-gray-800">
+        <a th:href="@{/}" class="flex min-w-0 items-center" aria-label="FABRICS LTD. ERP - dashboard">
+            <img th:src="@{/images/logo.png}" alt="FABRICS LTD." class="brand-full h-9 w-auto" width="645" height="175">
+            <img th:src="@{/images/logo-mark.png}" alt="" class="brand-mark hidden h-9 w-9" width="187" height="187">
         </a>
+        <button type="button" class="btn-icon ml-auto lg:hidden" data-sidebar-toggle aria-label="Close menu">
+            <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+        </button>
     </div>
 
-    <nav class="flex-1 overflow-y-auto px-2 pb-6" aria-label="Main">
-        <div class="pt-3">
-            <a th:href="@{/}" class="nav-link" th:classappend="${currentPath == '/'} ? 'is-active'">
-                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.7 2.3a1 1 0 0 0-1.4 0l-7 7A1 1 0 0 0 3 11h1v6a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-6h1a1 1 0 0 0 .7-1.7l-7-7Z"/></svg>
-                Home
-            </a>
-        </div>
+    <nav class="flex-1 overflow-y-auto px-3 pb-4 pt-3 scroll-thin" aria-label="Main">
+        <a th:href="@{/}" class="nav-link" th:classappend="${currentPath == '/'} ? 'is-active'"
+           th:attr="aria-current=${currentPath == '/'} ? 'page' : null" title="Dashboard"
+           data-nav data-nav-icon="dashboard">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#dashboard}"/></svg>
+            <span class="nav-label rail-hide">Dashboard</span>
+        </a>
 
-        <th:block th:each="section : ${nav}">
-            <div class="nav-section" th:text="${section.label}">Section</div>
-            <th:block th:each="item : ${section.items}">
-                <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}" th:text="${item.label}"
-                   class="nav-link" th:classappend="${item.active} ? 'is-active'"
-                   th:attr="aria-current=${item.active} ? 'page' : null">Item</a>
+        <!-- One collapsible group per module. app.js remembers the ones a user closes. -->
+        <details th:each="section : ${nav}" class="nav-group" open th:attr="data-nav-group=${section.key}">
+            <summary class="nav-section" th:title="${section.label}">
+                <span class="rail-hide" th:text="${section.label}">Section</span>
+                <svg class="icon rail-hide" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-down}"/></svg>
+            </summary>
+            <div class="space-y-0.5">
+                <th:block th:each="item : ${section.items}">
+                    <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}"
+                       class="nav-link" th:classappend="${item.active} ? 'is-active'"
+                       th:attr="aria-current=${item.active} ? 'page' : null, title=${item.label},
+                                data-nav-section=${section.label}, data-nav-icon=${item.icon}" data-nav>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                        <span class="nav-label rail-hide" th:text="${item.label}">Item</span>
+                    </a>
 
-                <details th:if="${item.hasChildren()}" class="group" th:open="${item.active}">
-                    <summary class="nav-link cursor-pointer list-none justify-between"
-                             th:classappend="${item.active} ? 'font-medium text-slate-900'">
-                        <span th:text="${item.label}">Group</span>
-                        <svg class="h-4 w-4 text-slate-400 transition-transform group-open:rotate-90" viewBox="0 0 20 20"
-                             fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.2 14.8a1 1 0 0 1 0-1.4L10.6 10 7.2 6.6a1 1 0 1 1 1.4-1.4l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4 0Z" clip-rule="evenodd"/></svg>
-                    </summary>
-                    <div class="mt-0.5 space-y-0.5">
-                        <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
-                           class="nav-sublink" th:classappend="${child.active} ? 'is-active'"
-                           th:attr="aria-current=${child.active} ? 'page' : null">Child</a>
-                    </div>
-                </details>
-            </th:block>
-        </th:block>
+                    <details th:if="${item.hasChildren()}" th:open="${item.active}">
+                        <summary class="nav-link nav-parent cursor-pointer list-none"
+                                 th:classappend="${item.active} ? 'is-current'"
+                                 th:attr="title=${item.label}, data-href=@{${item.path}}">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                            <span class="nav-label rail-hide" th:text="${item.label}">Group</span>
+                            <svg class="icon nav-caret rail-hide" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-right}"/></svg>
+                        </summary>
+                        <div class="nav-children">
+                            <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
+                               class="nav-sublink" th:classappend="${child.active} ? 'is-active'"
+                               th:attr="aria-current=${child.active} ? 'page' : null,
+                                        data-nav-section=${section.label}, data-nav-group=${item.label},
+                                        data-nav-icon=${item.icon}" data-nav>Child</a>
+                        </div>
+                    </details>
+                </th:block>
+            </div>
+        </details>
 
-        <p th:if="${#lists.isEmpty(nav)}" class="px-3 pt-6 text-xs text-slate-500">
+        <div th:if="${#lists.isEmpty(nav)}" class="rail-hide mx-1 mt-6 rounded-lg border border-dashed border-gray-300 p-3 text-xs text-gray-500">
             No screens are granted to your roles yet. Ask an administrator.
-        </p>
+        </div>
     </nav>
+
+    <div class="hidden shrink-0 border-t border-gray-200 p-3 lg:block dark:border-gray-800">
+        <button type="button" class="nav-link w-full" data-rail-toggle title="Collapse sidebar" aria-label="Collapse sidebar">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#panel-left}"/></svg>
+            <span class="nav-label rail-hide text-left">Collapse sidebar</span>
+        </button>
+    </div>
 </aside>
 
 <!-- ============================== Main column ============================== -->
-<div class="flex min-h-full flex-col lg:pl-64">
-    <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
-        <button type="button" class="btn-icon lg:hidden" data-sidebar-toggle aria-label="Open menu">
-            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" clip-rule="evenodd"/></svg>
+<div id="shell" class="flex min-h-full flex-col transition-[padding] duration-200 lg:pl-[264px]">
+    <header id="topbar"
+            class="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-gray-200 bg-white/90 px-4 backdrop-blur
+                   sm:gap-3 sm:px-6 dark:border-gray-800 dark:bg-gray-900/90">
+        <button type="button" class="btn-icon -ml-1 lg:hidden" data-sidebar-toggle aria-label="Open menu">
+            <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#menu}"/></svg>
         </button>
+        <a th:href="@{/}" class="shrink-0 lg:hidden" aria-label="Dashboard">
+            <img th:src="@{/images/logo-mark.png}" alt="" class="h-8 w-8">
+        </a>
 
-        <!--
-          Operating context: the unit that stamps new document numbers, and the default store.
-          Read-only for now - FabricUser's javadoc records that switching mid-session is not built.
-        -->
-        <div th:if="${operatingContext != null}" class="hidden items-center gap-2 text-xs sm:flex"
-             title="Your operating unit and store. New documents are numbered under this unit.">
-            <span class="badge-blue">
-                <span class="font-semibold" th:text="${operatingContext.businessUnitCode}">AF</span>
-                <span th:if="${operatingContext.businessUnitName}" th:text="${operatingContext.businessUnitName}">Unit</span>
-            </span>
-            <span class="badge-gray" th:text="${operatingContext.storeName} ?: 'No default store'">Store</span>
-        </div>
+        <!-- Where am I: module / screen / page, from the same nav model as the sidebar. -->
+        <nav class="breadcrumb hidden md:flex" aria-label="Breadcrumb">
+            <a th:href="@{/}" th:unless="${#lists.isEmpty(trail)}">Dashboard</a>
+            <span th:if="${trail == null or #lists.isEmpty(trail)}" aria-current="page">Dashboard</span>
+            <th:block th:each="crumb, it : ${trail}">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-right}"/></svg>
+                <span th:text="${crumb}" th:attr="aria-current=${it.last} ? 'page' : null">Crumb</span>
+            </th:block>
+        </nav>
 
-        <div class="ml-auto flex items-center gap-2">
-            <!-- Command palette -->
-            <button type="button" class="btn-icon" data-cmd-trigger
-                    title="Search screens (Ctrl+K)" aria-label="Command palette">
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.45 4.39l3.08 3.08a1 1 0 0 1-1.42 1.42l-3.08-3.08A7 7 0 0 1 2 9Z" clip-rule="evenodd"/></svg>
+        <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <!-- Command palette: every screen the user may open, by name. -->
+            <button type="button" data-cmd-trigger
+                    class="hidden h-9 w-64 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-400
+                           transition-colors hover:border-gray-300 hover:bg-white sm:flex xl:w-80
+                           dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-800/70">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <span class="flex-1 text-left">Search screens…</span>
+                <span class="kbd">Ctrl</span><span class="kbd">K</span>
+            </button>
+            <button type="button" class="btn-icon sm:hidden" data-cmd-trigger aria-label="Search screens">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
             </button>
 
-            <!-- Dark mode toggle -->
-            <button type="button" class="btn-icon" data-theme-toggle
-                    title="Toggle dark mode" aria-label="Toggle dark mode">
-                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.455 2.004a.75.75 0 0 1 .26.77 7 7 0 0 0 9.958 7.967.75.75 0 0 1 1.067.853A8.5 8.5 0 1 1 6.647 1.921a.75.75 0 0 1 .808.083Z" clip-rule="evenodd"/></svg>
+            <!--
+              Operating context: the unit that stamps new document numbers, and the default store.
+              Read-only for now - FabricUser's javadoc records that switching mid-session is not built.
+            -->
+            <div th:if="${operatingContext != null}"
+                 class="hidden h-9 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm lg:flex dark:border-gray-700"
+                 title="Your operating unit and store. New documents are numbered under this unit.">
+                <svg class="icon text-gray-400" aria-hidden="true"><use th:href="@{/images/icons.svg#building}"/></svg>
+                <span class="font-semibold text-brand-700 dark:text-brand-300" th:text="${operatingContext.businessUnitCode}">AF</span>
+                <span th:if="${operatingContext.businessUnitName}" class="max-w-[10rem] truncate text-gray-700 dark:text-gray-300"
+                      th:text="${operatingContext.businessUnitName}">Unit</span>
+                <span class="h-4 w-px bg-gray-200 dark:bg-gray-700" aria-hidden="true"></span>
+                <span class="max-w-[9rem] truncate text-gray-500" th:text="${operatingContext.storeName} ?: 'No default store'">Store</span>
+            </div>
+
+            <button type="button" class="btn-icon" data-theme-toggle title="Switch theme" aria-label="Toggle dark mode">
+                <svg class="icon icon-lg dark:hidden" aria-hidden="true"><use th:href="@{/images/icons.svg#moon}"/></svg>
+                <svg class="icon icon-lg hidden dark:block" aria-hidden="true"><use th:href="@{/images/icons.svg#sun}"/></svg>
             </button>
+
             <details class="relative" data-menu th:if="${currentUser != null}">
-                <summary class="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-100">
+                <summary class="flex cursor-pointer list-none items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 hover:bg-gray-100 dark:hover:bg-gray-800">
                     <span class="avatar" th:text="${#strings.toUpperCase(#strings.substring(currentUser.displayName, 0, 1))}">A</span>
-                    <span class="hidden text-sm font-medium text-slate-700 md:inline" th:text="${currentUser.displayName}">User</span>
-                    <svg class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.2 7.2a1 1 0 0 1 1.4 0L10 10.6l3.4-3.4a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4Z" clip-rule="evenodd"/></svg>
+                    <span class="hidden min-w-0 text-left leading-tight md:block">
+                        <span class="block max-w-[10rem] truncate text-sm font-medium text-gray-800 dark:text-gray-100" th:text="${currentUser.displayName}">User</span>
+                        <span class="block max-w-[10rem] truncate text-xs text-gray-500" sec:authentication="name">username</span>
+                    </span>
+                    <svg class="icon hidden text-gray-400 md:block" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-down}"/></svg>
                 </summary>
-                <div class="absolute right-0 mt-2 w-60 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-slate-900/10">
-                    <div class="border-b border-slate-100 px-4 py-3">
-                        <p class="truncate text-sm font-medium text-slate-900" th:text="${currentUser.displayName}">Name</p>
-                        <p class="truncate text-xs text-slate-500" sec:authentication="name">username</p>
+                <div class="menu">
+                    <div class="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+                        <p class="truncate text-sm font-medium text-gray-900 dark:text-white" th:text="${currentUser.displayName}">Name</p>
+                        <p class="truncate text-xs text-gray-500" sec:authentication="name">username</p>
                     </div>
-                    <a th:href="@{/account/password}" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">Change password</a>
-                    <form th:action="@{/logout}" method="post" class="border-t border-slate-100">
-                        <button type="submit" class="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">Sign out</button>
+                    <a th:href="@{/account/password}" class="menu-item">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#key}"/></svg>Change password
+                    </a>
+                    <form th:action="@{/logout}" method="post" class="border-t border-gray-100 dark:border-gray-800">
+                        <button type="submit" class="menu-item menu-item-danger">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#log-out}"/></svg>Sign out
+                        </button>
                     </form>
                 </div>
             </details>
         </div>
     </header>
 
-    <main id="main" class="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-6 sm:px-6">
+    <main id="main" class="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <!-- ${content} is a controller-set "template :: fragment" string; preprocessing (__…__)
              turns it into a fragment expression. A bare ${content} is read as a template NAME. -->
         <div th:replace="~{__${content}__}">Page content goes here.</div>
     </main>
+
+    <footer class="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-2 px-4 pb-6 text-xs text-gray-400 sm:px-6 lg:px-8">
+        <span>FABRICS LTD. ERP</span>
+        <span>Every action is checked against your roles and recorded.</span>
+    </footer>
 </div>
 
 </body>

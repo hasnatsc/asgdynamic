@@ -51,7 +51,8 @@ public class FabricAttributeController {
         model.addAttribute("title", type.label());
         model.addAttribute("slug", type.slug());
         model.addAttribute("attribute", new FabricAttribute());
-        return "setup/fabric-attribute";
+        model.addAttribute("content", "setup/fabric-attribute :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/setup/fabric/{slug}")

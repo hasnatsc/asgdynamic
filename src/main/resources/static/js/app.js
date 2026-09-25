@@ -1,5 +1,5 @@
 /*
- * ASG FabricERP - shared front-end helpers, exposed as window.App.
+ * FABRICS LTD. ERP - shared front-end helpers, exposed as window.App.
  *
  * Loaded with `defer` by layout/main.html, so it runs before DOMContentLoaded. Page scripts
  * inside a content fragment therefore wrap themselves in
@@ -53,7 +53,7 @@
             return fmt.date(iso);
         },
         timeTag(iso, empty) {
-            if (!iso) return `<span class="text-slate-400">${esc(empty || 'Never')}</span>`;
+            if (!iso) return `<span class="text-gray-400">${esc(empty || 'Never')}</span>`;
             return `<time datetime="${esc(iso)}" title="${esc(fmt.dateTime(iso))}">${esc(fmt.relative(iso))}</time>`;
         },
         initials(name) {
@@ -148,11 +148,17 @@
     // Toasts
     // ------------------------------------------------------------------------------------------
 
+    /** A sprite icon as an HTML string: icon('search', 'icon-lg text-gray-400'). */
+    function icon(name, cls) {
+        return `<svg class="icon ${cls || ''}" aria-hidden="true"><use href="/images/icons.svg#${esc(name)}"/></svg>`;
+    }
+
+    // One neutral surface for every toast; the type shows in the icon, never in colour alone.
     const TOAST_STYLES = {
-        success: 'bg-emerald-600 text-white',
-        error:   'bg-red-600 text-white',
-        warn:    'bg-amber-500 text-white',
-        info:    'bg-slate-800 text-white'
+        success: ['check-circle', 'text-emerald-600'],
+        error:   ['x-circle', 'text-red-600'],
+        warn:    ['alert', 'text-amber-500'],
+        info:    ['info', 'text-sky-600']
     };
 
     function toastRoot() {
@@ -169,10 +175,12 @@
 
     function toast(message, type) {
         const el = document.createElement('div');
-        el.className = 'pointer-events-auto animate-toast-in rounded-lg px-4 py-3 text-sm shadow-lg '
-            + (TOAST_STYLES[type] || TOAST_STYLES.info);
+        const [glyph, tone] = TOAST_STYLES[type] || TOAST_STYLES.info;
+        el.className = 'pointer-events-auto flex animate-toast-in items-start gap-3 rounded-xl border border-gray-200 bg-white '
+            + 'px-4 py-3 text-sm text-gray-800 shadow-float dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100';
         el.setAttribute('role', type === 'error' ? 'alert' : 'status');
-        el.textContent = message;
+        el.innerHTML = `${icon(glyph, 'icon-lg mt-px ' + tone)}<span class="flex-1"></span>`;
+        el.querySelector('span').textContent = message;
         toastRoot().appendChild(el);
         const ttl = type === 'error' ? 7000 : 3500;
         setTimeout(() => {
@@ -241,10 +249,10 @@
                 <form method="dialog" novalidate>
                     <div class="modal-head">
                         <div>
-                            <h2 class="text-base font-semibold text-slate-900">${esc(opts.title)}</h2>
-                            ${opts.message ? `<p class="mt-1 text-sm text-slate-500">${esc(opts.message)}</p>` : ''}
+                            <h2 class="modal-title">${esc(opts.title)}</h2>
+                            ${opts.message ? `<p class="mt-1 text-sm text-gray-500">${esc(opts.message)}</p>` : ''}
                         </div>
-                        <button type="button" class="btn-icon" data-close aria-label="Close">&#x2715;</button>
+                        <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">${icon('x', 'icon-lg')}</button>
                     </div>
                     ${fields ? `<div class="modal-body space-y-4">${fields}</div>` : ''}
                     <div class="modal-foot">
@@ -287,36 +295,26 @@
         if (existing?.open) { existing.close(); return; }
         if (existing) existing.remove();
 
-        // Harvest links from the sidebar navigation
-        const items = [];
-        document.querySelectorAll('#sidebar .nav-section').forEach(section => {
-            const sectionLabel = section.textContent.trim();
-            let el = section.nextElementSibling;
-            while (el && !el.classList.contains('nav-section')) {
-                if (el.tagName === 'A' && el.classList.contains('nav-link')) {
-                    items.push({ label: el.textContent.trim(), path: el.getAttribute('href'), section: sectionLabel });
-                }
-                if (el.tagName === 'DETAILS') {
-                    const groupLabel = el.querySelector('summary span')?.textContent.trim() || '';
-                    el.querySelectorAll('.nav-sublink').forEach(sub => {
-                        items.push({ label: sub.textContent.trim(), path: sub.getAttribute('href'),
-                                     section: sectionLabel, group: groupLabel });
-                    });
-                }
-                el = el.nextElementSibling;
-            }
-        });
-        // Always include Home
-        const homeLink = document.querySelector('#sidebar a[href="/"]');
-        if (homeLink) items.unshift({ label: 'Home', path: '/', section: '' });
+        // Every link the sidebar renders carries data-nav: the palette offers exactly the screens the
+        // user may open, and nothing else.
+        const items = [...document.querySelectorAll('#sidebar a[data-nav]')].map(a => ({
+            label: a.textContent.trim(),
+            path: a.getAttribute('href'),
+            section: a.dataset.navSection || '',
+            group: a.dataset.navGroup || '',
+            icon: a.dataset.navIcon || 'document'
+        }));
 
         const dialog = document.createElement('dialog');
         dialog.id = 'cmd-palette';
         dialog.className = 'cmd-palette';
         dialog.innerHTML = `
-            <input class="cmd-input" placeholder="Search screens…" autocomplete="off" spellcheck="false">
+            <div class="relative">
+                ${icon('search', 'icon-lg pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400')}
+                <input class="cmd-input" placeholder="Search screens…" autocomplete="off" spellcheck="false">
+            </div>
             <div class="cmd-list" id="cmd-list"></div>
-            <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 px-4 py-2 text-xs text-slate-400">
+            <div class="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-2 text-xs text-gray-400">
                 <span>Navigate with <kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> then <kbd class="kbd">Enter</kbd></span>
                 <span><kbd class="kbd">Esc</kbd> to close</span>
             </div>`;
@@ -335,7 +333,7 @@
             ) : items;
 
             if (!filtered.length) {
-                list.innerHTML = '<div class="px-4 py-6 text-center text-sm text-slate-500">No screens found.</div>';
+                list.innerHTML = '<div class="px-4 py-6 text-center text-sm text-gray-500">No screens found.</div>';
                 return;
             }
             let html = '';
@@ -347,9 +345,9 @@
                     lastSection = sec;
                 }
                 const active = i === activeIndex ? ' is-active' : '';
-                const sub = item.group ? `<span class="text-xs text-slate-400">${esc(item.group)}</span>` : '';
+                const sub = item.group ? `<span class="text-xs text-gray-400">${esc(item.group)}</span>` : '';
                 html += `<a href="${esc(item.path)}" class="cmd-item${active}" data-cmd="${i}">
-                    <svg class="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 0 0 2 4.25v11.5A2.25 2.25 0 0 0 4.25 18h11.5A2.25 2.25 0 0 0 18 15.75V4.25A2.25 2.25 0 0 0 15.75 2H4.25ZM6 13.25V6.75a.75.75 0 0 1 1.5 0v6.5a.75.75 0 0 1-1.5 0ZM9.25 6a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0v-6.5A.75.75 0 0 1 9.25 6ZM12 10.25v3a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0Z" clip-rule="evenodd"/></svg>
+                    ${icon(item.icon, 'text-gray-400')}
                     <span class="flex-1">${esc(item.label)}</span>${sub}
                 </a>`;
             });
@@ -508,20 +506,26 @@
                 if (draw !== this.draw) return;
                 this.rows = [];
                 this.tbody.style.opacity = '';
-                this.tbody.innerHTML = `<tr><td colspan="${this.columnCount}" class="py-10 text-center text-red-600">`
-                    + `${esc(error.message || 'Could not load')}</td></tr>`;
+                this.tbody.innerHTML = `<tr><td colspan="${this.columnCount}"><div class="empty">`
+                    + `<span class="empty-icon bg-red-50 text-red-600">${icon('alert', 'icon-lg')}</span>`
+                    + `<p class="empty-title">Could not load this list</p>`
+                    + `<p class="empty-text">${esc(error.message || 'Try again in a moment.')}</p></div></td></tr>`;
             }
         }
 
         render() {
             this.tbody.style.opacity = '';
             if (!this.rows.length) {
-                this.tbody.innerHTML = `<tr><td colspan="${this.columnCount}" class="py-12 text-center text-slate-500">`
-                    + `${esc(this.opts.emptyText || 'Nothing to show')}</td></tr>`;
+                this.tbody.innerHTML = `<tr><td colspan="${this.columnCount}"><div class="empty">`
+                    + `<span class="empty-icon">${icon(this.opts.emptyIcon || 'search', 'icon-lg')}</span>`
+                    + `<p class="empty-text">${esc(this.opts.emptyText || 'Nothing to show')}</p></div></td></tr>`;
             } else {
-                const clickable = this.opts.onRowClick ? ' class="cursor-pointer"' : '';
+                // data-label lets .table-stack show each cell's column name when rows stack on phones.
+                const labels = [...this.table.querySelectorAll('thead th')].map(th => esc(th.textContent.trim()));
+                const clickable = this.opts.onRowClick ? ' class="cursor-pointer is-clickable"' : '';
                 this.tbody.innerHTML = this.rows.map((row, i) =>
-                    `<tr data-index="${i}"${clickable}>${this.opts.columns.map(col => `<td>${col(row)}</td>`).join('')}</tr>`
+                    `<tr data-index="${i}"${clickable}>${this.opts.columns.map((col, c) =>
+                        `<td data-label="${labels[c] || ''}">${col(row)}</td>`).join('')}</tr>`
                 ).join('');
             }
             this.renderPager();
@@ -534,16 +538,311 @@
             const to = Math.min(this.start + this.pageSize, this.total);
             const sizes = [10, 25, 50, 100];
             pager.innerHTML = `
-                <span>Showing <b class="text-slate-700">${from}–${to}</b> of <b class="text-slate-700">${this.total}</b></span>
-                <div class="flex items-center gap-2">
-                    <label class="flex items-center gap-1">Rows
-                        <select data-page-size class="rounded-md border-slate-300 py-1 pl-2 pr-7 text-xs">
+                <span><b class="font-medium text-gray-700 dark:text-gray-200">${from}–${to}</b> of
+                    <b class="font-medium text-gray-700 dark:text-gray-200">${this.total}</b></span>
+                <div class="flex items-center gap-3">
+                    <label class="flex items-center gap-2">Rows per page
+                        <select data-page-size class="field field-sm w-auto py-1 pl-2 pr-8">
                             ${sizes.map(s => `<option${s === this.pageSize ? ' selected' : ''}>${s}</option>`).join('')}
                         </select>
                     </label>
-                    <button type="button" class="btn-ghost btn-sm" data-page="-1" ${this.start === 0 ? 'disabled' : ''}>Previous</button>
-                    <button type="button" class="btn-ghost btn-sm" data-page="1" ${to >= this.total ? 'disabled' : ''}>Next</button>
+                    <div class="flex items-center gap-1">
+                        <button type="button" class="btn-icon btn-sm border border-gray-200 dark:border-gray-700" data-page="-1"
+                                aria-label="Previous page" ${this.start === 0 ? 'disabled' : ''}>${icon('chevron-left')}</button>
+                        <button type="button" class="btn-icon btn-sm border border-gray-200 dark:border-gray-700" data-page="1"
+                                aria-label="Next page" ${to >= this.total ? 'disabled' : ''}>${icon('chevron-right')}</button>
+                    </div>
                 </div>`;
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Document status
+    // ------------------------------------------------------------------------------------------
+
+    /** BusinessDocumentStatus -> [label, badge class]. Colour is backed by the label, never alone. */
+    const STATUS = {
+        DRAFT:      ['Draft', 'badge-gray'],
+        SUBMITTED:  ['Pending approval', 'badge-amber'],
+        APPROVED:   ['Approved', 'badge-green'],
+        PARTIAL:    ['Partly fulfilled', 'badge-blue'],
+        PROCESSING: ['In progress', 'badge-blue'],
+        COMPLETED:  ['Completed', 'badge-green'],
+        CLOSED:     ['Closed', 'badge-gray'],
+        CANCELLED:  ['Cancelled', 'badge-gray'],
+        REJECTED:   ['Rejected', 'badge-red']
+    };
+
+    function statusBadge(status) {
+        const [label, cls] = STATUS[status] || [status || '—', 'badge-gray'];
+        return `<span class="${cls} badge-dot">${esc(label)}</span>`;
+    }
+
+    /** The approval path as a stepper: Draft -> Submitted -> Approved -> Completed. */
+    function statusSteps(status) {
+        const steps = ['Draft', 'Submitted', 'Approved', 'Completed'];
+        const reached = { DRAFT: 0, SUBMITTED: 1, REJECTED: 1, APPROVED: 2, PARTIAL: 2, PROCESSING: 2,
+                          COMPLETED: 3, CLOSED: 3 }[status] ?? 0;
+        return `<ol class="steps" aria-label="Approval workflow">${steps.map((label, i) => {
+            const rejected = status === 'REJECTED' && i === reached;
+            const done = i < reached || (i === reached && reached === 3);
+            const state = rejected ? 'is-rejected' : done ? 'is-done' : i === reached ? 'is-current' : '';
+            const dot = rejected ? icon('x', 'h-3 w-3') : done ? icon('check', 'h-3 w-3') : i + 1;
+            return `<li class="step ${state}"><span class="step-dot">${dot}</span>${esc(rejected ? 'Rejected' : label)}</li>`;
+        }).join('')}</ol>`;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Fabric document screens (Booking, BPO, RPI, work orders, receipts, deliveries)
+    // ------------------------------------------------------------------------------------------
+
+    const num = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
+    const formatNumber = v => v == null || v === '' ? '' : num.format(Number(v));
+
+    /** Labels for the fields a document's detail payload may carry; unknown keys are not shown. */
+    const DOC_FIELDS = {
+        documentDate: 'Date', referenceNo: 'Buyer reference', currency: 'Currency',
+        totalQuantity: 'Total quantity', subtotalAmount: 'Amount', revisionNo: 'Revision',
+        bookingId: 'Booking', bpoId: 'Production order', deliveryOrderId: 'Delivery order', scheduleId: 'Schedule'
+    };
+    const GROUP_FIELDS = {
+        costingCode: 'Costing no', composition: 'Composition', weaveType: 'Weave type', weaveStyle: 'Weave style',
+        finishType: 'Finish', finishWidth: 'Finish width', cuttableWidth: 'Cuttable width', gsm: 'GSM',
+        epi: 'EPI', ppi: 'PPI', lightSource: 'Light source'
+    };
+    const LINE_COLUMNS = [
+        ['colorCode', 'Code'], ['colorName', 'Colour'], ['fabricsStyle', 'Style'], ['colorReference', 'Colour ref.'],
+        ['strikeOffReference', 'Strike-off'], ['labDipReference', 'Lab dip'], ['loomReference', 'Loom'],
+        ['quantity', 'Quantity', true], ['rate', 'Rate', true], ['priceInMeter', 'Price / m', true],
+        ['lineAmount', 'Amount', true], ['fulfilled', 'Fulfilled', true], ['outstanding', 'Outstanding', true]
+    ];
+
+    /**
+     * A document list with filters and a review drawer, driven by the table's own header:
+     *   <th data-col="documentNo" data-format="doc|date|num|status|actions" data-sort="…">
+     * and by the [data-filter="search|status|from|to"] controls and [data-pager] inside the
+     * surrounding [data-doc-screen].
+     *
+     * new App.DocumentScreen({ kind: 'Booking', api: '/api/booking', table: 'bookingTable',
+     *                          form: 'bookingForm', revise: true })
+     *
+     * Submit / approve / reject call /api/documents/{id}/…; the server decides who may (four-eyes
+     * rule included) and its refusal is shown as-is.
+     */
+    class DocumentScreen {
+        constructor(opts) {
+            this.opts = opts;
+            const table = document.getElementById(opts.table);
+            const root = table.closest('[data-doc-screen]') || document;
+            const cols = [...table.querySelectorAll('thead th')].map(th => ({ key: th.dataset.col, format: th.dataset.format }));
+            const filter = name => root.querySelector(`[data-filter="${name}"]`);
+
+            this.grid = new Grid({
+                url: opts.api, table,
+                search: filter('search'),
+                pager: root.querySelector('[data-pager]'),
+                sort: { column: 'documentDate', dir: 'desc' },
+                emptyText: `No ${opts.kind.toLowerCase()} documents match these filters.`,
+                emptyIcon: 'document',
+                params: () => ({ status: filter('status')?.value, from: filter('from')?.value, to: filter('to')?.value }),
+                columns: cols.map(col => row => this.cell(row, col)),
+                onRowClick: row => this.open(row.id)
+            });
+            ['status', 'from', 'to'].forEach(name => filter(name)?.addEventListener('change', () => this.grid.reload(true)));
+            root.querySelector('[data-filter-reset]')?.addEventListener('click', () => {
+                ['search', 'status', 'from', 'to'].forEach(name => { const el = filter(name); if (el) el.value = ''; });
+                this.grid.reload(true);
+            });
+            this.grid.reload(true);
+
+            // The editor stays out of the way until asked for.
+            const form = opts.form && document.getElementById(opts.form);
+            if (form) {
+                form.addEventListener('submit', event => {
+                    event.preventDefault();
+                    toast('Saving from this editor is not connected yet.', 'warn');
+                });
+                document.querySelectorAll('[data-editor-open]').forEach(btn => btn.addEventListener('click', () => {
+                    form.hidden = false;
+                    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    form.querySelector('input:not([type=hidden]),select')?.focus({ preventScroll: true });
+                }));
+                form.querySelectorAll('[data-editor-close]').forEach(btn => btn.addEventListener('click', () => {
+                    form.hidden = true;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }));
+            }
+        }
+
+        cell(row, col) {
+            const value = row[col.key];
+            switch (col.format) {
+                case 'doc':    return `<span class="doc-no">${esc(value || 'Unnumbered')}</span>`;
+                case 'date':   return esc(fmt.date(value));
+                case 'num':    return `<span class="block text-right tabular-nums">${esc(formatNumber(value))}</span>`;
+                case 'status': return statusBadge(value);
+                case 'actions':
+                    return `<button type="button" class="btn-icon btn-sm" aria-label="Open ${esc(row.documentNo || 'document')}">`
+                        + `${icon('chevron-right')}</button>`;
+                default:       return esc(value);
+            }
+        }
+
+        async open(id) {
+            const drawer = this.drawer || (this.drawer = this.buildDrawer());
+            drawer.querySelector('[data-body]').innerHTML =
+                '<div class="space-y-3 p-6">' + '<div class="skeleton h-5 w-2/3"></div>'.repeat(4) + '</div>';
+            if (!drawer.open) drawer.showModal();
+            try {
+                const [doc, history] = await Promise.all([
+                    api(`${this.opts.api}/${id}`),
+                    api(`/api/documents/${id}/history`).catch(() => [])
+                ]);
+                this.current = doc;
+                this.renderDrawer(doc, history || []);
+            } catch (error) {
+                drawer.close();
+                fail(error);
+            }
+        }
+
+        buildDrawer() {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'drawer';
+            dialog.setAttribute('aria-labelledby', 'docDrawerTitle');
+            dialog.innerHTML = `
+                <div class="modal-head">
+                    <div class="min-w-0">
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">${esc(this.opts.kind)}</p>
+                        <h2 id="docDrawerTitle" class="modal-title mt-0.5 flex flex-wrap items-center gap-2" data-title></h2>
+                    </div>
+                    <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">${icon('x', 'icon-lg')}</button>
+                </div>
+                <div class="modal-body p-0" data-body></div>
+                <div class="modal-foot justify-between" data-foot></div>`;
+            dialog.addEventListener('click', event => {
+                const action = event.target.closest('[data-doc-action]')?.dataset.docAction;
+                if (action) this.act(action);
+            });
+            document.body.appendChild(dialog);
+            return dialog;
+        }
+
+        renderDrawer(doc, history) {
+            const d = this.drawer;
+            d.querySelector('[data-title]').innerHTML = `${esc(doc.documentNo || 'Unnumbered')} ${statusBadge(doc.status)}`;
+
+            const facts = Object.entries(DOC_FIELDS).filter(([key]) => doc[key] != null && doc[key] !== '')
+                .map(([key, label]) => {
+                    let value = doc[key];
+                    if (key === 'documentDate') value = fmt.date(value);
+                    else if (key.endsWith('Id')) value = '#' + value;
+                    else if (typeof value === 'number') value = formatNumber(value);
+                    return `<div><dt class="text-xs text-gray-500">${esc(label)}</dt>
+                            <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">${esc(value)}</dd></div>`;
+                }).join('');
+
+            const groups = (doc.lineGroups || []).map((g, i) => {
+                const gFacts = Object.entries(GROUP_FIELDS).filter(([key]) => g[key] != null && g[key] !== '')
+                    .map(([key, label]) => `<span><span class="text-gray-500">${esc(label)}</span>
+                        <span class="font-medium text-gray-800 dark:text-gray-200">${esc(g[key])}</span></span>`).join('');
+                const lines = g.colorLines || [];
+                const cols = LINE_COLUMNS.filter(([key]) => lines.some(l => l[key] != null && l[key] !== ''));
+                return `<div class="row-card">
+                    <div class="row-card-head">
+                        <p class="min-w-0 truncate text-sm font-semibold text-gray-900 dark:text-white">
+                            Spec ${esc(g.groupNo || i + 1)} · ${esc(g.construction || 'No construction')}</p>
+                        <span class="shrink-0 text-xs tabular-nums text-gray-500">${esc(formatNumber(g.groupQuantity))} total</span>
+                    </div>
+                    ${gFacts ? `<div class="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">${gFacts}</div>` : ''}
+                    ${lines.length ? `<div class="table-wrap -mx-4 -mb-4 border-t border-gray-100 dark:border-gray-800"><table class="table-grid table-lines">
+                        <thead><tr>${cols.map(([, label, n]) => `<th class="${n ? 'text-right' : ''}">${esc(label)}</th>`).join('')}</tr></thead>
+                        <tbody>${lines.map(l => `<tr>${cols.map(([key, , n]) =>
+                            `<td class="${n ? 'text-right tabular-nums' : ''}">${esc(n ? formatNumber(l[key]) : l[key])}</td>`).join('')}</tr>`).join('')}
+                        </tbody></table></div>` : '<p class="text-xs text-gray-500">No colour lines.</p>'}
+                </div>`;
+            }).join('');
+
+            const timeline = history.length ? `<ol class="space-y-4">${history.map(h => `
+                <li class="flex gap-3">
+                    <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">
+                        ${icon(h.action === 'REJECT' ? 'x' : h.action === 'APPROVE' ? 'check' : 'send', 'h-3 w-3')}</span>
+                    <div class="min-w-0 text-sm">
+                        <p><span class="font-medium text-gray-900 dark:text-white">${esc(h.actor || 'System')}</span>
+                           <span class="text-gray-500">moved it to</span> ${statusBadge(h.toStatus)}</p>
+                        ${h.remarks ? `<p class="mt-1 rounded-lg bg-gray-50 px-3 py-2 text-gray-700 dark:bg-gray-800 dark:text-gray-300">${esc(h.remarks)}</p>` : ''}
+                        <p class="mt-0.5 text-xs text-gray-500">${fmt.timeTag(h.at)}</p>
+                    </div>
+                </li>`).join('')}</ol>`
+                : '<p class="text-sm text-gray-500">No approval activity yet.</p>';
+
+            d.querySelector('[data-body]').innerHTML = `
+                <section class="form-section">${statusSteps(doc.status)}</section>
+                <section class="form-section"><dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">${facts}</dl>
+                    ${doc.remarks ? `<p class="mt-4 text-sm text-gray-600 dark:text-gray-300"><span class="text-gray-500">Remarks:</span> ${esc(doc.remarks)}</p>` : ''}
+                </section>
+                <section class="form-section">
+                    <div class="form-section-head"><h3 class="form-section-title">Fabric specifications</h3>
+                        <span class="text-xs text-gray-500">${(doc.lineGroups || []).length} spec(s)</span></div>
+                    <div class="space-y-3">${groups || '<p class="text-sm text-gray-500">No specifications on this document.</p>'}</div>
+                </section>
+                <section class="form-section">
+                    <div class="form-section-head"><h3 class="form-section-title">Approval history</h3></div>
+                    ${timeline}
+                </section>`;
+
+            const s = doc.status;
+            const actions = [];
+            if (s === 'DRAFT' || s === 'REJECTED') {
+                actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}Submit for approval</button>`);
+            }
+            if (s === 'SUBMITTED') {
+                actions.push(`<button type="button" class="btn-danger-ghost" data-doc-action="reject">${icon('x')}Reject</button>`);
+                actions.push(`<button type="button" class="btn-primary" data-doc-action="approve">${icon('check')}Approve</button>`);
+            }
+            if (this.opts.revise && s === 'APPROVED') {
+                actions.push(`<button type="button" class="btn-ghost" data-doc-action="revise">${icon('refresh')}Raise revision</button>`);
+            }
+            d.querySelector('[data-foot]').innerHTML = `
+                <button type="button" class="btn-ghost" data-close>Close</button>
+                <div class="flex flex-wrap justify-end gap-2">${actions.join('')}</div>`;
+        }
+
+        async act(action) {
+            const doc = this.current;
+            if (!doc) return;
+            const label = doc.documentNo || 'this document';
+            let query;
+            if (action === 'approve' || action === 'reject') {
+                const approve = action === 'approve';
+                const values = await formDialog({
+                    title: approve ? `Approve ${label}?` : `Reject ${label}?`,
+                    message: approve ? 'It is locked for editing once approved.' : 'It goes back to the maker with your reason.',
+                    fields: [{ name: 'remarks', label: approve ? 'Remarks (optional)' : 'Reason', type: 'textarea',
+                               required: !approve, maxlength: 500 }],
+                    confirmText: approve ? 'Approve' : 'Reject', danger: !approve
+                });
+                if (!values) return;
+                query = { remarks: values.remarks };
+            } else if (action === 'revise') {
+                const values = await formDialog({
+                    title: `Raise a revision of ${label}?`, message: 'A new draft is created from this approved document.',
+                    fields: [{ name: 'reason', label: 'Reason', type: 'textarea', maxlength: 500 }],
+                    confirmText: 'Raise revision'
+                });
+                if (!values) return;
+                query = { reason: values.reason };
+            }
+            const url = action === 'revise' ? `${this.opts.api}/${doc.id}/revise` : `/api/documents/${doc.id}/${action}`;
+            try {
+                const result = await api(url, { method: 'POST', query });
+                toast({ submit: 'Submitted for approval.', approve: 'Approved.', reject: 'Rejected and returned to the maker.',
+                        revise: 'Revision raised as a new draft.' }[action], 'success');
+                this.grid.reload();
+                this.open(action === 'revise' && result && result.id ? result.id : doc.id);
+            } catch (error) {
+                fail(error);
+            }
         }
     }
 
@@ -552,12 +851,60 @@
     // ------------------------------------------------------------------------------------------
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Mobile sidebar.
+        // Mobile sidebar: an off-canvas drawer below lg.
         const sidebar = document.getElementById('sidebar');
+        const root = document.documentElement;
         document.querySelectorAll('[data-sidebar-toggle]').forEach(btn => btn.addEventListener('click', () => {
             const open = sidebar.classList.toggle('-translate-x-full') === false;
             document.getElementById('sidebar-scrim')?.toggleAttribute('hidden', !open);
         }));
+
+        // Desktop rail: icons only. The <head> script applies the stored choice before paint.
+        const groups = sidebar ? [...sidebar.querySelectorAll('details[data-nav-group]')] : [];
+        const closedGroups = new Set(JSON.parse(localStorage.getItem('nav.closed') || '[]'));
+        const isRail = () => root.classList.contains('sidebar-rail');
+        const syncGroups = () => groups.forEach(g => {
+            // The rail shows every icon; the full sidebar restores what the user collapsed, but
+            // never hides the module holding the current page.
+            g.open = isRail() || !closedGroups.has(g.dataset.navGroup) || !!g.querySelector('[aria-current="page"]');
+        });
+        syncGroups();
+        groups.forEach(g => g.addEventListener('toggle', () => {
+            if (isRail()) return;
+            g.open ? closedGroups.delete(g.dataset.navGroup) : closedGroups.add(g.dataset.navGroup);
+            localStorage.setItem('nav.closed', JSON.stringify([...closedGroups]));
+        }));
+        document.querySelectorAll('[data-rail-toggle]').forEach(btn => {
+            const label = () => {
+                const text = isRail() ? 'Expand sidebar' : 'Collapse sidebar';
+                btn.title = text;
+                btn.setAttribute('aria-label', text);
+                btn.querySelector('.nav-label').textContent = text;
+            };
+            label();
+            btn.addEventListener('click', () => {
+                root.classList.toggle('sidebar-rail');
+                localStorage.setItem('sidebar', isRail() ? 'rail' : 'full');
+                syncGroups();
+                label();
+            });
+        });
+        // In the rail a group has no room for its children, so its icon opens the group's first page.
+        sidebar?.querySelectorAll('summary[data-href]').forEach(summary => summary.addEventListener('click', event => {
+            if (isRail() && window.matchMedia('(min-width: 1024px)').matches) {
+                event.preventDefault();
+                window.location.href = summary.dataset.href;
+            }
+        }));
+        document.querySelectorAll('[data-rail-toggle-proxy]').forEach(btn => btn.addEventListener('click',
+            () => document.querySelector('[data-rail-toggle]')?.click()));
+        sidebar?.querySelector('.nav-link.is-active, .nav-sublink.is-active')?.scrollIntoView({ block: 'nearest' });
+
+        // Greeting by the user's own clock, not the server's.
+        document.querySelectorAll('[data-greeting]').forEach(el => {
+            const h = new Date().getHours();
+            el.textContent = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+        });
 
         // "/" focuses the page's search box, as in most admin tools.
         document.addEventListener('keydown', event => {
@@ -591,5 +938,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, debounce, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, debounce, icon, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
 })();

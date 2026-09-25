@@ -45,7 +45,8 @@ public class GreigeReceiveController {
         model.addAttribute("title", "Greige Fabrics Received");
         model.addAttribute("receipt", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/greige-receive";
+        model.addAttribute("content", "fabric/greige-receive :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/greige-receive")

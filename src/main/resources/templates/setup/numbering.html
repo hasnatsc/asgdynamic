@@ -14,7 +14,7 @@
     <div class="card mb-4">
         <div class="card-header">
             <h2 class="card-title">Financial year</h2>
-            <span id="fyCurrent" class="text-sm text-slate-500"></span>
+            <span id="fyCurrent" class="text-sm text-gray-500"></span>
         </div>
         <div class="flex flex-wrap items-end gap-3 px-4 py-3">
             <div>
@@ -73,14 +73,14 @@
             rows.forEach(r => {
                 if (r.group !== group) {
                     group = r.group;
-                    html.push(`<tr><td colspan="8" class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">${esc(group)}</td></tr>`);
+                    html.push(`<tr><td colspan="8" class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">${esc(group)}</td></tr>`);
                 }
                 html.push(`<tr>
                     <td><span class="font-medium">${esc(r.label)}</span>
                         ${r.configured ? '' : '<span class="badge-gray ml-1" title="Not numbered yet; these are the defaults">default</span>'}
                         ${r.prefixClash ? '<span class="badge-red ml-1" title="Another series already uses this prefix">prefix clash</span>' : ''}</td>
                     <td class="font-mono text-xs">${esc(r.prefix)}</td>
-                    <td class="font-mono text-xs">${esc(r.pattern)} <span class="text-slate-400">· ${esc(r.sequenceWidth)} digits</span></td>
+                    <td class="font-mono text-xs">${esc(r.pattern)} <span class="text-gray-400">· ${esc(r.sequenceWidth)} digits</span></td>
                     <td>${esc(RESETS[r.resetPolicy])}</td>
                     <td>${esc(SCOPES[r.counterScope])}</td>
                     <td>${esc(r.issuedThisPeriod)}</td>

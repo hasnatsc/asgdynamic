@@ -57,8 +57,8 @@
                 <div class="flex items-center gap-3">
                     <span class="avatar h-10 w-10 text-sm" id="userAvatar">+</span>
                     <div>
-                        <h2 id="userDialogTitle" class="text-base font-semibold text-slate-900">New user</h2>
-                        <p id="userDialogSub" class="text-sm text-slate-500">Create a login. The password you set is temporary.</p>
+                        <h2 id="userDialogTitle" class="text-base font-semibold text-gray-900">New user</h2>
+                        <p id="userDialogSub" class="text-sm text-gray-500">Create a login. The password you set is temporary.</p>
                     </div>
                 </div>
                 <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
@@ -120,11 +120,11 @@
                         </div>
                     </div>
 
-                    <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+                    <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
                         <input type="checkbox" id="userUnrestricted" class="checkbox mt-0.5" data-self-locked>
                         <span class="text-sm">
-                            <span class="font-medium text-slate-800">Sees every row</span>
-                            <span class="block text-slate-500">For the MD, Accounts or Commercial - every row on each screen their roles open.
+                            <span class="font-medium text-gray-800">Sees every row</span>
+                            <span class="block text-gray-500">For the MD, Accounts or Commercial - every row on each screen their roles open.
                                 Leave off for everyone else and give them data scope instead; a scoped user with no grant cannot sign in.</span>
                         </span>
                     </label>
@@ -134,18 +134,18 @@
                 <div data-panel="roles" hidden>
                     <div class="mb-3 flex flex-wrap items-center gap-3">
                         <input id="roleFilter" type="search" class="field sm:w-64" placeholder="Filter roles" aria-label="Filter roles">
-                        <label class="flex items-center gap-2 text-sm text-slate-600">
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
                             <input type="checkbox" id="roleSelectedOnly" class="checkbox"> Selected only
                         </label>
                     </div>
-                    <div id="roleList" class="max-h-80 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200"></div>
+                    <div id="roleList" class="max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200"></div>
                     <p class="hint">A role grants view/create/amend/delete/approve per screen - see the Roles screen for what each one holds.</p>
                 </div>
 
                 <!-- ---------- Data scope ---------- -->
                 <div data-panel="scope" hidden class="space-y-3">
                     <div id="scopeBanner"></div>
-                    <div class="overflow-x-auto rounded-lg border border-slate-200">
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
                         <table class="table-grid">
                             <thead>
                             <tr><th>Dimension</th><th>Value</th><th>From</th><th>Revoked</th><th>Remarks</th><th class="w-px"></th></tr>
@@ -153,7 +153,7 @@
                             <tbody id="scopeRows"></tbody>
                         </table>
                     </div>
-                    <div id="scopeAdd" class="grid items-end gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-12"
+                    <div id="scopeAdd" class="grid items-end gap-2 rounded-lg bg-gray-50 p-3 sm:grid-cols-12"
                          sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')">
                         <div class="sm:col-span-3">
                             <label class="label text-xs" for="scopeDimension">Dimension</label>
@@ -185,7 +185,7 @@
 
                 <!-- ---------- Sign-in & security ---------- -->
                 <div data-panel="security" hidden class="space-y-4">
-                    <dl id="securityFacts" class="grid gap-x-6 gap-y-3 rounded-lg border border-slate-200 p-4 text-sm sm:grid-cols-2"></dl>
+                    <dl id="securityFacts" class="grid gap-x-6 gap-y-3 rounded-lg border border-gray-200 p-4 text-sm sm:grid-cols-2"></dl>
                     <div class="flex flex-wrap gap-2" sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_AMEND')">
                         <button type="button" class="btn-ghost" id="lockBtn" data-self-locked>Lock account</button>
                         <button type="button" class="btn-ghost" id="unlockBtn" data-self-locked>Unlock account</button>
@@ -193,7 +193,7 @@
                     </div>
                     <div class="rounded-lg border border-red-200 p-4" sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_DELETE')">
                         <p class="text-sm font-medium text-red-700">Delete this user</p>
-                        <p class="mt-0.5 text-sm text-slate-500">The login stops working at once. The record is kept for the audit trail.</p>
+                        <p class="mt-0.5 text-sm text-gray-500">The login stops working at once. The record is kept for the audit trail.</p>
                         <button type="button" class="btn-danger btn-sm mt-3" id="deleteBtn" data-self-locked>Delete user</button>
                     </div>
                 </div>
@@ -234,12 +234,12 @@
             const you = r.id === SELF_ID ? ' <span class="badge-blue">You</span>' : '';
             return `<div class="flex items-center gap-3">
                 <span class="avatar">${esc(fmt.initials(name))}</span>
-                <div class="min-w-0"><div class="truncate font-medium text-slate-900">${esc(name)}${you}</div>
-                <div class="truncate text-xs text-slate-500">${esc(r.username)}</div></div></div>`;
+                <div class="min-w-0"><div class="truncate font-medium text-gray-900">${esc(name)}${you}</div>
+                <div class="truncate text-xs text-gray-500">${esc(r.username)}</div></div></div>`;
         }
         function rolesCell(r) {
             const roles = r.roles || [];
-            if (!roles.length) return '<span class="text-slate-400">None</span>';
+            if (!roles.length) return '<span class="text-gray-400">None</span>';
             const shown = roles.slice(0, 2).map(n => `<span class="badge-gray">${esc(n)}</span>`).join(' ');
             const more = roles.length > 2
                 ? ` <span class="badge-gray" title="${esc(roles.slice(2).join(', '))}">+${roles.length - 2}</span>` : '';
@@ -357,15 +357,15 @@
             const rows = ROLES.filter(r => (!q || r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q))
                                         && (!onlySelected || selectedRoles.has(r.id)));
             roleList.innerHTML = rows.length ? rows.map(r => `
-                <label class="flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-slate-50">
+                <label class="flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-gray-50">
                     <input type="checkbox" class="checkbox mt-0.5" data-role="${r.id}" ${selectedRoles.has(r.id) ? 'checked' : ''} ${locked ? 'disabled' : ''}>
                     <span class="min-w-0 text-sm">
-                        <span class="font-medium text-slate-800">${esc(r.name)}</span>
+                        <span class="font-medium text-gray-800">${esc(r.name)}</span>
                         ${r.active ? '' : '<span class="badge-gray ml-1">Inactive</span>'}
-                        ${r.description ? `<span class="block truncate text-xs text-slate-500">${esc(r.description)}</span>` : ''}
+                        ${r.description ? `<span class="block truncate text-xs text-gray-500">${esc(r.description)}</span>` : ''}
                     </span>
                 </label>`).join('')
-                : '<p class="px-3 py-6 text-center text-sm text-slate-500">No roles match.</p>';
+                : '<p class="px-3 py-6 text-center text-sm text-gray-500">No roles match.</p>';
             $('#roleCount').textContent = selectedRoles.size;
         }
         roleList.addEventListener('change', e => {
@@ -411,16 +411,16 @@
                 renderScopeBanner(rows);
                 const canRevoke = CAN.amend;
                 tbody.innerHTML = rows.length ? rows.map(s => `
-                    <tr class="${s.revokedFrom ? 'text-slate-400' : ''}">
+                    <tr class="${s.revokedFrom ? 'text-gray-400' : ''}">
                         <td>${esc(DIMENSIONS[s.dimension] || s.dimension)}</td>
                         <td class="font-medium">${esc(scopeLabel(s.dimension, s.scopeValueId))}</td>
                         <td class="whitespace-nowrap">${esc(fmt.date(s.grantedFrom))}</td>
                         <td>${s.revokedFrom ? `${esc(fmt.date(s.revokedFrom))}<span class="block text-xs">${esc(s.revokedReason)}</span>`
                                             : (s.heldToday ? '<span class="badge-green">Held</span>' : '<span class="badge-gray">Starts later</span>')}</td>
-                        <td class="text-slate-500">${esc(s.remarks)}</td>
+                        <td class="text-gray-500">${esc(s.remarks)}</td>
                         <td>${!s.revokedFrom && canRevoke ? `<button type="button" class="btn-subtle btn-sm text-red-600" data-revoke="${s.id}">Revoke</button>` : ''}</td>
                     </tr>`).join('')
-                    : '<tr><td colspan="6" class="py-6 text-center text-slate-500">No scope grants.</td></tr>';
+                    : '<tr><td colspan="6" class="py-6 text-center text-gray-500">No scope grants.</td></tr>';
             } catch (error) { fail(error); }
         }
 
@@ -463,13 +463,13 @@
 
         // ------------------------------------------------------------------ security tab
         function fact(label, value) {
-            return `<div><dt class="text-xs font-medium uppercase tracking-wide text-slate-500">${esc(label)}</dt>
-                    <dd class="mt-0.5 text-slate-800">${value}</dd></div>`;
+            return `<div><dt class="text-xs font-medium uppercase tracking-wide text-gray-500">${esc(label)}</dt>
+                    <dd class="mt-0.5 text-gray-800">${value}</dd></div>`;
         }
         function renderSecurity() {
             const u = current;
             const status = u.accountLocked
-                ? `<span class="badge-red">Locked</span> <span class="text-xs text-slate-500">${esc(u.lockedReason || '')}${u.lockedAt ? ' · ' + esc(fmt.dateTime(u.lockedAt)) : ''}</span>`
+                ? `<span class="badge-red">Locked</span> <span class="text-xs text-gray-500">${esc(u.lockedReason || '')}${u.lockedAt ? ' · ' + esc(fmt.dateTime(u.lockedAt)) : ''}</span>`
                 : '<span class="badge-green">Can sign in</span>';
             $('#securityFacts').innerHTML = [
                 fact('Account', status),

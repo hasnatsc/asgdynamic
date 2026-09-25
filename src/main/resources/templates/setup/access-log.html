@@ -25,7 +25,7 @@
             </select>
             <div class="flex items-center gap-1">
                 <input id="logFrom" type="date" class="field w-auto" aria-label="From date">
-                <span class="text-slate-400">–</span>
+                <span class="text-gray-400">–</span>
                 <input id="logTo" type="date" class="field w-auto" aria-label="To date">
             </div>
             <div class="flex gap-1" id="logPresets">
@@ -87,9 +87,9 @@
                 r => `<span class="whitespace-nowrap" title="${esc(fmt.dateTime(r.occurredAt))}">${esc(fmt.dateTime(r.occurredAt))}</span>`,
                 r => `<span class="font-medium">${esc(r.username)}</span>`,
                 r => eventBadge(r.event),
-                r => `<span class="font-mono text-xs text-slate-600">${esc(r.target)}</span>`,
-                r => `<span class="block max-w-sm truncate text-slate-500" title="${esc(r.detail)}">${esc(r.detail)}</span>`,
-                r => `<span class="font-mono text-xs text-slate-500">${esc(r.sourceAddress)}</span>`
+                r => `<span class="font-mono text-xs text-gray-600">${esc(r.target)}</span>`,
+                r => `<span class="block max-w-sm truncate text-gray-500" title="${esc(r.detail)}">${esc(r.detail)}</span>`,
+                r => `<span class="font-mono text-xs text-gray-500">${esc(r.sourceAddress)}</span>`
             ]
         });
 

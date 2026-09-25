@@ -45,7 +45,8 @@ public class DeliveryOrderController {
         model.addAttribute("title", "Delivery Order");
         model.addAttribute("dlo", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/delivery-order";
+        model.addAttribute("content", "fabric/delivery-order :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/delivery-order")

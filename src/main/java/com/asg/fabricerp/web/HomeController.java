@@ -5,10 +5,14 @@ import com.asg.fabricerp.security.FabricUserRepository;
 import com.asg.fabricerp.security.Role;
 import com.asg.fabricerp.web.DashboardService;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The landing page after sign-in ({@code SecurityConfig}'s {@code defaultSuccessUrl("/")}):
@@ -29,7 +33,7 @@ public class HomeController {
     @GetMapping("/")
     @PreAuthorize("isAuthenticated()")
     public String home(@RequestParam(required = false) String passwordChanged, Model model) {
-        model.addAttribute("title", "Home");
+        model.addAttribute("title", "Dashboard");
         model.addAttribute("passwordChanged", passwordChanged != null);
         Long userId = CurrentUser.id();
         if (userId != null) {
@@ -40,7 +44,12 @@ public class HomeController {
                     .map(Role::getName).sorted().toList());
             });
         }
+        Set<String> authorities = CurrentUser.principal().stream()
+            .flatMap(principal -> principal.getAuthorities().stream())
+            .map(GrantedAuthority::getAuthority)
+            .collect(Collectors.toSet());
         model.addAttribute("stats", dashboard.stats());
+        model.addAttribute("flow", ManufacturingFlow.build(authorities));
         model.addAttribute("content", "home :: content");
         return "layout/main";
     }

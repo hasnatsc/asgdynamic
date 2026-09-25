@@ -52,7 +52,8 @@ public class BpoController {
         model.addAttribute("title", "Bulk Production Order");
         model.addAttribute("bpo", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
-        return "fabric/bpo";
+        model.addAttribute("content", "fabric/bpo :: content");
+        return "layout/main";
     }
 
     @GetMapping("/api/bpo")

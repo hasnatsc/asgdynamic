@@ -63,8 +63,8 @@
         <form id="itemForm" novalidate>
             <div class="modal-head">
                 <div>
-                    <h2 id="itemDialogTitle" class="text-base font-semibold text-slate-900">New item</h2>
-                    <p id="itemDialogSub" class="text-sm text-slate-500"></p>
+                    <h2 id="itemDialogTitle" class="text-base font-semibold text-gray-900">New item</h2>
+                    <p id="itemDialogSub" class="text-sm text-gray-500"></p>
                 </div>
                 <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
@@ -102,7 +102,7 @@
                                 <p class="alert-info">The name of a yarn is generated from its count, ply, type and blend when you save - see the Yarn tab.</p>
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="label" for="fNameBn">Name in Bangla <span class="font-normal text-slate-400">(optional)</span></label>
+                                <label class="label" for="fNameBn">Name in Bangla <span class="font-normal text-gray-400">(optional)</span></label>
                                 <input id="fNameBn" class="field" data-f="nameBn" data-t="text" maxlength="200" lang="bn">
                             </div>
                             <div>
@@ -110,33 +110,33 @@
                                 <select id="fBaseUnit" class="field" data-f="baseUnitId" data-t="id" data-lookup="uoms" required></select>
                             </div>
                             <div>
-                                <label class="label" for="fHsCode">HS code <span class="font-normal text-slate-400">(optional)</span></label>
+                                <label class="label" for="fHsCode">HS code <span class="font-normal text-gray-400">(optional)</span></label>
                                 <select id="fHsCode" class="field" data-f="hsCodeId" data-t="id" data-lookup="hs-codes"></select>
                             </div>
                             <div>
-                                <label class="label" for="fBrand">Brand <span class="font-normal text-slate-400">(optional)</span></label>
+                                <label class="label" for="fBrand">Brand <span class="font-normal text-gray-400">(optional)</span></label>
                                 <select id="fBrand" class="field" data-f="brandId" data-t="id" data-lookup="brands"></select>
                             </div>
                             <div>
-                                <label class="label" for="fModel">Model <span class="font-normal text-slate-400">(optional)</span></label>
+                                <label class="label" for="fModel">Model <span class="font-normal text-gray-400">(optional)</span></label>
                                 <select id="fModel" class="field" data-f="modelId" data-t="id"></select>
                             </div>
                             <div>
-                                <label class="label" for="fSku">SKU <span class="font-normal text-slate-400">(optional)</span></label>
+                                <label class="label" for="fSku">SKU <span class="font-normal text-gray-400">(optional)</span></label>
                                 <input id="fSku" class="field" data-f="sku" data-t="text" maxlength="100">
                             </div>
                             <div>
-                                <label class="label" for="fBarcode">Barcode <span class="font-normal text-slate-400">(optional)</span></label>
+                                <label class="label" for="fBarcode">Barcode <span class="font-normal text-gray-400">(optional)</span></label>
                                 <input id="fBarcode" class="field" data-f="barcode" data-t="text" maxlength="100">
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="label" for="fDescription">Description <span class="font-normal text-slate-400">(optional)</span></label>
+                                <label class="label" for="fDescription">Description <span class="font-normal text-gray-400">(optional)</span></label>
                                 <textarea id="fDescription" class="field" rows="2" data-f="description" data-t="text"></textarea>
                             </div>
                         </div>
                         <label class="inline-flex items-center gap-2 text-sm">
                             <input type="checkbox" id="fActive" class="checkbox" data-f="active" data-t="bool">
-                            <span><b>Active</b> <span class="text-slate-500">- inactive items stay on records but leave the pickers.</span></span>
+                            <span><b>Active</b> <span class="text-gray-500">- inactive items stay on records but leave the pickers.</span></span>
                         </label>
                     </div>
 
@@ -178,7 +178,7 @@
                                 <select id="fYarnType" class="field yarn-req" data-f="yarnTypeId" data-t="id" data-lookup="yarn-types"></select></div>
                             <div><label class="label" for="fYarnBlend">Blend</label>
                                 <select id="fYarnBlend" class="field yarn-req" data-f="yarnBlendId" data-t="id" data-lookup="yarn-blends"></select></div>
-                            <div class="sm:col-span-2"><label class="label" for="fQuality">Quality grade <span class="font-normal text-slate-400">(optional)</span></label>
+                            <div class="sm:col-span-2"><label class="label" for="fQuality">Quality grade <span class="font-normal text-gray-400">(optional)</span></label>
                                 <input id="fQuality" class="field" data-f="qualityGrade" data-t="text" maxlength="100"></div>
                             <p class="hint sm:col-span-2">No two active yarns may share the same count, ply, type and blend.</p>
                         </div>
@@ -283,9 +283,9 @@
             emptyText: 'No items match.',
             params: () => ({ itemType: $('#itemTypeFilter').value, active: $('#itemActiveFilter').value }),
             columns: [
-                r => `<span class="font-mono text-xs text-slate-600">${esc(r.itemCode)}</span>`,
-                r => `<span class="font-medium text-slate-900">${esc(r.name)}</span>`
-                   + (r.sku ? `<div class="text-xs text-slate-500">SKU ${esc(r.sku)}</div>` : ''),
+                r => `<span class="font-mono text-xs text-gray-600">${esc(r.itemCode)}</span>`,
+                r => `<span class="font-medium text-gray-900">${esc(r.name)}</span>`
+                   + (r.sku ? `<div class="text-xs text-gray-500">SKU ${esc(r.sku)}</div>` : ''),
                 r => `<span class="badge-gray">${esc(r.itemTypeLabel)}</span>`,
                 r => esc(r.categoryName),
                 r => `<span title="${esc(r.baseUnitName)}">${esc(r.baseUnitCode)}</span>`,
