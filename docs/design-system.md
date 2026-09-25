@@ -290,8 +290,14 @@ the only signal** — badges always carry text.
 `class="table-grid"`; `input.css` supplies compact 44 px rows, 14 px `gray-800` text, uppercase
 headers and zebra rows. Never add per-page table classes or colours.
 
-- **Row buttons** come only from `App.rowActions(...)` with `App.editButton(id, canAmend)` (Edit, or
-  View without AMEND) and `App.rowButton(label, icon, attrs)`: bordered, icon + word, always
+- **View first.** A row click and the **View** button open the record read-only; only **Edit**
+  (shown with AMEND) opens it for changes. Record dialogs call
+  `App.viewMode(dialog, mode === 'view', { canEdit: CAN.amend })` at the end of `openEditor()`:
+  fields lock (and read as values), save/delete/add/remove hide, Cancel reads Close, and an Edit
+  button switches the same dialog to edit mode. Screens without a dialog editor use
+  `App.viewRecord({ title, fields, canEdit, onEdit })`. Deep links open in view mode (`?view=`).
+- **Row buttons** come only from `App.rowActions(...)` with `App.recordButtons(id, canAmend)` (View,
+  plus Edit with AMEND) and `App.rowButton(label, icon, attrs)`: bordered, icon + word, always
   visible. The header cell reads `<th class="w-px">Actions</th>`. Any table whose rows carry
   `.row-actions` pins that column to the right edge automatically, so Edit never scrolls away.
 - **One line per row**: secondary facts go inline in gray (`name · SKU 123`), not on a second
@@ -365,6 +371,9 @@ headers and zebra rows. Never add per-page table classes or colours.
 - [ ] Checked at 375 px, 768 px and ≥ 1280 px, in light **and** dark mode.
 - [ ] Keyboard pass: Tab through, Enter/Esc in dialogs, `/` and `Ctrl+K` still work.
 - [ ] `npm run css:build` run and `app.css` committed.
+- [ ] No `[[` inside a template's script (write `[ [`): Thymeleaf reads it as an inline expression
+      and the whole page fails to render.
+- [ ] Rows open in view mode; Edit is the only way into the editable form.
 
 ## 15. Known gaps (as of 2026-09-25)
 

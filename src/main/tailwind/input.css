@@ -233,6 +233,15 @@
   .drawer > form { @apply flex min-h-0 flex-1 flex-col; }
   .drawer .modal-body { @apply max-h-none flex-1; }
 
+  /* ---- View mode (App.viewMode): a record dialog shown read-only ----------------------------
+     Locked fields read as values, not as greyed-out inputs; locked buttons (save, delete,
+     add/remove) are hidden rather than shown disabled. */
+  [data-view-mode] .field[data-view-locked] { @apply cursor-default border-gray-200 bg-gray-50 text-gray-900 opacity-100
+                                                     shadow-none hover:border-gray-200; }
+  [data-view-mode] select.field[data-view-locked] { @apply appearance-none bg-none; }
+  [data-view-mode] .checkbox[data-view-locked], [data-view-mode] .radio[data-view-locked] { @apply opacity-100; }
+  [data-view-mode] button:disabled:not([role=tab]) { @apply hidden; }
+
   /* ---- Filter chips: a segmented role filter with live counts ----------------------------- */
   .chip       { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium
                        text-gray-600 ring-1 ring-inset ring-gray-200 transition-colors hover:bg-gray-50 focus:outline-none
@@ -430,6 +439,7 @@
   .dark .chip               { @apply text-gray-300 ring-gray-700 hover:bg-gray-800; }
   .dark .chip-count         { @apply bg-gray-800 text-gray-300; }
   .dark .hint               { @apply text-gray-400; }
+  .dark [data-view-mode] .field[data-view-locked] { @apply border-gray-800 bg-gray-800/60 text-gray-100; }
 }
 
 /* ---- Responsive table stacking (opt-in: add .table-stack to .table-grid) -------------- */

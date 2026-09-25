@@ -135,9 +135,9 @@
                 <!-- ---------- Roles ---------- -->
                 <div data-panel="roles" hidden>
                     <div class="mb-3 flex flex-wrap items-center gap-3">
-                        <input id="roleFilter" type="search" class="field sm:w-64" placeholder="Filter roles" aria-label="Filter roles">
+                        <input id="roleFilter" type="search" data-view-keep class="field sm:w-64" placeholder="Filter roles" aria-label="Filter roles">
                         <label class="flex items-center gap-2 text-sm text-gray-600">
-                            <input type="checkbox" id="roleSelectedOnly" class="checkbox"> Selected only
+                            <input type="checkbox" id="roleSelectedOnly" data-view-keep class="checkbox"> Selected only
                         </label>
                     </div>
                     <div id="roleList" class="max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200"></div>
@@ -262,7 +262,7 @@
         function actionsCell(r) {
             const unlock = r.accountLocked && CAN.amend && r.id !== SELF_ID
                 ? App.rowButton('Unlock', 'unlock', `data-unlock="${r.id}"`) : '';
-            return App.rowActions(unlock, App.editButton(r.id, CAN.amend));
+            return App.rowActions(unlock, App.recordButtons(r.id, CAN.amend));
         }
 
         const grid = new App.Grid({
@@ -283,13 +283,15 @@
                 r => fmt.timeTag(r.lastLoginAt),
                 actionsCell
             ],
-            onRowClick: row => openEditor(row.id)
+            onRowClick: row => openEditor(row.id, null, 'view')
         });
         statusFilter.addEventListener('change', () => grid.reload(true));
 
         $('#userTable tbody').addEventListener('click', e => {
             const edit = e.target.closest('[data-edit]');
             const unlock = e.target.closest('[data-unlock]');
+            const view = e.target.closest('[data-view]');
+            if (view) openEditor(Number(view.dataset.view), null, 'view');
             if (edit) openEditor(Number(edit.dataset.edit));
             if (unlock) {
                 api(`/api/setup/users/${unlock.dataset.unlock}/unlock`, { method: 'POST' })
@@ -584,7 +586,7 @@
             if (current) renderSecurity();
         }
 
-        async function openEditor(id, tab) {
+        async function openEditor(id, tab, mode) {
             try {
                 current = id ? await api(`/api/setup/users/${id}`) : null;
             } catch (error) { return fail(error); }
@@ -594,7 +596,10 @@
             tabs.select(current && tab ? tab : 'profile');
             if (!dialog.open) dialog.showModal();
             if (!current) $('#userUsername').focus();
-            if (current) history.replaceState(null, '', `${location.pathname}?edit=${current.id}`);
+            const viewing = mode === 'view' && !!current;
+            if (current) history.replaceState(null, '', `${location.pathname}?${viewing ? 'view' : 'edit'}=${current.id}`);
+            App.viewMode(dialog, viewing, { canEdit: CAN.amend,
+                onEdit: () => history.replaceState(null, '', `${location.pathname}?edit=${current.id}`) });
         }
 
         $('#userNewBtn')?.addEventListener('click', () => openEditor(null));
@@ -645,6 +650,7 @@
         if (params.get('status')) statusFilter.value = params.get('status');
         grid.load();
         if (params.get('edit')) openEditor(Number(params.get('edit')), params.get('tab'));
+        else if (params.get('view')) openEditor(Number(params.get('view')), params.get('tab'), 'view');
     });
     </script>
 </div>

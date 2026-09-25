@@ -97,6 +97,7 @@
     </div>
 
     <span sec:authorize="hasAuthority('SCREEN_FABRIC_SETUP_DELETE')" id="canDelete" hidden></span>
+    <span sec:authorize="hasAuthority('SCREEN_FABRIC_SETUP_AMEND')" id="canEdit" hidden></span>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -106,6 +107,7 @@
             const title = form.querySelector('.card-title');
             const baseTitle = title.textContent;
             const canDelete = !!document.getElementById('canDelete');
+            const canEdit = !!document.getElementById('canEdit');
             const field = name => form.elements.namedItem(name);
 
             const grid = new App.Grid({
@@ -122,12 +124,22 @@
                     r => `<span class="text-gray-500">${App.esc(r.description)}</span>`,
                     r => `<span class="block text-right tabular-nums">${App.esc(r.displayOrder)}</span>`,
                     r => r.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>',
-                    r => App.rowActions(App.rowButton('Edit', 'edit', `data-edit="${r.id}"`),
+                    r => App.rowActions(App.recordButtons(r.id, canEdit),
                                         canDelete ? App.rowButton('Delete', 'trash', `data-delete="${r.id}"`, 'text-red-700') : '')
                 ],
-                onRowClick: row => edit(row)
+                onRowClick: row => view(row)
             });
             grid.reload(true);
+
+            function view(row) {
+                App.viewRecord({
+                    title: row.name, subtitle: baseTitle.replace(/ details$/, ''),
+                    fields: [ ['Code', `<span class="font-mono">${App.esc(row.code)}</span>`], ['Name', App.esc(row.name)],
+                             ['Description', App.esc(row.description)], ['Order', App.esc(row.displayOrder)],
+                             ['Status', row.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>']],
+                    canEdit, onEdit: () => edit(row)
+                });
+            }
 
             function edit(row) {
                 field('id').value = row ? row.id : '';
@@ -163,6 +175,8 @@
             });
 
             document.getElementById('attributeTable').addEventListener('click', async event => {
+                const viewBtn = event.target.closest('[data-view]');
+                if (viewBtn) { view(grid.rows.find(r => String(r.id) === viewBtn.dataset.view)); return; }
                 const editBtn = event.target.closest('[data-edit]');
                 if (editBtn) { edit(grid.rows.find(r => String(r.id) === editBtn.dataset.edit)); return; }
                 const btn = event.target.closest('[data-delete]');

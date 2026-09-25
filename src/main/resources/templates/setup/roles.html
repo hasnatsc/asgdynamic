@@ -170,9 +170,9 @@
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
                 r => App.rowActions(
                         CAN.create ? App.rowButton('Duplicate', 'document', `data-duplicate="${r.id}"`) : '',
-                        App.editButton(r.id, CAN.amend))
+                        App.recordButtons(r.id, CAN.amend))
             ],
-            onRowClick: row => openEditor(row.id)
+            onRowClick: row => openEditor(row.id, { view: true })
         });
 
         $('#grantFilter').addEventListener('click', e => {
@@ -191,6 +191,8 @@
         $('#roleTable tbody').addEventListener('click', e => {
             const edit = e.target.closest('[data-edit]');
             const dup = e.target.closest('[data-duplicate]');
+            const view = e.target.closest('[data-view]');
+            if (view) openEditor(Number(view.dataset.view), { view: true });
             if (edit) openEditor(Number(edit.dataset.edit));
             if (dup) openEditor(Number(dup.dataset.duplicate), { duplicate: true });
         });
@@ -305,7 +307,9 @@
 
             clearDirty();
             dialog.showModal();
-            if (writable) $('#roleName').focus();
+            const viewing = !!opts.view && editing;
+            if (writable && !viewing) $('#roleName').focus();
+            App.viewMode(dialog, viewing, { canEdit: CAN.amend });
         }
 
         $('#roleNewBtn')?.addEventListener('click', () => openEditor(null));

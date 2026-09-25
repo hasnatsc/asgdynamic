@@ -298,12 +298,14 @@
                     ? `<span class="whitespace-nowrap font-mono text-xs">${r.tin ? 'TIN ' + esc(r.tin) : ''}${r.tin && r.bin ? ' · ' : ''}${r.bin ? 'BIN ' + esc(r.bin) : ''}</span>`
                     : '<span class="text-gray-400">-</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
-                r => App.rowActions(App.editButton(r.id, CAN.amend))
+                r => App.rowActions(App.recordButtons(r.id, CAN.amend))
             ],
-            onRowClick: row => openEditor(row.id)
+            onRowClick: row => openEditor(row.id, 'view')
         });
         $('#partyTable tbody').addEventListener('click', e => {
             const edit = e.target.closest('[data-edit]');
+            const view = e.target.closest('[data-view]');
+            if (view) openEditor(Number(view.dataset.view), 'view');
             if (edit) openEditor(Number(edit.dataset.edit));
         });
 
@@ -571,7 +573,7 @@
             } catch (error) { banks = []; }
         }
 
-        async function openEditor(id) {
+        async function openEditor(id, mode) {
             let party = null;
             try {
                 [party] = await Promise.all([id ? api(`/api/setup/parties/${id}`) : Promise.resolve(null), loadBanks()]);
@@ -633,8 +635,10 @@
             clearDirty();
             tabs.select('general');
             if (!dialog.open) dialog.showModal();
-            if (writable) (editing ? $('#pName') : $('#pCode')).focus();
+            const viewing = mode === 'view' && editing;
+            if (writable && !viewing) (editing ? $('#pName') : $('#pCode')).focus();
             syncUrl();
+            App.viewMode(dialog, viewing, { canEdit: CAN.amend, onEdit: () => $('#pName').focus() });
         }
 
         async function closeEditor() {
@@ -744,7 +748,7 @@
         syncUrl();
         grid.load();
         loadCounts();
-        if (params.get('id')) openEditor(Number(params.get('id')));
+        if (params.get('id')) openEditor(Number(params.get('id')), 'view');
     });
     </script>
 </div>

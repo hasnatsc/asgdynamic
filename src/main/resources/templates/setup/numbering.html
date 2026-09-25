@@ -75,7 +75,7 @@
                     group = r.group;
                     html.push(`<tr><td colspan="8" class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">${esc(group)}</td></tr>`);
                 }
-                html.push(`<tr>
+                html.push(`<tr class="cursor-pointer is-clickable" data-series="${esc(r.seriesCode)}">
                     <td><span class="font-medium">${esc(r.label)}</span>
                         ${r.configured ? '' : '<span class="badge-gray ml-1" title="Not numbered yet; these are the defaults">default</span>'}
                         ${r.prefixClash ? '<span class="badge-red ml-1" title="Another series already uses this prefix">prefix clash</span>' : ''}</td>
@@ -85,7 +85,7 @@
                     <td>${esc(SCOPES[r.counterScope])}</td>
                     <td>${esc(r.issuedThisPeriod)}</td>
                     <td class="font-mono text-xs">${esc(r.nextNumber || '—')}</td>
-                    <td>${App.rowActions(CAN_AMEND ? App.editButton(r.seriesCode, true) : '')}</td>
+                    <td>${App.rowActions(App.recordButtons(r.seriesCode, CAN_AMEND))}</td>
                 </tr>`);
             });
             $('#seriesTable tbody').innerHTML = html.join('');
@@ -112,7 +112,22 @@
 
         $('#seriesTable').addEventListener('click', async event => {
             const btn = event.target.closest('[data-edit]');
-            if (!btn) return;
+            if (!btn) {
+                // View button or anywhere on the row: read-only details.
+                const tr = event.target.closest('tr[data-series]');
+                const r = tr && rows.find(x => x.seriesCode === tr.dataset.series);
+                if (r) App.viewRecord({
+                    title: `Numbering: ${r.label}`, subtitle: r.group,
+                    fields: [ ['Prefix', `<span class="font-mono">${esc(r.prefix)}</span>`],
+                             ['Pattern', `<span class="font-mono">${esc(r.pattern)}</span>`],
+                             ['Sequence digits', esc(r.sequenceWidth)], ['Counter restarts', esc(RESETS[r.resetPolicy])],
+                             ['Counter', esc(SCOPES[r.counterScope])], ['Issued this period', esc(r.issuedThisPeriod)],
+                             ['Next number', `<span class="font-mono">${esc(r.nextNumber || '')}</span>`]],
+                    canEdit: CAN_AMEND,
+                    onEdit: () => tr.querySelector('[data-edit]')?.click()
+                });
+                return;
+            }
             const row = rows.find(r => r.seriesCode === btn.dataset.edit);
             const values = await App.form({
                 title: `Numbering: ${row.label}`,

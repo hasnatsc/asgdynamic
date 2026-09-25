@@ -142,7 +142,7 @@
                     <td>${App.rowActions(
                         CAN.create && r.layer !== 'ITEM'
                             ? App.rowButton(r.layer === 'ROOT' ? 'Add group' : 'Add category', 'plus', `data-add="${r.id}"`) : '',
-                        App.editButton(r.id, CAN.amend))}</td>
+                        App.recordButtons(r.id, CAN.amend))}</td>
                 </tr>`).join('')
                 : `<tr><td colspan="6" class="py-12 text-center text-gray-500">${rows.length ? 'No category matches.' : 'No categories yet.'}</td></tr>`;
         }
@@ -152,8 +152,10 @@
         $('#catTable tbody').addEventListener('click', e => {
             const add = e.target.closest('[data-add]');
             if (add) return openEditor(null, Number(add.dataset.add));
-            const tr = e.target.closest('tr[data-id]');
-            if (tr) openEditor(Number(tr.dataset.id));
+            const edit = e.target.closest('[data-edit]');
+            if (edit) return openEditor(Number(edit.dataset.edit));
+            const tr = e.target.closest('tr[data-id]');   // View button or anywhere on the row
+            if (tr) openEditor(Number(tr.dataset.id), undefined, 'view');
         });
 
         // ------------------------------------------------------------------ editor
@@ -187,7 +189,7 @@
         }
         $('#catParent').addEventListener('change', syncLayer);
 
-        function openEditor(id, parentId) {
+        function openEditor(id, parentId, mode) {
             current = id ? byId(id) : null;
             $('#catDialogTitle').textContent = current ? current.name : 'New category';
             $('#catDialogSub').textContent = current ? `${current.code} · ${LAYER_LABEL[current.layer]}` : 'The code is issued when you save.';
@@ -205,7 +207,9 @@
             $('#catSaveBtn').hidden = !writable;
             $('#catDeleteBtn').hidden = !(current && CAN.del);
             dialog.showModal();
-            if (writable) $('#catName').focus();
+            const viewing = mode === 'view' && !!current;
+            if (writable && !viewing) $('#catName').focus();
+            App.viewMode(dialog, viewing, { canEdit: CAN.amend });
         }
 
         dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));

@@ -291,12 +291,14 @@
                 r => `<span title="${esc(r.baseUnitName)}">${esc(r.baseUnitCode)}</span>`,
                 r => r.approved ? `<span class="badge-green" title="${esc(r.approvedBy)}">Approved</span>` : '<span class="badge-amber">Pending</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
-                r => App.rowActions(App.editButton(r.id, CAN.amend))
+                r => App.rowActions(App.recordButtons(r.id, CAN.amend))
             ],
-            onRowClick: row => openEditor(row.id)
+            onRowClick: row => openEditor(row.id, 'view')
         });
         $('#itemTable tbody').addEventListener('click', e => {
             const edit = e.target.closest('[data-edit]');
+            const view = e.target.closest('[data-view]');
+            if (view) openEditor(Number(view.dataset.view), 'view');
             if (edit) openEditor(Number(edit.dataset.edit));
         });
         $('#itemTypeFilter').addEventListener('change', () => grid.reload(true));
@@ -392,7 +394,7 @@
         }
 
         // ------------------------------------------------------------------ editor
-        async function openEditor(id) {
+        async function openEditor(id, mode) {
             let item = null;
             try {
                 await lookupsReady;
@@ -425,6 +427,7 @@
             $('#itemApproveBtn').hidden = !(item && !item.approved && CAN.approve);
             tabs.select('general');
             dialog.showModal();
+            App.viewMode(dialog, mode === 'view' && !!item, { canEdit: CAN.amend });
         }
 
         dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));

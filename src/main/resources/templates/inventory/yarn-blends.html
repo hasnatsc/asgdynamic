@@ -140,12 +140,14 @@
                 r => `<span class="text-gray-600">${esc(r.composition)}</span>`,
                 r => r.approved ? `<span class="badge-green" title="${esc(r.approvedBy)}">Approved</span>` : '<span class="badge-amber">Pending</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
-                r => App.rowActions(App.editButton(r.id, CAN.amend))
+                r => App.rowActions(App.recordButtons(r.id, CAN.amend))
             ],
-            onRowClick: row => openEditor(row.id)
+            onRowClick: row => openEditor(row.id, 'view')
         });
         $('#blendTable tbody').addEventListener('click', e => {
             const edit = e.target.closest('[data-edit]');
+            const view = e.target.closest('[data-view]');
+            if (view) openEditor(Number(view.dataset.view), 'view');
             if (edit) openEditor(Number(edit.dataset.edit));
         });
 
@@ -196,7 +198,7 @@
         $('#componentAddBtn').addEventListener('click', () => addComponent());
 
         // ------------------------------------------------------------------ editor
-        async function openEditor(id) {
+        async function openEditor(id, mode) {
             let blend = null;
             try {
                 await fibersReady;
@@ -233,6 +235,7 @@
             $('#blendDeleteBtn').hidden = !(blend && CAN.del);
             $('#blendApproveBtn').hidden = !(blend && !blend.approved && CAN.approve);
             dialog.showModal();
+            App.viewMode(dialog, mode === 'view' && !!blend, { canEdit: CAN.amend });
         }
 
         dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));

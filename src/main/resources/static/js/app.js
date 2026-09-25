@@ -162,8 +162,15 @@
         return `<button type="button" class="btn-ghost btn-sm ${cls || ''}" ${attrs || ''} title="${esc(label)}">`
             + `${icon(iconName)}${esc(label)}</button>`;
     }
-    function editButton(id, canAmend, key) {
-        return rowButton(canAmend ? 'Edit' : 'View', canAmend ? 'edit' : 'eye', `data-${key || 'edit'}="${esc(id)}"`);
+    function viewButton(id) {
+        return rowButton('View', 'eye', `data-view="${esc(id)}"`);
+    }
+    function editButton(id) {
+        return rowButton('Edit', 'edit', `data-edit="${esc(id)}"`);
+    }
+    /** The standard pair on every register: View always, Edit only with AMEND. */
+    function recordButtons(id, canAmend) {
+        return viewButton(id) + (canAmend ? editButton(id) : '');
     }
     function rowActions(...buttons) {
         return `<div class="row-actions">${buttons.filter(Boolean).join('')}</div>`;
@@ -300,6 +307,124 @@
 
     function confirmDialog(opts) {
         return formDialog(Object.assign({ fields: [] }, opts)).then(result => result !== null);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // View mode: every record dialog opens read-only from View or a row click
+    // ------------------------------------------------------------------------------------------
+
+    // Stay usable while viewing: tabs, close buttons, and anything a page marks data-view-keep
+    // (e.g. a filter over a long list). Everything else is locked.
+    const VIEW_KEEP = '[role=tab], [data-dismiss], [data-close], [data-view-keep], [data-view-edit]';
+    const VIEW_CONTROLS = 'input, select, textarea, button';
+
+    /**
+     * App.viewMode(dialog, true, { canEdit, onEdit }) - show a record dialog read-only.
+     *
+     * Call it at the end of a page's openEditor(), after the page has applied its own rules.
+     * It only ever disables controls that were enabled, and marks them, so leaving view mode
+     * restores exactly the page's state. Controls added later (a tab's rows loaded on demand)
+     * are locked as they appear. Save, delete and add/remove buttons are hidden, Cancel reads
+     * Close, the title gets a "View only" badge, and with canEdit an Edit button switches the same
+     * dialog into edit mode. Closing the dialog always leaves view mode.
+     */
+    function viewMode(dialog, on, opts) {
+        opts = opts || {};
+        if (!on) {
+            if (!dialog.hasAttribute('data-view-mode')) return;
+            dialog.removeAttribute('data-view-mode');
+            dialog._viewObserver?.disconnect();
+            dialog.querySelectorAll('[data-view-locked]').forEach(el => {
+                el.disabled = false;
+                el.removeAttribute('data-view-locked');
+            });
+            dialog.querySelectorAll('[data-view-label]').forEach(el => {
+                el.textContent = el.dataset.viewLabel;
+                el.removeAttribute('data-view-label');
+            });
+            dialog.querySelectorAll('[data-view-badge], [data-view-edit]').forEach(el => el.remove());
+            return;
+        }
+        if (dialog.hasAttribute('data-view-mode')) return;
+        dialog.setAttribute('data-view-mode', '');
+
+        const lock = el => {
+            if (el.disabled || el.matches(VIEW_KEEP) || el.closest('[data-view-keep]')) return;
+            el.disabled = true;
+            el.setAttribute('data-view-locked', '');
+        };
+        dialog.querySelectorAll(VIEW_CONTROLS).forEach(lock);
+        dialog._viewObserver = new MutationObserver(records => records.forEach(record =>
+            record.addedNodes.forEach(node => {
+                if (node.nodeType !== 1) return;
+                if (node.matches(VIEW_CONTROLS)) lock(node);
+                node.querySelectorAll(VIEW_CONTROLS).forEach(lock);
+            })));
+        dialog._viewObserver.observe(dialog, { childList: true, subtree: true });
+
+        const title = dialog.querySelector('.modal-head h2, .modal-head .modal-title');
+        title?.insertAdjacentHTML('beforeend',
+            ' <span class="badge-gray ml-1 align-middle" data-view-badge>' + icon('eye', 'h-3 w-3') + 'View only</span>');
+
+        const foot = dialog.querySelector('.modal-foot');
+        foot?.querySelectorAll('[data-dismiss], [data-close]').forEach(btn => {
+            if (btn.textContent.trim() === 'Cancel') {
+                btn.dataset.viewLabel = btn.textContent;
+                btn.textContent = 'Close';
+            }
+        });
+        if (foot && opts.canEdit) {
+            const edit = document.createElement('button');
+            edit.type = 'button';
+            edit.className = 'btn-primary';
+            edit.setAttribute('data-view-edit', '');
+            edit.innerHTML = icon('edit') + 'Edit';
+            edit.addEventListener('click', () => {
+                viewMode(dialog, false);
+                if (opts.onEdit) opts.onEdit();
+                else dialog.querySelector('.modal-body input:not([type=hidden]):not(:disabled), .modal-body select:not(:disabled)')?.focus();
+            });
+            foot.appendChild(edit);
+        }
+        if (!dialog._viewCloseHook) {
+            dialog._viewCloseHook = true;
+            dialog.addEventListener('close', () => viewMode(dialog, false));
+        }
+    }
+
+    /**
+     * A read-only record dialog for screens whose editor is not a dialog:
+     * App.viewRecord({ title, subtitle, fields: [[label, html], ...], canEdit, onEdit }).
+     * Values are HTML - escape user data with App.esc.
+     */
+    function viewRecord(opts) {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'modal';
+        dialog.innerHTML = `
+            <div class="modal-head">
+                <div class="min-w-0">
+                    <h2 class="modal-title">${esc(opts.title)} <span class="badge-gray ml-1 align-middle">${icon('eye', 'h-3 w-3')}View only</span></h2>
+                    ${opts.subtitle ? `<p class="mt-1 text-sm text-gray-500">${esc(opts.subtitle)}</p>` : ''}
+                </div>
+                <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">${icon('x', 'icon-lg')}</button>
+            </div>
+            <dl class="modal-body divide-y divide-gray-100 p-0 dark:divide-gray-800">
+                ${(opts.fields || []).map(([label, value]) => `<div class="grid grid-cols-3 gap-4 px-6 py-3 text-sm">
+                    <dt class="text-gray-500">${esc(label)}</dt>
+                    <dd class="col-span-2 font-medium text-gray-900 dark:text-white">${value == null || value === '' ? '<span class="font-normal text-gray-400">—</span>' : value}</dd>
+                </div>`).join('')}
+            </dl>
+            <div class="modal-foot">
+                <button type="button" class="btn-ghost" data-close>Close</button>
+                ${opts.canEdit ? `<button type="button" class="btn-primary" data-view-edit>${icon('edit')}Edit</button>` : ''}
+            </div>`;
+        dialog.querySelector('[data-view-edit]')?.addEventListener('click', () => {
+            dialog.close();
+            opts.onEdit && opts.onEdit();
+        });
+        dialog.addEventListener('close', () => dialog.remove());
+        document.body.appendChild(dialog);
+        dialog.showModal();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -708,7 +833,7 @@
                 case 'num':    return `<span class="block text-right tabular-nums">${esc(formatNumber(value))}</span>`;
                 case 'status': return statusBadge(value);
                 case 'actions':
-                    return rowActions(rowButton('Open', 'eye', `data-open="${esc(row.id)}"`));
+                    return rowActions(rowButton('View', 'eye', `data-open="${esc(row.id)}"`));
                 default:       return esc(value);
             }
         }
@@ -969,5 +1094,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, status, debounce, icon, rowButton, editButton, rowActions, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, debounce, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
 })();
