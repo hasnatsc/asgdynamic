@@ -20,6 +20,9 @@ public enum BusinessSeries implements NumberSeries {
     SUPPLIER("SUP", "Supplier code", 6, 40),
     EMPLOYEE("EMP", "Employee code", 6, 40),
 
+    /** Fabric qualities (constructions). */
+    CONSTRUCTION("CON", "Fabric construction", 6, 40),
+
     /** Products and every other stocked item. */
     ITEM("ITM", "Item / product", 6, 50),
     ITEM_BRAND("IB", "Item brand", 4, 30),

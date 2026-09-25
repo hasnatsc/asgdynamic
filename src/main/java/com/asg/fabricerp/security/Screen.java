@@ -25,6 +25,7 @@ public enum Screen {
     PARTY("Parties", Section.SETUP, "/setup/parties"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
     TERMS("Terms & conditions", Section.SETUP, "/setup/terms"),
+    QUALITY("Fabric qualities", Section.SETUP, "/setup/qualities"),
     ACC_CHART("Chart of accounts", Section.ACCOUNTS, "/accounts/chart"),
     ACC_JOURNAL("Journal entries", Section.ACCOUNTS, "/accounts/journals"),
     ACC_REPORTS("Financial reports", Section.ACCOUNTS, "/accounts/reports"),

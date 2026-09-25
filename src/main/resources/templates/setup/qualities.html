@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<head><title>Fabric qualities</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Fabric qualities</h1>
+            <p class="page-sub">Each construction is keyed once - yarns, density, widths, composition - and bookings pick it
+                instead of re-typing the spec on every order.</p>
+        </div>
+        <button type="button" class="btn-primary" id="qNewBtn" sec:authorize="hasAuthority('SCREEN_QUALITY_CREATE')">
+            <svg class="icon" aria-hidden="true"><use href="/images/icons.svg#plus"/></svg>New construction
+        </button>
+    </div>
+
+    <div class="grid items-start gap-6 lg:grid-cols-5">
+
+        <!-- ============================== Register ============================== -->
+        <div class="card overflow-hidden lg:col-span-2">
+            <div class="toolbar flex-wrap gap-2">
+                <div class="input-icon min-w-0 flex-1">
+                    <svg class="icon" aria-hidden="true"><use href="/images/icons.svg#search"/></svg>
+                    <input id="qSearch" type="search" class="field" placeholder="Search code or name"
+                           aria-label="Search constructions" data-search autocomplete="off">
+                </div>
+                <label class="inline-flex items-center gap-2 text-xs text-gray-500">
+                    <input type="checkbox" id="qShowInactive" class="checkbox"> Show inactive
+                </label>
+            </div>
+            <div class="table-wrap">
+                <table id="qTable" class="table-grid">
+                    <thead><tr><th data-sort="code">Construction</th><th>Weave</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="pager" id="qPager"></div>
+        </div>
+
+        <!-- ============================== Record ============================== -->
+        <div class="card overflow-hidden lg:sticky lg:top-4 lg:col-span-3" id="qPanel">
+            <div id="qEmpty" class="empty py-16">
+                <span class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="/images/icons.svg#spool"/></svg></span>
+                <p class="empty-title">Select a construction</p>
+                <p class="empty-text">Pick one from the list to see its yarns and composition, or add a new one.</p>
+            </div>
+
+            <form id="qForm" novalidate hidden>
+                <div class="modal-head">
+                    <div class="min-w-0">
+                        <h2 id="qTitle" class="modal-title">New construction</h2>
+                        <p id="qNotation" class="mt-1 font-mono text-sm text-gray-600 dark:text-gray-300"></p>
+                        <p id="qComposition" class="text-sm text-gray-500"></p>
+                    </div>
+                </div>
+
+                <div class="modal-body max-h-none space-y-6">
+                    <!-- Identity -->
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div class="sm:col-span-3">
+                            <label class="label" for="qName">Trade name <span class="font-normal text-gray-400">(optional)</span></label>
+                            <input id="qName" class="field" maxlength="200" placeholder="e.g. Denim 3/1 RHT 9.5 oz" autocomplete="off">
+                        </div>
+                        <div>
+                            <label class="label" for="qWeaveType">Weave type</label>
+                            <select id="qWeaveType" class="field">
+                                <option value="">-</option>
+                                <option th:each="a : ${weaveTypes}" th:value="${a.id}" th:text="${a.name}">1/1</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label" for="qWeaveStyle">Weave style</label>
+                            <select id="qWeaveStyle" class="field">
+                                <option value="">-</option>
+                                <option th:each="a : ${weaveStyles}" th:value="${a.id}" th:text="${a.name}">HBT</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label" for="qFinishType">Finish type</label>
+                            <select id="qFinishType" class="field">
+                                <option value="">-</option>
+                                <option th:each="a : ${finishTypes}" th:value="${a.id}" th:text="${a.name}">Peach</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Density & widths -->
+                    <fieldset class="fieldset">
+                        <legend class="px-1 text-sm font-semibold text-gray-900 dark:text-white">Density &amp; widths</legend>
+                        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                            <div><label class="label" for="qEpi">EPI <span class="req">*</span></label>
+                                <input id="qEpi" class="field" type="number" step="0.01" min="0.01" required data-notation></div>
+                            <div><label class="label" for="qPpi">PPI <span class="req">*</span></label>
+                                <input id="qPpi" class="field" type="number" step="0.01" min="0.01" required data-notation></div>
+                            <div><label class="label" for="qReed">Reed count</label>
+                                <input id="qReed" class="field" type="number" step="0.01" min="0.01"></div>
+                            <div><label class="label" for="qGsm">GSM</label>
+                                <input id="qGsm" class="field" type="number" step="0.01" min="0.01"></div>
+                            <div><label class="label" for="qGreigeWidth">Greige width (in)</label>
+                                <input id="qGreigeWidth" class="field" type="number" step="0.01" min="0.01"></div>
+                            <div><label class="label" for="qFinishWidth">Finished width (in)</label>
+                                <input id="qFinishWidth" class="field" type="number" step="0.01" min="0.01" data-notation></div>
+                            <div><label class="label" for="qCuttableWidth">Cuttable width (in)</label>
+                                <input id="qCuttableWidth" class="field" type="number" step="0.01" min="0.01"></div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Yarns -->
+                    <fieldset class="fieldset">
+                        <legend class="px-1 text-sm font-semibold text-gray-900 dark:text-white">Yarns</legend>
+                        <div class="space-y-4" id="qYarnGroups">
+                            <div th:each="dir : ${ {'WARP','WEFT'} }" th:attr="data-direction=${dir}">
+                                <div class="mb-1.5 flex items-center justify-between">
+                                    <span class="text-xs font-semibold uppercase tracking-wider text-gray-500" th:text="${dir == 'WARP' ? 'Warp' : 'Weft'}">Warp</span>
+                                    <button type="button" class="btn-subtle btn-sm" data-add-yarn>
+                                        <svg class="icon" aria-hidden="true"><use href="/images/icons.svg#plus"/></svg>Add yarn
+                                    </button>
+                                </div>
+                                <table class="table-edit w-full">
+                                    <thead><tr class="text-left text-xs text-gray-500">
+                                        <th class="w-2/6 pb-1 font-medium">Count *</th><th class="w-1/4 pb-1 font-medium">Type</th>
+                                        <th class="w-1/4 pb-1 font-medium">Blend</th><th class="w-20 pb-1 font-medium">Ratio</th><th class="w-px"></th>
+                                    </tr></thead>
+                                    <tbody data-yarn-rows></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <p class="hint mt-2">Up to three yarns each way, in loom order. <span id="qCountHint"></span></p>
+                    </fieldset>
+
+                    <!-- Composition -->
+                    <fieldset class="fieldset">
+                        <legend class="px-1 text-sm font-semibold text-gray-900 dark:text-white">Composition</legend>
+                        <table class="table-edit w-full">
+                            <thead><tr class="text-left text-xs text-gray-500">
+                                <th class="pb-1 font-medium">Fibre *</th><th class="w-28 pb-1 font-medium">% *</th><th class="w-px"></th>
+                            </tr></thead>
+                            <tbody id="qFibreRows"></tbody>
+                        </table>
+                        <div class="mt-2 flex items-center justify-between">
+                            <button type="button" class="btn-subtle btn-sm" id="qAddFibre">
+                                <svg class="icon" aria-hidden="true"><use href="/images/icons.svg#plus"/></svg>Add fibre
+                            </button>
+                            <span id="qFibreTotal" class="text-sm"></span>
+                        </div>
+                    </fieldset>
+
+                    <div>
+                        <label class="label" for="qRemarks">Remarks</label>
+                        <textarea id="qRemarks" class="field" rows="2" maxlength="1000"></textarea>
+                    </div>
+                    <label class="inline-flex items-center gap-2 text-sm">
+                        <input type="checkbox" id="qActive" class="checkbox" checked>
+                        <span><b>Active</b> <span class="text-gray-500">- inactive qualities are not offered on new bookings</span></span>
+                    </label>
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn-subtle mr-auto text-red-600" id="qDeleteBtn" hidden>Delete</button>
+                    <button type="button" class="btn-ghost" data-dismiss>Cancel</button>
+                    <button type="submit" class="btn-primary" id="qSaveBtn">
+                        <svg class="icon" aria-hidden="true"><use href="/images/icons.svg#save"/></svg>Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, icon, toast } = App;
+        const $ = s => document.querySelector(s);
+        const CAN = {
+            create: /*[[${#authorization.expression('hasAuthority(''SCREEN_QUALITY_CREATE'')')}]]*/ false,
+            amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_QUALITY_AMEND'')')}]]*/ false,
+            del:    /*[[${#authorization.expression('hasAuthority(''SCREEN_QUALITY_DELETE'')')}]]*/ false,
+            newCount: /*[[${#authorization.expression('hasAuthority(''SCREEN_ITEM_SETUP_CREATE'')')}]]*/ false
+        };
+        const FIBRES = /*[[${fiberTypes}]]*/ [];
+        const MAX_YARNS = 3;
+        const fibreLabel = f => f.charAt(0) + f.slice(1).toLowerCase();
+
+        const panel = $('#qPanel');
+        const form = $('#qForm');
+        let lists = { counts: [], types: [], blends: [] };
+        let current = null;     // the construction shown; null when creating
+        let dirty = false;
+
+        // ------------------------------------------------------------------ register
+        const grid = new App.Grid({
+            url: '/api/setup/qualities', table: $('#qTable'), search: $('#qSearch'), pager: $('#qPager'),
+            params: () => ({ includeInactive: $('#qShowInactive').checked }),
+            sort: { column: 'code', dir: 'asc' }, pageSize: 25, emptyText: 'No constructions yet', emptyIcon: 'spool',
+            columns: [
+                r => `<div class="min-w-0"><div class="flex items-center gap-2">
+                        <span class="font-mono text-xs text-gray-500">${esc(r.code)}</span>
+                        ${r.active ? '' : '<span class="badge-gray">Inactive</span>'}</div>
+                      <div class="truncate font-medium text-gray-900 dark:text-white">${esc(r.name || r.notation || '-')}</div>
+                      <div class="truncate text-xs text-gray-500">${esc([r.name ? r.notation : null, r.composition].filter(Boolean).join(' · '))}</div></div>`,
+                r => esc(r.weaveTypeName || '-')
+            ],
+            onRowClick: r => guard(() => openRecord(r.id))
+        });
+        $('#qShowInactive').addEventListener('change', () => grid.reload(true));
+
+        // ------------------------------------------------------------------ yarn and fibre rows
+        const options = (list, selected, blank) => (blank === null ? '' : `<option value="">${blank}</option>`)
+            + list.map(o => `<option value="${o.id}"${String(o.id) === String(selected) ? ' selected' : ''}>${esc(o.text)}</option>`).join('');
+
+        function yarnRow(y) {
+            y = y || {};
+            return `<tr data-yarn>
+                <td class="pr-2"><div class="flex gap-1">
+                    <select class="field field-sm" data-y="yarnCountId" required data-notation>${options(lists.counts, y.yarnCountId, 'Choose…')}</select>
+                    ${CAN.newCount ? `<button type="button" class="btn-icon btn-sm" data-new-count title="New yarn count" aria-label="New yarn count">${icon('plus')}</button>` : ''}
+                </div></td>
+                <td class="pr-2"><select class="field field-sm" data-y="yarnTypeId">${options(lists.types, y.yarnTypeId, '-')}</select></td>
+                <td class="pr-2"><select class="field field-sm" data-y="yarnBlendId">${options(lists.blends, y.yarnBlendId, '-')}</select></td>
+                <td class="pr-2"><input class="field field-sm" type="number" step="0.001" min="0.001" data-y="ratio" value="${y.ratio ?? 1}"></td>
+                <td><button type="button" class="btn-icon btn-sm" data-remove title="Remove" aria-label="Remove yarn">${icon('trash')}</button></td>
+            </tr>`;
+        }
+
+        function fibreRow(f) {
+            f = f || {};
+            return `<tr data-fibre>
+                <td class="pr-2"><select class="field field-sm" data-f="fiberType" required>
+                    <option value="">Choose…</option>${FIBRES.map(x => `<option value="${x}"${x === f.fiberType ? ' selected' : ''}>${fibreLabel(x)}</option>`).join('')}
+                </select></td>
+                <td class="pr-2"><input class="field field-sm" type="number" step="0.01" min="0.01" max="100" required data-f="percentage" value="${f.percentage ?? ''}"></td>
+                <td><button type="button" class="btn-icon btn-sm" data-remove title="Remove" aria-label="Remove fibre">${icon('trash')}</button></td>
+            </tr>`;
+        }
+
+        const yarnBody = dir => $(`[data-direction="${dir}"] [data-yarn-rows]`);
+
+        function syncRows() {
+            ['WARP', 'WEFT'].forEach(dir => {
+                const n = yarnBody(dir).children.length;
+                $(`[data-direction="${dir}"] [data-add-yarn]`).disabled = n >= MAX_YARNS;
+            });
+            const total = [...form.querySelectorAll('[data-f="percentage"]')].reduce((s, i) => s + (Number(i.value) || 0), 0);
+            const ok = Math.abs(total - 100) < 0.0001;
+            $('#qFibreTotal').innerHTML = `Total <b class="${ok ? 'text-green-700' : 'text-red-600'}">${+total.toFixed(2)}%</b>${ok ? '' : ' - must be 100%'}`;
+            renderSummary();
+        }
+
+        /** The notation and composition, as the server will derive them - a preview, never sent. */
+        function renderSummary() {
+            const counts = dir => [...yarnBody(dir).querySelectorAll('[data-y="yarnCountId"]')]
+                .map(s => s.selectedOptions[0]?.value ? s.selectedOptions[0].textContent : '?').join('+');
+            const n = v => v === '' ? '?' : String(+v);
+            const warp = counts('WARP'), weft = counts('WEFT');
+            let text = warp || weft ? `${warp || '?'}x${weft || '?'}` : '';
+            if ($('#qEpi').value || $('#qPpi').value) text += `${text ? '/' : ''}${n($('#qEpi').value)}x${n($('#qPpi').value)}`;
+            if ($('#qFinishWidth').value) text += `${text ? ', ' : ''}${n($('#qFinishWidth').value)}"`;
+            $('#qNotation').textContent = text;
+            $('#qComposition').textContent = [...form.querySelectorAll('[data-fibre]')]
+                .map(tr => ({ f: tr.querySelector('[data-f="fiberType"]').value, p: Number(tr.querySelector('[data-f="percentage"]').value) }))
+                .filter(x => x.f && x.p).sort((a, b) => b.p - a.p).map(x => `${+x.p.toFixed(2)}% ${fibreLabel(x.f)}`).join(' ');
+        }
+
+        form.addEventListener('click', async e => {
+            const add = e.target.closest('[data-add-yarn]');
+            if (add) {
+                add.closest('[data-direction]').querySelector('[data-yarn-rows]').insertAdjacentHTML('beforeend', yarnRow());
+                return syncRows();
+            }
+            const remove = e.target.closest('[data-remove]');
+            if (remove) { remove.closest('tr').remove(); dirty = true; return syncRows(); }
+            const newCount = e.target.closest('[data-new-count]');
+            if (newCount) return createCount(newCount.closest('tr').querySelector('[data-y="yarnCountId"]'));
+        });
+        $('#qAddFibre').addEventListener('click', () => { $('#qFibreRows').insertAdjacentHTML('beforeend', fibreRow()); syncRows(); });
+        form.addEventListener('input', e => {
+            dirty = true;
+            if (e.target.matches('[data-notation], [data-f]')) syncRows();
+        });
+        form.addEventListener('change', () => { dirty = true; syncRows(); });
+
+        /** Adds a yarn count without leaving the form; it is picked in the row that asked. */
+        async function createCount(select) {
+            const values = await App.form({ title: 'New yarn count', confirmText: 'Add count',
+                fields: [{ name: 'name', label: 'Count', required: true, maxlength: 100, placeholder: 'e.g. 40 NE, 20/2, 7 NE Slub' }] });
+            if (!values) return;
+            try {
+                const saved = await api('/api/inventory/yarn-counts', { method: 'POST', body: { name: values.name } });
+                lists.counts = await api('/api/lookup/inventory/yarn-counts');
+                form.querySelectorAll('[data-y="yarnCountId"]').forEach(s => {
+                    const keep = s === select ? saved.id : s.value;
+                    s.innerHTML = options(lists.counts, keep, 'Choose…');
+                });
+                dirty = true;
+                syncRows();
+                toast(`Yarn count ${values.name} added`, 'success');
+            } catch (error) { fail(error); }
+        }
+
+        // ------------------------------------------------------------------ panel
+        async function guard(next) {
+            if (dirty && !form.hidden && !panel.hasAttribute('data-view-mode')) {
+                const ok = await App.confirm({ title: 'Discard your changes?', confirmText: 'Discard', danger: true,
+                    message: 'The construction you are editing has unsaved changes.' });
+                if (!ok) return;
+            }
+            next();
+        }
+
+        function fill(c) {
+            current = c;
+            $('#qTitle').textContent = c ? `${c.code}${c.name ? ' · ' + c.name : ''}` : 'New construction';
+            $('#qName').value = c?.name || '';
+            $('#qWeaveType').value = c?.weaveTypeId ?? '';
+            $('#qWeaveStyle').value = c?.weaveStyleId ?? '';
+            $('#qFinishType').value = c?.finishTypeId ?? '';
+            [['qEpi', 'epi'], ['qPpi', 'ppi'], ['qReed', 'reedCount'], ['qGsm', 'gsm'], ['qGreigeWidth', 'greigeWidth'],
+             ['qFinishWidth', 'finishWidth'], ['qCuttableWidth', 'cuttableWidth']].forEach(([el, key]) => { $('#' + el).value = c?.[key] ?? ''; });
+            $('#qRemarks').value = c?.remarks || '';
+            $('#qActive').checked = c ? !!c.active : true;
+            ['WARP', 'WEFT'].forEach(dir => {
+                const rows = (c?.yarns || []).filter(y => y.direction === dir);
+                yarnBody(dir).innerHTML = (rows.length ? rows : [null]).map(yarnRow).join('');
+            });
+            $('#qFibreRows').innerHTML = (c?.fibres?.length ? c.fibres : [null]).map(fibreRow).join('');
+            $('#qCountHint').textContent = lists.counts.length ? '' : 'No yarn counts yet - add one with +.';
+
+            const writable = c ? CAN.amend : CAN.create;
+            form.querySelectorAll('input, select, textarea, [data-add-yarn], #qAddFibre, [data-remove], [data-new-count]')
+                .forEach(el => { el.disabled = !writable; });
+            $('#qSaveBtn').hidden = !writable;
+            $('#qDeleteBtn').hidden = !(c && CAN.del);
+            syncRows();
+            dirty = false;
+        }
+
+        function showForm(on) {
+            App.viewMode(panel, false);
+            $('#qEmpty').hidden = on;
+            form.hidden = !on;
+        }
+
+        async function openRecord(id) {
+            let c;
+            try { c = await api(`/api/setup/qualities/${id}`); } catch (error) { return fail(error); }
+            showForm(true);
+            fill(c);
+            history.replaceState(null, '', `#${id}`);
+            App.viewMode(panel, true, { canEdit: CAN.amend, onEdit: () => { dirty = false; syncRows(); $('#qName').focus(); } });
+        }
+
+        function openCreate() {
+            showForm(true);
+            fill(null);
+            history.replaceState(null, '', location.pathname);
+            $('#qName').focus();
+        }
+
+        function closePanel() {
+            showForm(false);
+            current = null;
+            dirty = false;
+            history.replaceState(null, '', location.pathname);
+        }
+
+        form.querySelector('[data-dismiss]').addEventListener('click', () => guard(() => {
+            if (current && !panel.hasAttribute('data-view-mode')) openRecord(current.id);
+            else closePanel();
+        }));
+        $('#qNewBtn')?.addEventListener('click', () => guard(openCreate));
+
+        const num = el => el.value === '' ? null : Number(el.value);
+        const id = el => el.value === '' ? null : Number(el.value);
+
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!form.reportValidity()) return;
+            const body = {
+                id: current?.id ?? null, version: current?.version ?? null,
+                name: $('#qName').value.trim() || null,
+                weaveTypeId: id($('#qWeaveType')), weaveStyleId: id($('#qWeaveStyle')), finishTypeId: id($('#qFinishType')),
+                epi: num($('#qEpi')), ppi: num($('#qPpi')), reedCount: num($('#qReed')), gsm: num($('#qGsm')),
+                greigeWidth: num($('#qGreigeWidth')), finishWidth: num($('#qFinishWidth')), cuttableWidth: num($('#qCuttableWidth')),
+                remarks: $('#qRemarks').value.trim() || null, active: $('#qActive').checked,
+                yarns: ['WARP', 'WEFT'].flatMap(dir => [...yarnBody(dir).querySelectorAll('[data-yarn]')].map(tr => ({
+                    direction: dir,
+                    yarnCountId: id(tr.querySelector('[data-y="yarnCountId"]')),
+                    yarnTypeId: id(tr.querySelector('[data-y="yarnTypeId"]')),
+                    yarnBlendId: id(tr.querySelector('[data-y="yarnBlendId"]')),
+                    ratio: num(tr.querySelector('[data-y="ratio"]')) }))),
+                fibres: [...form.querySelectorAll('[data-fibre]')].map(tr => ({
+                    fiberType: tr.querySelector('[data-f="fiberType"]').value || null,
+                    percentage: num(tr.querySelector('[data-f="percentage"]')) }))
+            };
+            const btn = $('#qSaveBtn');
+            btn.disabled = true;
+            try {
+                const saved = await api('/api/setup/qualities', { method: 'POST', body });
+                toast(`Saved ${saved.code}`, 'success');
+                dirty = false;
+                grid.reload();
+                openRecord(saved.id);
+            } catch (error) {
+                fail(error);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        $('#qDeleteBtn').addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete ${current.code}?`, danger: true, confirmText: 'Delete',
+                message: 'Its code is never reissued. To keep it on record but off new bookings, deactivate it instead.' });
+            if (!ok) return;
+            try {
+                await api(`/api/setup/qualities/${current.id}`, { method: 'DELETE' });
+                toast('Construction deleted', 'success');
+                closePanel();
+                grid.reload();
+            } catch (error) { fail(error); }
+        });
+
+        window.addEventListener('beforeunload', e => {
+            if (dirty && !form.hidden && !panel.hasAttribute('data-view-mode')) e.preventDefault();
+        });
+
+        // Yarn lists first: every row's dropdowns are built from them.
+        Promise.all(['yarn-counts', 'yarn-types', 'yarn-blends'].map(s => api(`/api/lookup/inventory/${s}`)))
+            .then(([counts, types, blends]) => { lists = { counts, types, blends }; })
+            .catch(fail)
+            .finally(() => {
+                grid.reload();
+                const linked = Number(location.hash.slice(1)) || null;
+                if (linked) openRecord(linked);
+            });
+    });
+    </script>
+</div>
+</body>
+</html>

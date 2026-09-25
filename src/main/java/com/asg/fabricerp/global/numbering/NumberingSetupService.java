@@ -182,6 +182,7 @@ public class NumberingSetupService {
         return switch ((BusinessSeries) series) {
             case PARTY, CUSTOMER, SUPPLIER, EMPLOYEE -> "Parties";
             case ITEM, ITEM_BRAND, ITEM_MODEL, YARN_TYPE, YARN_COUNT, YARN_PLY, YARN_BLEND -> "Items";
+            case CONSTRUCTION -> "Fabric";
             case QC_INSPECTION -> "Quality";
             case VOUCHER, JOURNAL_VOUCHER, PAYMENT_VOUCHER, RECEIPT_VOUCHER, CONTRA_VOUCHER, SALES_VOUCHER,
                  PURCHASE_VOUCHER, PRODUCTION_VOUCHER -> "Accounts";
