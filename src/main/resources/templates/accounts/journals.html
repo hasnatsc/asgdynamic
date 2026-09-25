@@ -12,7 +12,7 @@
         </div>
         <div class="page-actions">
             <button type="button" class="btn-primary" id="jvNewBtn" sec:authorize="hasAuthority('SCREEN_ACC_JOURNAL_CREATE')">
-                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New journal
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New voucher
             </button>
         </div>
     </div>
@@ -25,6 +25,7 @@
                        data-search autocomplete="off">
                 <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
             </div>
+            <select id="jvVoucher" class="field w-auto" aria-label="Voucher type"><option value="">All vouchers</option></select>
             <select id="jvEvent" class="field w-auto" aria-label="Event"><option value="">All events</option></select>
             <div class="flex items-center gap-2">
                 <input id="jvFrom" type="date" class="field w-auto" aria-label="From date">
@@ -39,7 +40,8 @@
             <table id="jvTable" class="table-grid table-stack">
                 <thead>
                 <tr>
-                    <th data-sort="entryNo">Entry no</th>
+                    <th data-sort="entryNo">Voucher no</th>
+                    <th>Type</th>
                     <th data-sort="postingDate">Date</th>
                     <th data-sort="eventType">Event</th>
                     <th>Narration</th>
@@ -79,7 +81,7 @@
         <form id="jvForm" novalidate>
             <div class="modal-head">
                 <div>
-                    <h2 id="jvDialogTitle" class="modal-title">New journal</h2>
+                    <h2 id="jvDialogTitle" class="modal-title">New voucher</h2>
                     <p class="mt-1 text-sm text-gray-500">For adjustments, accruals and opening balances. Receivable and payable
                         control accounts are posted through customer and supplier transactions, not here.</p>
                 </div>
@@ -88,7 +90,11 @@
                 </button>
             </div>
             <div class="modal-body space-y-4">
-                <div class="grid gap-4 sm:grid-cols-4">
+                <div class="grid gap-4 sm:grid-cols-5">
+                    <div>
+                        <label class="label" for="jvType">Voucher type <span class="req">*</span></label>
+                        <select id="jvType" class="field" required></select>
+                    </div>
                     <div>
                         <label class="label" for="jvDate">Posting date <span class="req">*</span></label>
                         <input id="jvDate" type="date" class="field" required>
@@ -159,9 +165,10 @@
             sort: { column: 'postingDate', dir: 'desc' },
             emptyText: 'No entries match. Postings appear here as documents are approved or journals are posted.',
             emptyIcon: 'journal',
-            params: () => ({ event: $('#jvEvent').value, from: $('#jvFrom').value, to: $('#jvTo').value }),
+            params: () => ({ voucher: $('#jvVoucher').value, event: $('#jvEvent').value, from: $('#jvFrom').value, to: $('#jvTo').value }),
             columns: [
                 r => `<span class="doc-no">${esc(r.entryNo)}</span>`,
+                r => `<span class="badge-gray whitespace-nowrap">${esc(r.voucherLabel)}</span>`,
                 r => esc(fmt.date(r.postingDate)),
                 r => `<span class="whitespace-nowrap">${esc(r.eventLabel)}</span>`,
                 r => `<span class="block max-w-md truncate text-gray-600" title="${esc(r.narration || '')}">${esc(r.narration || '')}</span>`,
@@ -171,9 +178,9 @@
             ],
             onRowClick: row => openEntry(row.id)
         });
-        ['#jvEvent', '#jvFrom', '#jvTo'].forEach(s => $(s).addEventListener('change', () => grid.reload(true)));
+        ['#jvVoucher', '#jvEvent', '#jvFrom', '#jvTo'].forEach(s => $(s).addEventListener('change', () => grid.reload(true)));
         $('#jvReset').addEventListener('click', () => {
-            ['#jvSearch', '#jvEvent', '#jvFrom', '#jvTo'].forEach(s => { $(s).value = ''; });
+            ['#jvSearch', '#jvVoucher', '#jvEvent', '#jvFrom', '#jvTo'].forEach(s => { $(s).value = ''; });
             grid.reload(true);
         });
         $('#jvTable').addEventListener('click', e => {
@@ -200,6 +207,7 @@
                     <dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
                         ${fact('Posting date', esc(fmt.date(e.postingDate)))}
                         ${fact('Period', esc(e.period))}
+                        ${fact('Voucher type', esc(e.voucherLabel))}
                         ${fact('Event', esc(e.eventLabel))}
                         ${fact('Currency', esc(e.currency) + (Number(e.fxRate) !== 1 ? ` @ ${esc(e.fxRate)}` : ''))}
                         ${fact('Posted by', esc(e.createdBy) + (e.createdAt ? ` · ${fmt.timeTag(e.createdAt)}` : ''))}
@@ -331,14 +339,18 @@
             }).filter(l => l.amount > 0);
             try {
                 const r = await api('/api/accounts/journals', { method: 'POST',
-                    body: { postingDate: $('#jvDate').value, narration: $('#jvNarration').value.trim(), lines } });
-                toast(`Journal ${r.entryNo} posted.`, 'success');
+                    body: { voucherType: $('#jvType').value, postingDate: $('#jvDate').value, narration: $('#jvNarration').value.trim(), lines } });
+                toast(`Voucher ${r.entryNo} posted.`, 'success');
                 jvDialog.close();
                 grid.reload(true);
             } catch (err) { fail(err); }
         });
 
         // ------------------------------------------------------------------ boot
+        api('/api/accounts/voucher-types').then(types => {
+            $('#jvVoucher').insertAdjacentHTML('beforeend', types.map(t => `<option value="${esc(t.code)}">${esc(t.label)}</option>`).join(''));
+            $('#jvType').innerHTML = types.filter(t => t.manual).map(t => `<option value="${esc(t.code)}">${esc(t.label)}</option>`).join('');
+        }).catch(() => {});
         api('/api/accounts/events').then(events => {
             Object.entries(events).forEach(([code, label]) =>
                 $('#jvEvent').insertAdjacentHTML('beforeend', `<option value="${esc(code)}">${esc(label)}</option>`));

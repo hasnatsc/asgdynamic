@@ -32,8 +32,16 @@ public final class PostingEvent {
 
     // --- Order to cash -------------------------------------------------------------------------
     public static final String DELIVERY = "DELIVERY";
+    /** Export invoice. Deemed-export, local and wastage sales post to their own receivable and sales accounts. */
     public static final String INVOICE = "INVOICE";
+    public static final String INVOICE_DEEMED_EXPORT = "INVOICE_DEEMED_EXPORT";
+    public static final String INVOICE_LOCAL = "INVOICE_LOCAL";
+    public static final String INVOICE_WASTAGE = "INVOICE_WASTAGE";
+    /** Receipt against an export invoice; the others clear their own receivable. */
     public static final String RECEIPT = "RECEIPT";
+    public static final String RECEIPT_DEEMED_EXPORT = "RECEIPT_DEEMED_EXPORT";
+    public static final String RECEIPT_LOCAL = "RECEIPT_LOCAL";
+    public static final String RECEIPT_WASTAGE = "RECEIPT_WASTAGE";
 
     // --- Assets ----------------------------------------------------------------------------------
     public static final String DEPRECIATION = "DEPRECIATION";
@@ -56,8 +64,14 @@ public final class PostingEvent {
         events.put(FINISHED_ROLL_RECEIVED, "Finished rolls received into store");
         events.put(ABNORMAL_LOSS, "Re-dye or abnormal loss written off");
         events.put(DELIVERY, "Fabric delivered to a customer (cost of sales)");
-        events.put(INVOICE, "Customer invoiced (amounts: net, vat)");
-        events.put(RECEIPT, "Payment received from a customer");
+        events.put(INVOICE, "Export invoice to a customer");
+        events.put(INVOICE_DEEMED_EXPORT, "Deemed-export invoice to a customer");
+        events.put(INVOICE_LOCAL, "Local sales invoice");
+        events.put(INVOICE_WASTAGE, "Wastage / scrap sale");
+        events.put(RECEIPT, "Receipt against an export invoice");
+        events.put(RECEIPT_DEEMED_EXPORT, "Receipt against a deemed-export invoice");
+        events.put(RECEIPT_LOCAL, "Receipt against a local invoice");
+        events.put(RECEIPT_WASTAGE, "Receipt against a wastage sale");
         events.put(DEPRECIATION, "Monthly depreciation of fixed assets");
         RULE_EVENTS = Collections.unmodifiableMap(events);   // keeps the flow order above
     }

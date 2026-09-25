@@ -178,13 +178,14 @@ public class AccountsController {
             @RequestParam(required = false) String sortColumn,
             @RequestParam(required = false) String sortDir,
             @RequestParam(required = false) String event,
+            @RequestParam(required = false) VoucherType voucher,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
         String pattern = request.searchOrNull() == null ? "" : "%" + request.searchOrNull().toLowerCase() + "%";
         var page = entries.search(context.requireOrganizationId(),
             from == null ? LocalDate.of(1900, 1, 1) : from, to == null ? LocalDate.of(2999, 12, 31) : to,
-            event == null ? "" : event, pattern, request.toPageable(ENTRY_SORT, "postingDate"));
+            event == null ? "" : event, voucher, pattern, request.toPageable(ENTRY_SORT, "postingDate"));
         return DataTableResponse.from(draw, page, this::entryRow);
     }
 
@@ -195,6 +196,8 @@ public class AccountsController {
         row.put("postingDate", e.getPostingDate().toString());
         row.put("eventType", e.getEventType());
         row.put("eventLabel", eventLabel(e.getEventType()));
+        row.put("voucherType", e.getVoucherType().name());
+        row.put("voucherLabel", e.getVoucherType().label());
         row.put("narration", e.getNarration());
         row.put("amount", e.totalDebits());
         row.put("currency", e.getCurrencyCode());
@@ -237,13 +240,23 @@ public class AccountsController {
         return detail;
     }
 
-    public record JournalRequest(LocalDate postingDate, String narration, List<GeneralLedgerService.JournalLine> lines) { }
+    public record JournalRequest(VoucherType voucherType, LocalDate postingDate, String narration,
+                                 List<GeneralLedgerService.JournalLine> lines) { }
+
+    /** The voucher types a person may pick for a hand-entered journal. */
+    @GetMapping("/api/accounts/voucher-types")
+    @ResponseBody
+    @PreAuthorize("isAuthenticated()")
+    public List<Map<String, Object>> voucherTypes() {
+        return java.util.Arrays.stream(VoucherType.values()).map(t -> Map.<String, Object>of(
+            "code", t.name(), "label", t.label(), "manual", t.manual(), "series", t.series().name())).toList();
+    }
 
     @PostMapping("/api/accounts/journals")
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_ACC_JOURNAL_CREATE')")
     public Map<String, Object> postJournal(@RequestBody JournalRequest request) {
-        GlEntry entry = ledger.postManualJournal(
+        GlEntry entry = ledger.postManualJournal(request.voucherType(),
             request.postingDate() == null ? LocalDate.now() : request.postingDate(), request.narration(), request.lines());
         return Map.of("id", entry.getId(), "entryNo", entry.getEntryNo());
     }

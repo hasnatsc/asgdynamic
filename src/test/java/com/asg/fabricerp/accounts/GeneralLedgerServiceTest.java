@@ -49,7 +49,8 @@ class GeneralLedgerServiceTest {
         ledger = new GeneralLedgerService(rules, accounts, periods, entries, numbers, context);
         when(context.requireOrganizationId()).thenReturn(ORG);
         when(context.businessUnitId()).thenReturn(10L);
-        when(numbers.next(eq(BusinessSeries.VOUCHER), any())).thenReturn("VCH-AF-000001");
+        // Each voucher series numbers with its own prefix, so the entry number shows which series was used.
+        when(numbers.next(any(), any())).thenAnswer(i -> ((BusinessSeries) i.getArgument(0)).defaultPrefix() + "-AF-000001");
         when(entries.save(any(GlEntry.class))).thenAnswer(i -> i.getArgument(0));
 
         september = new AccountingPeriod("FY2026-P03", "Sep 2026", 2026, 3, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30));
@@ -78,12 +79,26 @@ class GeneralLedgerServiceTest {
 
         GlEntry entry = ledger.post(PostingCommand.of("FD", 5L, PostingEvent.DELIVERY, DAY, new BigDecimal("25000"), null, "FD-0005"));
 
-        assertThat(entry.getEntryNo()).isEqualTo("VCH-AF-000001");
+        assertThat(entry.getEntryNo()).isEqualTo("SV-AF-000001");   // a delivery is a sales voucher
+        assertThat(entry.getVoucherType()).isEqualTo(VoucherType.SALES);
         assertThat(entry.getPeriodId()).isEqualTo(33L);
         assertThat(entry.getOrganizationId()).isEqualTo(ORG);
         assertThat(entry.getLines()).extracting(GlEntryLine::getAccountCode, GlEntryLine::getSide)
             .containsExactly(org.assertj.core.groups.Tuple.tuple("5101", Side.DEBIT), org.assertj.core.groups.Tuple.tuple("1144", Side.CREDIT));
         assertThat(entry.totalDebits()).isEqualByComparingTo("25000");
+    }
+
+    @Test
+    void aManualVoucherIsNumberedInTheSeriesItsTypeNames() {
+        List<GeneralLedgerService.JournalLine> lines = List.of(
+            new GeneralLedgerService.JournalLine("5101", Side.DEBIT, BigDecimal.TEN, null, null),
+            new GeneralLedgerService.JournalLine("1144", Side.CREDIT, BigDecimal.TEN, null, null));
+        assertThat(ledger.postManualJournal(DAY, "x", lines).getEntryNo()).startsWith("JV-");
+        assertThat(ledger.postManualJournal(VoucherType.PAYMENT, DAY, "x", lines).getEntryNo()).startsWith("PV-");
+        assertThat(ledger.postManualJournal(VoucherType.CONTRA, DAY, "x", lines).getVoucherType()).isEqualTo(VoucherType.CONTRA);
+        // Sales, purchase and production vouchers come from their documents only.
+        assertThatThrownBy(() -> ledger.postManualJournal(VoucherType.SALES, DAY, "x", lines))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

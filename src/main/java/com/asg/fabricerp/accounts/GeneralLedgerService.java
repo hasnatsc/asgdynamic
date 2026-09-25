@@ -3,7 +3,6 @@ package com.asg.fabricerp.accounts;
 import com.asg.fabricerp.accounts.AccountFlags.Side;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.global.numbering.BusinessNumberService;
-import com.asg.fabricerp.global.numbering.BusinessSeries;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +19,8 @@ import java.util.Optional;
  * and the order is the design: a posting into a closed period leaves no trace at all, and the
  * balance check runs before the save because there is no draft state.
  *
- * <p>Entry numbers come from the VOUCHER series (VCH) of the numbering setup.
+ * <p>Entry numbers come from the voucher series of the entry's {@link VoucherType} (Document numbering >
+ * Accounts): JV, PV, RV, CV, SV, PUV, PDV.
  */
 @Service
 @Transactional(readOnly = true)
@@ -64,8 +64,8 @@ public class GeneralLedgerService {
             .orElseThrow(() -> new NoPostingRuleException(command.eventType(), command.postingDate()));
         rule.requireBalanced(command.amounts());
 
-        GlEntry entry = newEntry(orgId, command.docTypeCode(), command.documentId(), command.eventType(),
-            command.postingDate(), period, command.currencyCode(), command.fxRate(), command.narration());
+        GlEntry entry = newEntry(orgId, VoucherType.forEvent(command.eventType()), command.docTypeCode(), command.documentId(),
+            command.eventType(), command.postingDate(), period, command.currencyCode(), command.fxRate(), command.narration());
         for (PostingRuleLine leg : rule.getLines()) {
             addLine(orgId, entry, leg.getAccountCode(), leg.getSide(), rule.amountFor(leg, command.amounts()),
                 command.partyId(), command.costCentreCode(),
@@ -81,12 +81,25 @@ public class GeneralLedgerService {
      */
     @Transactional
     public GlEntry postManualJournal(LocalDate postingDate, String narration, List<JournalLine> lines) {
+        return postManualJournal(VoucherType.JOURNAL, postingDate, narration, lines);
+    }
+
+    /**
+     * As above, numbered as a journal, payment, receipt or contra voucher. The type changes the number
+     * series only; the control-account rule applies to all four.
+     */
+    @Transactional
+    public GlEntry postManualJournal(VoucherType type, LocalDate postingDate, String narration, List<JournalLine> lines) {
+        VoucherType voucher = type == null ? VoucherType.JOURNAL : type;
+        if (!voucher.manual()) {
+            throw new IllegalArgumentException(voucher.label() + "s are posted from their documents, not by hand.");
+        }
         Long orgId = context.requireOrganizationId();
         if (lines == null || lines.size() < 2) {
             throw new IllegalArgumentException("A journal needs at least one debit and one credit line.");
         }
         AccountingPeriod period = openPeriodFor(orgId, postingDate);
-        GlEntry entry = newEntry(orgId, GlEntry.MANUAL, null, PostingEvent.MANUAL_JOURNAL, postingDate, period,
+        GlEntry entry = newEntry(orgId, voucher, GlEntry.MANUAL, null, PostingEvent.MANUAL_JOURNAL, postingDate, period,
             "BDT", BigDecimal.ONE, narration);
         for (JournalLine line : lines) {
             if (line.amount() == null || line.amount().signum() <= 0) {
@@ -121,7 +134,7 @@ public class GeneralLedgerService {
         }
         LocalDate today = LocalDate.now();
         AccountingPeriod period = openPeriodFor(orgId, today);
-        GlEntry reversal = newEntry(orgId, original.getDocTypeCode(), original.getDocumentId(), original.getEventType(),
+        GlEntry reversal = newEntry(orgId, original.getVoucherType(), original.getDocTypeCode(), original.getDocumentId(), original.getEventType(),
             today, period, original.getCurrencyCode(), original.getFxRate(),
             "Reversal of " + original.getEntryNo() + ": " + reason.trim());
         // Same lines, opposite sides - not negated amounts: a negative debit and a credit read the
@@ -146,10 +159,10 @@ public class GeneralLedgerService {
 
     // ------------------------------------------------------------------------------------------
 
-    private GlEntry newEntry(Long orgId, String docType, Long documentId, String event, LocalDate date,
+    private GlEntry newEntry(Long orgId, VoucherType voucher, String docType, Long documentId, String event, LocalDate date,
                              AccountingPeriod period, String currency, BigDecimal fxRate, String narration) {
-        GlEntry entry = new GlEntry(context.businessUnitId(), numbers.next(BusinessSeries.VOUCHER, date),
-            docType, documentId, event, date, period.getId(), currency, fxRate, narration);
+        GlEntry entry = new GlEntry(context.businessUnitId(), numbers.next(voucher.series(), date),
+            docType, documentId, event, date, period.getId(), currency, fxRate, narration).asVoucher(voucher);
         entry.setOrganizationId(orgId);
         return entry;
     }

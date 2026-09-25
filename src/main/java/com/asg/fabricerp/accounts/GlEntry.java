@@ -53,6 +53,11 @@ public class GlEntry extends AuditableEntity implements OrgScoped {
     @Column(name = "event_type", nullable = false, length = 60, updatable = false)
     private String eventType;
 
+    /** Which voucher series the entry number came from. Null only on entries posted before V19. */
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "voucher_type", length = 20, updatable = false)
+    private VoucherType voucherType;
+
     @Column(name = "posting_date", nullable = false, updatable = false)
     private LocalDate postingDate;
 
@@ -136,6 +141,11 @@ public class GlEntry extends AuditableEntity implements OrgScoped {
     }
 
     void markReversalOf(Long entryId) { this.reversesEntryId = entryId; }
+
+    public GlEntry asVoucher(VoucherType type) { this.voucherType = type; return this; }
+
+    /** The stored type, or - for entries posted before voucher types existed - the one its event implies. */
+    public VoucherType getVoucherType() { return voucherType != null ? voucherType : VoucherType.forEvent(eventType); }
 
     @Override public Long getOrganizationId()        { return organizationId; }
     @Override public void setOrganizationId(Long id) { this.organizationId = id; }

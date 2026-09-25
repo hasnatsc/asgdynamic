@@ -107,7 +107,7 @@ class AccountsWebTest {
 
     @Test
     void aRefusedPostingComesBackAsTheLedgersOwnSentence() throws Exception {
-        when(ledger.postManualJournal(any(), any(), any()))
+        when(ledger.postManualJournal(any(), any(), any(), any()))
             .thenThrow(ControlAccountException.manualJournal("1110"));
         mvc.perform(post("/api/accounts/journals").with(signedIn(accountant)).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)

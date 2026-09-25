@@ -30,7 +30,17 @@ public enum BusinessSeries implements NumberSeries {
     YARN_BLEND("BL", "Yarn blend", 4, 30),
 
     QC_INSPECTION("QC", "QC inspection", 6, 60),
-    VOUCHER("VCH", "Accounting voucher", 6, 60);
+    VOUCHER("VCH", "Accounting voucher (general)", 6, 60),
+
+    // Voucher types of the general ledger: every entry is numbered in the series of its kind, so
+    // a payment reads PV-..., a receipt RV-..., and each can be numbered and restarted separately.
+    JOURNAL_VOUCHER("JV", "Journal voucher", 6, 60),
+    PAYMENT_VOUCHER("PV", "Payment voucher", 6, 60),
+    RECEIPT_VOUCHER("RV", "Receipt voucher", 6, 60),
+    CONTRA_VOUCHER("CV", "Contra voucher (bank / cash transfer)", 6, 60),
+    SALES_VOUCHER("SV", "Sales voucher", 6, 60),
+    PURCHASE_VOUCHER("PUV", "Purchase voucher", 6, 60),
+    PRODUCTION_VOUCHER("PDV", "Production / inventory voucher", 6, 60);
 
     private final String prefix;
     private final String label;

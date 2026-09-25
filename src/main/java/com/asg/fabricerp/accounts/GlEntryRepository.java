@@ -22,6 +22,7 @@ public interface GlEntryRepository extends JpaRepository<GlEntry, Long> {
            where e.organizationId = :orgId
              and e.postingDate >= :from and e.postingDate <= :to
              and (:event = '' or e.eventType = :event)
+             and (:voucher is null or e.voucherType = :voucher)
              and (:pattern = '' or lower(e.entryNo) like :pattern or lower(coalesce(e.narration, '')) like :pattern)
            """,
            countQuery = """
@@ -29,10 +30,12 @@ public interface GlEntryRepository extends JpaRepository<GlEntry, Long> {
            where e.organizationId = :orgId
              and e.postingDate >= :from and e.postingDate <= :to
              and (:event = '' or e.eventType = :event)
+             and (:voucher is null or e.voucherType = :voucher)
              and (:pattern = '' or lower(e.entryNo) like :pattern or lower(coalesce(e.narration, '')) like :pattern)
            """)
     Page<GlEntry> search(@Param("orgId") Long orgId, @Param("from") LocalDate from, @Param("to") LocalDate to,
-                         @Param("event") String event, @Param("pattern") String pattern, Pageable pageable);
+                         @Param("event") String event, @Param("voucher") VoucherType voucher,
+                         @Param("pattern") String pattern, Pageable pageable);
 
     /** Per account: BDT debits and credits posted between two dates - the trial balance. */
     @Query("""
