@@ -1,11 +1,11 @@
 package com.asg.fabricerp.fabric.booking;
 
-import static com.asg.fabricerp.common.AuditableEntity.idOf;
-
+import com.asg.fabricerp.common.LookupPage;
+import com.asg.fabricerp.costing.CostingCatalog;
+import com.asg.fabricerp.global.documents.BookingType;
 import com.asg.fabricerp.global.documents.BusinessDocument;
-import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
-import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.global.documents.OrderType;
 import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
 import com.asg.fabricerp.utility.datatable.DataTableResponse;
@@ -19,20 +19,24 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Page and grid are separate routes:
  *
  * <pre>
- *   GET  /booking          Thymeleaf page
- *   GET  /api/booking      grid rows
- *   POST /api/booking      create or update
+ *   GET  /booking                       Thymeleaf page
+ *   GET  /api/booking                   grid rows
+ *   GET  /api/booking/{id}              one booking, for the drawer and the editor
+ *   POST /api/booking                   create or update
+ *   GET  /api/booking/costing/{code}    what a costing number fills in (server calls costing)
+ *   GET  /api/booking/marketing-persons picker feed
  * </pre>
  *
  * asgdynamic served both from {@code /booking/index}, discriminating on a
- * {@code conditionParams} request parameter.
+ * {@code conditionParams} request parameter, and called the costing API straight from the
+ * page with its credentials in the source.
  *
  * <p>Authorization is declared here rather than in a separate URL-to-role table. In the
  * legacy system that table drifted: 14 URLs stayed permitted for controllers that had been
@@ -44,11 +48,18 @@ public class BookingController {
     private static final SortWhitelist SORTABLE = SortWhitelist.of(Map.of(
         "documentNo",      "documentNo",
         "documentDate",    "documentDate",
+        "requiredDate",    "requiredDate",
         "status",          "status",
         "totalQuantity",   "totalQuantity",
         "subtotalAmount",  "subtotalAmount",
         "revisionNo",      "revisionNo"
     ));
+
+    /** The legacy currency list. */
+    static final List<String> CURRENCIES = List.of("USD", "BDT", "EUR", "AUD");
+    static final List<String> FABRIC_SOURCES = List.of("In-house", "Export");
+    static final List<String> LIGHT_SOURCE_TYPES = List.of("Primary", "Secondary");
+    static final List<String> BASE_MATERIALS = List.of("As per Swatch", "As per Specification");
 
     private final BookingService service;
 
@@ -60,8 +71,15 @@ public class BookingController {
     @PreAuthorize("hasAuthority('SCREEN_BOOKING_VIEW')")
     public String page(Model model) {
         model.addAttribute("title", "Booking");
-        model.addAttribute("booking", new BusinessDocument());
         model.addAttribute("statuses", BusinessDocumentStatus.values());
+        model.addAttribute("bookingTypes", BookingType.values());
+        model.addAttribute("orderTypes", OrderType.values());
+        model.addAttribute("currencies", CURRENCIES);
+        model.addAttribute("fabricSources", FABRIC_SOURCES);
+        model.addAttribute("lightSourceTypes", LIGHT_SOURCE_TYPES);
+        model.addAttribute("baseMaterials", BASE_MATERIALS);
+        model.addAttribute("lcTenures", CostingCatalog.LC_TENURES);
+        model.addAttribute("lcPaymentTypes", CostingCatalog.LC_PAYMENT_TYPES);
         model.addAttribute("content", "fabric/booking :: content");
         return "layout/main";
     }
@@ -81,18 +99,18 @@ public class BookingController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
 
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
-        Page<BusinessDocument> page = service.search(
+        Page<Map<String, Object>> page = service.searchRows(
             status, from, to, request.searchOrNull(),
             request.toPageable(SORTABLE, "documentDate"));
 
-        return DataTableResponse.from(draw, page, BookingController::toRow);
+        return DataTableResponse.from(draw, page, row -> row);
     }
 
     @GetMapping("/api/booking/{id}")
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_BOOKING_VIEW')")
     public Map<String, Object> detail(@PathVariable Long id) {
-        return toDetail(service.get(id));
+        return service.detail(id);
     }
 
     @PostMapping("/api/booking")
@@ -100,7 +118,29 @@ public class BookingController {
     @PreAuthorize("hasAuthority('SCREEN_BOOKING_CREATE') or hasAuthority('SCREEN_BOOKING_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument booking) {
         AuthorityChecks.require(booking.getId() == null ? "SCREEN_BOOKING_CREATE" : "SCREEN_BOOKING_AMEND");
-        return toDetail(service.save(booking));
+        return service.detail(service.save(booking).getId());
+    }
+
+    /**
+     * The costing lookup, server-side. {@code bookingId} is the booking being edited, so the
+     * "already booked" warning does not name the booking itself.
+     */
+    @GetMapping("/api/booking/costing/{code}")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_CREATE') or hasAuthority('SCREEN_BOOKING_AMEND')")
+    public CostingPrefill costing(@PathVariable String code,
+                                  @RequestParam(required = false) Long bookingId) {
+        return service.costingPrefill(code, bookingId);
+    }
+
+    @GetMapping("/api/booking/marketing-persons")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_VIEW')")
+    public LookupPage<LookupPage.Option> marketingPersons(@RequestParam(required = false) String q,
+                                                          @RequestParam(required = false) Integer page,
+                                                          @RequestParam(required = false) Integer size,
+                                                          @RequestParam(required = false) Long id) {
+        return service.marketingPersons(q, page, size, id);
     }
 
     // Submit/approve/reject are the same action for every document type — see
@@ -112,7 +152,7 @@ public class BookingController {
     @PreAuthorize("hasAuthority('SCREEN_BOOKING_AMEND')")
     public Map<String, Object> revise(@PathVariable Long id,
                                       @RequestParam(required = false) String reason) {
-        return toDetail(service.revise(id, reason));
+        return service.detail(service.revise(id, reason).getId());
     }
 
     @DeleteMapping("/api/booking/{id}")
@@ -121,77 +161,5 @@ public class BookingController {
     public Map<String, Object> delete(@PathVariable Long id) {
         service.delete(id);
         return Map.of("deleted", id);
-    }
-
-    private static Map<String, Object> toRow(BusinessDocument d) {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", d.getId());
-        row.put("documentNo", d.getDocumentNo());
-        row.put("documentDate", d.getDocumentDate() == null ? "" : d.getDocumentDate().toString());
-        row.put("referenceNo", d.getReferenceNo() == null ? "" : d.getReferenceNo());
-        row.put("currency", d.getCurrencyCode());
-        row.put("totalQuantity", d.getTotalQuantity());
-        row.put("subtotalAmount", d.getSubtotalAmount());
-        row.put("revisionNo", d.getRevisionNo());
-        row.put("status", d.getStatus().name());
-        row.put("editable", d.getStatus().isEditable());
-        return row;
-    }
-
-    private static Map<String, Object> toDetail(BusinessDocument d) {
-        Map<String, Object> detail = new LinkedHashMap<>(toRow(d));
-        detail.put("partyId", idOf(d.getParty()));
-        detail.put("remarks", d.getRemarks() == null ? "" : d.getRemarks());
-        detail.put("lineGroups", d.getLineGroups().stream().map(BookingController::toGroup).toList());
-        return detail;
-    }
-
-    /**
-     * One fabric specification, with its colour breakdown nested inside it — the shape a
-     * real Booking API response actually has (one {@code dtlSet} carrying an array of
-     * {@code dtlLine} colours), not the flat one-colour-per-row shape an earlier version of
-     * this method produced.
-     */
-    private static Map<String, Object> toGroup(BusinessDocumentLineGroup g) {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", g.getId());
-        row.put("groupNo", g.getGroupNo());
-        row.put("costingCode", g.getFabric().getCostingCode());
-        row.put("construction", g.getFabric().getConstruction());
-        row.put("composition", g.getFabric().getComposition());
-        row.put("weaveType", g.getFabric().getWeaveType());
-        row.put("weaveStyle", g.getFabric().getWeaveStyle());
-        row.put("finishType", g.getFabric().getFinishType());
-        row.put("finishWidth", g.getFabric().getFinishWidth());
-        row.put("cuttableWidth", g.getFabric().getCuttableWidth());
-        row.put("gsm", g.getFabric().getGsm());
-        row.put("epi", g.getFabric().getEpi());
-        row.put("ppi", g.getFabric().getPpi());
-        row.put("lightSource", g.getFabric().getLightSource());
-        row.put("groupQuantity", g.groupQuantity());
-        row.put("groupAmount", g.groupAmount());
-        row.put("colorLines", g.getColorLines().stream().map(BookingController::toColorLine).toList());
-        return row;
-    }
-
-    private static Map<String, Object> toColorLine(BusinessDocumentColorLine l) {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", l.getId());
-        row.put("colorLineNo", l.getColorLineNo());
-        row.put("colorCode", l.getColorCode());
-        row.put("colorName", l.getColorName());
-        row.put("fabricsStyle", l.getFabricsStyle());
-        row.put("colorReference", l.getColorReference());
-        row.put("strikeOffReference", l.getStrikeOffReference());
-        row.put("labDipReference", l.getLabDipReference());
-        row.put("loomReference", l.getLoomReference());
-        row.put("quantity", l.getQuantity());
-        row.put("rate", l.getRate());
-        row.put("priceInMeter", l.getPriceInMeter());
-        row.put("lineAmount", l.getLineAmount());
-        row.put("fulfilled", l.getFulfilledQuantity());
-        row.put("outstanding", l.outstandingQuantity());
-        row.put("remarks", l.getRemarks());
-        return row;
     }
 }

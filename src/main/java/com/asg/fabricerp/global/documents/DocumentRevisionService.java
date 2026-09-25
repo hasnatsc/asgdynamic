@@ -52,6 +52,14 @@ public class DocumentRevisionService {
         revision.setDocumentDate(LocalDate.now());
         revision.setRequiredDate(original.getRequiredDate());
         revision.setReferenceNo(original.getReferenceNo());
+        revision.setBookingType(original.getBookingType());
+        revision.setOrderType(original.getOrderType());
+        revision.setBrand(original.getBrand());
+        revision.setGarments(original.getGarments());
+        revision.setGarmentsAddress(original.getGarmentsAddress());
+        revision.setPreCostBuyer(original.getPreCostBuyer());
+        revision.setPriceInMeter(original.isPriceInMeter());
+        revision.setMarketingPerson(original.getMarketingPerson());
         revision.setRemarks(reason);
         // Upstream link travels with the revision: a revised BPO still traces to the same
         // Booking. revisionOf is a different axis (previous version of THIS document) and
@@ -65,6 +73,9 @@ public class DocumentRevisionService {
 
         for (BusinessDocumentLineGroup group : original.getLineGroups()) {
             revision.addLineGroup(copyOf(group));
+        }
+        for (BusinessDocumentTerm term : original.getTerms()) {
+            revision.addTerm(new BusinessDocumentTerm(term.getSerialNo(), term.getBodyText()));
         }
         revision.recalculateTotals();
         return repository.save(revision);
@@ -159,6 +170,23 @@ public class DocumentRevisionService {
         copy.setEndUse(source.getEndUse());
         copy.setDispoReference(source.getDispoReference());
         copy.setCostingCode(source.getCostingCode());
+        copy.setCostingAmendmentNo(source.getCostingAmendmentNo());
+        copy.setFabricSource(source.getFabricSource());
+        copy.setFinishTypeRef(source.getFinishTypeRef());
+        copy.setQualityReference(source.getQualityReference());
+        copy.setStyleReference(source.getStyleReference());
+        copy.setQuotedPrice(source.getQuotedPrice());
+        copy.setBreakEvenPrice(source.getBreakEvenPrice());
+        copy.setWarpYarnName(source.getWarpYarnName());
+        copy.setWeftYarnName(source.getWeftYarnName());
+        copy.setLightSourceType(source.getLightSourceType());
+        copy.setBaseMaterial(source.getBaseMaterial());
+        copy.setSwatchNo(source.getSwatchNo());
+        copy.setLcTenure(source.getLcTenure());
+        copy.setLcPaymentType(source.getLcPaymentType());
+        copy.setLeadTimeDays(source.getLeadTimeDays());
+        copy.setTargetQualityParameter(source.getTargetQualityParameter());
+        copy.setItemDescription(source.getItemDescription());
         return copy;
     }
 }

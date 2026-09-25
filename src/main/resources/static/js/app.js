@@ -1384,14 +1384,19 @@
 
     /** Labels for the fields a document's detail payload may carry; unknown keys are not shown. */
     const DOC_FIELDS = {
-        documentDate: 'Date', referenceNo: 'Buyer reference', currency: 'Currency',
+        documentDate: 'Date', requiredDate: 'Delivery required', partyName: 'Buyer', preCostBuyer: 'Pre-cost buyer',
+        bookingTypeLabel: 'Booking type', orderTypeLabel: 'Type of order', brandName: 'Brand', garmentsName: 'Garments',
+        marketingPersonName: 'Marketing person', referenceNo: 'Buyer reference', currency: 'Currency',
         totalQuantity: 'Total quantity', subtotalAmount: 'Amount', revisionNo: 'Revision',
         bookingId: 'Booking', bpoId: 'Production order', deliveryOrderId: 'Delivery order', scheduleId: 'Schedule'
     };
     const GROUP_FIELDS = {
-        costingCode: 'Costing no', composition: 'Composition', weaveType: 'Weave type', weaveStyle: 'Weave style',
+        itemName: 'Item', costingCode: 'Costing no', fabricType: 'Fabric type', composition: 'Composition',
+        declaredConstruction: 'PI construction', weaveType: 'Weave type', weaveStyle: 'Weave style',
         finishType: 'Finish', finishWidth: 'Finish width', cuttableWidth: 'Cuttable width', gsm: 'GSM',
-        epi: 'EPI', ppi: 'PPI', lightSource: 'Light source'
+        epi: 'EPI', ppi: 'PPI', warpYarnName: 'Warp yarn', weftYarnName: 'Weft yarn', lightSource: 'Light source',
+        dispoReference: 'DISPO', quotedPrice: 'Quoted price', lcTenure: 'LC tenure', leadTimeDays: 'Lead time (days)',
+        endUse: 'End use'
     };
     const LINE_COLUMNS = [
         ['colorCode', 'Code'], ['colorName', 'Colour'], ['fabricsStyle', 'Style'], ['colorReference', 'Colour ref.'],
@@ -1521,7 +1526,7 @@
             const facts = Object.entries(DOC_FIELDS).filter(([key]) => doc[key] != null && doc[key] !== '')
                 .map(([key, label]) => {
                     let value = doc[key];
-                    if (key === 'documentDate') value = fmt.date(value);
+                    if (key.endsWith('Date')) value = fmt.date(value);
                     else if (key.endsWith('Id')) value = '#' + value;
                     else if (typeof value === 'number') value = formatNumber(value);
                     return `<div><dt class="text-xs text-gray-500">${esc(label)}</dt>
@@ -1572,6 +1577,14 @@
                         <span class="text-xs text-gray-500">${(doc.lineGroups || []).length} spec(s)</span></div>
                     <div class="space-y-3">${groups || '<p class="text-sm text-gray-500">No specifications on this document.</p>'}</div>
                 </section>
+                ${Array.isArray(doc.terms) ? `<section class="form-section">
+                    <div class="form-section-head"><h3 class="form-section-title">Terms &amp; conditions</h3>
+                        <span class="text-xs text-gray-500">${doc.terms.length} clause(s)</span></div>
+                    ${doc.terms.length ? `<ol class="space-y-1.5 text-sm">${doc.terms.map(t => `<li class="flex gap-2">
+                        <span class="w-6 shrink-0 text-right tabular-nums text-gray-500">${esc(t.serialNo)}.</span>
+                        <span class="text-gray-800 dark:text-gray-200">${esc(t.bodyText)}</span></li>`).join('')}</ol>`
+                        : '<p class="text-sm text-gray-500">No terms on this document.</p>'}
+                </section>` : ''}
                 <section class="form-section">
                     <div class="form-section-head"><h3 class="form-section-title">Approval history</h3></div>
                     ${timeline}
@@ -1582,6 +1595,11 @@
             const s = doc.status;
             const committed = ['APPROVED', 'PARTIAL', 'PROCESSING', 'COMPLETED', 'CLOSED'].includes(s);
             const actions = [];
+            // A page with its own editor passes onEdit (and canEdit); the server still refuses
+            // to save a document that is no longer editable.
+            if (this.opts.onEdit && this.opts.canEdit && doc.editable) {
+                actions.push(`<button type="button" class="btn-ghost" data-doc-action="edit">${icon('edit')}Edit</button>`);
+            }
             if (s === 'DRAFT') {
                 actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}Submit for approval</button>`);
             }
@@ -1603,6 +1621,11 @@
         async act(action) {
             const doc = this.current;
             if (!doc) return;
+            if (action === 'edit') {
+                this.drawer.close();
+                this.opts.onEdit(doc);
+                return;
+            }
             const label = doc.documentNo || 'this document';
             let query;
             if (action === 'approve' || action === 'reject') {

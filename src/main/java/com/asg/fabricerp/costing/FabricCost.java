@@ -59,7 +59,51 @@ public record FabricCost(
     // Nested payloads that arrive as JSON *strings* and need a second parse.
     @JsonProperty("fabric_cpmposition") String fabricCompositionRaw,  // sic: upstream misspelling
     @JsonProperty("yarn_details") String yarnDetailsRaw,
-    @JsonProperty("dyeing_color_qty") String dyeingColorQtyRaw
+    @JsonProperty("dyeing_color_qty") String dyeingColorQtyRaw,
+
+    // --- what the Booking form fills from a costing (verified against 18102503583) ---
+
+    /** The costing's own quality reference, e.g. "D-3443". */
+    String referenceNo,
+    /** Fabric type as an id into the legacy {@code so_dtlSet_fabricsType} list (8 = Solid Dyed Print). */
+    @JsonProperty("fabric") String fabricTypeId,
+    /** "In-house" or "Export" - named fabricType upstream, but it is where the fabric is made. */
+    @JsonProperty("fabricType") String fabricSource,
+    /** Id into {@code so_dtlSet_weaveType} (1 = 1/1, 7 = Dobby : Medium Float). */
+    @JsonProperty("weaveType") String weaveTypeId,
+    /** Id into {@code so_dtlSet_weaveStyles} (5 = Plain, 10 = Medium Float). */
+    @JsonProperty("weaveStyle") String weaveStyleId,
+    List<String> fabricFinishTypeString,
+
+    @JsonProperty("warpCount_1") String warpCount1,
+    @JsonProperty("warpCount_2") String warpCount2,
+    @JsonProperty("warpCount_3") String warpCount3,
+    @JsonProperty("warpCountRatio_1") BigDecimal warpCountRatio1,
+    @JsonProperty("warpCountRatio_2") BigDecimal warpCountRatio2,
+    @JsonProperty("warpCountRatio_3") BigDecimal warpCountRatio3,
+    @JsonProperty("weftCount_1") String weftCount1,
+    @JsonProperty("weftCount_2") String weftCount2,
+    @JsonProperty("weftCount_3") String weftCount3,
+    @JsonProperty("weftCountRatio_1") BigDecimal weftCountRatio1,
+    @JsonProperty("weftCountRatio_2") BigDecimal weftCountRatio2,
+    @JsonProperty("weftCountRatio_3") BigDecimal weftCountRatio3,
+
+    String warpShrinkage,
+    String weftShrinkage,
+    String mechShrinkage,
+
+    /** Id into {@code so_dtlSet_lcTenure} (4 = 90 Days). */
+    @JsonProperty("LcType") String lcTenureId,
+
+    /**
+     * The price per yard quoted to the buyer - what the legacy Booking form shows as
+     * "Quot Price Costing" (3.95 on 18102503583). Despite the name it is not a markup, and it is
+     * not {@link #piQuotPrice} (4.31972 on the same costing), which that form never displays.
+     */
+    BigDecimal piMarkup,
+
+    /** Free text from costing / R&amp;D, e.g. the shrinkage risk the booking should allow for. */
+    String note
 ) {
 
     /** True once signed off upstream — safe to cache indefinitely. */

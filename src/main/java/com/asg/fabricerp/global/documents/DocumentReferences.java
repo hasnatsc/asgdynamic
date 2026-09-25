@@ -13,7 +13,10 @@ import com.asg.fabricerp.inventory.item.InventoryItemRepository;
 import com.asg.fabricerp.inventory.item.UnitOfMeasure;
 import com.asg.fabricerp.inventory.item.UnitOfMeasureRepository;
 import com.asg.fabricerp.party.Party;
+import com.asg.fabricerp.party.PartyRoleType;
 import com.asg.fabricerp.party.PartyService;
+import com.asg.fabricerp.security.FabricUser;
+import com.asg.fabricerp.security.FabricUserRepository;
 import org.springframework.stereotype.Component;
 
 /**
@@ -40,17 +43,20 @@ public class DocumentReferences {
     private final MarketingTeamRepository marketingTeams;
     private final InventoryItemRepository items;
     private final UnitOfMeasureRepository units;
+    private final FabricUserRepository users;
     private final OrgContext context;
 
     public DocumentReferences(PartyService parties, WarehouseRepository warehouses,
                               BusinessUnitRepository businessUnits, MarketingTeamRepository marketingTeams,
-                              InventoryItemRepository items, UnitOfMeasureRepository units, OrgContext context) {
+                              InventoryItemRepository items, UnitOfMeasureRepository units,
+                              FabricUserRepository users, OrgContext context) {
         this.parties = parties;
         this.warehouses = warehouses;
         this.businessUnits = businessUnits;
         this.marketingTeams = marketingTeams;
         this.items = items;
         this.units = units;
+        this.users = users;
         this.context = context;
     }
 
@@ -70,6 +76,11 @@ public class DocumentReferences {
         Long partyId = AuditableEntity.idOf(doc.getParty());
         doc.setParty(partyId == null ? null : parties.requireHolder(partyId, type.requiredPartyRole()));
         doc.setWarehouse(warehouse(orgId, doc.getWarehouse()));
+        Long brandId = AuditableEntity.idOf(doc.getBrand());
+        doc.setBrand(brandId == null ? null : parties.requireHolder(brandId, PartyRoleType.BRAND));
+        Long garmentsId = AuditableEntity.idOf(doc.getGarments());
+        doc.setGarments(garmentsId == null ? null : parties.requireHolder(garmentsId, PartyRoleType.GARMENT_FACTORY));
+        doc.setMarketingPerson(user(orgId, doc.getMarketingPersonId()));
         for (BusinessDocumentLineGroup group : doc.getLineGroups()) {
             group.setItem(item(orgId, group.getItem()));
             group.setUom(uom(orgId, group.getUom()));
@@ -90,6 +101,12 @@ public class DocumentReferences {
         Long id = AuditableEntity.idOf(submitted);
         return id == null ? null : warehouses.findScoped(id, orgId)
             .orElseThrow(() -> new IllegalArgumentException("Warehouse not found: " + id));
+    }
+
+    /** A user of this organization by id, or null. Also used to default the marketing person. */
+    public FabricUser user(Long orgId, Long id) {
+        return id == null ? null : users.findScoped(id, orgId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
     }
 
     private InventoryItem item(Long orgId, InventoryItem submitted) {

@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
 <!--
-  Reference implementation of a fabric master-detail screen — corrected to a genuine
-  two-level structure after a real production API response showed the flat one-row-per-
-  colour shape this template used to have was wrong. See BusinessDocument.lineGroups /
-  FabricSpec's javadoc for the full account.
+  Booking: list, review drawer and editor.
 
-  Shape now matches the real legacy screen: one row per fabric-spec GROUP (construction,
-  composition, weave — entered once), each expanding into a nested "Color breakdown"
-  table of COLOUR lines (colour, quantity, price, lab dip / strike-off / colour references
-  — confirmed genuinely different per colour, not per construction).
+  The editor follows the legacy screen's shape - header, then "Item detail" (one fabric
+  specification at a time, added to the booking with its colour breakdown) and "Terms &
+  condition" - but it is driven by booking.js from JSON, not bound server-side:
 
-  Note what is NOT editable: GSM and line amounts are rendered read-only because the
-  server computes them. The legacy screen let the browser calculate and submit them.
+  - Entering a Costing No asks the SERVER for the specification (/api/booking/costing/{code}).
+    The legacy page called the costing API from the browser with its credentials in the source.
+  - GSM, quoted price, break-even and line amounts are shown read-only: the server recomputes
+    them on every save. The page's live figures are a preview.
+  - Terms & conditions start from the organization's default clauses (Master data > Terms &
+    conditions) and are the booking's own copy from then on.
 -->
 <head>
     <title>Booking</title>
@@ -25,12 +25,14 @@
             <h1 class="page-title">Booking</h1>
             <p class="page-sub">Buyer order for woven fabric — start of order-to-cash.</p>
         </div>
-        <div class="page-actions">
-            <button type="button" class="btn-primary" data-action="booking-new" data-editor-open>
+        <div class="page-actions" sec:authorize="hasAuthority('SCREEN_BOOKING_CREATE')">
+            <button type="button" class="btn-primary" data-action="booking-new">
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New booking
             </button>
         </div>
     </div>
+
+    <span sec:authorize="hasAuthority('SCREEN_BOOKING_AMEND')" id="canAmendBooking" hidden></span>
 
     <div class="card overflow-hidden" data-doc-screen>
         <div class="toolbar">
@@ -50,7 +52,7 @@
                 <span class="text-gray-400">–</span>
                 <input type="date" class="field w-auto" aria-label="To date" data-filter="to">
             </div>
-            <button type="button" class="btn-subtle toolbar-spacer" data-action="booking-filter" data-filter-reset>
+            <button type="button" class="btn-subtle toolbar-spacer" data-filter-reset>
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset
             </button>
         </div>
@@ -60,7 +62,9 @@
                 <tr>
                     <th data-col="documentNo" data-format="doc" data-sort="documentNo">Booking No</th>
                     <th data-col="documentDate" data-format="date" data-sort="documentDate">Date</th>
-                    <th data-col="referenceNo">Reference</th>
+                    <th data-col="partyName">Buyer</th>
+                    <th data-col="garmentsName">Garments</th>
+                    <th data-col="requiredDate" data-format="date" data-sort="requiredDate">Delivery</th>
                     <th data-col="currency">Currency</th>
                     <th data-col="totalQuantity" data-format="num" data-sort="totalQuantity" class="text-right">Quantity</th>
                     <th data-col="subtotalAmount" data-format="num" data-sort="subtotalAmount" class="text-right">Amount</th>
@@ -75,171 +79,418 @@
         <div class="pager" data-pager></div>
     </div>
 
-    <form id="bookingForm" class="card mt-6 scroll-mt-24" th:object="${booking}" hidden>
-        <input type="hidden" th:field="*{id}">
+    <!-- ================================================================================== -->
+    <!-- Editor                                                                             -->
+    <!-- ================================================================================== -->
+    <form id="bookingForm" class="card mt-6 scroll-mt-24" novalidate hidden autocomplete="off">
         <div class="card-header">
             <div>
-                <h2 class="card-title">New booking</h2>
+                <h2 class="card-title" data-editor-title>New booking</h2>
                 <p class="card-sub">Saved as a draft; submit it for approval from the list once it is complete.</p>
             </div>
-            <div class="ml-auto hidden md:block"><th:block th:replace="~{fragments/ui :: workflow(*{status})}"></th:block></div>
-            <button type="button" class="btn-icon" data-editor-close aria-label="Close editor">
+            <button type="button" class="btn-icon ml-auto" data-editor-close aria-label="Close editor">
                 <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
             </button>
         </div>
 
-        <div class="form-section">
-            <div class="form-section-head"><h3 class="form-section-title">Document</h3></div>
-            <div class="form-grid">
-            <div>
-                <label class="label" for="partyId">Buyer</label>
-                <select id="partyId" class="field" name="party.id" data-lookup="customer"></select>
-            </div>
-            <div>
-                <label class="label" for="documentDate">Booking date</label>
-                <input id="documentDate" type="date" class="field" th:field="*{documentDate}">
-            </div>
-            <div>
-                <label class="label" for="requiredDate">Required by</label>
-                <input id="requiredDate" type="date" class="field" th:field="*{requiredDate}">
-            </div>
-            <div>
-                <label class="label" for="currencyCode">Currency</label>
-                <select id="currencyCode" class="field" th:field="*{currencyCode}" data-lookup="currency"></select>
-            </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-                <label class="label" for="referenceNo">Buyer reference</label>
-                <input id="referenceNo" class="field" th:field="*{referenceNo}">
-            </div>
-            <div>
-                <label class="label" for="remarks">Remarks</label>
-                <input id="remarks" class="field" th:field="*{remarks}">
-            </div>
-        </div>
-        </div>
-
+        <!-- Header ---------------------------------------------------------------------- -->
         <section class="form-section">
-            <div class="form-section-head">
+            <div class="form-grid">
                 <div>
-                    <h3 class="form-section-title">Fabric specifications</h3>
-                    <p class="form-section-sub">One card per construction; colours are listed inside it.</p>
+                    <label class="label" for="bkDocumentNo">Booking No</label>
+                    <input id="bkDocumentNo" class="field font-mono" readonly placeholder="Assigned on save" tabindex="-1">
                 </div>
-                <button type="button" class="btn-ghost btn-sm" data-action="group-add"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add specification</button>
-            </div>
+                <div>
+                    <label class="label" for="bkBookingType">Booking type <span class="req">*</span></label>
+                    <select id="bkBookingType" class="field" name="bookingType" required>
+                        <option th:each="t : ${bookingTypes}" th:value="${t}" th:text="${t.label()}">Bulk</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="label" for="bkParty">Buyer <span class="req">*</span></label>
+                    <select id="bkParty" class="field" name="party" required
+                            data-remote="/api/parties/lookup?role=CUSTOMER" data-placeholder="Choose the buyer…"></select>
+                </div>
 
-            <div class="space-y-4" id="lineGroups">
-                <div class="row-card" th:each="group, gi : *{lineGroups}"
-                     th:attr="data-group-index=${gi.index}">
+                <div>
+                    <label class="label" for="bkCurrency">Currency <span class="req">*</span></label>
+                    <select id="bkCurrency" class="field" name="currencyCode" required>
+                        <option th:each="c : ${currencies}" th:value="${c}" th:text="${c}">USD</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label" for="bkOrderType">Type of order</label>
+                    <select id="bkOrderType" class="field" name="orderType">
+                        <option value="">—</option>
+                        <option th:each="t : ${orderTypes}" th:value="${t}" th:text="${t.label()}">Export</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="label" for="bkPreCostBuyer">Pre-cost buyer</label>
+                    <input id="bkPreCostBuyer" class="field" name="preCostBuyer" readonly tabindex="-1"
+                           placeholder="Filled from the costing">
+                </div>
 
-                    <!-- One fabric spec, entered once, shared by every colour below it -->
-                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-6 mb-3">
-                        <div class="sm:col-span-2">
-                            <label class="label">Costing No</label>
-                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.costingCode}">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="label">Construction</label>
-                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.construction}">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="label">Composition</label>
-                            <input class="field" th:field="*{lineGroups[__${gi.index}__].fabric.composition}">
-                        </div>
-                        <div>
-                            <label class="label">Weave Type</label>
-                            <select class="field" data-lookup="fabric/weave-type"
-                                    th:field="*{lineGroups[__${gi.index}__].fabric.weaveType}"></select>
-                        </div>
-                        <div>
-                            <label class="label">Weave Style</label>
-                            <select class="field" data-lookup="fabric/weave-style"
-                                    th:field="*{lineGroups[__${gi.index}__].fabric.weaveStyle}"></select>
-                        </div>
-                        <div>
-                            <label class="label">Finish Width</label>
-                            <input type="number" class="field" th:field="*{lineGroups[__${gi.index}__].fabric.finishWidth}">
-                        </div>
-                        <div>
-                            <label class="label">Cuttable Width</label>
-                            <input type="number" class="field" th:field="*{lineGroups[__${gi.index}__].fabric.cuttableWidth}">
-                        </div>
-                        <div>
-                            <label class="label">Calculated GSM</label>
-                            <input class="field" readonly th:value="${group.fabric.gsm}">
-                        </div>
-                        <div class="flex items-end">
-                            <button type="button" class="btn-danger-ghost w-full" data-action="group-remove"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#trash}"/></svg>Remove spec</button>
-                        </div>
-                    </div>
+                <div>
+                    <label class="label" for="bkDocumentDate">Booking date <span class="req">*</span></label>
+                    <input id="bkDocumentDate" type="date" class="field" name="documentDate" required>
+                </div>
+                <div>
+                    <label class="label" for="bkRequiredDate">Delivery required date <span class="req">*</span></label>
+                    <input id="bkRequiredDate" type="date" class="field" name="requiredDate" required>
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="label" for="bkBrand">Brand</label>
+                    <select id="bkBrand" class="field" name="brand" data-allow-clear
+                            data-remote="/api/parties/lookup?role=BRAND" data-placeholder="Choose the brand…"
+                            data-empty-text="No brands yet - add one under Master data › Parties"></select>
+                </div>
 
-                    <!-- Nested colour breakdown — the part an earlier version of this
-                         template flattened into the row above, losing the ability to add a
-                         second colour without re-entering the whole specification. -->
-                    <div class="table-wrap -mx-4 border-y border-gray-100"><table class="table-grid table-lines" data-role="color-lines">
-                        <thead>
-                        <tr>
-                            <th>Color Code</th>
-                            <th>Color Name</th>
-                            <th>Fabrics Style</th>
-                            <th>Color Ref.</th>
-                            <th>Strike Off Ref.</th>
-                            <th>Lab Dip Ref.</th>
-                            <th>Loom Ref.</th>
-                            <th class="text-right">Quantity</th>
-                            <th class="text-right">Price/Yd</th>
-                            <th class="text-right">Price/Mtr</th>
-                            <th class="text-right">Total</th>
-                            <th class="text-right">Action</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="line, li : ${group.colorLines}">
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorCode}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorName}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].fabricsStyle}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorReference}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].strikeOffReference}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].labDipReference}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].loomReference}"></td>
-                            <td><input type="number" step="0.0001" class="field text-right"
-                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].quantity}"></td>
-                            <td><input type="number" step="0.000001" class="field text-right"
-                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].rate}"></td>
-                            <td><input type="number" step="0.000001" class="field text-right"
-                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].priceInMeter}"></td>
-                            <td class="text-right text-gray-500" th:text="${line.lineAmount}">—</td>
-                            <td class="text-right">
-                                <button type="button" class="btn-icon btn-sm" data-action="color-line-remove" aria-label="Remove colour"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#trash}"/></svg></button>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table></div>
-                    <button type="button" class="btn-subtle btn-sm mt-3" data-action="color-line-add"
-                            th:attr="data-group-index=${gi.index}"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add colour</button>
-                    <p class="mt-2 text-right text-xs text-gray-500" th:text="'Group total: ' + ${group.groupQuantity} + ' @ ' + ${group.groupAmount}">
-                        Group total
-                    </p>
+                <div>
+                    <label class="label" for="bkMarketingPerson">Marketing person</label>
+                    <select id="bkMarketingPerson" class="field" name="marketingPersonId" data-allow-clear
+                            data-remote="/api/booking/marketing-persons" data-placeholder="You"></select>
+                </div>
+                <div class="flex items-end">
+                    <label class="inline-flex h-9 items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input id="bkPriceInMeter" type="checkbox" class="checkbox" name="priceInMeter">
+                        <span>Price in meter</span>
+                    </label>
+                </div>
+                <div class="lg:col-span-2">
+                    <label class="label" for="bkGarments">Garments</label>
+                    <select id="bkGarments" class="field" name="garments" data-allow-clear
+                            data-remote="/api/parties/lookup?role=GARMENT_FACTORY" data-placeholder="Choose the garment factory…"
+                            data-empty-text="No garment factories yet - add one under Master data › Parties"></select>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <label class="label" for="bkGarmentsAddress">Garments address</label>
+                    <textarea id="bkGarmentsAddress" class="field" rows="2" name="garmentsAddress" maxlength="500"></textarea>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="label" for="bkRemarks">Remarks</label>
+                    <textarea id="bkRemarks" class="field" rows="2" name="remarks" maxlength="1000"></textarea>
                 </div>
             </div>
         </section>
 
+        <div class="tabs" role="tablist" data-editor-tabs>
+            <button type="button" class="tab" role="tab" data-tab="items" aria-selected="true">
+                Item detail <span class="badge-gray ml-1" data-count="groups">0</span></button>
+            <button type="button" class="tab" role="tab" data-tab="terms">
+                Terms &amp; conditions <span class="badge-gray ml-1" data-count="terms">0</span></button>
+        </div>
+
+        <!-- Item detail ------------------------------------------------------------------ -->
+        <div data-panel="items">
+            <section class="form-section" id="specEditor">
+                <div class="form-section-head">
+                    <div>
+                        <h3 class="form-section-title" data-spec-title>Add a fabric specification</h3>
+                        <p class="form-section-sub">Enter a Costing No and press Enter to fill the specification and colour plan from the costing.</p>
+                    </div>
+                </div>
+
+                <!-- costing summary, warnings and R&D note: filled by booking.js -->
+                <div class="mb-4 space-y-2" data-costing-info hidden></div>
+
+                <h4 class="section-title mb-3">Costing &amp; item</h4>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4 lg:grid-cols-6">
+                    <div class="col-span-2">
+                        <label class="label" for="spCostingCode">Fabrics costing No</label>
+                        <div class="flex gap-2">
+                            <input id="spCostingCode" class="field font-mono" data-spec="costingCode" maxlength="40"
+                                   placeholder="e.g. 18102503583" inputmode="numeric">
+                            <button type="button" class="btn-ghost shrink-0" data-action="costing-fetch" title="Fill from costing">
+                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Fetch
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="label" for="spAmendment">Amendment No</label>
+                        <input id="spAmendment" class="field" data-spec="costingAmendmentNo" readonly tabindex="-1">
+                    </div>
+                    <div>
+                        <label class="label" for="spQuotedPrice">Quot price costing</label>
+                        <input id="spQuotedPrice" class="field tabular-nums" data-spec="quotedPrice" readonly tabindex="-1">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label" for="spItem">Item <span class="req">*</span></label>
+                        <select id="spItem" class="field" data-spec-item required></select>
+                    </div>
+
+                    <div class="col-span-2">
+                        <label class="label" for="spFabricType">Fabrics type <span class="req">*</span></label>
+                        <select id="spFabricType" class="field" data-spec="fabricType" data-options="fabric-type" required></select>
+                    </div>
+                    <div>
+                        <label class="label" for="spFabricSource">In-house / Export</label>
+                        <select id="spFabricSource" class="field" data-spec="fabricSource">
+                            <option value="">—</option>
+                            <option th:each="s : ${fabricSources}" th:value="${s}" th:text="${s}">In-house</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label" for="spDispo">DISPO reference</label>
+                        <input id="spDispo" class="field" data-spec="dispoReference" maxlength="60">
+                    </div>
+                    <div>
+                        <label class="label" for="spQuality">Quality reference</label>
+                        <input id="spQuality" class="field" data-spec="qualityReference" maxlength="120">
+                    </div>
+                    <div>
+                        <label class="label" for="spStyle">Style</label>
+                        <input id="spStyle" class="field" data-spec="styleReference" maxlength="120">
+                    </div>
+
+                    <div class="col-span-2 sm:col-span-4 lg:col-span-3">
+                        <span class="label">Fabrics finish type</span>
+                        <div class="flex min-h-9 flex-wrap gap-1.5" data-finish-types></div>
+                    </div>
+                    <div class="col-span-2 sm:col-span-4 lg:col-span-3">
+                        <label class="label" for="spFinishRef">Fabrics finish type (REF)</label>
+                        <input id="spFinishRef" class="field" data-spec="finishTypeRef" maxlength="500">
+                    </div>
+                </div>
+
+                <h4 class="section-title mb-3 mt-6">Yarn &amp; construction</h4>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+                    <div><label class="label" for="spWarp1">Warp count 1 <span class="req">*</span></label>
+                        <input id="spWarp1" class="field" data-spec="warpCount1" maxlength="20" required data-construction></div>
+                    <div><label class="label" for="spWarpR1">Ratio 1 <span class="req">*</span></label>
+                        <input id="spWarpR1" type="number" step="any" min="0" class="field" data-spec="warpCountRatio1" required></div>
+                    <div><label class="label" for="spWarp2">Warp count 2</label>
+                        <input id="spWarp2" class="field" data-spec="warpCount2" maxlength="20"></div>
+                    <div><label class="label" for="spWarpR2">Ratio 2</label>
+                        <input id="spWarpR2" type="number" step="any" min="0" class="field" data-spec="warpCountRatio2"></div>
+                    <div><label class="label" for="spWarp3">Warp count 3</label>
+                        <input id="spWarp3" class="field" data-spec="warpCount3" maxlength="20"></div>
+                    <div><label class="label" for="spWarpR3">Ratio 3</label>
+                        <input id="spWarpR3" type="number" step="any" min="0" class="field" data-spec="warpCountRatio3"></div>
+
+                    <div><label class="label" for="spWeft1">Weft count 1 <span class="req">*</span></label>
+                        <input id="spWeft1" class="field" data-spec="weftCount1" maxlength="20" required data-construction></div>
+                    <div><label class="label" for="spWeftR1">Ratio 1 <span class="req">*</span></label>
+                        <input id="spWeftR1" type="number" step="any" min="0" class="field" data-spec="weftCountRatio1" required></div>
+                    <div><label class="label" for="spWeft2">Weft count 2</label>
+                        <input id="spWeft2" class="field" data-spec="weftCount2" maxlength="20"></div>
+                    <div><label class="label" for="spWeftR2">Ratio 2</label>
+                        <input id="spWeftR2" type="number" step="any" min="0" class="field" data-spec="weftCountRatio2"></div>
+                    <div><label class="label" for="spWeft3">Weft count 3</label>
+                        <input id="spWeft3" class="field" data-spec="weftCount3" maxlength="20"></div>
+                    <div><label class="label" for="spWeftR3">Ratio 3</label>
+                        <input id="spWeftR3" type="number" step="any" min="0" class="field" data-spec="weftCountRatio3"></div>
+
+                    <div><label class="label" for="spEpi">EPI <span class="req">*</span></label>
+                        <input id="spEpi" type="number" step="any" min="0" class="field" data-spec="epi" required data-construction></div>
+                    <div><label class="label" for="spPpi">PPI <span class="req">*</span></label>
+                        <input id="spPpi" type="number" step="any" min="0" class="field" data-spec="ppi" required data-construction></div>
+                    <div class="col-span-2"><label class="label" for="spConstruction">Construction <span class="req">*</span></label>
+                        <input id="spConstruction" class="field font-mono" data-spec="construction" readonly tabindex="-1"
+                               placeholder="Warp X Weft / EPI X PPI"></div>
+                    <div class="col-span-2"><label class="label" for="spPiConstruction">PI construction</label>
+                        <input id="spPiConstruction" class="field font-mono" data-spec="declaredConstruction" maxlength="60"></div>
+
+                    <div class="col-span-2 sm:col-span-3"><label class="label" for="spComposition">Composition <span class="req">*</span></label>
+                        <input id="spComposition" class="field" data-spec="composition" maxlength="120" required></div>
+                    <div class="col-span-2 sm:col-span-3"><label class="label" for="spPiComposition">PI composition</label>
+                        <input id="spPiComposition" class="field" data-spec="declaredComposition" maxlength="120"></div>
+                    <div class="col-span-2 sm:col-span-3"><label class="label" for="spWarpYarn">Warp yarn name</label>
+                        <input id="spWarpYarn" class="field" data-spec="warpYarnName" maxlength="120"></div>
+                    <div class="col-span-2 sm:col-span-3"><label class="label" for="spWeftYarn">Weft yarn name</label>
+                        <input id="spWeftYarn" class="field" data-spec="weftYarnName" maxlength="120"></div>
+                </div>
+
+                <h4 class="section-title mb-3 mt-6">Weave, finish &amp; testing</h4>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+                    <div><label class="label" for="spWeaveType">Weave type <span class="req">*</span></label>
+                        <select id="spWeaveType" class="field" data-spec="weaveType" data-options="weave-type" required></select></div>
+                    <div><label class="label" for="spWeaveStyle">Weave style</label>
+                        <select id="spWeaveStyle" class="field" data-spec="weaveStyle" data-options="weave-style"></select></div>
+                    <div><label class="label" for="spFinishWidth">Finished width (inch) <span class="req">*</span></label>
+                        <input id="spFinishWidth" type="number" step="any" min="0" class="field" data-spec="finishWidth" required></div>
+                    <div><label class="label" for="spCuttable">Cuttable width (inch) <span class="req">*</span></label>
+                        <input id="spCuttable" type="number" step="any" min="0" class="field" data-spec="cuttableWidth" required></div>
+                    <div><label class="label" for="spGsm">Calculated GSM</label>
+                        <input id="spGsm" type="number" step="any" min="0" class="field" data-spec="gsm"
+                               title="From the costing when a Costing No is given"></div>
+                    <div><label class="label" for="spLead">Lead time (days)</label>
+                        <div class="flex gap-2">
+                            <input id="spLead" type="number" step="1" min="0" class="field" data-spec="leadTimeDays">
+                            <button type="button" class="btn-icon shrink-0" data-action="lead-time" title="Booking date to delivery date">
+                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg></button>
+                        </div></div>
+
+                    <div><label class="label" for="spShrWarp">Warp shrinkage %</label>
+                        <input id="spShrWarp" class="field" data-spec="shrinkageWarp" maxlength="20" placeholder="e.g. 3-4"></div>
+                    <div><label class="label" for="spShrWeft">Weft shrinkage %</label>
+                        <input id="spShrWeft" class="field" data-spec="shrinkageWeft" maxlength="20" placeholder="e.g. 3-4"></div>
+                    <div><label class="label" for="spShrMech">Mechanical shrinkage %</label>
+                        <input id="spShrMech" class="field" data-spec="shrinkageMechanical" maxlength="20"></div>
+                    <div><label class="label" for="spGsmBefore">GSM before wash</label>
+                        <input id="spGsmBefore" type="number" step="any" min="0" class="field" data-spec="gsmBeforeWash"></div>
+                    <div><label class="label" for="spGsmAfter">GSM after wash</label>
+                        <input id="spGsmAfter" type="number" step="any" min="0" class="field" data-spec="gsmAfterWash"></div>
+                    <div><label class="label" for="spSwatch">Swatch No</label>
+                        <input id="spSwatch" class="field" data-spec="swatchNo" maxlength="60"></div>
+
+                    <div><label class="label" for="spLight">Light source</label>
+                        <select id="spLight" class="field" data-spec="lightSource" data-options="light-source"></select></div>
+                    <div><label class="label" for="spLightType">Light source type</label>
+                        <select id="spLightType" class="field" data-spec="lightSourceType">
+                            <option value="">—</option>
+                            <option th:each="s : ${lightSourceTypes}" th:value="${s}" th:text="${s}">Primary</option>
+                        </select></div>
+                    <div><label class="label" for="spBase">Base material</label>
+                        <select id="spBase" class="field" data-spec="baseMaterial">
+                            <option value="">—</option>
+                            <option th:each="s : ${baseMaterials}" th:value="${s}" th:text="${s}">As per Swatch</option>
+                        </select></div>
+                    <div><label class="label" for="spWashType">Wash type</label>
+                        <input id="spWashType" class="field" data-spec="washType" maxlength="60"></div>
+                    <div class="col-span-2"><label class="label" for="spWashInstr">Wash instruction</label>
+                        <input id="spWashInstr" class="field" data-spec="washInstruction" maxlength="200"></div>
+
+                    <div class="col-span-2"><label class="label" for="spTarget">Target quality parameter</label>
+                        <input id="spTarget" class="field" data-spec="targetQualityParameter" maxlength="200"></div>
+                    <div class="col-span-2"><label class="label" for="spEndUse">End use</label>
+                        <input id="spEndUse" class="field" data-spec="endUse" maxlength="60"></div>
+                    <div><label class="label" for="spLcTenure">LC tenure</label>
+                        <select id="spLcTenure" class="field" data-spec="lcTenure">
+                            <option value="">—</option>
+                            <option th:each="s : ${lcTenures}" th:value="${s}" th:text="${s}">90 Days</option>
+                        </select></div>
+                    <div><label class="label" for="spLcPayment">LC payment type</label>
+                        <select id="spLcPayment" class="field" data-spec="lcPaymentType">
+                            <option value="">—</option>
+                            <option th:each="s : ${lcPaymentTypes}" th:value="${s}" th:text="${s}">At Sight</option>
+                        </select></div>
+
+                    <div class="col-span-2 sm:col-span-3 lg:col-span-6"><label class="label" for="spItemDesc">Item description</label>
+                        <textarea id="spItemDesc" class="field" rows="2" data-spec="itemDescription" maxlength="1000"></textarea></div>
+                </div>
+
+                <!-- Colour breakdown of the specification being edited -->
+                <div class="mt-6 flex flex-wrap items-center justify-between gap-2">
+                    <h4 class="section-title">Colour breakdown</h4>
+                    <button type="button" class="btn-subtle btn-sm" data-action="color-add">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add colour</button>
+                </div>
+                <div class="table-wrap -mx-5 mt-2 border-y border-gray-100 dark:border-gray-800">
+                    <table class="table-grid table-edit min-w-[1100px]" id="colorTable">
+                        <thead>
+                        <tr>
+                            <th class="w-28">Color code</th>
+                            <th>Color name</th>
+                            <th>Fabrics style</th>
+                            <th>Color ref.</th>
+                            <th>Strike off ref.</th>
+                            <th>Lab dip ref.</th>
+                            <th class="w-24">Loom ref.</th>
+                            <th class="w-28 text-right">Quantity <span class="req">*</span></th>
+                            <th class="w-28 text-right" data-price-head="yard">Price / yd <span class="req">*</span></th>
+                            <th class="w-28 text-right" data-price-head="meter">Price / m</th>
+                            <th class="w-32 text-right">Total</th>
+                            <th>Remarks</th>
+                            <th class="w-px"></th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-xs text-gray-500" data-color-empty>No colours yet — fetch a costing, or add them one by one.</p>
+
+                <div class="mt-5 flex flex-wrap items-center justify-end gap-2">
+                    <button type="button" class="btn-ghost" data-action="spec-reset">Clear</button>
+                    <button type="button" class="btn-primary" data-action="spec-commit">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg><span data-commit-label>Add to booking</span></button>
+                </div>
+            </section>
+
+            <!-- Specifications already on the booking -->
+            <section class="form-section">
+                <div class="form-section-head">
+                    <h3 class="form-section-title">Specifications on this booking</h3>
+                </div>
+                <div class="table-wrap -mx-5">
+                    <table class="table-grid" id="specTable">
+                        <thead>
+                        <tr>
+                            <th class="w-10">SL</th>
+                            <th>Item</th>
+                            <th>Construction</th>
+                            <th>Composition</th>
+                            <th>Weave</th>
+                            <th class="text-right">Width (fin./cut.)</th>
+                            <th>Colour breakdown</th>
+                            <th class="w-px">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Terms & conditions ------------------------------------------------------------ -->
+        <div data-panel="terms" hidden>
+            <section class="form-section">
+                <div class="form-section-head">
+                    <div>
+                        <h3 class="form-section-title">Terms &amp; conditions</h3>
+                        <p class="form-section-sub">A new booking starts with the default clauses from Master data › Terms &amp; conditions. Edit, remove or add to them - this booking keeps its own copy.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" class="btn-ghost btn-sm" data-action="terms-library">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Standard clause</button>
+                        <button type="button" class="btn-ghost btn-sm" data-action="terms-defaults">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset to defaults</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_8rem_auto] sm:items-end">
+                    <div>
+                        <label class="label" for="tcBody">Body text <span class="req">*</span></label>
+                        <textarea id="tcBody" class="field" rows="2" maxlength="2000"></textarea>
+                    </div>
+                    <div>
+                        <label class="label" for="tcSerial">Serial No <span class="req">*</span></label>
+                        <input id="tcSerial" type="number" min="1" step="1" class="field">
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" class="btn-ghost" data-action="term-cancel" hidden>Cancel</button>
+                        <button type="button" class="btn-primary" data-action="term-commit">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg><span data-term-label>Add</span></button>
+                    </div>
+                </div>
+            </section>
+            <section class="form-section">
+                <div class="table-wrap -mx-5">
+                    <table class="table-grid" id="termsTable">
+                        <thead>
+                        <tr>
+                            <th class="w-16">Serial</th>
+                            <th>Body text</th>
+                            <th class="w-px">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
         <div class="form-actions">
-            <button type="submit" class="btn-primary"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
+            <button type="submit" class="btn-primary">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
             <button type="button" class="btn-ghost" data-editor-close>Cancel</button>
-            <p class="ml-auto text-sm text-gray-600">Total quantity <span class="font-semibold tabular-nums text-gray-900" th:text="*{totalQuantity}">0</span> · Amount <span class="font-semibold tabular-nums text-gray-900" th:text="*{subtotalAmount}">0</span></p>
+            <p class="ml-auto text-sm text-gray-600 dark:text-gray-400">
+                Total quantity <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-total="qty">0</span>
+                · Amount <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-total="amount">0</span></p>
         </div>
     </form>
 
-    <!-- Submit / approve / reject / revise live in the review drawer (App.DocumentScreen), which
-         calls the generic /api/documents/{id}/... endpoints; the server is the gate. -->
-    <script th:inline="javascript">
-        document.addEventListener('DOMContentLoaded', () => new App.DocumentScreen({
-            kind: 'Booking', api: '/api/booking', table: 'bookingTable', form: 'bookingForm', revise: true
-        }));
-    </script>
+    <script th:src="@{/js/booking.js}" defer></script>
 
 </div>
 </body>

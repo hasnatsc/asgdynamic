@@ -28,6 +28,8 @@ class NumberPatternTest {
         assertThat(render("{PREFIX}/{BRANCH}/{YY}{SEQ}", "SO", 7, 4, 1)).isEqualTo("SO/AF/260007");
         assertThat(render("{PREFIX}{BRANCH}{SEQ}", "BPO", 1, 6, 1)).isEqualTo("BPOAF000001");   // the legacy layout
         assertThat(render("{PREFIX}-{YYYY}-{SEQ}", "SO", 1, 3, 1)).isEqualTo("SO-2026-001");
+        // V20: customers continue the legacy CAF000001..CAF000130 series.
+        assertThat(render("{PREFIX}{SEQ}", "CAF", 131, 6, 1)).isEqualTo("CAF000131");
     }
 
     @Test

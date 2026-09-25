@@ -134,9 +134,31 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
     public String getRemarks()                           { return remarks; }
     public void setRemarks(String v)                     { this.remarks = v; }
 
-    /** Authoritative line maths. Invoked from the group/document's recalculateTotals(). */
+    /** One yard in metres - exact by definition, so the conversion never drifts. */
+    public static final BigDecimal METRES_PER_YARD = new BigDecimal("0.9144");
+
+    /** Authoritative line maths for a yard-priced document. */
     public void recalculate() {
-        this.lineAmount = quantity.multiply(rate).setScale(6, RoundingMode.HALF_UP);
+        recalculate(false);
+    }
+
+    /**
+     * Authoritative line maths. Invoked from the document's recalculateTotals().
+     *
+     * <p>The price the buyer was quoted in is the one entered; the other unit is derived, so the
+     * two can never disagree. Yard-priced (the usual case): price per metre = price per yard /
+     * 0.9144 - the legacy screen's 4.10/yd beside 4.48/m. Metre-priced: price per yard = price
+     * per metre x 0.9144, and the quantity is in metres, so the amount is taken in metres.
+     */
+    public void recalculate(boolean pricedInMeter) {
+        if (pricedInMeter) {
+            BigDecimal perMetre = priceInMeter == null ? BigDecimal.ZERO : priceInMeter;
+            this.rate = perMetre.multiply(METRES_PER_YARD).setScale(6, RoundingMode.HALF_UP);
+            this.lineAmount = quantity.multiply(perMetre).setScale(6, RoundingMode.HALF_UP);
+        } else {
+            this.priceInMeter = rate.divide(METRES_PER_YARD, 6, RoundingMode.HALF_UP);
+            this.lineAmount = quantity.multiply(rate).setScale(6, RoundingMode.HALF_UP);
+        }
     }
 
     public BigDecimal outstandingQuantity() {

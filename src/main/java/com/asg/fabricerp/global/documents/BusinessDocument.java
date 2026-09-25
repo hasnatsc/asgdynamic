@@ -7,6 +7,8 @@ import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.common.Warehouse;
 import com.asg.fabricerp.party.Party;
 import com.asg.fabricerp.common.ScopeDimension;
+import com.asg.fabricerp.security.FabricUser;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
@@ -143,9 +145,65 @@ public class BusinessDocument extends BaseOrgEntity {
     @Column(name = "total_quantity", nullable = false, precision = 20, scale = 6)
     private BigDecimal totalQuantity = BigDecimal.ZERO;
 
+    // --- sales header: Booking's, inherited by the documents raised against it ---
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "booking_type", length = 20)
+    private BookingType bookingType;
+
+    /** Legacy "Type of order" ({@code specialType}). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_type", length = 20)
+    private OrderType orderType;
+
+    /** The label the fabric carries; a party holding {@code BRAND}. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "brand_id", foreignKey = @ForeignKey(name = "fk_gbd_brand"))
+    private Party brand;
+
+    /** The factory that will cut the fabric; a party holding {@code GARMENT_FACTORY}. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "garments_id", foreignKey = @ForeignKey(name = "fk_gbd_garments"))
+    private Party garments;
+
+    @Column(name = "garments_address", length = 500)
+    private String garmentsAddress;
+
+    /** The buyer name the costing was raised for - shown beside the booking's own buyer. */
+    @Column(name = "pre_cost_buyer", length = 150)
+    private String preCostBuyer;
+
+    /**
+     * The buyer is quoted per metre: colour lines take their price in metres and quantities in
+     * metres, and the yard price is derived. Off (the usual case), the reverse.
+     */
+    @Column(name = "price_in_meter", nullable = false)
+    private Boolean priceInMeter = Boolean.FALSE;
+
+    /**
+     * Never bound from JSON - a user row is not something a request body gets to describe.
+     * The request names {@link #marketingPersonId}; {@link DocumentReferences} resolves it.
+     */
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "marketing_person_id", foreignKey = @ForeignKey(name = "fk_gbd_marketing_person"))
+    private FabricUser marketingPerson;
+
+    @Transient
+    private Long marketingPersonId;
+
     @Valid
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BusinessDocumentLineGroup> lineGroups = new ArrayList<>();
+
+    @Valid
+    @OrderBy("serialNo ASC")
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BusinessDocumentTerm> terms = new ArrayList<>();
+
+    /** Whether the request said anything about terms: absent on create means "the defaults". */
+    @Transient
+    private boolean termsSubmitted;
 
     public String getDocumentNo()               { return documentNo; }
     public void setDocumentNo(String v)         { this.documentNo = v; }
@@ -181,6 +239,50 @@ public class BusinessDocument extends BaseOrgEntity {
     public BigDecimal getSubtotalAmount()       { return subtotalAmount; }
     public BigDecimal getTotalQuantity()        { return totalQuantity; }
     public List<BusinessDocumentLineGroup> getLineGroups() { return lineGroups; }
+    public BookingType getBookingType()         { return bookingType; }
+    public void setBookingType(BookingType v)   { this.bookingType = v; }
+    public OrderType getOrderType()             { return orderType; }
+    public void setOrderType(OrderType v)       { this.orderType = v; }
+    public Party getBrand()                     { return brand; }
+    public void setBrand(Party v)               { this.brand = v; }
+    public Party getGarments()                  { return garments; }
+    public void setGarments(Party v)            { this.garments = v; }
+    public String getGarmentsAddress()          { return garmentsAddress; }
+    public void setGarmentsAddress(String v)    { this.garmentsAddress = v; }
+    public String getPreCostBuyer()             { return preCostBuyer; }
+    public void setPreCostBuyer(String v)       { this.preCostBuyer = v; }
+    public boolean isPriceInMeter()             { return Boolean.TRUE.equals(priceInMeter); }
+    public void setPriceInMeter(Boolean v)      { this.priceInMeter = Boolean.TRUE.equals(v); }
+    public FabricUser getMarketingPerson()      { return marketingPerson; }
+    public void setMarketingPerson(FabricUser v) { this.marketingPerson = v; }
+    public Long getMarketingPersonId()          { return marketingPersonId; }
+    public void setMarketingPersonId(Long v)    { this.marketingPersonId = v; }
+    public List<BusinessDocumentTerm> getTerms() { return terms; }
+    public boolean isTermsSubmitted()           { return termsSubmitted; }
+
+    public void setTerms(List<BusinessDocumentTerm> incoming) {
+        this.termsSubmitted = true;
+        this.terms.clear();
+        if (incoming != null) incoming.forEach(this::addTerm);
+    }
+
+    public void addTerm(BusinessDocumentTerm term) {
+        term.setDocument(this);
+        term.setOrganizationId(getOrganizationId());
+        this.terms.add(term);
+    }
+
+    /**
+     * Blank clauses dropped, the rest ordered by the serial the user gave them and renumbered
+     * 1..n - the user's serial says where a clause goes, not what number it keeps.
+     */
+    public void normalizeTerms() {
+        terms.removeIf(t -> t.getBodyText() == null || t.getBodyText().isBlank());
+        terms.sort(java.util.Comparator.comparing(
+            BusinessDocumentTerm::getSerialNo, java.util.Comparator.nullsLast(Integer::compare)));
+        int serial = 1;
+        for (BusinessDocumentTerm term : terms) term.setSerialNo(serial++);
+    }
 
     /**
      * ADM-3: whether this document is within a user's row scope. Must agree exactly with the
@@ -242,7 +344,7 @@ public class BusinessDocument extends BaseOrgEntity {
         BigDecimal qty = BigDecimal.ZERO;
         for (BusinessDocumentLineGroup group : lineGroups) {
             for (BusinessDocumentColorLine colorLine : group.getColorLines()) {
-                colorLine.recalculate();
+                colorLine.recalculate(isPriceInMeter());
             }
             amount = amount.add(group.groupAmount());
             qty = qty.add(group.groupQuantity());

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  Global terms & conditions - the organization's standard clauses per document type. Clauses
+  marked "default" are copied onto every new document of that type, in sort order; the
+  document then owns its copy.
+-->
+<head>
+    <title>Terms &amp; conditions</title>
+</head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Terms &amp; conditions</h1>
+            <p class="page-sub">Standard clauses. Defaults are copied onto every new document of their type, where they can still be edited.</p>
+        </div>
+        <div class="page-actions" sec:authorize="hasAuthority('SCREEN_TERMS_CREATE')">
+            <button type="button" class="btn-primary" data-action="tc-new">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New clause
+            </button>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div class="card min-w-0 overflow-hidden">
+            <div class="toolbar">
+                <div class="input-icon w-full sm:w-72">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                    <input id="tcSearch" type="search" class="field pr-8" placeholder="Search caption or text"
+                           aria-label="Search" data-search autocomplete="off">
+                    <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+                </div>
+                <select id="tcTypeFilter" class="field w-auto" aria-label="Document type">
+                    <option value="">All document types</option>
+                    <option th:each="t : ${conditionTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
+                </select>
+            </div>
+            <div class="table-wrap">
+                <table id="termsGrid" class="table-grid table-stack">
+                    <thead>
+                    <tr>
+                        <th data-sort="conditionType">Type</th>
+                        <th data-sort="caption">Caption</th>
+                        <th>Clause</th>
+                        <th data-sort="isDefault">Default</th>
+                        <th data-sort="sortOrder" class="text-right">Order</th>
+                        <th data-sort="active">Status</th>
+                        <th class="w-px">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="tcPager" class="pager"></div>
+        </div>
+
+        <form id="tcForm" class="card h-fit xl:sticky xl:top-24" novalidate>
+            <input type="hidden" name="id">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title" data-title>New clause</h2>
+                    <p class="card-sub">Wording changes apply to new documents only.</p>
+                </div>
+            </div>
+            <div class="space-y-4 p-5">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label" for="tcType">Document type <span class="req">*</span></label>
+                        <select id="tcType" class="field" name="conditionType" required>
+                            <option th:each="t : ${conditionTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label" for="tcOrder">Sort order <span class="req">*</span></label>
+                        <input id="tcOrder" type="number" class="field" name="sortOrder" min="0" step="1" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="label" for="tcCaption">Caption <span class="req">*</span></label>
+                    <input id="tcCaption" class="field" name="caption" maxlength="150" required
+                           placeholder="e.g. Dead yarn">
+                </div>
+                <div>
+                    <label class="label" for="tcText">Clause <span class="req">*</span></label>
+                    <textarea id="tcText" class="field" name="bodyText" rows="4" maxlength="2000" required></textarea>
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" class="checkbox mt-0.5" name="isDefault">
+                        <span><span class="font-medium">Default</span> — added to every new document of this type</span>
+                    </label>
+                    <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" class="checkbox mt-0.5" name="active">
+                        <span><span class="font-medium">Active</span> — offered on documents</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save</button>
+                <button type="button" class="btn-ghost" data-action="tc-reset">Reset</button>
+            </div>
+        </form>
+    </div>
+
+    <span sec:authorize="hasAuthority('SCREEN_TERMS_AMEND')" id="canEdit" hidden></span>
+    <span sec:authorize="hasAuthority('SCREEN_TERMS_DELETE')" id="canDelete" hidden></span>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const endpoint = '/api/setup/terms';
+            const form = document.getElementById('tcForm');
+            const f = name => form.elements.namedItem(name);
+            const canEdit = !!document.getElementById('canEdit');
+            const canDelete = !!document.getElementById('canDelete');
+            const typeFilter = document.getElementById('tcTypeFilter');
+
+            const grid = new App.Grid({
+                url: endpoint,
+                table: document.getElementById('termsGrid'),
+                search: document.getElementById('tcSearch'),
+                pager: document.getElementById('tcPager'),
+                sort: { column: 'sortOrder', dir: 'asc' },
+                params: () => ({ type: typeFilter.value }),
+                emptyText: 'No clauses yet. Write the first one with the form.',
+                emptyIcon: 'document',
+                columns: [
+                    r => `<span class="badge-gray">${App.esc(r.conditionTypeLabel)}</span>`,
+                    r => `<span class="font-medium text-gray-900 dark:text-white">${App.esc(r.caption)}</span>`,
+                    r => `<span class="line-clamp-2 max-w-xl text-gray-600 dark:text-gray-300">${App.esc(r.bodyText)}</span>`,
+                    r => r.isDefault ? '<span class="badge-brand">Default</span>' : '<span class="text-gray-400">—</span>',
+                    r => `<span class="block text-right tabular-nums">${App.esc(r.sortOrder)}</span>`,
+                    r => r.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>',
+                    r => App.rowActions(App.recordButtons(r.id, canEdit),
+                        canDelete ? App.rowButton('Delete', 'trash', `data-delete="${r.id}"`, 'text-red-700') : '')
+                ],
+                onRowClick: row => view(row)
+            });
+            grid.reload(true);
+            typeFilter.addEventListener('change', () => grid.reload(true));
+
+            function view(row) {
+                App.viewRecord({
+                    title: row.caption, subtitle: row.conditionTypeLabel + ' clause',
+                    fields: [['Clause', `<span class="whitespace-pre-line">${App.esc(row.bodyText)}</span>`],
+                             ['Default', row.isDefault ? 'Yes - added to new documents' : 'No'],
+                             ['Sort order', App.esc(row.sortOrder)],
+                             ['Status', row.active ? 'Active' : 'Inactive']],
+                    canEdit, onEdit: () => edit(row)
+                });
+            }
+
+            function edit(row) {
+                f('id').value = row ? row.id : '';
+                f('conditionType').value = row ? row.conditionType : (typeFilter.value || 'BOOKING');
+                f('sortOrder').value = row ? row.sortOrder : (grid.rows.length + 1);
+                f('caption').value = row ? row.caption : '';
+                f('bodyText').value = row ? row.bodyText : '';
+                f('isDefault').checked = row ? !!row.isDefault : true;
+                f('active').checked = row ? !!row.active : true;
+                form.querySelector('[data-title]').textContent = row ? 'Edit ' + row.caption : 'New clause';
+                f('caption').focus();
+            }
+            edit(null);
+
+            document.querySelector('[data-action="tc-new"]')?.addEventListener('click', () => edit(null));
+            form.querySelector('[data-action="tc-reset"]').addEventListener('click', () => edit(null));
+
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (!form.reportValidity()) return;
+                const body = {
+                    id: f('id').value ? Number(f('id').value) : null,
+                    conditionType: f('conditionType').value,
+                    sortOrder: Number(f('sortOrder').value || 0),
+                    caption: f('caption').value.trim(),
+                    bodyText: f('bodyText').value.trim(),
+                    isDefault: f('isDefault').checked,
+                    active: f('active').checked
+                };
+                try {
+                    await App.api(endpoint, { method: 'POST', body });
+                    App.toast(body.id ? 'Clause saved.' : 'Clause added.', 'success');
+                    edit(null);
+                    grid.reload();
+                } catch (error) { App.fail(error); }
+            });
+
+            document.getElementById('termsGrid').addEventListener('click', async event => {
+                const find = id => grid.rows.find(r => String(r.id) === id);
+                const v = event.target.closest('[data-view]');
+                if (v) { view(find(v.dataset.view)); return; }
+                const e = event.target.closest('[data-edit]');
+                if (e) { edit(find(e.dataset.edit)); return; }
+                const d = event.target.closest('[data-delete]');
+                if (!d) return;
+                const row = find(d.dataset.delete);
+                if (!await App.confirm({ title: `Delete “${row ? row.caption : 'this clause'}”?`,
+                        message: 'Documents that already carry it keep their copy.', confirmText: 'Delete', danger: true })) return;
+                try {
+                    await App.api(`${endpoint}/${d.dataset.delete}`, { method: 'DELETE' });
+                    App.toast('Clause deleted.', 'success');
+                    grid.reload();
+                } catch (error) { App.fail(error); }
+            });
+        });
+    </script>
+</div>
+</body>
+</html>

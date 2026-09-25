@@ -47,7 +47,8 @@ public class FabricSpec {
     @Column(name = "fabric_type", length = 60)
     private String fabricType;         // Greige Solid Dyed, Greige Indigo Denim ...
 
-    @Column(name = "finish_type", length = 60)
+    /** Multi-select on the legacy form: several finish names, comma-separated. */
+    @Column(name = "finish_type", length = 300)
     private String finishType;         // Aero Finish, Both Side Peach, Brush ...
 
     @Column(name = "composition", length = 120)
@@ -114,6 +115,44 @@ public class FabricSpec {
      */
     @Column(name = "costing_code", length = 40)
     private String costingCode;
+
+    // --- the rest of the legacy Booking spec form (create_so_dtlSet_*) ---
+
+    /** Costing amendment the figures came from; stamped from the costing system on save. */
+    @Column(name = "costing_amendment_no", length = 10) private String costingAmendmentNo;
+
+    /** In-house or Export: where the fabric is made. The unlabelled select beside Fabrics Type. */
+    @Column(name = "fabric_source", length = 20) private String fabricSource;
+
+    @Column(name = "finish_type_ref", length = 500) private String finishTypeRef;
+    @Column(name = "quality_reference", length = 120) private String qualityReference;
+    /** Legacy "Style" ({@code designReference}). */
+    @Column(name = "style_reference", length = 120) private String styleReference;
+
+    /**
+     * "Quot Price Costing": the price per yard the costing system quoted. Snapshotted from the
+     * costing on save, never taken from the request - it is the benchmark a booking's own price
+     * is judged against.
+     */
+    @Column(name = "quoted_price", precision = 20, scale = 6) private BigDecimal quotedPrice;
+
+    /** Break-even per yard at the time of booking. Same provenance as {@link #quotedPrice}. */
+    @Column(name = "break_even_price", precision = 20, scale = 6) private BigDecimal breakEvenPrice;
+
+    @Column(name = "warp_yarn_name", length = 120) private String warpYarnName;
+    @Column(name = "weft_yarn_name", length = 120) private String weftYarnName;
+
+    /** Primary or Secondary - pairs with {@link #lightSource}. */
+    @Column(name = "light_source_type", length = 20) private String lightSourceType;
+    /** "As per Swatch" / "As per Specification" (legacy {@code sampleType}). */
+    @Column(name = "base_material", length = 40) private String baseMaterial;
+    @Column(name = "swatch_no", length = 60) private String swatchNo;
+
+    @Column(name = "lc_tenure", length = 30) private String lcTenure;
+    @Column(name = "lc_payment_type", length = 30) private String lcPaymentType;
+    @Column(name = "lead_time_days") private Integer leadTimeDays;
+    @Column(name = "target_quality_parameter", length = 200) private String targetQualityParameter;
+    @Column(name = "item_description", length = 1000) private String itemDescription;
 
     public String getConstruction()               { return construction; }
     public void setConstruction(String v)         { this.construction = v; }
@@ -188,7 +227,41 @@ public class FabricSpec {
     public String getDispoReference()             { return dispoReference; }
     public void setDispoReference(String v)       { this.dispoReference = v; }
     public String getCostingCode()                { return costingCode; }
-    public void setCostingCode(String v)          { this.costingCode = v; }
+    public void setCostingCode(String v)          { this.costingCode = v == null ? null : v.trim(); }
+    public String getCostingAmendmentNo()         { return costingAmendmentNo; }
+    public void setCostingAmendmentNo(String v)   { this.costingAmendmentNo = v; }
+    public String getFabricSource()               { return fabricSource; }
+    public void setFabricSource(String v)         { this.fabricSource = v; }
+    public String getFinishTypeRef()              { return finishTypeRef; }
+    public void setFinishTypeRef(String v)        { this.finishTypeRef = v; }
+    public String getQualityReference()           { return qualityReference; }
+    public void setQualityReference(String v)     { this.qualityReference = v; }
+    public String getStyleReference()             { return styleReference; }
+    public void setStyleReference(String v)       { this.styleReference = v; }
+    public BigDecimal getQuotedPrice()            { return quotedPrice; }
+    public void setQuotedPrice(BigDecimal v)      { this.quotedPrice = v; }
+    public BigDecimal getBreakEvenPrice()         { return breakEvenPrice; }
+    public void setBreakEvenPrice(BigDecimal v)   { this.breakEvenPrice = v; }
+    public String getWarpYarnName()               { return warpYarnName; }
+    public void setWarpYarnName(String v)         { this.warpYarnName = v; }
+    public String getWeftYarnName()               { return weftYarnName; }
+    public void setWeftYarnName(String v)         { this.weftYarnName = v; }
+    public String getLightSourceType()            { return lightSourceType; }
+    public void setLightSourceType(String v)      { this.lightSourceType = v; }
+    public String getBaseMaterial()               { return baseMaterial; }
+    public void setBaseMaterial(String v)         { this.baseMaterial = v; }
+    public String getSwatchNo()                   { return swatchNo; }
+    public void setSwatchNo(String v)             { this.swatchNo = v; }
+    public String getLcTenure()                   { return lcTenure; }
+    public void setLcTenure(String v)             { this.lcTenure = v; }
+    public String getLcPaymentType()              { return lcPaymentType; }
+    public void setLcPaymentType(String v)        { this.lcPaymentType = v; }
+    public Integer getLeadTimeDays()              { return leadTimeDays; }
+    public void setLeadTimeDays(Integer v)        { this.leadTimeDays = v; }
+    public String getTargetQualityParameter()     { return targetQualityParameter; }
+    public void setTargetQualityParameter(String v) { this.targetQualityParameter = v; }
+    public String getItemDescription()            { return itemDescription; }
+    public void setItemDescription(String v)      { this.itemDescription = v; }
 
     public boolean hasCostingCode() {
         return costingCode != null && !costingCode.isBlank();

@@ -34,10 +34,13 @@ public class CostingService {
     private final WebClient client;
     private final CostingProperties props;
     private final ObjectMapper mapper;
+    private final CostingTranslator translator;
 
-    public CostingService(WebClient.Builder builder, CostingProperties props, ObjectMapper mapper) {
+    public CostingService(WebClient.Builder builder, CostingProperties props, ObjectMapper mapper,
+                          CostingTranslator translator) {
         this.props = props;
         this.mapper = mapper;
+        this.translator = translator;
         this.client = builder.baseUrl(props.baseUrl()).build();
     }
 
@@ -68,9 +71,10 @@ public class CostingService {
 
         } catch (WebClientResponseException.BadRequest e) {
             throw new CostingUnavailableException(
-                ("Costing service rejected the request for code %s. The upstream returns an "
-               + "identical error for unknown-code and authentication failure, so the cause "
-               + "cannot be determined from the response.").formatted(code), e);
+                // The upstream answers unknown code and bad credentials identically, so the
+                // message has to name both rather than guess which it was.
+                ("Costing %s was not found - check the number. If it is right, the costing "
+               + "service refused the ERP's credentials (asg.costing.user / password).").formatted(code), e);
         } catch (CostingUnavailableException e) {
             throw e;
         } catch (Exception e) {
@@ -89,11 +93,7 @@ public class CostingService {
      */
     public BigDecimal applyTo(FabricSpec spec) {
         FabricCost cost = fetch(spec.getCostingCode());
-        spec.setGsm(cost.gsm());
-        if (isBlank(spec.getConstruction()))          spec.setConstruction(cost.construction());
-        if (isBlank(spec.getDeclaredConstruction()))  spec.setDeclaredConstruction(cost.declaredConstruction());
-        if (isBlank(spec.getComposition()))           spec.setComposition(cost.composition());
-        if (spec.getCuttableWidth() == null)          spec.setCuttableWidth(cost.cuttableWidth());
+        translator.stamp(cost, spec);
         return cost.breakEvenPriceYds();
     }
 

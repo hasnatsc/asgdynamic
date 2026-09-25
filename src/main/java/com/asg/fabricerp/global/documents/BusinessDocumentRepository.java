@@ -52,8 +52,35 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
     default Optional<BusinessDocument> findScopedWithLines(Long id, Long orgId) {
         Optional<BusinessDocument> document = findScopedWithGroups(id, orgId);
         document.ifPresent(this::fetchColorLines);
+        document.ifPresent(this::fetchTerms);
         return document;
     }
+
+    /** Use {@link #findScopedWithLines}: initialises a loaded document's terms & conditions. */
+    @Query("""
+           select d from BusinessDocument d
+             left join fetch d.terms
+           where d = :document
+           """)
+    BusinessDocument fetchTerms(@Param("document") BusinessDocument document);
+
+    /**
+     * Numbers of the live documents of one type whose specifications quote a costing code -
+     * so a second booking against the same costing is visible before it is saved, not found
+     * later in a report.
+     */
+    @Query("""
+           select distinct d.documentNo from BusinessDocumentLineGroup g
+             join g.document d
+           where g.organizationId = :orgId
+             and d.documentType = :type
+             and d.deleted = false
+             and g.fabric.costingCode = :code
+             and (:excludeId is null or d.id <> :excludeId)
+           order by d.documentNo
+           """)
+    List<String> documentNosQuotingCosting(@Param("orgId") Long orgId, @Param("type") DocumentType type,
+                                           @Param("code") String code, @Param("excludeId") Long excludeId);
 
     /** Use {@link #findScopedWithLines}: this loads only the first level. */
     @EntityGraph(attributePaths = "lineGroups")

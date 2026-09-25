@@ -92,6 +92,7 @@ public final class Navigation {
             case ITEM_SETUP     -> "tag";
             case PARTY          -> "users";
             case FABRIC_SETUP   -> "swatch";
+            case TERMS          -> "document";
             case ACC_CHART      -> "ledger";
             case ACC_JOURNAL    -> "journal";
             case ACC_REPORTS    -> "chart-bar";
