@@ -70,6 +70,8 @@ public class PartyRole extends BaseOrgLineEntity {
         return this.roleType == type && Objects.equals(this.qualifier, q);
     }
 
+    void setRoleCode(String code) { this.roleCode = code; }
+
     void revoke(LocalDate on) {
         this.current = Boolean.FALSE;
         this.revokedOn = on;

@@ -22,6 +22,7 @@ public enum Screen {
     GR("Greige receive", Section.PRODUCTION, "/greige-receive"),
     ITEM("Items", Section.INVENTORY, "/inventory/items"),
     ITEM_SETUP("Item setup", Section.INVENTORY, "/inventory/categories"),
+    PARTY("Parties", Section.SETUP, "/setup/parties"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
     SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security");
 

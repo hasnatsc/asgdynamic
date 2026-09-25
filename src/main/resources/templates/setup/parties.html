@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  Party directory and editor. Built for a directory in the tens of thousands: paging, sorting,
+  searching and the role counts all happen in the database; a page of rows is one query plus three
+  batched lookups (roles, primary contact, primary address). Filter state lives in the URL, so a
+  filtered view can be bookmarked or sent, and ?id= opens a party directly.
+-->
+<head><title th:text="${title}">Parties</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Parties</h1>
+            <p class="page-sub">Every customer, supplier, bank and agent - one record per company, whatever it is to us.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a id="partyExportBtn" class="btn-ghost" href="/api/setup/parties/export.csv" download
+               title="Download the parties matching the current filters">
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z"/><path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z"/></svg>
+                Export CSV
+            </a>
+            <button type="button" class="btn-primary" id="partyNewBtn"
+                    sec:authorize="hasAuthority('SCREEN_PARTY_CREATE')">
+                <span aria-hidden="true">+</span> New party
+            </button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <!-- Role filter, with live counts -->
+        <div class="flex gap-2 overflow-x-auto border-b border-slate-200 px-4 py-3" id="roleChips"
+             role="group" aria-label="Filter by role">
+            <button type="button" class="chip" data-role="" aria-pressed="true">All <span class="chip-count" data-count="">…</span></button>
+            <button type="button" class="chip" data-role="CUSTOMER" aria-pressed="false">Customers <span class="chip-count" data-count="CUSTOMER">…</span></button>
+            <button type="button" class="chip" data-role="SUPPLIER" aria-pressed="false">Suppliers <span class="chip-count" data-count="SUPPLIER">…</span></button>
+            <button type="button" class="chip" data-role="BUYING_HOUSE" aria-pressed="false">Buying houses <span class="chip-count" data-count="BUYING_HOUSE">…</span></button>
+            <button type="button" class="chip" data-role="BRAND" aria-pressed="false">Brands <span class="chip-count" data-count="BRAND">…</span></button>
+            <button type="button" class="chip" data-role="GARMENT_FACTORY" aria-pressed="false">Garment factories <span class="chip-count" data-count="GARMENT_FACTORY">…</span></button>
+            <button type="button" class="chip" data-role="AGENT" aria-pressed="false">Agents <span class="chip-count" data-count="AGENT">…</span></button>
+            <button type="button" class="chip" data-role="BANK" aria-pressed="false">Banks <span class="chip-count" data-count="BANK">…</span></button>
+            <button type="button" class="chip" data-role="EMPLOYEE" aria-pressed="false">Employees <span class="chip-count" data-count="EMPLOYEE">…</span></button>
+        </div>
+
+        <div class="toolbar">
+            <div class="relative w-full sm:w-96">
+                <input id="partySearch" type="search" class="field pr-8"
+                       placeholder="Search code, name, TIN / BIN or a customer/supplier code"
+                       aria-label="Search parties" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select id="partyType" class="field w-auto" aria-label="Filter by type">
+                <option value="">Any type</option>
+                <option value="ORGANISATION">Organisations</option>
+                <option value="INDIVIDUAL">Individuals</option>
+            </select>
+            <select id="partyStatus" class="field w-auto" aria-label="Filter by status">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+                <option value="">Active and inactive</option>
+            </select>
+            <span class="ml-auto hidden text-xs text-slate-500 lg:inline" id="inactiveNote"></span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table id="partyTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th data-sort="code" class="w-32">Code</th>
+                    <th data-sort="name">Party</th>
+                    <th>Roles</th>
+                    <th>Primary contact</th>
+                    <th>Location</th>
+                    <th>TIN / BIN</th>
+                    <th data-sort="active">Status</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="partyPager" class="pager"></div>
+    </div>
+
+    <!-- ============================== Editor ============================== -->
+    <dialog id="partyDialog" class="modal modal-xl" data-sticky aria-labelledby="partyDialogTitle">
+        <form id="partyForm" novalidate>
+            <div class="modal-head">
+                <div class="flex min-w-0 items-center gap-3">
+                    <span class="avatar h-11 w-11 text-sm" id="partyAvatar">+</span>
+                    <div class="min-w-0">
+                        <h2 id="partyDialogTitle" class="truncate text-base font-semibold text-slate-900">New party</h2>
+                        <p id="partyDialogSub" class="text-sm text-slate-500">One record per company - give it every role it plays.</p>
+                        <div id="partyHeaderRoles" class="mt-1 flex flex-wrap gap-1"></div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="partyUsage" class="badge-gray" hidden></span>
+                    <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
+                </div>
+            </div>
+
+            <div id="partyTabs">
+                <div class="tabs" role="tablist">
+                    <button type="button" class="tab" role="tab" data-tab="general" aria-selected="true">General</button>
+                    <button type="button" class="tab" role="tab" data-tab="roles">Roles <span class="badge-gray ml-1" data-tab-count="roles">0</span></button>
+                    <button type="button" class="tab" role="tab" data-tab="addresses">Addresses <span class="badge-gray ml-1" data-tab-count="addresses">0</span></button>
+                    <button type="button" class="tab" role="tab" data-tab="contacts">Contacts <span class="badge-gray ml-1" data-tab-count="contacts">0</span></button>
+                    <button type="button" class="tab" role="tab" data-tab="accounts">Bank accounts <span class="badge-gray ml-1" data-tab-count="accounts">0</span></button>
+                    <button type="button" class="tab" role="tab" data-tab="details">Other details <span class="badge-gray ml-1" data-tab-count="details">0</span></button>
+                </div>
+
+                <div class="modal-body min-h-[26rem]">
+
+                    <!-- ---------- General ---------- -->
+                    <div data-panel="general" class="space-y-5">
+                        <div class="grid gap-4 sm:grid-cols-6">
+                            <div class="sm:col-span-2">
+                                <label class="label" for="pCode">Code</label>
+                                <input id="pCode" class="field font-mono uppercase" maxlength="40" autocomplete="off" spellcheck="false"
+                                       placeholder="Blank: numbered on save">
+                                <p class="hint" id="pCodeHint">Printed on documents. Fixed once saved.</p>
+                            </div>
+                            <div class="sm:col-span-3">
+                                <label class="label" for="pName">Trading name</label>
+                                <input id="pName" class="field" maxlength="200" required autocomplete="off">
+                            </div>
+                            <div>
+                                <label class="label" for="pType">Type</label>
+                                <select id="pType" class="field">
+                                    <option value="ORGANISATION">Organisation</option>
+                                    <option value="INDIVIDUAL">Individual</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-4">
+                                <label class="label" for="pLegalName">Legal name <span class="font-normal text-slate-400">(if different)</span></label>
+                                <input id="pLegalName" class="field" maxlength="300" autocomplete="off">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="label" for="pCountry">Country</label>
+                                <input id="pCountry" class="field" maxlength="40" list="countryList" autocomplete="off" placeholder="Bangladesh">
+                                <datalist id="countryList">
+                                    <option>Bangladesh</option><option>China</option><option>India</option><option>Pakistan</option>
+                                    <option>Turkey</option><option>Vietnam</option><option>United States</option><option>Germany</option>
+                                    <option>United Kingdom</option><option>Spain</option><option>Italy</option><option>Japan</option>
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <fieldset class="rounded-lg border border-slate-200 p-4">
+                            <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Statutory registration</legend>
+                            <div class="grid gap-4 sm:grid-cols-3">
+                                <div>
+                                    <label class="label" for="pTin">TIN</label>
+                                    <input id="pTin" class="field font-mono" maxlength="40" autocomplete="off" inputmode="numeric">
+                                </div>
+                                <div>
+                                    <label class="label" for="pBin">BIN</label>
+                                    <input id="pBin" class="field font-mono" maxlength="40" autocomplete="off" inputmode="numeric">
+                                </div>
+                                <div>
+                                    <label class="label" for="pVat">VAT registration</label>
+                                    <input id="pVat" class="field font-mono" maxlength="40" autocomplete="off">
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+                            <input type="checkbox" id="pActive" class="checkbox mt-0.5" checked>
+                            <span class="text-sm">
+                                <span class="font-medium text-slate-800">Active</span>
+                                <span class="block text-slate-500">An inactive party stays on every document that already names it, but is
+                                    no longer offered in pickers.</span>
+                            </span>
+                        </label>
+
+                        <p id="pAudit" class="text-xs text-slate-400"></p>
+                    </div>
+
+                    <!-- ---------- Roles ---------- -->
+                    <div data-panel="roles" hidden>
+                        <p class="mb-3 text-sm text-slate-500">
+                            What this party is to us. A document can only name a party holding the role it needs - a booking a
+                            customer, a purchase order a supplier. Unticking a role keeps its history; ticking it again restores it.
+                        </p>
+                        <div id="roleList" class="grid gap-3 md:grid-cols-2"></div>
+                    </div>
+
+                    <!-- ---------- Addresses ---------- -->
+                    <div data-panel="addresses" hidden>
+                        <div id="addressList" class="space-y-3"></div>
+                        <button type="button" class="btn-ghost btn-sm mt-3" data-add="address">+ Add address</button>
+                    </div>
+
+                    <!-- ---------- Contacts ---------- -->
+                    <div data-panel="contacts" hidden>
+                        <div id="contactList" class="space-y-3"></div>
+                        <button type="button" class="btn-ghost btn-sm mt-3" data-add="contact">+ Add contact</button>
+                    </div>
+
+                    <!-- ---------- Bank accounts ---------- -->
+                    <div data-panel="accounts" hidden>
+                        <p id="noBanksNotice" class="alert-warn mb-3" hidden>
+                            No party holds the Bank role yet. Create the bank as a party with the Bank role first.
+                        </p>
+                        <div id="accountList" class="space-y-3"></div>
+                        <button type="button" class="btn-ghost btn-sm mt-3" data-add="account">+ Add bank account</button>
+                    </div>
+
+                    <!-- ---------- Other details ---------- -->
+                    <div data-panel="details" hidden>
+                        <p class="mb-3 text-sm text-slate-500">
+                            Registrations and memberships that are recorded but rarely searched - IRC, ERC, bond licence, BTMA.
+                        </p>
+                        <div id="detailList" class="space-y-2"></div>
+                        <datalist id="detailKeys">
+                            <option>IRC number</option><option>ERC number</option><option>Bond licence</option>
+                            <option>Trade licence</option><option>BTMA membership</option><option>BGMEA membership</option>
+                            <option>BKMEA membership</option><option>Website</option>
+                        </datalist>
+                        <button type="button" class="btn-ghost btn-sm mt-3" data-add="detail">+ Add detail</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-foot">
+                <button type="button" class="btn-subtle mr-auto text-red-600" id="partyDeleteBtn" hidden
+                        sec:authorize="hasAuthority('SCREEN_PARTY_DELETE')">Delete party</button>
+                <span id="partyDirtyNote" class="text-xs text-amber-700" hidden>Unsaved changes</span>
+                <span class="hidden text-xs text-slate-400 sm:inline"><span class="kbd">Ctrl</span> <span class="kbd">S</span> to save</span>
+                <button type="button" class="btn-ghost" data-dismiss>Close</button>
+                <button type="submit" class="btn-primary" id="partySaveBtn">Save party</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, toast, fmt } = App;
+        const ADDRESS_TYPES = /*[[${addressTypes}]]*/ [];
+        const CAN = {
+            create: /*[[${#authorization.expression('hasAuthority(''SCREEN_PARTY_CREATE'')')}]]*/ false,
+            amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_PARTY_AMEND'')')}]]*/ false,
+            del:    /*[[${#authorization.expression('hasAuthority(''SCREEN_PARTY_DELETE'')')}]]*/ false
+        };
+
+        /** The roles, as the editor offers them. Customer is two: marketing and commercial deal separately. */
+        const ROLES = [
+            { key: 'CUSTOMER:MARKETING',  type: 'CUSTOMER', qualifier: 'MARKETING',  label: 'Customer - Marketing',  hint: 'Bookings, BPOs, requests for PI.' },
+            { key: 'CUSTOMER:COMMERCIAL', type: 'CUSTOMER', qualifier: 'COMMERCIAL', label: 'Customer - Commercial', hint: 'PIs, LCs and commercial invoices.' },
+            { key: 'SUPPLIER',        type: 'SUPPLIER',        label: 'Supplier',        hint: 'Sells yarn, dyes, chemicals, spares or services to us.' },
+            { key: 'BUYING_HOUSE',    type: 'BUYING_HOUSE',    label: 'Buying house',    hint: "Places orders on a brand's behalf." },
+            { key: 'BRAND',           type: 'BRAND',           label: 'Brand',           hint: 'The label the fabric carries. Named on bookings, not transacted with.' },
+            { key: 'GARMENT_FACTORY', type: 'GARMENT_FACTORY', label: 'Garment factory', hint: 'Where fabric is delivered - often not the buyer.' },
+            { key: 'AGENT',           type: 'AGENT',           label: 'Agent',           hint: 'Local indenting agent between the mill and an importer.' },
+            { key: 'BANK',            type: 'BANK',            label: 'Bank',            hint: 'Holds accounts and issues LCs. Other parties bank here.' },
+            { key: 'EMPLOYEE',        type: 'EMPLOYEE',        label: 'Employee',        hint: 'Own staff, when a document names a person.' }
+        ];
+        const ROLE_BADGE = { CUSTOMER: 'badge-blue', SUPPLIER: 'badge-violet', BANK: 'badge-amber', BUYING_HOUSE: 'badge-green' };
+        const roleName = key => (ROLES.find(r => r.key === key) || { label: key }).label;
+        const roleBadge = key => `<span class="${ROLE_BADGE[key.split(':')[0]] || 'badge-gray'}">${esc(roleName(key))}</span>`;
+        const titleCase = s => String(s || '').charAt(0) + String(s || '').slice(1).toLowerCase().replace(/_/g, ' ');
+
+        const $ = sel => document.querySelector(sel);
+        const dialog = $('#partyDialog');
+        const form = $('#partyForm');
+        const tabs = App.tabs($('#partyTabs'));
+        const state = { role: '', active: 'true', type: '' };
+        let current = null;     // the loaded party; null while creating
+        let banks = [];
+        let dirty = false;
+
+        // ================================================================== directory
+        const grid = new App.Grid({
+            url: '/api/setup/parties',
+            table: $('#partyTable'),
+            search: $('#partySearch'),
+            pager: $('#partyPager'),
+            sort: { column: 'code', dir: 'asc' },
+            emptyText: 'No party matches these filters.',
+            params: () => ({ role: state.role, active: state.active, partyType: state.type }),
+            columns: [
+                r => `<span class="font-mono text-xs text-slate-600">${esc(r.code)}</span>`,
+                r => `<div class="font-medium text-slate-900">${esc(r.name)}</div>`
+                   + (r.legalName && r.legalName !== r.name ? `<div class="max-w-xs truncate text-xs text-slate-500">${esc(r.legalName)}</div>` : '')
+                   + (r.partyType === 'INDIVIDUAL' ? '<div class="text-xs text-slate-400">Individual</div>' : ''),
+                r => (r.roles || []).length
+                    ? `<div class="flex max-w-xs flex-wrap gap-1">${r.roles.map(roleBadge).join('')}</div>`
+                    : '<span class="badge-red">No role</span>',
+                r => r.contactName
+                    ? `<div class="text-slate-800">${esc(r.contactName)}</div>`
+                      + (r.contactPhone ? `<div class="text-xs text-slate-500">${esc(r.contactPhone)}</div>` : '')
+                    : '<span class="text-slate-400">-</span>',
+                r => r.location ? `<div class="max-w-[14rem] truncate" title="${esc(r.location)}">${esc(r.location)}</div>` : '<span class="text-slate-400">-</span>',
+                r => (r.tin || r.bin)
+                    ? `<div class="font-mono text-xs">${r.tin ? 'TIN ' + esc(r.tin) : ''}${r.tin && r.bin ? '<br>' : ''}${r.bin ? 'BIN ' + esc(r.bin) : ''}</div>`
+                    : '<span class="text-slate-400">-</span>',
+                r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
+                r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+            ],
+            onRowClick: row => openEditor(row.id)
+        });
+        $('#partyTable tbody').addEventListener('click', e => {
+            const edit = e.target.closest('[data-edit]');
+            if (edit) openEditor(Number(edit.dataset.edit));
+        });
+
+        async function loadCounts() {
+            try {
+                const c = await api('/api/setup/parties/counts');
+                document.querySelectorAll('[data-count]').forEach(el => {
+                    const key = el.dataset.count;
+                    el.textContent = (key ? (c.byRole[key] || 0) : c.total).toLocaleString();
+                });
+                $('#inactiveNote').textContent = c.inactive ? `${c.inactive.toLocaleString()} inactive` : '';
+            } catch (error) { /* counts are decoration; the grid reports its own errors */ }
+        }
+
+        /** Filters live in the URL: bookmarkable, shareable, and restored on reload. */
+        function syncUrl() {
+            const qs = new URLSearchParams();
+            const q = $('#partySearch').value.trim();
+            if (q) qs.set('q', q);
+            if (state.role) qs.set('role', state.role);
+            if (state.active !== 'true') qs.set('active', state.active || 'all');
+            if (state.type) qs.set('type', state.type);
+            if (current && current.id) qs.set('id', current.id);
+            history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
+            const exportQs = new URLSearchParams();
+            if (q) exportQs.set('search[value]', q);
+            if (state.role) exportQs.set('role', state.role);
+            if (state.active) exportQs.set('active', state.active);
+            if (state.type) exportQs.set('partyType', state.type);
+            $('#partyExportBtn').href = '/api/setup/parties/export.csv' + (exportQs.toString() ? '?' + exportQs : '');
+        }
+
+        function setRole(role) {
+            state.role = role;
+            document.querySelectorAll('#roleChips [data-role]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.role === role)));
+        }
+
+        $('#roleChips').addEventListener('click', e => {
+            const chip = e.target.closest('[data-role]');
+            if (!chip) return;
+            setRole(chip.dataset.role);
+            syncUrl();
+            grid.reload(true);
+        });
+        $('#partyType').addEventListener('change', e => { state.type = e.target.value; syncUrl(); grid.reload(true); });
+        $('#partyStatus').addEventListener('change', e => { state.active = e.target.value; syncUrl(); grid.reload(true); });
+        $('#partySearch').addEventListener('input', App.debounce(syncUrl, 300));
+
+        // ================================================================== editor: repeating rows
+        const lists = {
+            address: $('#addressList'), contact: $('#contactList'), account: $('#accountList'), detail: $('#detailList')
+        };
+
+        const removeBtn = `<button type="button" class="btn-icon shrink-0" data-remove aria-label="Remove">&#x2715;</button>`;
+        const val = v => v == null ? '' : esc(v);
+
+        function addressRow(a) {
+            a = a || { type: 'REGISTERED' };
+            return `<div class="row-card${a.primary ? ' is-primary' : ''}" data-row="address" data-id="${a.id || ''}">
+                <div class="grid gap-3 sm:grid-cols-12">
+                    <div class="sm:col-span-3"><label class="label">Purpose</label>
+                        <select class="field" data-f="type">${ADDRESS_TYPES.map(t =>
+                            `<option value="${t}"${t === a.type ? ' selected' : ''}>${titleCase(t)}</option>`).join('')}</select></div>
+                    <div class="sm:col-span-9"><label class="label">Address line 1</label>
+                        <input class="field" data-f="line1" maxlength="300" required value="${val(a.line1)}"></div>
+                    <div class="sm:col-span-6"><label class="label">Address line 2</label>
+                        <input class="field" data-f="line2" maxlength="300" value="${val(a.line2)}"></div>
+                    <div class="sm:col-span-3"><label class="label">Area / city</label>
+                        <input class="field" data-f="geoCode" maxlength="40" value="${val(a.geoCode)}"></div>
+                    <div class="sm:col-span-3"><label class="label">Postcode</label>
+                        <input class="field" data-f="postcode" maxlength="20" value="${val(a.postcode)}"></div>
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+                        <input type="checkbox" class="checkbox" data-f="primary"${a.primary ? ' checked' : ''}> Primary for its purpose</label>
+                    ${removeBtn}
+                </div></div>`;
+        }
+
+        function contactRow(c) {
+            c = c || {};
+            return `<div class="row-card${c.primary ? ' is-primary' : ''}" data-row="contact" data-id="${c.id || ''}">
+                <div class="grid gap-3 sm:grid-cols-12">
+                    <div class="sm:col-span-4"><label class="label">Name</label>
+                        <input class="field" data-f="name" maxlength="200" required value="${val(c.name)}"></div>
+                    <div class="sm:col-span-3"><label class="label">Designation</label>
+                        <input class="field" data-f="designationCode" maxlength="40" value="${val(c.designationCode)}" placeholder="Merchandiser"></div>
+                    <div class="sm:col-span-5"><label class="label">Email</label>
+                        <input class="field" type="email" data-f="email" maxlength="200" value="${val(c.email)}"></div>
+                    <div class="sm:col-span-4"><label class="label">Mobile</label>
+                        <input class="field" type="tel" data-f="mobile" maxlength="40" value="${val(c.mobile)}"></div>
+                    <div class="sm:col-span-4"><label class="label">Phone</label>
+                        <input class="field" type="tel" data-f="phone" maxlength="40" value="${val(c.phone)}"></div>
+                    <div class="flex items-end justify-between gap-2 sm:col-span-4">
+                        <label class="inline-flex items-center gap-2 pb-2 text-sm text-slate-600">
+                            <input type="radio" name="contactPrimary" class="checkbox rounded-full" data-f="primary"${c.primary ? ' checked' : ''}> Primary contact</label>
+                        ${removeBtn}
+                    </div>
+                </div></div>`;
+        }
+
+        function accountRow(a) {
+            a = a || { currencyCode: 'BDT' };
+            const known = banks.some(b => b.id === a.bankId);
+            const options = banks.map(b => `<option value="${b.id}"${b.id === a.bankId ? ' selected' : ''}>${esc(b.code)} - ${esc(b.name)}</option>`).join('')
+                + (a.bankId && !known ? `<option value="${a.bankId}" selected>${esc(a.bankCode)} - ${esc(a.bankName)}</option>` : '');
+            return `<div class="row-card${a.primary ? ' is-primary' : ''}" data-row="account" data-id="${a.id || ''}">
+                <div class="grid gap-3 sm:grid-cols-12">
+                    <div class="sm:col-span-4"><label class="label">Bank</label>
+                        <select class="field" data-f="bankId" required><option value="">Choose a bank…</option>${options}</select></div>
+                    <div class="sm:col-span-4"><label class="label">Account name</label>
+                        <input class="field" data-f="accountName" maxlength="200" required value="${val(a.accountName)}"></div>
+                    <div class="sm:col-span-4"><label class="label">Account number</label>
+                        <input class="field font-mono" data-f="accountNumber" maxlength="60" required value="${val(a.accountNumber)}"></div>
+                    <div class="sm:col-span-4"><label class="label">Branch</label>
+                        <input class="field" data-f="branchName" maxlength="200" value="${val(a.branchName)}"></div>
+                    <div class="sm:col-span-3"><label class="label">Routing number</label>
+                        <input class="field font-mono" data-f="routingNumber" maxlength="40" value="${val(a.routingNumber)}"></div>
+                    <div class="sm:col-span-3"><label class="label">SWIFT</label>
+                        <input class="field font-mono uppercase" data-f="swiftCode" maxlength="20" value="${val(a.swiftCode)}"></div>
+                    <div class="sm:col-span-2"><label class="label">Currency</label>
+                        <input class="field font-mono uppercase" data-f="currencyCode" maxlength="3" pattern="[A-Za-z]{3}" value="${val(a.currencyCode)}"></div>
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+                        <input type="radio" name="accountPrimary" class="checkbox rounded-full" data-f="primary"${a.primary ? ' checked' : ''}> Primary account</label>
+                    ${removeBtn}
+                </div></div>`;
+        }
+
+        function detailRow(d) {
+            d = d || {};
+            return `<div class="flex items-center gap-2" data-row="detail">
+                <input class="field sm:w-64" data-f="key" list="detailKeys" maxlength="60" placeholder="Detail" value="${val(d.key)}">
+                <input class="field" data-f="value" maxlength="300" placeholder="Value" value="${val(d.value)}">
+                ${removeBtn}</div>`;
+        }
+
+        const RENDER = { address: addressRow, contact: contactRow, account: accountRow, detail: detailRow };
+
+        function renderList(kind, rows) {
+            lists[kind].innerHTML = rows.map(RENDER[kind]).join('')
+                || `<p class="rounded-lg border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500" data-empty>Nothing yet.</p>`;
+        }
+
+        function addRow(kind) {
+            lists[kind].querySelector('[data-empty]')?.remove();
+            lists[kind].insertAdjacentHTML('beforeend', RENDER[kind]());
+            const added = lists[kind].lastElementChild;
+            added.querySelector('input:not([type=checkbox]):not([type=radio]), select')?.focus();
+            markDirty();
+            updateCounts();
+        }
+
+        form.addEventListener('click', e => {
+            const add = e.target.closest('[data-add]');
+            if (add) return addRow(add.dataset.add);
+            const remove = e.target.closest('[data-remove]');
+            if (remove) {
+                const row = remove.closest('[data-row]');
+                const kind = row.dataset.row;
+                row.remove();
+                if (!lists[kind].children.length) renderList(kind, []);
+                markDirty();
+                updateCounts();
+            }
+        });
+
+        // One primary address per purpose: ticking one clears the others of the same purpose.
+        lists.address.addEventListener('change', e => {
+            if (!e.target.matches('[data-f="primary"]') || !e.target.checked) return;
+            const card = e.target.closest('[data-row]');
+            const type = card.querySelector('[data-f="type"]').value;
+            lists.address.querySelectorAll('[data-row]').forEach(other => {
+                if (other !== card && other.querySelector('[data-f="type"]').value === type) {
+                    other.querySelector('[data-f="primary"]').checked = false;
+                }
+            });
+        });
+        form.addEventListener('change', e => {
+            if (!e.target.matches('[data-f="primary"]')) return;
+            e.target.closest('[data-panel]').querySelectorAll('[data-row]').forEach(card =>
+                card.classList.toggle('is-primary', card.querySelector('[data-f="primary"]')?.checked));
+        });
+
+        function readRows(kind) {
+            return Array.from(lists[kind].querySelectorAll('[data-row]')).map(card => {
+                const row = card.dataset.id ? { id: Number(card.dataset.id) } : {};
+                card.querySelectorAll('[data-f]').forEach(input => {
+                    const key = input.dataset.f;
+                    if (input.type === 'checkbox' || input.type === 'radio') row[key] = input.checked;
+                    else if (key === 'bankId') row[key] = input.value ? Number(input.value) : null;
+                    else row[key] = input.value.trim() || null;
+                });
+                return row;
+            });
+        }
+
+        // ================================================================== editor: roles
+        function renderRoles(party) {
+            const held = new Map((party ? party.roles : []).map(r => [r.qualifier ? r.roleType + ':' + r.qualifier : r.roleType, r]));
+            $('#roleList').innerHTML = ROLES.map(role => {
+                const r = held.get(role.key);
+                const on = r && r.current;
+                const history = !r ? '' : r.current
+                    ? `Since ${esc(fmt.date(r.grantedOn))}`
+                    : `Revoked ${esc(fmt.date(r.revokedOn))} - tick to restore`;
+                return `<label class="row-card flex cursor-pointer items-start gap-3 hover:bg-slate-50${on ? ' is-primary' : ''}" data-role-card="${role.key}">
+                    <input type="checkbox" class="checkbox mt-1" data-role-key="${role.key}"${on ? ' checked' : ''}>
+                    <span class="min-w-0 flex-1 text-sm">
+                        <span class="flex items-center justify-between gap-2">
+                            <span class="font-medium text-slate-800">${esc(role.label)}</span>
+                            <span class="text-xs ${r && !r.current ? 'text-amber-700' : 'text-slate-400'}">${history}</span>
+                        </span>
+                        <span class="block text-slate-500">${esc(role.hint)}</span>
+                        <input class="field mt-2 font-mono" data-role-code="${role.key}" maxlength="40"
+                               placeholder="Code in this role (optional, e.g. the legacy customer code)"
+                               value="${val(r && r.roleCode)}"${on ? '' : ' hidden'}>
+                    </span></label>`;
+            }).join('');
+        }
+
+        $('#roleList').addEventListener('change', e => {
+            if (!e.target.matches('[data-role-key]')) return;
+            const key = e.target.dataset.roleKey;
+            $(`[data-role-card="${key}"]`).classList.toggle('is-primary', e.target.checked);
+            $(`[data-role-code="${key}"]`).hidden = !e.target.checked;
+            updateCounts();
+            renderHeaderRoles();
+        });
+
+        function readRoles() {
+            return ROLES.filter(role => $(`[data-role-key="${role.key}"]`).checked).map(role => ({
+                roleType: role.type,
+                qualifier: role.qualifier || null,
+                roleCode: $(`[data-role-code="${role.key}"]`).value.trim() || null
+            }));
+        }
+
+        function renderHeaderRoles() {
+            $('#partyHeaderRoles').innerHTML = ROLES.filter(r => $(`[data-role-key="${r.key}"]`)?.checked)
+                .map(r => roleBadge(r.key)).join('');
+        }
+
+        function updateCounts() {
+            const count = sel => form.querySelectorAll(sel).length;
+            const set = (tab, n) => { $(`[data-tab-count="${tab}"]`).textContent = n; };
+            set('roles', count('[data-role-key]:checked'));
+            set('addresses', count('[data-row="address"]'));
+            set('contacts', count('[data-row="contact"]'));
+            set('accounts', count('[data-row="account"]'));
+            set('details', count('[data-row="detail"]'));
+        }
+
+        // ================================================================== editor: open / close
+        function markDirty() { dirty = true; $('#partyDirtyNote').hidden = false; }
+        function clearDirty() { dirty = false; $('#partyDirtyNote').hidden = true; }
+        form.addEventListener('input', markDirty);
+        form.addEventListener('change', markDirty);
+
+        async function loadBanks() {
+            try {
+                const page = await api('/api/parties/directory', { query: { role: 'BANK', size: 100 } });
+                banks = page.rows;
+            } catch (error) { banks = []; }
+        }
+
+        async function openEditor(id) {
+            let party = null;
+            try {
+                [party] = await Promise.all([id ? api(`/api/setup/parties/${id}`) : Promise.resolve(null), loadBanks()]);
+            } catch (error) { return fail(error); }
+            current = party;
+            const editing = !!party;
+
+            $('#partyDialogTitle').textContent = editing ? party.name : 'New party';
+            $('#partyDialogSub').textContent = editing
+                ? `${party.code} · ${titleCase(party.partyType)}${party.active ? '' : ' · inactive'}`
+                : 'One record per company - give it every role it plays.';
+            $('#partyAvatar').textContent = editing ? fmt.initials(party.name) : '+';
+
+            $('#pCode').value = editing ? party.code : '';
+            $('#pCode').readOnly = editing;
+            $('#pCode').classList.toggle('bg-slate-50', editing);
+            $('#pCodeHint').textContent = editing ? 'Printed on documents, so it cannot change.' : 'Printed on documents. Fixed once saved.';
+            $('#pName').value = editing ? party.name : '';
+            $('#pType').value = editing ? party.partyType : 'ORGANISATION';
+            $('#pLegalName').value = editing ? (party.legalName || '') : '';
+            $('#pCountry').value = editing ? (party.countryCode || '') : '';
+            $('#pTin').value = editing ? (party.tin || '') : '';
+            $('#pBin').value = editing ? (party.bin || '') : '';
+            $('#pVat').value = editing ? (party.vatRegNo || '') : '';
+            $('#pActive').checked = editing ? !!party.active : true;
+            $('#pAudit').innerHTML = editing
+                ? `Created by ${esc(party.createdBy || 'unknown')} ${fmt.timeTag(party.createdAt)}`
+                  + (party.updatedAt ? ` · last changed by ${esc(party.updatedBy || 'unknown')} ${fmt.timeTag(party.updatedAt)}` : '')
+                : '';
+
+            renderRoles(party);
+            renderList('address', editing ? party.addresses : []);
+            renderList('contact', editing ? party.contacts : []);
+            renderList('account', editing ? party.bankAccounts : []);
+            renderList('detail', editing ? Object.entries(party.attributes || {}).map(([key, value]) => ({ key, value })) : []);
+            $('#noBanksNotice').hidden = banks.length > 0;
+            renderHeaderRoles();
+            updateCounts();
+
+            const usage = editing ? party.usage : null;
+            const inUse = usage && (usage.documents > 0 || usage.accountsHeldHere > 0);
+            $('#partyUsage').hidden = !editing;
+            if (editing) {
+                $('#partyUsage').textContent = usage.documents
+                    ? `On ${usage.documents.toLocaleString()} document${usage.documents === 1 ? '' : 's'}` : 'Not on any document yet';
+            }
+
+            const writable = editing ? CAN.amend : CAN.create;
+            form.querySelectorAll('input, select, textarea, [data-add], [data-remove]').forEach(el => { el.disabled = !writable; });
+            if (editing) $('#pCode').disabled = false;   // read-only, but still selectable for copying
+            $('#partySaveBtn').hidden = !writable;
+            const del = $('#partyDeleteBtn');
+            if (del) {
+                del.hidden = !editing || !CAN.del;
+                del.disabled = !!inUse;
+                del.title = inUse ? 'Still in use - deactivate it instead' : '';
+            }
+
+            clearDirty();
+            tabs.select('general');
+            if (!dialog.open) dialog.showModal();
+            if (writable) (editing ? $('#pName') : $('#pCode')).focus();
+            syncUrl();
+        }
+
+        async function closeEditor() {
+            if (dirty && !(await App.confirm({ title: 'Discard changes?', message: 'Your edits to this party have not been saved.',
+                                                confirmText: 'Discard', danger: true }))) return;
+            clearDirty();
+            current = null;
+            dialog.close();
+            syncUrl();
+        }
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', closeEditor));
+        dialog.addEventListener('cancel', e => { e.preventDefault(); closeEditor(); });
+        $('#partyNewBtn')?.addEventListener('click', () => openEditor(null));
+
+        // Ctrl/Cmd+S saves, as in any desktop form.
+        dialog.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                if (!$('#partySaveBtn').hidden) form.requestSubmit();
+            }
+        });
+
+        // ================================================================== save / delete
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!form.checkValidity()) {
+                // Show the tab holding the first problem before the browser points at it.
+                const bad = form.querySelector(':invalid');
+                const panel = bad && bad.closest('[data-panel]');
+                if (panel) tabs.select(panel.dataset.panel);
+                return form.reportValidity();
+            }
+            const roles = readRoles();
+            if (!roles.length) {
+                tabs.select('roles');
+                return toast('Tick at least one role - a party with none cannot be named on any document.', 'warn');
+            }
+            const attributes = {};
+            readRows('detail').forEach(d => { if (d.key && d.value) attributes[d.key] = d.value; });
+
+            const btn = $('#partySaveBtn');
+            btn.disabled = true;
+            try {
+                const saved = await api('/api/setup/parties', { method: 'POST', body: {
+                    id: current ? current.id : null,
+                    version: current ? current.version : null,
+                    code: current ? null : ($('#pCode').value.trim() || null),
+                    name: $('#pName').value.trim(),
+                    partyType: $('#pType').value,
+                    legalName: $('#pLegalName').value.trim() || null,
+                    countryCode: $('#pCountry').value.trim() || null,
+                    tin: $('#pTin').value.trim() || null,
+                    bin: $('#pBin').value.trim() || null,
+                    vatRegNo: $('#pVat').value.trim() || null,
+                    active: $('#pActive').checked,
+                    roles,
+                    addresses: readRows('address'),
+                    contacts: readRows('contact'),
+                    bankAccounts: readRows('account'),
+                    attributes
+                } });
+                toast(`Saved ${saved.code} - ${saved.name}`, 'success');
+                clearDirty();
+                current = null;
+                dialog.close();
+                syncUrl();
+                grid.load();
+                loadCounts();
+            } catch (error) {
+                if (error.status === 409 && /changed this record/.test(error.message || '')) {
+                    const reload = await App.confirm({ title: 'Someone else saved this party',
+                        message: 'Your changes were not saved. Reload their version? Your edits will be lost.',
+                        confirmText: 'Reload', danger: true });
+                    if (reload) { clearDirty(); openEditor(current.id); }
+                } else {
+                    fail(error);
+                }
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        $('#partyDeleteBtn')?.addEventListener('click', async () => {
+            const ok = await App.confirm({ title: `Delete ${current.name}?`, danger: true, confirmText: 'Delete party',
+                message: 'Only a party no document names can be deleted. To stop it being chosen, untick Active instead.' });
+            if (!ok) return;
+            try {
+                await api(`/api/setup/parties/${current.id}`, { method: 'DELETE' });
+                toast('Party deleted', 'success');
+                clearDirty();
+                current = null;
+                dialog.close();
+                syncUrl();
+                grid.load();
+                loadCounts();
+            } catch (error) { fail(error); }
+        });
+
+        // ================================================================== boot
+        const params = new URLSearchParams(location.search);
+        $('#partySearch').value = params.get('q') || '';
+        setRole(params.get('role') || '');
+        state.active = params.get('active') === 'all' ? '' : (params.get('active') || 'true');
+        $('#partyStatus').value = state.active;
+        state.type = params.get('type') || '';
+        $('#partyType').value = state.type;
+        syncUrl();
+        grid.load();
+        loadCounts();
+        if (params.get('id')) openEditor(Number(params.get('id')));
+    });
+    </script>
+</div>
+</body>
+</html>

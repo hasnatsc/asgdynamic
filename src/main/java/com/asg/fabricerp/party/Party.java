@@ -224,6 +224,21 @@ public class Party extends BaseOrgEntity {
 
     public void renameTo(String newName)               { this.name = newName; }
     public void setAttribute(String key, Object value) { attributes.put(key, value); }
+    public void setPartyType(PartyType type)           { this.partyType = type; }
+
+    /** Replaces the sparse attributes wholesale - the editor submits the full set. */
+    public void replaceAttributes(Map<String, Object> replacement) {
+        attributes.clear();
+        if (replacement != null) attributes.putAll(replacement);
+    }
+
+    // ---- In-place child maintenance, for PartyAdminService --------------------------------------
+    // Rows the editor still lists are updated in place (their ids and history survive); rows it
+    // dropped are removed; new rows go through the add* methods above.
+
+    void removeAddress(PartyAddress address)         { addresses.remove(address); }
+    void removeContact(PartyContact contact)         { contacts.remove(contact); }
+    void removeBankAccount(PartyBankAccount account) { bankAccounts.remove(account); }
 
     public String getCode()                    { return code; }
     public String getName()                    { return name; }

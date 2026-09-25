@@ -69,7 +69,19 @@ public class PartyBankAccount extends BaseOrgLineEntity {
         return this;
     }
 
-    void makePrimary() { this.primary = true; }
+    void makePrimary()         { this.primary = true; }
+    void setPrimary(boolean v) { this.primary = v; }
+
+    /** @throws PartyRoleNotHeldException if {@code newBank} does not hold {@code BANK} */
+    void update(Party newBank, String newAccountName, String newAccountNumber) {
+        newBank.requireRole(PartyRoleType.BANK);
+        if (newBank == party) {
+            throw new IllegalArgumentException("A party cannot hold an account at itself.");
+        }
+        this.bank = newBank;
+        this.accountName = newAccountName;
+        this.accountNumber = newAccountNumber;
+    }
 
     public Party getParty()            { return party; }
     public Party getBank()             { return bank; }

@@ -150,6 +150,16 @@ at a bank that is itself a party. `/api/parties/directory?role=CUSTOMER` is the 
 `DocumentType.requiredPartyRole()` says who a document may name - sales and production a
 customer, purchase a supplier - and it is checked on every save.
 
+**Party maintenance** (`/setup/parties`, screen `PARTY`, V16) — built for a directory in the tens
+of thousands: paging, sorting, search and the role-chip counts run in PostgreSQL; a page is one
+query plus three batched lookups (roles, primary contact, primary address), never one per row.
+Search covers code, names, TIN/BIN and the legacy customer/supplier codes on the roles, backed by
+`pg_trgm` indexes when the database permits the extension (V16 skips them with a notice if not).
+Filters live in the URL (`?role=BANK&q=brac`, `?id=` opens a party); **Export CSV** streams the
+filtered directory. The editor covers the whole aggregate - roles (revoked, not erased, so
+"supplier since when" survives), addresses, contacts, bank accounts, other registrations - with
+unsaved-change and concurrent-edit protection, and refuses to delete a party a document names.
+
 **Document associations are objects.** `BusinessDocument` maps `businessUnit`, `warehouse`,
 `party`, `parentDocument`, `marketingTeam` and `revisionOf` as `@ManyToOne` entities, line groups
 map `item` and `uom`, colour lines map `sourceColorLine` - each backed by a real foreign key
@@ -371,10 +381,8 @@ every other secret in this project.
   `layout/main.html` and have not been moved onto it.
 - **Switching operating unit/store mid-session** — the header shows it read-only; see
   `FabricUser`'s javadoc.
-- **Party maintenance screen.** The party model and its picker API exist (see **Parties**, above),
-  but, as in asfl-erp, nothing writes parties yet - there is no screen to create a customer, so
-  a Booking cannot name one until parties are entered or loaded from legacy data. The legacy
-  capture has no customer records; it does have 49 bank names (`buyerBank`), without codes.
+- **Party data.** The legacy capture has no customer records - enter them on **Setup → Parties**
+  or load them. It does have 49 bank names (`buyerBank`), without codes.
 - **Validate the V15 foreign keys** once legacy rows are clean. They are `NOT VALID`: enforced on
   every write from V15 on, but not yet checked against rows written before
   (`ALTER TABLE gbl_business_documents VALIDATE CONSTRAINT fk_gbd_party;` and the other five).

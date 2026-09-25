@@ -51,7 +51,13 @@ public class PartyContact extends BaseOrgLineEntity {
         return this;
     }
 
-    void makePrimary() { this.primary = true; }
+    void makePrimary()         { this.primary = true; }
+    void setPrimary(boolean v) { this.primary = v; }
+
+    void update(String newName, String newDesignationCode) {
+        this.name = newName;
+        this.designationCode = newDesignationCode;
+    }
 
     public Party getParty()              { return party; }
     public String getName()              { return name; }

@@ -54,6 +54,15 @@ public class PartyAddress extends BaseOrgLineEntity {
     public PartyAddress withLine2(String v)    { this.line2 = v; return this; }
     public PartyAddress withPostcode(String v) { this.postcode = v; return this; }
     void makePrimary()                         { this.primary = true; }
+    void setPrimary(boolean v)                 { this.primary = v; }
+
+    void update(AddressType newType, String newLine1, String newLine2, String newGeoCode, String newPostcode) {
+        this.type = newType;
+        this.line1 = newLine1;
+        this.line2 = newLine2;
+        this.geoCode = newGeoCode;
+        this.postcode = newPostcode;
+    }
 
     public Party getParty()        { return party; }
     public AddressType getType()   { return type; }
