@@ -62,6 +62,17 @@
         }
     };
 
+    /**
+     * Document status badge - the client twin of fragments/ui :: status. Colour comes from
+     * [data-status] in input.css; the label is BusinessDocumentStatus.label()'s rule.
+     */
+    function status(value) {
+        if (!value) return '';
+        const name = String(value);
+        const label = name.charAt(0) + name.slice(1).toLowerCase();
+        return `<span class="badge" data-status="${esc(name)}">${esc(label)}</span>`;
+    }
+
     function debounce(fn, wait) {
         let timer;
         return function (...args) {
@@ -591,5 +602,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, debounce, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, debounce, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, theme, commandPalette: openCommandPalette };
 })();

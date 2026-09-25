@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Shared server-rendered UI pieces. Each has a client-side twin in app.js so a grid row built
+  in the browser and a page rendered by Thymeleaf look identical; colours live only in
+  input.css ([data-status=…]). See docs/design-system.md.
+-->
+<body>
+
+<!-- Document status badge. Client twin: App.status(status). -->
+<span th:fragment="status(status)" class="badge"
+      th:attr="data-status=${status}" th:text="${status.label()}">Draft</span>
+
+<!--
+  Maker → checker → fulfilment rail for a BusinessDocument. REJECTED marks the Submitted stage
+  as failed; CANCELLED leaves the rail and shows only its badge.
+-->
+<ol th:fragment="workflow(status)" class="steps" aria-label="Document workflow"
+    th:with="step=${status.workflowStep()}">
+    <li th:if="${step < 0}"><span th:replace="~{fragments/ui :: status(${status})}"></span></li>
+    <th:block th:if="${step >= 0}" th:each="stage, it : ${ {'Draft', 'Submitted', 'Approved', 'Completed'} }">
+        <li th:unless="${it.first}" class="step-sep" aria-hidden="true"></li>
+        <li class="step"
+            th:classappend="${it.index < step} ? 'is-done' : (${it.index == step} ? (${status.name() == 'REJECTED'} ? 'is-failed' : 'is-current') : '')"
+            th:attr="aria-current=${it.index == step} ? 'step' : null"
+            th:text="${it.index == step} ? ${status.label()} : ${stage}">Draft</li>
+    </th:block>
+</ol>
+
+</body>
+</html>

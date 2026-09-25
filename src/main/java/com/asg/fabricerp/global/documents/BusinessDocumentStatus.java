@@ -59,4 +59,25 @@ public enum BusinessDocumentStatus {
         return this == APPROVED || this == PARTIAL || this == PROCESSING
             || this == COMPLETED || this == CLOSED;
     }
+
+    /** "Draft", "Submitted" - the badge text. App.status() in app.js derives it the same way. */
+    public String label() {
+        return name().charAt(0) + name().substring(1).toLowerCase();
+    }
+
+    /**
+     * Position on the Draft → Submitted → Approved → Completed rail drawn by
+     * {@code fragments/ui :: workflow}: the index of the current stage, 4 once past the end,
+     * -1 when the document has left the rail (cancelled).
+     */
+    public int workflowStep() {
+        return switch (this) {
+            case DRAFT                -> 0;
+            case SUBMITTED, REJECTED  -> 1;
+            case APPROVED             -> 2;
+            case PARTIAL, PROCESSING  -> 3;
+            case COMPLETED, CLOSED    -> 4;
+            case CANCELLED            -> -1;
+        };
+    }
 }

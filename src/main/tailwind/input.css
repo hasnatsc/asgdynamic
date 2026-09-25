@@ -126,6 +126,53 @@
   .notification-dot { @apply absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500
                              ring-2 ring-white; }
   .dark .notification-dot { @apply ring-slate-800; }
+
+  /* ---- Document status: the ONE mapping of BusinessDocumentStatus to colour -------------- */
+  /* <span class="badge" data-status="APPROVED">, rendered by fragments/ui :: status and      */
+  /* App.status(), so server and client can never disagree. Keyed on the attribute alone: a  */
+  /* `.badge[…]` selector gets cloned onto every class that @applies badge.                  */
+  [data-status="DRAFT"]      { @apply bg-slate-50 text-slate-600 ring-slate-500/20; }
+  [data-status="SUBMITTED"]  { @apply bg-amber-50 text-amber-800 ring-amber-600/20; }
+  [data-status="REJECTED"]   { @apply bg-red-50 text-red-700 ring-red-600/20; }
+  [data-status="APPROVED"]   { @apply bg-emerald-50 text-emerald-700 ring-emerald-600/20; }
+  [data-status="PARTIAL"]    { @apply bg-brand-50 text-brand-700 ring-brand-600/20; }
+  [data-status="PROCESSING"] { @apply bg-violet-50 text-violet-700 ring-violet-600/20; }
+  [data-status="COMPLETED"]  { @apply bg-emerald-600 text-white ring-emerald-600; }
+  [data-status="CLOSED"]     { @apply bg-slate-600 text-white ring-slate-600; }
+  [data-status="CANCELLED"]  { @apply bg-slate-50 text-slate-500 line-through ring-slate-500/20; }
+
+  /* ---- Workflow stepper: where a document sits in maker -> checker -> fulfilment --------- */
+  .steps      { @apply flex flex-wrap items-center gap-1.5 text-xs font-medium; }
+  .step       { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-slate-500 ring-1 ring-inset ring-slate-200; }
+  .step.is-done    { @apply bg-emerald-50 text-emerald-700 ring-emerald-600/20; }
+  .step.is-current { @apply bg-brand-600 text-white ring-brand-600; }
+  .step.is-failed  { @apply bg-red-50 text-red-700 ring-red-600/20; }
+  .step-sep   { @apply h-px w-3 bg-slate-300; }
+
+  /* ---- Document editors: sections, computed values, dense line grids, action bar --------- */
+  .section-title { @apply text-sm font-semibold text-slate-800; }
+  .fieldset   { @apply rounded-lg border border-slate-200 p-4; }
+  .legend     { @apply px-1 text-xs font-semibold uppercase tracking-wide text-slate-500; }
+  .num        { @apply text-right tabular-nums whitespace-nowrap; }
+  /* `.table-grid thead th` (0,1,2) outranks a bare utility, so `text-right` on a header cell is
+     silently ignored. Quantity/amount columns use .num, which wins at (0,2,0). */
+  .table-grid .num { @apply text-right; }
+  /* Inline-editable line grid (colour breakdown, requisition lines): tighter cells and fields. */
+  .table-edit tbody td { @apply px-1.5 py-1; }
+  .table-edit .field   { @apply px-2 py-1; }
+  .table-edit thead th { @apply px-1.5; }
+  /* Totals strip under a line grid. */
+  .totals     { @apply flex flex-wrap items-baseline justify-end gap-x-6 gap-y-1 border-t border-slate-200 pt-3 text-sm; }
+  .totals dt  { @apply text-slate-500; }
+  .totals dd  { @apply font-semibold tabular-nums text-slate-900; }
+  /* Pinned to the viewport bottom while a long document form is on screen. Lives as the last
+     child of a `.card p-5` form, so the negative margins bleed it to the card's edges. */
+  .action-bar { @apply sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-wrap items-center gap-2 rounded-b-lg
+                       border-t border-slate-200 bg-white/95 px-5 py-3 backdrop-blur; }
+
+  /* ---- Empty states ---------------------------------------------------------------------- */
+  .empty-state { @apply flex flex-col items-center gap-1 px-6 py-12 text-center text-sm text-slate-500; }
+  .empty-title { @apply text-sm font-medium text-slate-800; }
 }
 
 @layer base {
@@ -162,6 +209,48 @@
   .dark .cmd-list           { @apply border-slate-700; }
   .dark .cmd-item           { @apply text-slate-300 hover:bg-slate-700 hover:text-white; }
   .dark .cmd-item.is-active { @apply bg-slate-700 text-white; }
+
+  .dark .btn-ghost          { @apply bg-slate-800 text-slate-200 ring-slate-600 hover:bg-slate-700; }
+  .dark .btn-subtle         { @apply text-slate-300 hover:bg-slate-800 hover:text-white; }
+  .dark .btn-icon           { @apply text-slate-400 hover:bg-slate-800 hover:text-slate-100; }
+  .dark .field[readonly]    { @apply bg-slate-900 text-slate-400; }
+  .dark .hint               { @apply text-slate-400; }
+  .dark .card-title,
+  .dark .section-title,
+  .dark .empty-title        { @apply text-slate-100; }
+  .dark .badge-gray         { @apply bg-slate-700/50 text-slate-300 ring-slate-500/30; }
+  .dark .badge-green        { @apply bg-emerald-500/10 text-emerald-300 ring-emerald-500/30; }
+  .dark .badge-red          { @apply bg-red-500/10 text-red-300 ring-red-500/30; }
+  .dark .badge-amber        { @apply bg-amber-500/10 text-amber-300 ring-amber-500/30; }
+  .dark .badge-blue         { @apply bg-brand-500/10 text-brand-300 ring-brand-500/30; }
+  .dark .badge-violet       { @apply bg-violet-500/10 text-violet-300 ring-violet-500/30; }
+  .dark .alert-error        { @apply bg-red-500/10 text-red-300; }
+  .dark .alert-success      { @apply bg-emerald-500/10 text-emerald-300; }
+  .dark .alert-warn         { @apply bg-amber-500/10 text-amber-300; }
+  .dark .alert-info         { @apply bg-brand-500/10 text-brand-300; }
+  .dark .chip               { @apply text-slate-300 ring-slate-600 hover:bg-slate-800; }
+  .dark .chip-count         { @apply bg-slate-700 text-slate-300; }
+  .dark .row-card,
+  .dark .fieldset           { @apply border-slate-700 bg-slate-800; }
+  .dark [data-status="DRAFT"],
+  .dark [data-status="CANCELLED"]  { @apply bg-slate-700/50 text-slate-300 ring-slate-500/30; }
+  .dark [data-status="SUBMITTED"]  { @apply bg-amber-500/10 text-amber-300 ring-amber-500/30; }
+  .dark [data-status="REJECTED"]   { @apply bg-red-500/10 text-red-300 ring-red-500/30; }
+  .dark [data-status="APPROVED"]   { @apply bg-emerald-500/10 text-emerald-300 ring-emerald-500/30; }
+  .dark [data-status="PARTIAL"]    { @apply bg-brand-500/10 text-brand-300 ring-brand-500/30; }
+  .dark [data-status="PROCESSING"] { @apply bg-violet-500/10 text-violet-300 ring-violet-500/30; }
+  .dark .step               { @apply text-slate-400 ring-slate-600; }
+  .dark .step.is-done       { @apply bg-emerald-500/10 text-emerald-300 ring-emerald-500/30; }
+  .dark .step.is-failed     { @apply bg-red-500/10 text-red-300 ring-red-500/30; }
+  .dark .step-sep           { @apply bg-slate-600; }
+  .dark .totals             { @apply border-slate-700; }
+  .dark .totals dd          { @apply text-white; }
+  .dark .action-bar         { @apply border-slate-700 bg-slate-800/95; }
+}
+
+@layer base {
+  /* Server-computed values (GSM, line amounts) are shown, never typed: readonly reads as such. */
+  .field[readonly]          { @apply bg-slate-50 text-slate-600; }
 }
 
 /* ---- Responsive table stacking (opt-in: add .table-stack to .table-grid) -------------- */

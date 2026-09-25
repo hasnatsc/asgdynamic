@@ -20,57 +20,51 @@
 <body>
 <div th:fragment="content">
 
-    <div class="flex items-center justify-between mb-5">
+    <div class="page-header">
         <div>
-            <h1 class="text-xl font-semibold">Booking</h1>
-            <p class="text-sm text-slate-500">Buyer order for woven fabric — start of order-to-cash.</p>
+            <h1 class="page-title">Booking</h1>
+            <p class="page-sub">Buyer order for woven fabric — start of order-to-cash.</p>
         </div>
         <button type="button" class="btn-primary" data-action="booking-new">New booking</button>
     </div>
 
     <!-- Filters feed the grid query, not a client-side search -->
-    <div class="card p-4 mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
-        <div>
-            <label class="label" for="filterStatus">Status</label>
-            <select id="filterStatus" class="field">
-                <option value="">All</option>
-                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}">DRAFT</option>
-            </select>
-        </div>
-        <div>
-            <label class="label" for="filterFrom">From</label>
-            <input id="filterFrom" type="date" class="field">
-        </div>
-        <div>
-            <label class="label" for="filterTo">To</label>
-            <input id="filterTo" type="date" class="field">
-        </div>
-        <div class="flex items-end">
-            <button type="button" class="btn-ghost w-full" data-action="booking-filter">Apply</button>
-        </div>
-    </div>
-
     <div class="card overflow-hidden">
-        <table id="bookingTable" class="table-grid">
-            <thead>
-            <tr>
-                <th data-sort="documentNo">Booking No</th>
-                <th data-sort="documentDate">Date</th>
-                <th>Reference</th>
-                <th>Currency</th>
-                <th data-sort="totalQuantity" class="text-right">Quantity</th>
-                <th data-sort="subtotalAmount" class="text-right">Amount</th>
-                <th data-sort="revisionNo" class="text-right">Rev.</th>
-                <th data-sort="status">Status</th>
-                <th class="text-right">Action</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div class="toolbar">
+            <select id="filterStatus" class="field w-auto" aria-label="Filter by status">
+                <option value="">All statuses</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.label()}">Draft</option>
+            </select>
+            <label class="flex items-center gap-2 text-sm text-slate-500">From
+                <input id="filterFrom" type="date" class="field w-auto"></label>
+            <label class="flex items-center gap-2 text-sm text-slate-500">To
+                <input id="filterTo" type="date" class="field w-auto"></label>
+            <button type="button" class="btn-ghost" data-action="booking-filter">Apply</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table id="bookingTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th data-sort="documentNo">Booking No</th>
+                    <th data-sort="documentDate">Date</th>
+                    <th>Reference</th>
+                    <th>Currency</th>
+                    <th data-sort="totalQuantity" class="num">Quantity</th>
+                    <th data-sort="subtotalAmount" class="num">Amount</th>
+                    <th data-sort="revisionNo" class="num">Rev.</th>
+                    <th data-sort="status">Status</th>
+                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="bookingPager" class="pager"></div>
     </div>
 
     <form id="bookingForm" class="card mt-6 p-5 space-y-5" th:object="${booking}">
         <input type="hidden" th:field="*{id}">
+        <ol th:replace="~{fragments/ui :: workflow(*{status})}"></ol>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div>
@@ -105,7 +99,7 @@
         <!-- Fabric specification groups, each with a nested colour breakdown -->
         <section>
             <div class="flex items-center justify-between mb-2">
-                <h2 class="font-medium">Fabric specifications</h2>
+                <h2 class="section-title">Fabric specifications</h2>
                 <button type="button" class="btn-ghost" data-action="group-add">Add specification</button>
             </div>
 
@@ -157,45 +151,47 @@
                     <!-- Nested colour breakdown — the part an earlier version of this
                          template flattened into the row above, losing the ability to add a
                          second colour without re-entering the whole specification. -->
-                    <table class="table-grid" data-role="color-lines">
-                        <thead>
-                        <tr>
-                            <th>Color Code</th>
-                            <th>Color Name</th>
-                            <th>Fabrics Style</th>
-                            <th>Color Ref.</th>
-                            <th>Strike Off Ref.</th>
-                            <th>Lab Dip Ref.</th>
-                            <th>Loom Ref.</th>
-                            <th class="text-right">Quantity</th>
-                            <th class="text-right">Price/Yd</th>
-                            <th class="text-right">Price/Mtr</th>
-                            <th class="text-right">Total</th>
-                            <th class="text-right">Action</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <tr th:each="line, li : ${group.colorLines}">
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorCode}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorName}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].fabricsStyle}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorReference}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].strikeOffReference}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].labDipReference}"></td>
-                            <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].loomReference}"></td>
-                            <td><input type="number" step="0.0001" class="field text-right"
-                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].quantity}"></td>
-                            <td><input type="number" step="0.000001" class="field text-right"
-                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].rate}"></td>
-                            <td><input type="number" step="0.000001" class="field text-right"
-                                       th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].priceInMeter}"></td>
-                            <td class="text-right text-slate-500" th:text="${line.lineAmount}">—</td>
-                            <td class="text-right">
-                                <button type="button" class="btn-ghost" data-action="color-line-remove">Remove</button>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
+                    <div class="overflow-x-auto">
+                        <table class="table-grid table-edit" data-role="color-lines">
+                            <thead>
+                            <tr>
+                                <th>Color Code</th>
+                                <th>Color Name</th>
+                                <th>Fabrics Style</th>
+                                <th>Color Ref.</th>
+                                <th>Strike Off Ref.</th>
+                                <th>Lab Dip Ref.</th>
+                                <th>Loom Ref.</th>
+                                <th class="num">Quantity</th>
+                                <th class="num">Price/Yd</th>
+                                <th class="num">Price/Mtr</th>
+                                <th class="num">Total</th>
+                                <th class="w-px"><span class="sr-only">Actions</span></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="line, li : ${group.colorLines}">
+                                <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorCode}"></td>
+                                <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorName}"></td>
+                                <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].fabricsStyle}"></td>
+                                <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorReference}"></td>
+                                <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].strikeOffReference}"></td>
+                                <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].labDipReference}"></td>
+                                <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].loomReference}"></td>
+                                <td><input type="number" step="0.0001" class="field text-right"
+                                           th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].quantity}"></td>
+                                <td><input type="number" step="0.000001" class="field text-right"
+                                           th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].rate}"></td>
+                                <td><input type="number" step="0.000001" class="field text-right"
+                                           th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].priceInMeter}"></td>
+                                <td class="num text-slate-500" th:text="${line.lineAmount}">—</td>
+                                <td class="text-right">
+                                    <button type="button" class="btn-ghost" data-action="color-line-remove">Remove</button>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
                     <button type="button" class="btn-ghost mt-2" data-action="color-line-add"
                             th:attr="data-group-index=${gi.index}">Add colour</button>
                     <p class="text-xs text-slate-500 mt-1" th:text="'Group total: ' + ${group.groupQuantity} + ' @ ' + ${group.groupAmount}">
@@ -205,10 +201,10 @@
             </div>
         </section>
 
-        <div class="text-right font-medium pt-2 border-t border-slate-200">
-            Total quantity <span th:text="*{totalQuantity}">0</span> ·
-            Amount <span th:text="*{subtotalAmount}">0</span>
-        </div>
+        <dl class="totals">
+            <div class="flex gap-2"><dt>Total quantity</dt><dd th:text="*{totalQuantity}">0</dd></div>
+            <div class="flex gap-2"><dt>Amount</dt><dd th:text="*{subtotalAmount}">0</dd></div>
+        </dl>
 
         <!--
           Submit/approve/reject post to /api/documents/{id}/... (ApprovalController) —
@@ -217,12 +213,13 @@
           who is also the only approver on their own booking gets a 403 on approve, by
           design — see ApprovalService's four-eyes rule).
         -->
-        <div class="flex items-center gap-2 pt-2 border-t border-slate-200">
-            <button type="submit" class="btn-primary">Save</button>
+        <div class="action-bar">
+            <button type="button" class="btn-ghost" data-action="booking-revise">Raise revision</button>
+            <span class="flex-1"></span>
             <button type="button" class="btn-ghost" data-action="doc-submit">Submit</button>
             <button type="button" class="btn-ghost" data-action="doc-approve">Approve</button>
             <button type="button" class="btn-ghost" data-action="doc-reject">Reject</button>
-            <button type="button" class="btn-ghost" data-action="booking-revise">Raise revision</button>
+            <button type="submit" class="btn-primary">Save</button>
         </div>
     </form>
 
