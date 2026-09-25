@@ -84,6 +84,7 @@ public class BpoService {
 
     @Transactional
     public BusinessDocument save(BusinessDocument submitted) {
+        references.resolve(submitted, TYPE);   // before anything is copied or flushed
         return submitted.getId() == null ? create(submitted) : update(submitted);
     }
 
@@ -107,7 +108,6 @@ public class BpoService {
         parentDraw.save(booking);
 
         refreshCostingFigures(submitted);
-        references.resolve(submitted);
         submitted.recalculateTotals();
         return repository.save(submitted);
     }
@@ -126,7 +126,6 @@ public class BpoService {
         parentDraw.save(booking);
 
         refreshCostingFigures(target);
-        references.resolve(target);
         target.recalculateTotals();
         return repository.save(target);
     }

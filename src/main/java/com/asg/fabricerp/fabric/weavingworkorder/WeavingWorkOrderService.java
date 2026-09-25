@@ -77,6 +77,7 @@ public class WeavingWorkOrderService {
 
     @Transactional
     public BusinessDocument save(BusinessDocument submitted) {
+        references.resolve(submitted, TYPE);   // before anything is copied or flushed
         return submitted.getId() == null ? create(submitted) : update(submitted);
     }
 
@@ -101,8 +102,6 @@ public class WeavingWorkOrderService {
         parentDraw.draw(bpo, submitted.getLineGroups());
         parentDraw.save(bpo);
 
-        references.resolve(submitted);
-
         submitted.recalculateTotals();
         return repository.save(submitted);
     }
@@ -119,8 +118,6 @@ public class WeavingWorkOrderService {
 
         parentDraw.draw(bpo, target.getLineGroups());
         parentDraw.save(bpo);
-
-        references.resolve(target);
 
         target.recalculateTotals();
         return repository.save(target);

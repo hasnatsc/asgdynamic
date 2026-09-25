@@ -70,6 +70,7 @@ public class DeliveryOrderService {
 
     @Transactional
     public BusinessDocument save(BusinessDocument submitted) {
+        references.resolve(submitted, TYPE);   // before anything is copied or flushed
         return submitted.getId() == null ? create(submitted) : update(submitted);
     }
 
@@ -92,8 +93,6 @@ public class DeliveryOrderService {
         parentDraw.draw(schedule, submitted.getLineGroups());
         parentDraw.save(schedule);
 
-        references.resolve(submitted);
-
         submitted.recalculateTotals();
         return repository.save(submitted);
     }
@@ -110,8 +109,6 @@ public class DeliveryOrderService {
 
         parentDraw.draw(schedule, target.getLineGroups());
         parentDraw.save(schedule);
-
-        references.resolve(target);
 
         target.recalculateTotals();
         return repository.save(target);

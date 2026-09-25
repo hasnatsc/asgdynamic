@@ -65,6 +65,7 @@ public class FabricsDeliveryService {
 
     @Transactional
     public BusinessDocument save(BusinessDocument submitted) {
+        references.resolve(submitted, TYPE);   // before anything is copied or flushed
         return submitted.getId() == null ? create(submitted) : update(submitted);
     }
 
@@ -87,8 +88,6 @@ public class FabricsDeliveryService {
         parentDraw.draw(deliveryOrder, submitted.getLineGroups());
         parentDraw.save(deliveryOrder);
 
-        references.resolve(submitted);
-
         submitted.recalculateTotals();
         return repository.save(submitted);
     }
@@ -105,8 +104,6 @@ public class FabricsDeliveryService {
 
         parentDraw.draw(deliveryOrder, target.getLineGroups());
         parentDraw.save(deliveryOrder);
-
-        references.resolve(target);
 
         target.recalculateTotals();
         return repository.save(target);

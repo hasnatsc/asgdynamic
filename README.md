@@ -143,6 +143,21 @@ two concurrent callers the same code. Corrections, each enforced in the database
 - a blend that yarn items use cannot be re-composed; a fiber that blends use stays a fiber
 - items, brands, models and yarn masters carry approval with the same four-eyes rule as documents
 
+**Parties** (`party`, V15) — asfl-erp's party module, org-scoped: one `Party` per company with a
+`PartyRole` row per capacity (CUSTOMER qualified MARKETING/COMMERCIAL, SUPPLIER, AGENT, BANK,
+EMPLOYEE, BRAND, BUYING_HOUSE, GARMENT_FACTORY), plus addresses, contacts and bank accounts held
+at a bank that is itself a party. `/api/parties/directory?role=CUSTOMER` is the picker.
+`DocumentType.requiredPartyRole()` says who a document may name - sales and production a
+customer, purchase a supplier - and it is checked on every save.
+
+**Document associations are objects.** `BusinessDocument` maps `businessUnit`, `warehouse`,
+`party`, `parentDocument`, `marketingTeam` and `revisionOf` as `@ManyToOne` entities, line groups
+map `item` and `uom`, colour lines map `sourceColorLine` - each backed by a real foreign key
+(V15). Requests name them as `{"party": {"id": 42}}`; `DocumentReferences` swaps each for the
+organization's own row (or refuses) before a save touches anything, and the business unit,
+marketing team and revision root are read-only in JSON - the server stamps them.
+`organizationId` stays a column: scoping is a predicate, not a navigation.
+
 **Booking** (1st document type) — service (save, submit, revise, delete), controller
 (page + grid + detail + actions), Thymeleaf screen with the fabric line table.
 
@@ -356,9 +371,13 @@ every other secret in this project.
   `layout/main.html` and have not been moved onto it.
 - **Switching operating unit/store mid-session** — the header shows it read-only; see
   `FabricUser`'s javadoc.
-- **Party master** — currently referenced by id only. Document line groups' `item_id` and
-  `uom_id` are still plain ids too: point them at `inv_items`/`inv_uoms` (with the FK and its
-  index) when a document screen first picks from `/api/lookup/inventory/items`.
+- **Party maintenance screen.** The party model and its picker API exist (see **Parties**, above),
+  but, as in asfl-erp, nothing writes parties yet - there is no screen to create a customer, so
+  a Booking cannot name one until parties are entered or loaded from legacy data. The legacy
+  capture has no customer records; it does have 49 bank names (`buyerBank`), without codes.
+- **Validate the V15 foreign keys** once legacy rows are clean. They are `NOT VALID`: enforced on
+  every write from V15 on, but not yet checked against rows written before
+  (`ALTER TABLE gbl_business_documents VALIDATE CONSTRAINT fk_gbd_party;` and the other five).
 - **Fibers and blends.** V13 seeds the 19 legacy units, 13 HS codes, the brand and the yarn
   type/count/ply lists; V14 the full legacy category tree (6 roots, 32 groups, 8 item-level
   categories, codes exactly as issued - including `CAF111201` and the `SFB…` ones). The legacy

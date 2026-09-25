@@ -95,7 +95,7 @@ class DocumentReferencesTest {
         group.setUom(uomRef);
         doc.addLineGroup(group);
 
-        references.resolve(doc);
+        references.resolve(doc, DocumentType.BOOKING);
 
         assertThat(doc.getParty()).isSameAs(customer);
         assertThat(doc.getWarehouse()).isSameAs(store);
@@ -109,7 +109,7 @@ class DocumentReferencesTest {
         BusinessDocument doc = booking();
         doc.setParty(DocumentRefs.party(9L));
 
-        assertThatThrownBy(() -> references.resolve(doc))
+        assertThatThrownBy(() -> references.resolve(doc, DocumentType.BOOKING))
             .isInstanceOf(PartyRoleNotHeldException.class)
             .hasMessageContaining("does not hold role CUSTOMER");
     }
@@ -119,20 +119,20 @@ class DocumentReferencesTest {
         // findScoped filters by organization, so another tenant's id simply is not found.
         BusinessDocument doc = booking();
         doc.setParty(DocumentRefs.party(500L));
-        assertThatThrownBy(() -> references.resolve(doc))
+        assertThatThrownBy(() -> references.resolve(doc, DocumentType.BOOKING))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("No party with id 500");
 
         BusinessDocument other = booking();
         other.setWarehouse(DocumentRefs.warehouse(600L));
-        assertThatThrownBy(() -> references.resolve(other))
+        assertThatThrownBy(() -> references.resolve(other, DocumentType.BOOKING))
             .hasMessage("Warehouse not found: 600");
     }
 
     @Test
     void absentReferencesStayAbsent() {
         BusinessDocument doc = booking();
-        references.resolve(doc);
+        references.resolve(doc, DocumentType.BOOKING);
         assertThat(doc.getParty()).isNull();
         assertThat(doc.getWarehouse()).isNull();
         verifyNoInteractions(parties, warehouses);

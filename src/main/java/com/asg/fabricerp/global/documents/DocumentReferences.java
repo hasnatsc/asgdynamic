@@ -55,14 +55,20 @@ public class DocumentReferences {
     }
 
     /**
-     * Resolves the document's party (checked against {@link DocumentType#requiredPartyRole()}),
-     * warehouse, and every line group's item and unit.
+     * Resolves a submitted document's party (checked against {@code type}'s
+     * {@link DocumentType#requiredPartyRole()}), warehouse, and every line group's item and unit.
+     *
+     * <p>Call it first thing in a save, on the submitted document itself - before its fields are
+     * copied onto a managed document and before anything else is saved. A stand-in copied onto a
+     * managed entity is still unresolved when the next query auto-flushes, and Hibernate refuses
+     * to flush a reference to a detached row it has never seen ("uninitialized version").
+     *
+     * @param type the document's type; a submitted body does not carry one
      */
-    public void resolve(BusinessDocument doc) {
+    public void resolve(BusinessDocument doc, DocumentType type) {
         Long orgId = context.requireOrganizationId();
         Long partyId = AuditableEntity.idOf(doc.getParty());
-        doc.setParty(partyId == null ? null
-            : parties.requireHolder(partyId, doc.getDocumentType().requiredPartyRole()));
+        doc.setParty(partyId == null ? null : parties.requireHolder(partyId, type.requiredPartyRole()));
         doc.setWarehouse(warehouse(orgId, doc.getWarehouse()));
         for (BusinessDocumentLineGroup group : doc.getLineGroups()) {
             group.setItem(item(orgId, group.getItem()));

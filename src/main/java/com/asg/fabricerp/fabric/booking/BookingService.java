@@ -75,6 +75,7 @@ public class BookingService {
      */
     @Transactional
     public BusinessDocument save(BusinessDocument submitted) {
+        references.resolve(submitted, TYPE);   // before anything is copied or flushed
         BusinessDocument target;
 
         if (submitted.getId() == null) {
@@ -97,7 +98,6 @@ public class BookingService {
         }
 
         refreshCostingFigures(target);
-        references.resolve(target);
         target.recalculateTotals();
         return repository.save(target);
     }
