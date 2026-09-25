@@ -77,8 +77,8 @@ class PartyWebTest {
         mvc.perform(get("/setup/parties").with(signedIn(maintainer)))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("id=\"partyTable\"")))
-            .andExpect(content().string(containsString("New party")))
-            .andExpect(content().string(containsString("Delete party")))
+            .andExpect(content().string(containsString("id=\"partyNewBtn\"")))
+            .andExpect(content().string(containsString("id=\"partyDeleteBtn\"")))
             .andExpect(content().string(containsString("href=\"/setup/parties\"")));   // in the sidebar
     }
 
@@ -86,8 +86,8 @@ class PartyWebTest {
     void aViewerSeesNoCreateOrDelete() throws Exception {
         mvc.perform(get("/setup/parties").with(signedIn(viewer)))
             .andExpect(status().isOk())
-            .andExpect(content().string(org.hamcrest.Matchers.not(containsString("New party"))))
-            .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Delete party"))));
+            .andExpect(content().string(org.hamcrest.Matchers.not(containsString("id=\"partyNewBtn\""))))
+            .andExpect(content().string(org.hamcrest.Matchers.not(containsString("id=\"partyDeleteBtn\""))));
 
         mvc.perform(post("/api/setup/parties").with(signedIn(viewer)).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Acme\"}"))
