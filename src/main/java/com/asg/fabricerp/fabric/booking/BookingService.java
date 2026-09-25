@@ -3,6 +3,7 @@ package com.asg.fabricerp.fabric.booking;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.costing.CostingService;
 import com.asg.fabricerp.global.documents.*;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,14 +32,14 @@ public class BookingService {
     private static final DocumentType TYPE = DocumentType.BOOKING;
 
     private final BusinessDocumentRepository repository;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final CostingService costing;
     private final DocumentRevisionService revisions;
     private final DocumentReferences references;
     private final OrgContext context;
 
     public BookingService(BusinessDocumentRepository repository,
-                          DocumentNumberService numbering,
+                          BusinessNumberService numbering,
                           CostingService costing,
                           DocumentRevisionService revisions,
                           DocumentReferences references,
@@ -86,10 +87,10 @@ public class BookingService {
             // ADM-7: a Booking is where the team is decided — the creator's own team, or none
             // for an unrestricted user. Every downstream document inherits it from here.
             target.stampMarketingTeam(references.marketingTeam(context.requireRowScope().soleMarketingTeam()));
-            target.setDocumentNo(numbering.next(TYPE));
             if (target.getDocumentDate() == null) {
                 target.setDocumentDate(LocalDate.now());
             }
+            target.setDocumentNo(numbering.next(TYPE, target.getDocumentDate(), target.getBusinessUnit()));
         } else {
             target = get(submitted.getId());
             target.assertEditable();

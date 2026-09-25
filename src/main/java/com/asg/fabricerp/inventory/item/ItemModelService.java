@@ -1,7 +1,8 @@
 package com.asg.fabricerp.inventory.item;
 
 import com.asg.fabricerp.common.OrgContext;
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,19 +17,17 @@ import static com.asg.fabricerp.inventory.item.Masters.*;
 @Service
 public class ItemModelService {
 
-    static final String CODE_PREFIX = "MD";
-
     public record ModelRequest(Long id, Long brandId, String name, String shortName,
                                String description, Boolean active) { }
 
     private final ItemModelRepository repository;
     private final ItemBrandService brands;
     private final InventoryItemRepository items;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final OrgContext context;
 
     public ItemModelService(ItemModelRepository repository, ItemBrandService brands,
-                            InventoryItemRepository items, DocumentNumberService numbering, OrgContext context) {
+                            InventoryItemRepository items, BusinessNumberService numbering, OrgContext context) {
         this.repository = repository;
         this.brands = brands;
         this.items = items;
@@ -64,7 +63,7 @@ public class ItemModelService {
         ItemModel target;
         if (request.id() == null) {
             target = new ItemModel();
-            target.setCode(numbering.nextCode(CODE_PREFIX, 4));
+            target.setCode(numbering.next(BusinessSeries.ITEM_MODEL));
         } else {
             target = get(request.id());
         }

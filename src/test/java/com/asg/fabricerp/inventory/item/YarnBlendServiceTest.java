@@ -1,6 +1,7 @@
 package com.asg.fabricerp.inventory.item;
 
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import com.asg.fabricerp.inventory.item.YarnBlendService.BlendRequest;
 import com.asg.fabricerp.inventory.item.YarnBlendService.ComponentRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,8 +27,8 @@ class YarnBlendServiceTest {
     void setUp() {
         repository = mock(YarnBlendRepository.class);
         items = mock(InventoryItemRepository.class);
-        DocumentNumberService numbering = mock(DocumentNumberService.class);
-        when(numbering.nextCode("BL", 4)).thenReturn("BLAF0001");
+        BusinessNumberService numbering = mock(BusinessNumberService.class);
+        when(numbering.next(BusinessSeries.YARN_BLEND)).thenReturn("BL-2026-0001");
         service = new YarnBlendService(repository, items, numbering, context("tester"));
 
         when(repository.save(any(YarnBlend.class))).thenAnswer(i -> i.getArgument(0));
@@ -44,7 +45,7 @@ class YarnBlendServiceTest {
         Map<String, Object> saved = service.save(new BlendRequest(null, null, null, null, true,
             List.of(part(1, "60"), part(2, "40.00"))));
 
-        assertThat(saved.get("code")).isEqualTo("BLAF0001");
+        assertThat(saved.get("code")).isEqualTo("BL-2026-0001");
         assertThat(saved.get("name")).isEqualTo("60% Cotton 40% Viscose");
         assertThat(saved.get("composition")).isEqualTo("60% Cotton 40% Viscose");
     }

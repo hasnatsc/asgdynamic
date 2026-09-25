@@ -37,6 +37,10 @@ public class Organization extends AuditableEntity {
     @Column(nullable = false)
     private Boolean active = Boolean.TRUE;
 
+    /** The financial year starts on the first of this month; 1 makes it the calendar year. */
+    @Column(name = "fiscal_year_start_month", nullable = false)
+    private Integer fiscalYearStartMonth = 1;
+
     protected Organization() { }
 
     public Organization(String code, String name) {
@@ -50,4 +54,10 @@ public class Organization extends AuditableEntity {
     public void setName(String v)         { this.name = v; }
     public Boolean getActive()            { return active; }
     public void setActive(Boolean active) { this.active = active; }
+    public int getFiscalYearStartMonth()  { return fiscalYearStartMonth; }
+
+    public void setFiscalYearStartMonth(int month) {
+        if (month < 1 || month > 12) throw new IllegalArgumentException("Financial year start month must be 1-12.");
+        this.fiscalYearStartMonth = month;
+    }
 }

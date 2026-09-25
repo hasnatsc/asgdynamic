@@ -1,21 +1,23 @@
 package com.asg.fabricerp.global.documents;
 
+import com.asg.fabricerp.global.numbering.NumberSeries;
 import com.asg.fabricerp.party.PartyRoleType;
 
 /**
  * Every document the system issues, in one enum — SpindleERP's central idea, carried over.
  *
  * <p>It replaces asgdynamic's ~40 separate controllers/tables with one generic
- * {@link BusinessDocument} discriminated by this type. The prefix is the {@code TYPE} half
- * of the legacy document number {@code {TYPE}{UNIT}{000000}} (BPOAF000001, LCAF000002),
- * so existing numbers keep their shape.
+ * {@link BusinessDocument} discriminated by this type. The prefix is the legacy one
+ * (BPOAF000001 was a BPO) and is what each organization's numbering scheme starts from:
+ * {@code BPO-2026-000001} by default, reconfigurable per organization - see
+ * {@link com.asg.fabricerp.global.numbering.BusinessNumberService}.
  *
  * <p><b>Where this differs from SpindleERP:</b> the production and sales families are
  * fabric-shaped, not yarn-shaped. Spinning blends fibres by recipe and books waste as
  * output; weaving and dyeing route one material through sequential operations and book
  * greige and finished fabric instead. See {@link #isFabricProcess()}.
  */
-public enum DocumentType {
+public enum DocumentType implements NumberSeries {
 
     /* ---------------------------------------------------------------- SALES
      * Fabric is made to order against a buyer's construction, so the chain starts at a
@@ -95,8 +97,11 @@ public enum DocumentType {
     }
 
     public String prefix() { return prefix; }
-    public String label()  { return label; }
+    @Override public String label() { return label; }
     public Family family() { return family; }
+
+    @Override public String seriesCode()    { return name(); }
+    @Override public String defaultPrefix() { return prefix; }
 
     /**
      * The readable root used in this type's screen authorities, e.g. {@code "BOOKING"} for

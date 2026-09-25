@@ -2,10 +2,13 @@ package com.asg.fabricerp.party;
 
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.RowScope;
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import com.asg.fabricerp.party.PartyAdminService.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -23,13 +26,16 @@ class PartyAdminServiceTest {
     private static final Long ORG = 1L;
 
     private PartyRepository parties;
+    private BusinessNumberService numbering;
     private PartyAdminService service;
 
     @BeforeEach
     void setUp() {
         parties = mock(PartyRepository.class);
-        DocumentNumberService numbering = mock(DocumentNumberService.class);
-        when(numbering.nextCode("PT", 6)).thenReturn("PTAF000001");
+        numbering = mock(BusinessNumberService.class);
+        when(numbering.next(BusinessSeries.PARTY)).thenReturn("PT-2026-000001");
+        when(numbering.next(BusinessSeries.CUSTOMER)).thenReturn("CUS-2026-000001");
+        when(numbering.next(BusinessSeries.SUPPLIER)).thenReturn("SUP-2026-000001");
         OrgContext context = new OrgContext() {
             @Override public Long organizationId()     { return ORG; }
             @Override public Long businessUnitId()     { return 10L; }
@@ -78,7 +84,7 @@ class PartyAdminServiceTest {
             List.of(new ContactRequest(null, "Rahim", "Merchandiser", null, "01711000000", "rahim@acme.test", false)),
             List.of()));
 
-        assertThat(saved.get("code")).isEqualTo("PTAF000001");
+        assertThat(saved.get("code")).isEqualTo("PT-2026-000001");
         assertThat(saved.get("attributes")).isEqualTo(Map.of("IRC number", "IRC-7"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> addresses = (List<Map<String, Object>>) saved.get("addresses");
@@ -118,6 +124,75 @@ class PartyAdminServiceTest {
         assertThat(supplierRow.isCurrent()).isTrue();
         assertThat(supplierRow.getGrantedOn()).isEqualTo(LocalDate.of(2025, 1, 1));   // "since when" survives
         assertThat(supplierRow.getRoleCode()).isEqualTo("S-9");
+    }
+
+    private Party savedParty() {
+        ArgumentCaptor<Party> captor = ArgumentCaptor.forClass(Party.class);
+        verify(parties, atLeastOnce()).save(captor.capture());
+        return captor.getValue();
+    }
+
+    private static String codeOf(Party p, PartyRoleType type, String qualifier) {
+        return p.getRoles().stream().filter(r -> r.matches(type, qualifier)).findFirst().orElseThrow().getRoleCode();
+    }
+
+    @Test
+    void customerAndSupplierRolesWithoutACodeAreIssuedOne_otherRolesAreNot() {
+        service.save(request(null, null, null, "Acme", List.of(
+            new RoleRequest(PartyRoleType.CUSTOMER, PartyRoleType.MARKETING, null),
+            new RoleRequest(PartyRoleType.SUPPLIER, null, " "),
+            new RoleRequest(PartyRoleType.BANK, null, null)), null, null, null));
+
+        Party p = savedParty();
+        assertThat(codeOf(p, PartyRoleType.CUSTOMER, PartyRoleType.MARKETING)).isEqualTo("CUS-2026-000001");
+        assertThat(codeOf(p, PartyRoleType.SUPPLIER, null)).isEqualTo("SUP-2026-000001");
+        assertThat(codeOf(p, PartyRoleType.BANK, null)).isNull();
+    }
+
+    @Test
+    void aCompanyOnBothCustomerSidesHasOneCustomerCode() {
+        service.save(request(null, null, null, "Acme", List.of(
+            new RoleRequest(PartyRoleType.CUSTOMER, PartyRoleType.MARKETING, null),
+            new RoleRequest(PartyRoleType.CUSTOMER, PartyRoleType.COMMERCIAL, null)), null, null, null));
+
+        Party p = savedParty();
+        assertThat(codeOf(p, PartyRoleType.CUSTOMER, PartyRoleType.MARKETING)).isEqualTo("CUS-2026-000001");
+        assertThat(codeOf(p, PartyRoleType.CUSTOMER, PartyRoleType.COMMERCIAL)).isEqualTo("CUS-2026-000001");
+        verify(numbering, times(1)).next(BusinessSeries.CUSTOMER);
+    }
+
+    @Test
+    void anIssuedCustomerCodeSurvivesABlankField() {
+        Party p = existing(13L, PartyRoleType.CUSTOMER, PartyRoleType.MARKETING);
+        p.getRoles().getFirst().setRoleCode("CUS-2026-000007");
+
+        service.save(request(13L, 3L, null, "Party 13",
+            List.of(new RoleRequest(PartyRoleType.CUSTOMER, PartyRoleType.MARKETING, null)), null, null, null));
+
+        assertThat(codeOf(p, PartyRoleType.CUSTOMER, PartyRoleType.MARKETING)).isEqualTo("CUS-2026-000007");
+        verify(numbering, never()).next(BusinessSeries.CUSTOMER);
+    }
+
+    @Test
+    void aTypedPartyCodeIsReserved_afterRoleCodesAreDrawn() {
+        service.save(request(null, null, "acme-1", "Acme",
+            List.of(new RoleRequest(PartyRoleType.CUSTOMER, PartyRoleType.MARKETING, null)), null, null, null));
+
+        InOrder order = inOrder(numbering);
+        order.verify(numbering).next(BusinessSeries.CUSTOMER);
+        order.verify(numbering).reserve(BusinessSeries.PARTY, "ACME-1");
+        verify(numbering, never()).next(BusinessSeries.PARTY);
+    }
+
+    @Test
+    void aTypedPartyCodeAlreadyIssuedIsRefused() {
+        doThrow(new IllegalArgumentException("'PT-2026-000003' has already been issued."))
+            .when(numbering).reserve(BusinessSeries.PARTY, "PT-2026-000003");
+
+        assertThatThrownBy(() -> service.save(request(null, null, "PT-2026-000003", "Acme", customer(), null, null, null)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("already been issued");
+        verify(parties, never()).save(any(Party.class));
     }
 
     @Test

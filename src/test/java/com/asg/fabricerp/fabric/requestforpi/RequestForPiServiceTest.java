@@ -3,6 +3,7 @@ package com.asg.fabricerp.fabric.requestforpi;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.global.documents.*;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,17 +29,17 @@ class RequestForPiServiceTest {
     private static final Long BPO_COLOR_LINE_ID = 701L;
 
     private BusinessDocumentRepository repository;
-    private DocumentNumberService numbering;
+    private BusinessNumberService numbering;
     private RequestForPiService service;
 
     @BeforeEach
     void setUp() {
         repository = mock(BusinessDocumentRepository.class);
-        numbering = mock(DocumentNumberService.class);
-        // Consecutive-call stubbing: the original get "RPIAF000001", its revision gets
-        // "RPIAF000002" — a real DocumentNumberService would never hand out the same
+        numbering = mock(BusinessNumberService.class);
+        // Consecutive-call stubbing: the original get "RPI-2026-000001", its revision gets
+        // "RPI-2026-000002" — a real BusinessNumberService would never hand out the same
         // number twice, and this mock shouldn't pretend otherwise.
-        when(numbering.next(DocumentType.REQUEST_FOR_PI)).thenReturn("RPIAF000001", "RPIAF000002");
+        when(numbering.next(eq(DocumentType.REQUEST_FOR_PI), any(LocalDate.class), any())).thenReturn("RPI-2026-000001", "RPI-2026-000002");
         DocumentRevisionService revisions = new DocumentRevisionService(repository, numbering);
 
         OrgContext context = new OrgContext() {
@@ -140,7 +141,7 @@ class RequestForPiServiceTest {
 
         BusinessDocument revision = service.revise(900L, "buyer moved the date");
 
-        assertThat(revision.getDocumentNo()).isEqualTo("RPIAF000002");
+        assertThat(revision.getDocumentNo()).isEqualTo("RPI-2026-000002");
         assertThat(revision.getRevisionNo()).isEqualTo(1);
         assertThat(DocumentRefs.id(onlyColorLine(revision).getSourceColorLine())).isEqualTo(BPO_COLOR_LINE_ID);
         // The BPO ledger is untouched by the revision itself — only the original draw counts.

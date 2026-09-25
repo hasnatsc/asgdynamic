@@ -1,6 +1,7 @@
 package com.asg.fabricerp.inventory.item;
 
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import com.asg.fabricerp.inventory.item.InventoryItemService.ItemRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,8 +44,8 @@ class InventoryItemServiceTest {
         YarnPlyService yarnPlies = mock(YarnPlyService.class);
         YarnBlendService yarnBlends = mock(YarnBlendService.class);
         blendRepository = mock(YarnBlendRepository.class);
-        DocumentNumberService numbering = mock(DocumentNumberService.class);
-        when(numbering.nextCode("ITM", 6)).thenReturn("ITMAF000001");
+        BusinessNumberService numbering = mock(BusinessNumberService.class);
+        when(numbering.next(BusinessSeries.ITEM)).thenReturn("ITM-2026-000001");
 
         service = new InventoryItemService(repository, categories, units, mock(HsCodeService.class), brands, models,
             yarnTypes, yarnCounts, yarnPlies, yarnBlends, blendRepository, numbering, context("maker"));
@@ -104,7 +105,7 @@ class InventoryItemServiceTest {
         Map<String, Object> saved = service.save(yarn(null));
 
         assertThat(saved.get("name")).isEqualTo("30/1 CD 60% Cotton 40% Viscose");
-        assertThat(saved.get("itemCode")).isEqualTo("ITMAF000001");
+        assertThat(saved.get("itemCode")).isEqualTo("ITM-2026-000001");
         assertThat(saved.get("yarnBlendId")).isEqualTo(24L);
         assertThat(saved.get("qualityGrade")).isEqualTo("A");
     }

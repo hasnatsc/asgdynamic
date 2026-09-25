@@ -4,6 +4,7 @@ import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.costing.CostingService;
 import com.asg.fabricerp.global.documents.*;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +30,7 @@ import static org.mockito.Mockito.*;
 class BookingServiceRevisionTest {
 
     private BusinessDocumentRepository repository;
-    private DocumentNumberService numbering;
+    private BusinessNumberService numbering;
     private CostingService costing;
     private BookingService service;
 
@@ -39,7 +40,7 @@ class BookingServiceRevisionTest {
     @BeforeEach
     void setUp() {
         repository = mock(BusinessDocumentRepository.class);
-        numbering = mock(DocumentNumberService.class);
+        numbering = mock(BusinessNumberService.class);
         costing = mock(CostingService.class);
 
         OrgContext context = new OrgContext() {
@@ -55,7 +56,7 @@ class BookingServiceRevisionTest {
         // revision behaviour under test is the actual shared logic, not a stand-in for it.
         DocumentRevisionService revisions = new DocumentRevisionService(repository, numbering);
         service = new BookingService(repository, numbering, costing, revisions, DocumentRefs.references(UNIT), context);
-        when(numbering.next(DocumentType.BOOKING)).thenReturn("BKAF000002");
+        when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BK-2026-000002");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -143,7 +144,7 @@ class BookingServiceRevisionTest {
 
         assertThat(revision.getRevisionNo()).isEqualTo(1);
         assertThat(DocumentRefs.id(revision.getRevisionOf())).isEqualTo(1L);
-        assertThat(revision.getDocumentNo()).isEqualTo("BKAF000002");
+        assertThat(revision.getDocumentNo()).isEqualTo("BK-2026-000002");
         assertThat(revision.getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
     }
 
@@ -182,7 +183,7 @@ class BookingServiceRevisionTest {
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("edit");
 
-        verify(numbering, never()).next(any(DocumentType.class));
+        verify(numbering, never()).next(any(DocumentType.class), any(), any());
     }
 
     // submit() no longer lives on this service — see ApprovalServiceTest's

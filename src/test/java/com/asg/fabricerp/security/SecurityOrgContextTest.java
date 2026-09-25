@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * The behaviour {@link com.asg.fabricerp.global.documents.DocumentNumberService} and every
+ * The behaviour {@link com.asg.fabricerp.global.documents.BusinessNumberService} and every
  * {@code save()} in the fabric services depend on: the context must resolve to the
  * authenticated user's scope, and must fail loudly rather than silently scoping to nothing
  * when there is no authentication.

@@ -1,7 +1,8 @@
 package com.asg.fabricerp.inventory.item;
 
 import com.asg.fabricerp.common.OrgContext;
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -27,7 +28,6 @@ import static com.asg.fabricerp.inventory.item.Masters.*;
 @Service
 public class InventoryItemService {
 
-    static final String CODE_PREFIX = "ITM";
     private static final int LOOKUP_LIMIT = 50;
 
     public record ItemRequest(
@@ -63,14 +63,14 @@ public class InventoryItemService {
     private final YarnPlyService yarnPlies;
     private final YarnBlendService yarnBlends;
     private final YarnBlendRepository blendRepository;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final OrgContext context;
 
     public InventoryItemService(InventoryItemRepository repository, ItemCategoryService categories,
                                 UnitOfMeasureService units, HsCodeService hsCodes, ItemBrandService brands,
                                 ItemModelService models, YarnTypeService yarnTypes, YarnCountService yarnCounts,
                                 YarnPlyService yarnPlies, YarnBlendService yarnBlends,
-                                YarnBlendRepository blendRepository, DocumentNumberService numbering,
+                                YarnBlendRepository blendRepository, BusinessNumberService numbering,
                                 OrgContext context) {
         this.repository = repository;
         this.categories = categories;
@@ -177,7 +177,7 @@ public class InventoryItemService {
         }
 
         if (item.getId() == null) {
-            item.setItemCode(numbering.nextCode(CODE_PREFIX, 6));
+            item.setItemCode(numbering.next(BusinessSeries.ITEM));
         }
         return detailRow(repository.save(item));
     }

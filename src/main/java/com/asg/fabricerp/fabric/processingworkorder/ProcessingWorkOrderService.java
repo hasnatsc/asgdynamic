@@ -2,6 +2,7 @@ package com.asg.fabricerp.fabric.processingworkorder;
 
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.global.documents.*;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,13 +29,13 @@ public class ProcessingWorkOrderService {
     private static final DocumentType PARENT_TYPE = DocumentType.BULK_PRODUCTION_ORDER;
 
     private final BusinessDocumentRepository repository;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final ParentLineDrawService parentDraw;
     private final DocumentReferences references;
     private final OrgContext context;
 
     public ProcessingWorkOrderService(BusinessDocumentRepository repository,
-                                      DocumentNumberService numbering,
+                                      BusinessNumberService numbering,
                                       ParentLineDrawService parentDraw,
                                       DocumentReferences references,
                                       OrgContext context) {
@@ -81,10 +82,10 @@ public class ProcessingWorkOrderService {
         submitted.setBusinessUnit(references.currentBusinessUnit());
         submitted.setParentDocument(bpo);
         submitted.stampMarketingTeam(bpo.getMarketingTeam());   // ADM-7: the team travels downstream
-        submitted.setDocumentNo(numbering.next(TYPE));
         if (submitted.getDocumentDate() == null) {
             submitted.setDocumentDate(LocalDate.now());
         }
+        submitted.setDocumentNo(numbering.next(TYPE, submitted.getDocumentDate(), submitted.getBusinessUnit()));
         if (submitted.getParty() == null) {
             submitted.setParty(bpo.getParty());
         }

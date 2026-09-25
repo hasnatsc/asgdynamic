@@ -1,7 +1,8 @@
 package com.asg.fabricerp.inventory.item;
 
 import com.asg.fabricerp.common.OrgContext;
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,17 +17,15 @@ import static com.asg.fabricerp.inventory.item.Masters.*;
 @Service
 public class YarnCountService {
 
-    static final String CODE_PREFIX = "YC";
-
     public record YarnCountRequest(Long id, String name, String description, Boolean active) { }
 
     private final YarnCountRepository repository;
     private final InventoryItemRepository items;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final OrgContext context;
 
     public YarnCountService(YarnCountRepository repository, InventoryItemRepository items,
-                            DocumentNumberService numbering, OrgContext context) {
+                            BusinessNumberService numbering, OrgContext context) {
         this.repository = repository;
         this.items = items;
         this.numbering = numbering;
@@ -61,7 +60,7 @@ public class YarnCountService {
         YarnCount target;
         if (request.id() == null) {
             target = new YarnCount();
-            target.setCode(numbering.nextCode(CODE_PREFIX, 4));
+            target.setCode(numbering.next(BusinessSeries.YARN_COUNT));
         } else {
             target = get(request.id());
         }

@@ -24,6 +24,7 @@ public enum Screen {
     ITEM_SETUP("Item setup", Section.INVENTORY, "/inventory/categories"),
     PARTY("Parties", Section.SETUP, "/setup/parties"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
+    NUMBERING("Document numbering", Section.ADMINISTRATION, "/setup/numbering"),
     SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security");
 
     public enum Section {

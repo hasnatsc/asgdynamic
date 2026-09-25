@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head><title th:text="${title}">Document numbering</title></head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Document numbering</h1>
+            <p class="page-sub">How every document, party and item code is numbered. Issued numbers are never reused, whatever is changed here.</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title">Financial year</h2>
+            <span id="fyCurrent" class="text-sm text-slate-500"></span>
+        </div>
+        <div class="flex flex-wrap items-end gap-3 px-4 py-3">
+            <div>
+                <label class="label" for="fyMonth">Starts on the 1st of</label>
+                <select id="fyMonth" class="field w-auto"></select>
+            </div>
+            <button type="button" id="fySave" class="btn-primary" hidden>Save</button>
+            <p class="hint w-full">{FY} in a pattern is the year the financial year starts in; with a July start, 25 Sep 2026 is FY 2026.</p>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table id="seriesTable" class="table-grid">
+                <thead>
+                <tr>
+                    <th>Series</th>
+                    <th>Prefix</th>
+                    <th>Pattern</th>
+                    <th>Restarts</th>
+                    <th>Counter</th>
+                    <th>Issued this period</th>
+                    <th>Next number</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, fail, esc, toast } = App;
+        const $ = sel => document.querySelector(sel);
+        const CAN_AMEND = /*[[${#authorization.expression('hasAuthority(''SCREEN_NUMBERING_AMEND'')')}]]*/ false;
+        const RESETS = { NEVER: 'Never', FINANCIAL_YEAR: 'Each financial year', CALENDAR_YEAR: 'Each calendar year' };
+        const SCOPES = { ORGANIZATION: 'Whole organization', BRANCH: 'Per branch' };
+        const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                        'September', 'October', 'November', 'December'];
+
+        let rows = [];
+
+        MONTHS.forEach((m, i) => $('#fyMonth').insertAdjacentHTML('beforeend', `<option value="${i + 1}">${m}</option>`));
+        $('#fyMonth').disabled = !CAN_AMEND;
+        $('#fySave').hidden = !CAN_AMEND;
+
+        function renderFiscalYear(fy) {
+            $('#fyMonth').value = String(fy.startMonth);
+            $('#fyCurrent').textContent = `Current: FY ${fy.label} (${App.fmt.date(fy.start)} – ${App.fmt.date(fy.end)})`;
+        }
+
+        function render() {
+            let group = null;
+            const html = [];
+            rows.forEach(r => {
+                if (r.group !== group) {
+                    group = r.group;
+                    html.push(`<tr><td colspan="8" class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">${esc(group)}</td></tr>`);
+                }
+                html.push(`<tr>
+                    <td><span class="font-medium">${esc(r.label)}</span>
+                        ${r.configured ? '' : '<span class="badge-gray ml-1" title="Not numbered yet; these are the defaults">default</span>'}
+                        ${r.prefixClash ? '<span class="badge-red ml-1" title="Another series already uses this prefix">prefix clash</span>' : ''}</td>
+                    <td class="font-mono text-xs">${esc(r.prefix)}</td>
+                    <td class="font-mono text-xs">${esc(r.pattern)} <span class="text-slate-400">· ${esc(r.sequenceWidth)} digits</span></td>
+                    <td>${esc(RESETS[r.resetPolicy])}</td>
+                    <td>${esc(SCOPES[r.counterScope])}</td>
+                    <td>${esc(r.issuedThisPeriod)}</td>
+                    <td class="font-mono text-xs">${esc(r.nextNumber || '—')}</td>
+                    <td class="text-right">${CAN_AMEND ? `<button type="button" class="btn-subtle btn-sm" data-edit="${esc(r.seriesCode)}">Edit</button>` : ''}</td>
+                </tr>`);
+            });
+            $('#seriesTable tbody').innerHTML = html.join('');
+        }
+
+        async function load() {
+            try {
+                const data = await api('/api/setup/numbering');
+                rows = data.series;
+                renderFiscalYear(data.fiscalYear);
+                render();
+            } catch (e) { fail(e); }
+        }
+
+        $('#fySave').addEventListener('click', async () => {
+            try {
+                const fy = await api('/api/setup/numbering/fiscal-year',
+                    { method: 'PUT', body: { startMonth: Number($('#fyMonth').value) } });
+                renderFiscalYear(fy);
+                toast('Financial year saved', 'success');
+                load();
+            } catch (e) { fail(e); }
+        });
+
+        $('#seriesTable').addEventListener('click', async event => {
+            const btn = event.target.closest('[data-edit]');
+            if (!btn) return;
+            const row = rows.find(r => r.seriesCode === btn.dataset.edit);
+            const values = await App.form({
+                title: `Numbering: ${row.label}`,
+                message: 'Tokens: {PREFIX} {BRANCH} {FY} {YYYY} {YY} {SEQ}. Numbers already issued keep their form.',
+                confirmText: 'Save',
+                fields: [
+                    { name: 'prefix', label: 'Prefix', value: row.prefix, required: true, maxlength: 12,
+                      hint: 'Capital letters and digits; no other series may use it.' },
+                    { name: 'pattern', label: 'Pattern', value: row.pattern, required: true, maxlength: 80,
+                      hint: `Must contain {PREFIX} and {SEQ}. At most ${row.maxLength} characters once filled in.` },
+                    { name: 'sequenceWidth', label: 'Sequence digits', type: 'number', value: String(row.sequenceWidth), required: true },
+                    { name: 'resetPolicy', label: 'Counter restarts', type: 'select', value: row.resetPolicy,
+                      options: Object.entries(RESETS).map(([value, label]) => ({ value, label })),
+                      hint: 'Restarting each year needs that year in the pattern.' },
+                    { name: 'counterScope', label: 'Counter', type: 'select', value: row.counterScope,
+                      options: Object.entries(SCOPES).map(([value, label]) => ({ value, label })),
+                      hint: 'A per-branch counter needs {BRANCH} in the pattern.' }
+                ]
+            });
+            if (!values) return;
+            try {
+                const saved = await api(`/api/setup/numbering/series/${encodeURIComponent(row.seriesCode)}`, {
+                    method: 'PUT',
+                    body: { ...values, sequenceWidth: Number(values.sequenceWidth), version: row.version }
+                });
+                toast(`${row.label}: next number ${saved.nextNumber || ''}`, 'success');
+                load();
+            } catch (e) { fail(e); }
+        });
+
+        load();
+    });
+    </script>
+</div>
+</body>
+</html>

@@ -3,6 +3,7 @@ package com.asg.fabricerp.fabric.productionorder;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.costing.CostingService;
 import com.asg.fabricerp.global.documents.*;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,7 +37,7 @@ public class BpoService {
     private static final DocumentType PARENT_TYPE = DocumentType.BOOKING;
 
     private final BusinessDocumentRepository repository;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final CostingService costing;
     private final DocumentRevisionService revisions;
     private final ParentLineDrawService parentDraw;
@@ -44,7 +45,7 @@ public class BpoService {
     private final OrgContext context;
 
     public BpoService(BusinessDocumentRepository repository,
-                      DocumentNumberService numbering,
+                      BusinessNumberService numbering,
                       CostingService costing,
                       DocumentRevisionService revisions,
                       ParentLineDrawService parentDraw,
@@ -96,10 +97,10 @@ public class BpoService {
         submitted.setBusinessUnit(references.currentBusinessUnit());
         submitted.setParentDocument(booking);
         submitted.stampMarketingTeam(booking.getMarketingTeam());   // ADM-7: the team travels downstream
-        submitted.setDocumentNo(numbering.next(TYPE));
         if (submitted.getDocumentDate() == null) {
             submitted.setDocumentDate(LocalDate.now());
         }
+        submitted.setDocumentNo(numbering.next(TYPE, submitted.getDocumentDate(), submitted.getBusinessUnit()));
         if (submitted.getParty() == null) {
             submitted.setParty(booking.getParty());
         }

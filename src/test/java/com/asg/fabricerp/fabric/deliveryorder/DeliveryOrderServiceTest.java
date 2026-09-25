@@ -3,6 +3,7 @@ package com.asg.fabricerp.fabric.deliveryorder;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.global.documents.*;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,8 +32,8 @@ class DeliveryOrderServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(BusinessDocumentRepository.class);
-        DocumentNumberService numbering = mock(DocumentNumberService.class);
-        when(numbering.next(DocumentType.DELIVERY_ORDER)).thenReturn("DOAF000001");
+        BusinessNumberService numbering = mock(BusinessNumberService.class);
+        when(numbering.next(eq(DocumentType.DELIVERY_ORDER), any(LocalDate.class), any())).thenReturn("DO-2026-000001");
 
         OrgContext context = new OrgContext() {
             @Override public Long organizationId()     { return ORG; }

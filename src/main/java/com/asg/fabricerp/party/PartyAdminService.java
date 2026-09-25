@@ -1,7 +1,8 @@
 package com.asg.fabricerp.party;
 
 import com.asg.fabricerp.common.OrgContext;
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -34,8 +35,6 @@ import java.util.stream.Collectors;
 @Service
 public class PartyAdminService {
 
-    /** Code prefix: PT + the caller's unit + six digits, e.g. PTAF000001. */
-    static final String CODE_PREFIX = "PT";
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     public record RoleRequest(PartyRoleType roleType, String qualifier, String roleCode) { }
@@ -60,10 +59,10 @@ public class PartyAdminService {
     public record Counts(long total, long inactive, Map<PartyRoleType, Long> byRole) { }
 
     private final PartyRepository parties;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final OrgContext context;
 
-    public PartyAdminService(PartyRepository parties, DocumentNumberService numbering, OrgContext context) {
+    public PartyAdminService(PartyRepository parties, BusinessNumberService numbering, OrgContext context) {
         this.parties = parties;
         this.numbering = numbering;
         this.context = context;
@@ -229,15 +228,17 @@ public class PartyAdminService {
         Party.PartyType type = r.partyType() == null ? Party.PartyType.ORGANISATION : r.partyType();
 
         Party party;
+        String typedCode = null;
         if (r.id() == null) {
             String code = clean(r.code());
             if (code == null) {
-                code = numbering.nextCode(CODE_PREFIX, 6);
+                code = numbering.next(BusinessSeries.PARTY);
             } else {
                 code = max(code.toUpperCase(Locale.ROOT), "Code", 40);
                 if (parties.existsByOrganizationIdAndCodeIgnoreCaseAndDeletedFalse(orgId, code)) {
                     throw new IllegalArgumentException("Party code '%s' is already in use.".formatted(code));
                 }
+                typedCode = code;
             }
             party = new Party(code, name, type);
             party.setOrganizationId(orgId);
@@ -261,6 +262,13 @@ public class PartyAdminService {
         syncContacts(party, r.contacts() == null ? List.of() : r.contacts());
         syncBankAccounts(orgId, party, r.bankAccounts() == null ? List.of() : r.bankAccounts());
 
+        // Last, after syncRoles has drawn any role codes: the reservation is an uncommitted ledger row
+        // until this save commits, and a code drawn after it that happened to equal it would wait on
+        // this very transaction.
+        if (typedCode != null) {
+            numbering.reserve(BusinessSeries.PARTY, typedCode);
+        }
+
         Party saved = parties.save(party);
         parties.flush();   // so the returned version and child ids are the persisted ones
         return detail(saved.getId());
@@ -277,7 +285,14 @@ public class PartyAdminService {
                 throw new IllegalArgumentException("%s is listed twice.".formatted(label(role.roleType(), qualifier)));
             }
             PartyRole granted = party.grantRole(role.roleType(), qualifier, null, today);
-            granted.setRoleCode(max(clean(role.roleCode()), "Role code", 40));
+            String typed = max(clean(role.roleCode()), "Role code", 40);
+            Optional<BusinessSeries> series = BusinessSeries.forRole(role.roleType());
+            if (typed != null || series.isEmpty()) {
+                granted.setRoleCode(typed);
+            } else if (granted.getRoleCode() == null) {
+                granted.setRoleCode(siblingCode(party, granted).orElseGet(() -> numbering.next(series.get())));
+            }
+            // else: a numbered role keeps the code it was issued; leaving the field blank does not erase it.
         }
         if (wanted.isEmpty()) {
             throw new IllegalArgumentException("Give the party at least one role - a party with none cannot be named on any document.");
@@ -292,6 +307,17 @@ public class PartyAdminService {
                 party.revokeRole(existing.getRoleType(), existing.getQualifier(), today);
             }
         }
+    }
+
+    /**
+     * A company that is both a marketing and a commercial customer is one customer with one code:
+     * the qualifier says which side deals with it, not who it is.
+     */
+    private static Optional<String> siblingCode(Party party, PartyRole role) {
+        return party.getRoles().stream()
+            .filter(other -> other != role && other.getRoleType() == role.getRoleType() && other.getRoleCode() != null)
+            .map(PartyRole::getRoleCode)
+            .findFirst();
     }
 
     private void syncAddresses(Party party, List<AddressRequest> requested) {

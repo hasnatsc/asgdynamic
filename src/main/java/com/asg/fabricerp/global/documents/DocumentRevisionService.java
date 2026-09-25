@@ -1,5 +1,6 @@
 package com.asg.fabricerp.global.documents;
 
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +20,9 @@ import java.time.LocalDate;
 public class DocumentRevisionService {
 
     private final BusinessDocumentRepository repository;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
 
-    public DocumentRevisionService(BusinessDocumentRepository repository, DocumentNumberService numbering) {
+    public DocumentRevisionService(BusinessDocumentRepository repository, BusinessNumberService numbering) {
         this.repository = repository;
         this.numbering = numbering;
     }
@@ -56,7 +57,7 @@ public class DocumentRevisionService {
         // Booking. revisionOf is a different axis (previous version of THIS document) and
         // is set below, not here.
         revision.setParentDocument(original.getParentDocument());
-        revision.setDocumentNo(numbering.next(original.getDocumentType()));
+        revision.setDocumentNo(numbering.next(original.getDocumentType(), revision.getDocumentDate(), revision.getBusinessUnit()));
 
         // Lineage always points at the root, so a chain never has to be walked to find it.
         revision.setRevisionOf(original.getRevisionOf() != null ? original.getRevisionOf() : original);

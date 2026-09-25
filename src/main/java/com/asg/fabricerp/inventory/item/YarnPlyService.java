@@ -1,7 +1,8 @@
 package com.asg.fabricerp.inventory.item;
 
 import com.asg.fabricerp.common.OrgContext;
-import com.asg.fabricerp.global.documents.DocumentNumberService;
+import com.asg.fabricerp.global.numbering.BusinessNumberService;
+import com.asg.fabricerp.global.numbering.BusinessSeries;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,17 +18,15 @@ import static com.asg.fabricerp.inventory.item.Masters.*;
 @Service
 public class YarnPlyService {
 
-    static final String CODE_PREFIX = "YP";
-
     public record YarnPlyRequest(Long id, Integer plyNumber, String name, String description, Boolean active) { }
 
     private final YarnPlyRepository repository;
     private final InventoryItemRepository items;
-    private final DocumentNumberService numbering;
+    private final BusinessNumberService numbering;
     private final OrgContext context;
 
     public YarnPlyService(YarnPlyRepository repository, InventoryItemRepository items,
-                          DocumentNumberService numbering, OrgContext context) {
+                          BusinessNumberService numbering, OrgContext context) {
         this.repository = repository;
         this.items = items;
         this.numbering = numbering;
@@ -67,7 +66,7 @@ public class YarnPlyService {
         if (request.id() == null) {
             requireUniqueNumber(orgId, number);
             target = new YarnPly();
-            target.setCode(numbering.nextCode(CODE_PREFIX, 4));
+            target.setCode(numbering.next(BusinessSeries.YARN_PLY));
         } else {
             target = get(request.id());
             if (!Objects.equals(target.getPlyNumber(), number)) {
