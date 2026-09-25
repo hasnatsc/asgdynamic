@@ -322,6 +322,15 @@
   [data-view-mode] select.field[data-view-locked] { @apply appearance-none bg-none; }
   [data-view-mode] .checkbox[data-view-locked], [data-view-mode] .radio[data-view-locked] { @apply opacity-100; }
   [data-view-mode] button:disabled:not([role=tab]) { @apply hidden; }
+  [data-view-mode] [data-view-hide] { @apply hidden; }
+  /* The picker's native <select> is a hidden stand-in; the locked-field look must not reveal it. */
+  [data-view-mode] .rselect-native[data-view-locked] { @apply opacity-0; }
+  [data-view-mode] .field-check:has(> [data-view-locked]) { @apply cursor-default border-gray-200 bg-gray-50 shadow-none hover:border-gray-200; }
+  /* A floating caption over a locked field takes the field's fill below the border line. */
+  [data-view-mode] .form-float div:has(> .field[data-view-locked]) > .label,
+  [data-view-mode] .form-float div:has(> div > .field[data-view-locked]) > .label,
+  [data-view-mode] .form-float div:has(> .rselect > .rselect-trigger.is-disabled) > .label {
+    background-image: linear-gradient(theme('colors.white') 50%, theme('colors.gray.50') 50%); }
 
   /* ---- Filter chips: a segmented role filter with live counts ----------------------------- */
   .chip       { @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-sm font-medium

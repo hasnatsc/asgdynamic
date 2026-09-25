@@ -92,7 +92,7 @@
                 <p class="mt-0.5 text-sm text-gray-500">Saved as a draft; submit it for approval from the list once it is complete.</p>
             </div>
             <div class="ml-auto hidden md:block" data-editor-rail><th:block th:replace="~{fragments/ui :: workflow(${draft})}"></th:block></div>
-            <button type="button" class="btn-icon -mr-2" data-editor-close aria-label="Close editor">
+            <button type="button" class="btn-icon -mr-2" data-editor-close data-view-keep aria-label="Close editor">
                 <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
             </button>
         </div>
@@ -188,6 +188,8 @@
                 Item &amp; colour breakdown <span class="badge-gray ml-1" data-count="groups">0</span></button>
             <button type="button" class="tab" role="tab" data-tab="terms">
                 Terms &amp; conditions <span class="badge-gray ml-1" data-count="terms">0</span></button>
+            <!-- Only when a booking is viewed: a draft being keyed has no history yet. -->
+            <button type="button" class="tab" role="tab" data-tab="history" hidden>Approval history</button>
         </div>
 
         <!-- Item & colour breakdown ------------------------------------------------------- -->
@@ -485,7 +487,7 @@
 
         <!-- Terms & conditions ------------------------------------------------------------ -->
         <div data-panel="terms" hidden>
-            <section class="form-section">
+            <section class="form-section" data-view-hide>
                 <div class="form-section-head">
                     <div>
                         <h3 class="form-section-title">Terms &amp; conditions</h3>
@@ -530,6 +532,10 @@
             </section>
         </div>
 
+        <div data-panel="history" hidden>
+            <section class="form-section" data-history></section>
+        </div>
+
         </div><!-- /data-editor-body -->
 
         <div class="modal-foot">
@@ -539,7 +545,9 @@
                 <div class="flex gap-1.5"><dt>Total quantity</dt><dd class="font-semibold tabular-nums text-gray-900 dark:text-white" data-total="qty">0</dd></div>
                 <div class="flex gap-1.5"><dt>Grand total</dt><dd class="text-base font-semibold tabular-nums text-brand-700 dark:text-brand-300" data-total="amount">0</dd></div>
             </dl>
-            <button type="button" class="btn-ghost" data-editor-close>Cancel</button>
+            <!-- Viewing: the document's workflow buttons (Edit, Submit, Approve / Reject, Revise). -->
+            <div class="flex flex-wrap items-center justify-end gap-2" data-view-actions data-view-keep hidden></div>
+            <button type="button" class="btn-ghost" data-editor-close data-view-keep data-cancel>Cancel</button>
             <button type="submit" class="btn-primary">
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
         </div>

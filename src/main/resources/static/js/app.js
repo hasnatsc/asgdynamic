@@ -1492,6 +1492,22 @@
         }
 
         async open(id) {
+            // A page whose editor is a dialog shows the document in that same form, read-only:
+            // opts.onView(doc, history, screen). actionButtons(), historyHtml() and act() are
+            // the review modal's own pieces, for that page to use.
+            if (this.opts.onView) {
+                try {
+                    const [doc, history] = await Promise.all([
+                        api(`${this.opts.api}/${id}`),
+                        api(`/api/documents/${id}/history`).catch(() => [])
+                    ]);
+                    this.current = doc;
+                    await this.opts.onView(doc, history || [], this);
+                } catch (error) {
+                    fail(error);
+                }
+                return;
+            }
             const drawer = this.drawer || (this.drawer = this.buildDrawer());
             drawer.querySelector('[data-body]').innerHTML =
                 '<div class="space-y-3 p-6">' + '<div class="skeleton h-5 w-2/3"></div>'.repeat(4) + '</div>';
@@ -1593,18 +1609,7 @@
                 </article>`;
             }).join('');
 
-            const timeline = history.length ? `<ol class="space-y-4">${history.map(h => `
-                <li class="flex gap-3">
-                    <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">
-                        ${icon(h.action === 'REJECT' ? 'x' : h.action === 'APPROVE' ? 'check' : 'send', 'h-3 w-3')}</span>
-                    <div class="min-w-0 text-sm">
-                        <p><span class="font-medium text-gray-900 dark:text-white">${esc(h.actor || 'System')}</span>
-                           <span class="text-gray-500">moved it to</span> ${statusBadge(h.toStatus)}</p>
-                        ${h.remarks ? `<p class="mt-1 rounded-lg bg-gray-50 px-3 py-2 text-gray-700 dark:bg-gray-800 dark:text-gray-300">${esc(h.remarks)}</p>` : ''}
-                        <p class="mt-0.5 text-xs text-gray-500">${fmt.timeTag(h.at)}</p>
-                    </div>
-                </li>`).join('')}</ol>`
-                : '<p class="text-sm text-gray-500">No approval activity yet.</p>';
+            const timeline = this.historyHtml(history);
 
             d.querySelector('[data-body]').innerHTML = `
                 <section class="form-section">${statusSteps(doc.status)}</section>
@@ -1629,6 +1634,29 @@
                     ${timeline}
                 </section>`;
 
+            d.querySelector('[data-foot]').innerHTML = `
+                <button type="button" class="btn-ghost" data-close>Close</button>
+                <div class="flex flex-wrap justify-end gap-2">${this.actionButtons(doc)}</div>`;
+        }
+
+        /** The approval timeline, newest last. */
+        historyHtml(history) {
+            return history.length ? `<ol class="space-y-4">${history.map(h => `
+                <li class="flex gap-3">
+                    <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">
+                        ${icon(h.action === 'REJECT' ? 'x' : h.action === 'APPROVE' ? 'check' : 'send', 'h-3 w-3')}</span>
+                    <div class="min-w-0 text-sm">
+                        <p><span class="font-medium text-gray-900 dark:text-white">${esc(h.actor || 'System')}</span>
+                           <span class="text-gray-500">moved it to</span> ${statusBadge(h.toStatus)}</p>
+                        ${h.remarks ? `<p class="mt-1 rounded-lg bg-gray-50 px-3 py-2 text-gray-700 dark:bg-gray-800 dark:text-gray-300">${esc(h.remarks)}</p>` : ''}
+                        <p class="mt-0.5 text-xs text-gray-500">${fmt.timeTag(h.at)}</p>
+                    </div>
+                </li>`).join('')}</ol>`
+                : '<p class="text-sm text-gray-500">No approval activity yet.</p>';
+        }
+
+        /** The workflow buttons a document offers in its status; each carries data-doc-action for act(). */
+        actionButtons(doc) {
             // Offered exactly as BusinessDocumentStatus.allowedNext() permits; the server still decides
             // who may (four-eyes included). A rejected document goes back to draft by being edited.
             const s = doc.status;
@@ -1652,16 +1680,14 @@
             if (this.opts.revise && committed) {
                 actions.push(`<button type="button" class="btn-ghost" data-doc-action="revise">${icon('refresh')}Raise revision</button>`);
             }
-            d.querySelector('[data-foot]').innerHTML = `
-                <button type="button" class="btn-ghost" data-close>Close</button>
-                <div class="flex flex-wrap justify-end gap-2">${actions.join('')}</div>`;
+            return actions.join('');
         }
 
         async act(action) {
             const doc = this.current;
             if (!doc) return;
             if (action === 'edit') {
-                this.drawer.close();
+                this.drawer?.close();
                 this.opts.onEdit(doc);
                 return;
             }

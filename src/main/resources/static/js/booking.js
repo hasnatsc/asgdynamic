@@ -55,7 +55,7 @@
         const items = new Map();   // item id -> label
 
         const screen = new App.DocumentScreen(Object.assign({}, window.BOOKING_SCREEN,
-            { canEdit: canAmend, onEdit: d => openEditor(d) }));
+            { canEdit: canAmend, onEdit: d => openEditor(d), onView: (d, history) => viewBooking(d, history) }));
         const editorTabs = App.tabs(form.querySelector('[data-editor-tabs]').parentElement);
 
         // ------------------------------------------------------------------ reference lists
@@ -97,6 +97,7 @@
                 title: 'Discard the booking you are editing?', message: 'Changes not saved yet will be lost.',
                 confirmText: 'Discard', danger: true })) return;
             await optionsReady;
+            setViewChrome(null);
             doc = existing;
             fillHeader(existing);
             groups = existing ? (existing.lineGroups || []).map(fromDetail) : [];
@@ -116,6 +117,44 @@
             if (!dialog.open) dialog.showModal();
             form.querySelector('[data-editor-body]').scrollTop = 0;
         }
+
+        /**
+         * View: the same form, read-only (App.viewMode) - the header, the fabric-line cards with their
+         * Item detail, the terms - plus the document's workflow buttons and its approval history.
+         */
+        async function viewBooking(d, history) {
+            await openEditor(d);
+            if (doc !== d) return;                       // the user declined to leave unsaved edits
+            setViewChrome(d, history);
+            App.viewMode(dialog, true);
+        }
+
+        /** Title, footer actions and history tab for a viewed document; null puts the editor's back. */
+        function setViewChrome(d, history) {
+            const title = form.querySelector('[data-editor-title]');
+            const actions = form.querySelector('[data-view-actions]');
+            const historyTab = form.querySelector('[data-tab="history"]');
+            const cancel = form.querySelector('[data-cancel]');
+            if (!d) {
+                App.viewMode(dialog, false);
+                actions.hidden = true;
+                actions.innerHTML = '';
+                historyTab.hidden = true;
+                cancel.textContent = 'Cancel';
+                return;
+            }
+            title.innerHTML = `${esc(d.documentNo || 'Unnumbered booking')} ${App.statusBadge(d.status)}`;
+            actions.innerHTML = screen.actionButtons(d);
+            actions.hidden = !actions.innerHTML;
+            form.querySelector('[data-history]').innerHTML =
+                `<h3 class="form-section-title mb-4">Approval history</h3>${screen.historyHtml(history || [])}`;
+            historyTab.hidden = false;
+            cancel.textContent = 'Close';
+        }
+        form.querySelector('[data-view-actions]').addEventListener('click', event => {
+            const action = event.target.closest('[data-doc-action]')?.dataset.docAction;
+            if (action) screen.act(action);
+        });
 
         async function closeEditor(force) {
             if (!force && dirty && !await App.confirm({
@@ -603,7 +642,7 @@
                         ${meta.length ? `<p class="line-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</p>` : ''}
                     </div>
                     <div class="flex shrink-0 items-center gap-1.5">
-                        <button type="button" class="line-toggle" data-group-detail="${i}" aria-expanded="${open}"
+                        <button type="button" class="line-toggle" data-group-detail="${i}" data-view-keep aria-expanded="${open}"
                                 title="The full specification of this line">${App.icon('chevron-right', 'transition-transform')}Item detail</button>
                         <button type="button" class="btn-subtle btn-sm" data-group-edit="${i}" title="Edit this line">${App.icon('edit')}Edit</button>
                         <button type="button" class="btn-icon btn-sm hover:text-red-700" data-group-remove="${i}"
