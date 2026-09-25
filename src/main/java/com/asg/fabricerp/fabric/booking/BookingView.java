@@ -28,6 +28,7 @@ final class BookingView {
         row.put("documentDate", d.getDocumentDate() == null ? "" : d.getDocumentDate().toString());
         row.put("requiredDate", d.getRequiredDate() == null ? "" : d.getRequiredDate().toString());
         row.put("partyName", nameOf(d.getParty()));
+        row.put("marketingTeamName", d.getMarketingTeam() == null ? null : d.getMarketingTeam().getName());
         row.put("garmentsName", nameOf(d.getGarments()));
         row.put("referenceNo", d.getReferenceNo() == null ? "" : d.getReferenceNo());
         row.put("currency", d.getCurrencyCode());
@@ -42,6 +43,7 @@ final class BookingView {
     static Map<String, Object> detail(BusinessDocument d) {
         Map<String, Object> detail = row(d);
         detail.put("partyId", idOf(d.getParty()));
+        detail.put("marketingTeamId", idOf(d.getMarketingTeam()));
         detail.put("bookingType", d.getBookingType() == null ? null : d.getBookingType().name());
         detail.put("bookingTypeLabel", d.getBookingType() == null ? null : d.getBookingType().label());
         detail.put("orderType", d.getOrderType() == null ? null : d.getOrderType().name());

@@ -63,6 +63,7 @@
                     <th data-col="documentNo" data-format="doc" data-sort="documentNo">Booking No</th>
                     <th data-col="documentDate" data-format="date" data-sort="documentDate">Date</th>
                     <th data-col="partyName">Buyer</th>
+                    <th data-col="marketingTeamName">Team</th>
                     <th data-col="garmentsName">Garments</th>
                     <th data-col="requiredDate" data-format="date" data-sort="requiredDate">Delivery</th>
                     <th data-col="currency">Currency</th>
@@ -154,6 +155,13 @@
                            placeholder="Filled from the costing">
                 </div>
 
+                <!-- ADM-4/ADM-7: whose book the booking lands in. A team member's own team, fixed; an
+                     unrestricted user chooses. Never changes once the booking exists. -->
+                <div class="lg:col-span-2">
+                    <label class="label" for="bkMarketingTeam">Marketing team</label>
+                    <select id="bkMarketingTeam" class="field" name="marketingTeamId"
+                            th:attr="data-restricted=${teamRestricted},data-own-id=${ownTeam == null ? '' : ownTeam.id},data-own-name=${ownTeam == null ? '' : ownTeam.name}"></select>
+                </div>
                 <div class="lg:col-span-2">
                     <label class="label" for="bkGarments">Garments</label>
                     <select id="bkGarments" class="field" name="garments" data-allow-clear
@@ -172,11 +180,11 @@
                     </label>
                 </div>
 
-                <div class="lg:col-span-3">
+                <div class="lg:col-span-2">
                     <label class="label" for="bkGarmentsAddress">Garments address</label>
                     <textarea id="bkGarmentsAddress" class="field" rows="2" name="garmentsAddress" maxlength="500"></textarea>
                 </div>
-                <div class="lg:col-span-3">
+                <div class="lg:col-span-2">
                     <label class="label" for="bkRemarks">Remarks</label>
                     <textarea id="bkRemarks" class="field" rows="2" name="remarks" maxlength="1000"></textarea>
                 </div>

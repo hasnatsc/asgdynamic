@@ -1,5 +1,6 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.common.ScopeDimension;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,4 +25,18 @@ public interface DataScopeRepository extends JpaRepository<DataScope, Long> {
              and (s.revokedFrom is null or s.revokedFrom > :on)
            """)
     Set<Long> findUserIdsHoldingScopeOn(@Param("userIds") Collection<Long> userIds, @Param("on") LocalDate on);
+
+    /**
+     * The grants that put users on one value of a dimension on a date - for a marketing team,
+     * its members (ADM-4). Open-ended and future-dated grants are both "held" only once they
+     * have started, so a grant from next month is not yet a member.
+     */
+    @Query("""
+           select s from DataScope s
+           where s.dimension = :dimension and s.scopeValueId = :valueId
+             and s.grantedFrom <= :on and (s.revokedFrom is null or s.revokedFrom > :on)
+           order by s.grantedFrom
+           """)
+    List<DataScope> findHoldersOn(@Param("dimension") ScopeDimension dimension,
+                                  @Param("valueId") Long valueId, @Param("on") LocalDate on);
 }

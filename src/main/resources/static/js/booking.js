@@ -53,6 +53,7 @@
         let dirty = false;
         let lineDirty = false;     // the fabric-line modal has been typed into since it opened
         const items = new Map();   // item id -> label
+        let teams = [];            // active marketing teams, for an unrestricted user's choice
 
         const screen = new App.DocumentScreen(Object.assign({}, window.BOOKING_SCREEN,
             { canEdit: canAmend, onEdit: d => openEditor(d), onView: (d, history) => viewBooking(d, history) }));
@@ -66,6 +67,7 @@
                 select.innerHTML = '<option value="">—</option>'
                     + rows.map(r => `<option value="${esc(r.text)}">${esc(r.text)}</option>`).join('');
             }),
+            App.api('/api/marketing-teams').catch(() => []).then(rows => { teams = Array.isArray(rows) ? rows : []; }),
             App.api('/api/lookup/inventory/items', { query: { itemType: 'FABRICS' } }).catch(() => []).then(rows => {
                 rows.forEach(r => items.set(String(r.id), r.text));
                 document.getElementById('spItem').innerHTML = '<option value="">Choose the item…</option>'
@@ -144,7 +146,10 @@
                 return;
             }
             title.innerHTML = `${esc(d.documentNo || 'Unnumbered booking')} ${App.statusBadge(d.status)}`;
-            actions.innerHTML = screen.actionButtons(d);
+            const deciders = d.status === 'SUBMITTED' && (d.teamApprovers || []).length
+                ? `<p class="mr-2 text-sm text-gray-500" title="This team's own approvers decide its bookings">
+                       Approved by ${esc(d.marketingTeamName)}’s approvers: ${esc(d.teamApprovers.join(', '))}</p>` : '';
+            actions.innerHTML = deciders + screen.actionButtons(d);
             actions.hidden = !actions.innerHTML;
             form.querySelector('[data-history]').innerHTML =
                 `<h3 class="form-section-title mb-4">Approval history</h3>${screen.historyHtml(history || [])}`;
@@ -187,6 +192,7 @@
             brand().setValue(d?.brandId ?? null, d?.brandName);
             garments().setValue(d?.garmentsId ?? null, d?.garmentsName);
             marketer().setValue(d?.marketingPersonId ?? null, d?.marketingPersonName);
+            fillTeam(d);
             syncPriceBasis();
         }
 
@@ -196,6 +202,31 @@
         });
         ['bkDocumentDate', 'bkRequiredDate'].forEach(id =>
             document.getElementById(id).addEventListener('change', () => fillLeadTime(false)));
+
+        /**
+         * The Marketing team field (ADM-4, ADM-7). A saved booking shows the team it was raised under,
+         * fixed - it never moves. A new one is filed under a team member's own team, fixed, or an
+         * unrestricted user chooses. The server applies the same rule whatever is sent.
+         */
+        function fillTeam(d) {
+            const select = document.getElementById('bkMarketingTeam');
+            const option = (id, text) => `<option value="${esc(id ?? '')}">${esc(text)}</option>`;
+            if (d) {
+                select.innerHTML = option(d.marketingTeamId, d.marketingTeamName || 'No team — seen by unrestricted users only');
+                select.disabled = true;
+                select.title = 'A booking keeps the team it was raised under';
+            } else if (select.dataset.restricted === 'true') {
+                select.innerHTML = option(select.dataset.ownId, select.dataset.ownName || 'Your team');
+                select.disabled = true;
+                select.title = 'Every booking you raise is filed under your team';
+            } else {
+                select.innerHTML = option('', '— No team (seen by unrestricted users only)')
+                    + teams.map(t => option(t.id, t.text)).join('');
+                select.disabled = false;
+                select.title = 'Whose book this booking lands in: that team sees it and approves it';
+                select.value = '';
+            }
+        }
 
         /** Yard-priced: the metre price is derived and read-only; metre-priced, the reverse. */
         function syncPriceBasis() {
@@ -900,6 +931,8 @@
             }
             const f = name => form.elements.namedItem(name).value;
             const idOrNull = rs => rs.select.value ? { id: Number(rs.select.value) } : null;
+            const teamSelect = document.getElementById('bkMarketingTeam');
+            const teamChoice = () => !teamSelect.disabled && teamSelect.value ? Number(teamSelect.value) : null;
             const body = {
                 id: doc?.id ?? null,
                 bookingType: f('bookingType'),
@@ -911,6 +944,7 @@
                 brand: idOrNull(brand()),
                 garments: idOrNull(garments()),
                 marketingPersonId: marketer().select.value ? Number(marketer().select.value) : null,
+                marketingTeamId: teamChoice(),
                 preCostBuyer: strOrNull(f('preCostBuyer')),
                 garmentsAddress: strOrNull(f('garmentsAddress')),
                 remarks: strOrNull(f('remarks')),

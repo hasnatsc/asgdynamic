@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,6 +60,7 @@ public class BpoController {
     @GetMapping("/api/bpo")
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_BPO_VIEW')")
+    @Transactional(readOnly = true)   // rows name the marketing team, a lazy association
     public DataTableResponse<Map<String, Object>> grid(
             @RequestParam(defaultValue = "1") int draw,
             @RequestParam(defaultValue = "0") int start,
@@ -81,6 +83,7 @@ public class BpoController {
     @GetMapping("/api/bpo/{id}")
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_BPO_VIEW')")
+    @Transactional(readOnly = true)
     public Map<String, Object> detail(@PathVariable Long id) {
         return toDetail(service.get(id));
     }
@@ -128,6 +131,7 @@ public class BpoController {
         row.put("id", d.getId());
         row.put("documentNo", d.getDocumentNo());
         row.put("bookingId", idOf(d.getParentDocument()));
+        row.put("marketingTeamName", teamName(d));
         row.put("documentDate", d.getDocumentDate() == null ? "" : d.getDocumentDate().toString());
         row.put("totalQuantity", d.getTotalQuantity());
         row.put("subtotalAmount", d.getSubtotalAmount());
@@ -135,6 +139,15 @@ public class BpoController {
         row.put("status", d.getStatus().name());
         row.put("editable", d.getStatus().isEditable());
         return row;
+    }
+
+    /**
+     * The owning team's name (ADM-7). Read only when loaded: save and revise answer after their own
+     * transaction has closed, and a lazy team there would fail the whole response over a label.
+     */
+    private static String teamName(BusinessDocument d) {
+        var team = d.getMarketingTeam();
+        return team == null || !org.hibernate.Hibernate.isInitialized(team) ? null : team.getName();
     }
 
     private static Map<String, Object> toDetail(BusinessDocument d) {

@@ -80,6 +80,8 @@
   .form-float div:has(> .field[readonly]) > .label,
   .form-float div:has(> div > .field[readonly]) > .label {
     background-image: linear-gradient(theme('colors.white') 50%, theme('colors.gray.50') 50%); }
+  .form-float div:has(> .field:disabled) > .label {
+    background-image: linear-gradient(theme('colors.white') 50%, theme('colors.gray.50') 50%); }
   .form-float .field { @apply py-2.5; }
   .form-float .rselect-trigger { @apply min-h-[42px]; }
   /* A checkbox in the grid reads as a field too, not as loose text. */

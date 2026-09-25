@@ -81,6 +81,9 @@ public class BookingController {
         model.addAttribute("baseMaterials", BASE_MATERIALS);
         model.addAttribute("lcTenures", CostingCatalog.LC_TENURES);
         model.addAttribute("lcPaymentTypes", CostingCatalog.LC_PAYMENT_TYPES);
+        // The Marketing team field: fixed to a restricted user's own team, a choice otherwise.
+        model.addAttribute("teamRestricted", service.teamRestricted());
+        model.addAttribute("ownTeam", service.ownTeam());
         model.addAttribute("content", "fabric/booking :: content");
         return "layout/main";
     }

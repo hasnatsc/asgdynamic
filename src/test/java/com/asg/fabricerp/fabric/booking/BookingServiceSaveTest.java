@@ -1,7 +1,10 @@
 package com.asg.fabricerp.fabric.booking;
 
+import com.asg.fabricerp.common.MarketingTeam;
+import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.RowScope;
+import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.costing.CostingService;
 import com.asg.fabricerp.costing.CostingTranslator;
 import com.asg.fabricerp.global.documents.*;
@@ -31,6 +34,9 @@ class BookingServiceSaveTest {
     private BusinessDocumentRepository repository;
     private CostingService costing;
     private TermsConditionService terms;
+    private MarketingTeamRepository teams;
+    /** Who is saving: unrestricted unless a test narrows it. */
+    private RowScope scope = RowScope.unrestrictedScope();
     private BookingService service;
 
     @BeforeEach
@@ -39,6 +45,7 @@ class BookingServiceSaveTest {
         BusinessNumberService numbering = mock(BusinessNumberService.class);
         costing = mock(CostingService.class);
         terms = mock(TermsConditionService.class);
+        teams = mock(MarketingTeamRepository.class);
 
         OrgContext context = new OrgContext() {
             @Override public Long organizationId()     { return ORG; }
@@ -46,12 +53,13 @@ class BookingServiceSaveTest {
             @Override public String businessUnitCode() { return "AF"; }
             @Override public Long warehouseId()        { return null; }
             @Override public String username()         { return "tester"; }
-            @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
+            @Override public RowScope rowScope()       { return scope; }
         };
         service = new BookingService(repository, numbering, costing,
             new CostingTranslator(new ObjectMapper()),
             new DocumentRevisionService(repository, numbering), DocumentRefs.references(10L),
-            terms, mock(FabricUserRepository.class), context);
+            terms, mock(FabricUserRepository.class), context,
+            teams, mock(com.asg.fabricerp.marketing.TeamApprovalRule.class));
 
         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BKAF000031");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
@@ -217,5 +225,63 @@ class BookingServiceSaveTest {
         assertThat(revision.getTerms()).extracting(BusinessDocumentTerm::getBodyText)
             .containsExactly("Dead Yarn & Naps Should Be Not Allowed.");
         assertThat(revision.getTerms().get(0)).isNotSameAs(original.getTerms().get(0));
+    }
+
+    // ------------------------------------------------------------------ marketing team (ADM-4, ADM-7)
+
+    private static MarketingTeam team(Long id, String name) {
+        MarketingTeam team = new MarketingTeam("T" + id, name);
+        team.setId(id);
+        return team;
+    }
+
+    private static RowScope restrictedTo(Long teamId) {
+        return new RowScope(false, java.util.Map.of(ScopeDimension.MARKETING_TEAM, java.util.Set.of(teamId)));
+    }
+
+    @Test
+    void aRestrictedUsersBookingIsFiledUnderTheirOwnTeamWhateverTheRequestNames() {
+        scope = restrictedTo(3L);
+        BusinessDocument booking = newBooking();
+        booking.setMarketingTeamId(5L);          // another team's id, sent by hand
+
+        BusinessDocument saved = service.save(booking);
+
+        assertThat(saved.getMarketingTeam().getId()).isEqualTo(3L);
+        verifyNoInteractions(teams);             // the request's team was never even looked up
+    }
+
+    @Test
+    void anUnrestrictedUserFilesABookingUnderTheTeamTheyChoose() {
+        when(teams.lookup(ORG)).thenReturn(List.of(team(3L, "London"), team(5L, "Tokyo")));
+        BusinessDocument booking = newBooking();
+        booking.setMarketingTeamId(5L);
+
+        assertThat(service.save(booking).getMarketingTeam().getName()).isEqualTo("Tokyo");
+    }
+
+    @Test
+    void anUnrestrictedUserMayLeaveABookingWithoutATeam() {
+        assertThat(service.save(newBooking()).getMarketingTeam()).isNull();
+    }
+
+    @Test
+    void anInactiveOrForeignTeamIsRefused() {
+        when(teams.lookup(ORG)).thenReturn(List.of(team(3L, "London")));
+        BusinessDocument booking = newBooking();
+        booking.setMarketingTeamId(99L);
+
+        assertThatThrownBy(() -> service.save(booking))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("No active marketing team");
+    }
+
+    @Test
+    void aRestrictedUserInNoSingleTeamCannotRaiseABooking() {
+        scope = new RowScope(false, java.util.Map.of(ScopeDimension.MARKETING_TEAM, java.util.Set.of(3L, 4L)));
+
+        assertThatThrownBy(() -> service.save(newBooking()))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("no single marketing team");
     }
 }

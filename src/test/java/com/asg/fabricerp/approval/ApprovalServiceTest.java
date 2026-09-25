@@ -30,6 +30,7 @@ class ApprovalServiceTest {
     private BusinessDocumentRepository repository;
     private ApprovalHistoryRepository historyRepository;
     private ApprovalService service;
+    private com.asg.fabricerp.marketing.TeamApprovalRule teamRule;
 
     @AfterEach
     void clearSecurityContext() {
@@ -56,7 +57,8 @@ class ApprovalServiceTest {
             @Override public String username()         { return username; }
             @Override public RowScope rowScope()         { return RowScope.unrestrictedScope(); }
         };
-        service = new ApprovalService(repository, historyRepository, context);
+        teamRule = mock(com.asg.fabricerp.marketing.TeamApprovalRule.class);
+        service = new ApprovalService(repository, historyRepository, context, teamRule);
     }
 
     private BusinessDocument bookingCreatedBy(String creator, BusinessDocumentStatus status) {
@@ -196,5 +198,19 @@ class ApprovalServiceTest {
         var captor = org.mockito.ArgumentCaptor.forClass(ApprovalHistory.class);
         verify(historyRepository, atLeastOnce()).save(captor.capture());
         return captor.getValue();
+    }
+
+    @Test
+    void aTeamsDocumentIsDecidedOnlyByWhomTheTeamRuleAllows() {
+        setUpWithContextUsername("director");
+        BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
+        authenticateAs("director", "SCREEN_BOOKING_APPROVE");
+        doThrow(new AccessDeniedException("London is approved by rahim"))
+            .when(teamRule).assertMayDecide(doc);
+
+        assertThatThrownBy(() -> service.approve(DOC_ID, null)).isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.reject(DOC_ID, "no")).isInstanceOf(AccessDeniedException.class);
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+        verify(historyRepository, never()).save(any());
     }
 }

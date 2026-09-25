@@ -101,6 +101,7 @@ public final class Navigation {
             case ACC_SETUP      -> "calendar";
             case NUMBERING      -> "hash";
             case SECURITY_ADMIN -> "shield";
+            case MARKETING_TEAM -> "users";
         };
     }
 

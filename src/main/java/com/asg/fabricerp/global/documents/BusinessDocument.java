@@ -192,6 +192,14 @@ public class BusinessDocument extends BaseOrgEntity {
     @Transient
     private Long marketingPersonId;
 
+    /**
+     * The team an UNRESTRICTED user files a new Booking under. Request-only: {@link #marketingTeam}
+     * stays read-only to JSON, and the Booking service decides what to stamp - a restricted user's
+     * own team whatever this says, and this only once, at creation (ADM-7).
+     */
+    @Transient
+    private Long marketingTeamId;
+
     @Valid
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BusinessDocumentLineGroup> lineGroups = new ArrayList<>();
@@ -257,6 +265,8 @@ public class BusinessDocument extends BaseOrgEntity {
     public void setMarketingPerson(FabricUser v) { this.marketingPerson = v; }
     public Long getMarketingPersonId()          { return marketingPersonId; }
     public void setMarketingPersonId(Long v)    { this.marketingPersonId = v; }
+    public Long getMarketingTeamId()            { return marketingTeamId; }
+    public void setMarketingTeamId(Long v)      { this.marketingTeamId = v; }
     public List<BusinessDocumentTerm> getTerms() { return terms; }
     public boolean isTermsSubmitted()           { return termsSubmitted; }
 

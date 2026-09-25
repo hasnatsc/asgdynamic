@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  Marketing teams (ADM-4) - the team, who is in it, and who approves its bookings.
+
+  A restricted user in a team sees that team's bookings and production orders and nothing of any
+  other team's. Members are the user's MARKETING_TEAM scope grant: one team per person, dated.
+  A team with approvers has its bookings approved or rejected by them alone; a team with none
+  falls back to anyone holding Approve on the Booking screen.
+-->
+<head>
+    <title>Marketing teams</title>
+</head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Marketing teams</h1>
+            <p class="page-sub">Each team sees only its own bookings and production orders, and approves them through its own approvers.</p>
+        </div>
+        <div class="page-actions" sec:authorize="hasAuthority('SCREEN_MARKETING_TEAM_CREATE')">
+            <button type="button" class="btn-primary" data-action="team-new">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New team
+            </button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input id="mtSearch" type="search" class="field pr-8" placeholder="Search code or name"
+                       aria-label="Search" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select id="mtActiveFilter" class="field w-auto" aria-label="Status">
+                <option value="">All teams</option>
+                <option value="true" selected>Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+        <div class="table-wrap">
+            <table id="teamGrid" class="table-grid table-stack">
+                <thead>
+                <tr>
+                    <th data-sort="code" class="w-24">Code</th>
+                    <th data-sort="name">Team</th>
+                    <th>Leader</th>
+                    <th class="text-right">Members</th>
+                    <th>Approval</th>
+                    <th class="text-right">Booking target</th>
+                    <th data-sort="active">Status</th>
+                    <th class="w-px">Actions</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="mtPager" class="pager"></div>
+    </div>
+
+    <!-- ============================================================================ editor -->
+    <dialog id="teamDialog" class="modal modal-lg modal-review" data-sticky aria-labelledby="teamDialogTitle">
+        <form id="teamForm" class="flex min-h-0 flex-1 flex-col" novalidate autocomplete="off">
+            <input type="hidden" name="id">
+            <div class="modal-head items-center">
+                <div class="min-w-0">
+                    <h2 id="teamDialogTitle" class="modal-title" data-title>New team</h2>
+                    <p class="mt-0.5 text-sm text-gray-500" data-sub>Give it a code and a name; add its people once it is saved.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2" data-team-close data-view-keep aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin" data-team-body>
+                <div class="tabs" role="tablist" data-team-tabs>
+                    <button type="button" class="tab" role="tab" data-tab="details" aria-selected="true">Details</button>
+                    <button type="button" class="tab" role="tab" data-tab="members">
+                        Members <span class="badge-gray ml-1" data-count="members">0</span></button>
+                    <button type="button" class="tab" role="tab" data-tab="approvers">
+                        Approvers <span class="badge-gray ml-1" data-count="approvers">0</span></button>
+                </div>
+
+                <!-- Details -->
+                <section class="form-section form-float" data-panel="details">
+                    <div class="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-4">
+                        <div>
+                            <label class="label" for="mtCode">Code <span class="req">*</span></label>
+                            <input id="mtCode" class="field font-mono" name="code" maxlength="20" required>
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="label" for="mtName">Team name <span class="req">*</span></label>
+                            <input id="mtName" class="field" name="name" maxlength="150" required placeholder="e.g. London">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label" for="mtLeader">Team leader</label>
+                            <select id="mtLeader" class="field" name="leaderUserId"></select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label" for="mtTarget">Booking target</label>
+                            <input id="mtTarget" type="number" min="0" step="0.01" class="field text-right tabular-nums"
+                                   name="bookingTarget" placeholder="For the current period">
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="label" for="mtRemarks">Remarks</label>
+                            <textarea id="mtRemarks" class="field" rows="2" name="remarks" maxlength="500"></textarea>
+                        </div>
+                        <div class="sm:col-span-4">
+                            <label class="field-check" for="mtActive">
+                                <input id="mtActive" type="checkbox" class="checkbox" name="active">
+                                <span>Active <span class="text-xs text-gray-500">— offered on bookings and open to new members. An inactive team keeps its documents.</span></span>
+                            </label>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-xs text-gray-500">The leader is chosen from the team's members. Incentive is not set here: it is paid on realised proceeds, in Commercial.</p>
+                </section>
+
+                <!-- Members -->
+                <section class="form-section" data-panel="members" hidden>
+                    <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                        A member sees this team's bookings and production orders and no other team's, and every booking they
+                        raise is filed under this team. A person is in one team at a time.</p>
+                    <div class="mb-4 grid gap-3 rounded-xl border border-dashed border-gray-300 p-3 sm:grid-cols-[1fr_11rem_auto] sm:items-end dark:border-gray-700"
+                         data-view-hide data-need-saved>
+                        <div>
+                            <label class="label" for="mtMemberUser">Add a member</label>
+                            <select id="mtMemberUser" class="field" data-remote="/api/setup/marketing-teams/users"
+                                    data-placeholder="Choose a restricted user…"></select>
+                        </div>
+                        <div>
+                            <label class="label" for="mtMemberFrom">From</label>
+                            <input id="mtMemberFrom" type="date" class="field">
+                        </div>
+                        <button type="button" class="btn-primary" data-action="member-add">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add</button>
+                    </div>
+                    <div data-list="members"></div>
+                </section>
+
+                <!-- Approvers -->
+                <section class="form-section" data-panel="approvers" hidden>
+                    <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                        With approvers, this team's bookings are approved or rejected by them alone. With none, anyone holding
+                        Approve on the Booking screen decides them. An approver must be unrestricted or a member of the team,
+                        and also needs Approve on the Booking screen.</p>
+                    <div class="mb-4 grid gap-3 rounded-xl border border-dashed border-gray-300 p-3 sm:grid-cols-[1fr_auto] sm:items-end dark:border-gray-700"
+                         data-view-hide data-need-saved>
+                        <div>
+                            <label class="label" for="mtApproverUser">Add an approver</label>
+                            <select id="mtApproverUser" class="field" data-remote="/api/setup/marketing-teams/users"
+                                    data-placeholder="Choose a user…"></select>
+                        </div>
+                        <button type="button" class="btn-primary" data-action="approver-add">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add</button>
+                    </div>
+                    <div data-list="approvers"></div>
+                </section>
+            </div>
+
+            <div class="modal-foot">
+                <p class="mr-auto text-sm text-gray-500" data-foot-note></p>
+                <div class="flex flex-wrap items-center gap-2" data-view-actions data-view-keep hidden></div>
+                <button type="button" class="btn-ghost" data-team-close data-view-keep data-cancel>Cancel</button>
+                <button type="submit" class="btn-primary">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <span sec:authorize="hasAuthority('SCREEN_MARKETING_TEAM_AMEND')" id="canEdit" hidden></span>
+    <span sec:authorize="hasAuthority('SCREEN_MARKETING_TEAM_DELETE')" id="canDelete" hidden></span>
+    <script th:src="@{/js/marketing-teams.js}" defer></script>
+</div>
+</body>
+</html>

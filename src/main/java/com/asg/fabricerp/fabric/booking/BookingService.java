@@ -1,7 +1,11 @@
 package com.asg.fabricerp.fabric.booking;
 
 import com.asg.fabricerp.common.LookupPage;
+import com.asg.fabricerp.common.MarketingTeam;
+import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.RowScope;
+import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.costing.CostingService;
 import com.asg.fabricerp.costing.CostingTranslator;
 import com.asg.fabricerp.costing.FabricCost;
@@ -9,6 +13,7 @@ import com.asg.fabricerp.global.documents.*;
 import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import com.asg.fabricerp.global.terms.ConditionType;
 import com.asg.fabricerp.global.terms.TermsConditionService;
+import com.asg.fabricerp.marketing.TeamApprovalRule;
 import com.asg.fabricerp.security.CurrentUser;
 import com.asg.fabricerp.security.FabricUser;
 import com.asg.fabricerp.security.FabricUserRepository;
@@ -52,6 +57,8 @@ public class BookingService {
     private final TermsConditionService terms;
     private final FabricUserRepository users;
     private final OrgContext context;
+    private final MarketingTeamRepository marketingTeams;
+    private final TeamApprovalRule teamApproval;
 
     public BookingService(BusinessDocumentRepository repository,
                           BusinessNumberService numbering,
@@ -61,7 +68,9 @@ public class BookingService {
                           DocumentReferences references,
                           TermsConditionService terms,
                           FabricUserRepository users,
-                          OrgContext context) {
+                          OrgContext context,
+                          MarketingTeamRepository marketingTeams,
+                          TeamApprovalRule teamApproval) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
@@ -71,6 +80,8 @@ public class BookingService {
         this.terms = terms;
         this.users = users;
         this.context = context;
+        this.marketingTeams = marketingTeams;
+        this.teamApproval = teamApproval;
     }
 
     @Transactional(readOnly = true)
@@ -112,6 +123,43 @@ public class BookingService {
         return new LookupPage.Option(u.getId(), u.getUsername(), name, u.getUsername());
     }
 
+    /**
+     * The team a new Booking belongs to. A restricted user's own team, whatever the request says -
+     * letting them name another would file work where they cannot see it, or into another team's
+     * book. An unrestricted user (MD, Accounts) chooses one, or none: an unteamed booking is seen
+     * by unrestricted users only.
+     */
+    private MarketingTeam owningTeam(Long requested) {
+        RowScope scope = context.requireRowScope();
+        if (scope.restricts(ScopeDimension.MARKETING_TEAM)) {
+            Long own = scope.soleMarketingTeam();
+            if (own == null) {
+                throw new IllegalStateException("You belong to no single marketing team, so a booking cannot be "
+                    + "filed under one. Ask an administrator to put you in exactly one team.");
+            }
+            return references.marketingTeam(own);
+        }
+        if (requested == null) {
+            return null;
+        }
+        return marketingTeams.lookup(context.requireOrganizationId()).stream()
+            .filter(t -> t.getId().equals(requested))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("No active marketing team with id " + requested));
+    }
+
+    /** Whether the signed-in user's bookings are filed under their own team, with no choice. */
+    public boolean teamRestricted() {
+        return context.requireRowScope().restricts(ScopeDimension.MARKETING_TEAM);
+    }
+
+    /** The team a restricted user's bookings are filed under; null for a user who chooses. */
+    @Transactional(readOnly = true)
+    public MarketingTeam ownTeam() {
+        Long id = teamRestricted() ? context.requireRowScope().soleMarketingTeam() : null;
+        return id == null ? null : marketingTeams.findScoped(id, context.requireOrganizationId()).orElse(null);
+    }
+
     @Transactional(readOnly = true)
     public BusinessDocument get(Long id) {
         return repository.findScopedWithLines(id, context.requireOrganizationId())
@@ -126,7 +174,11 @@ public class BookingService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> detail(Long id) {
-        return BookingView.detail(get(id));
+        BusinessDocument booking = get(id);
+        Map<String, Object> detail = BookingView.detail(booking);
+        // Who decides it: the team's own approvers, or empty for the business-wide rule.
+        detail.put("teamApprovers", teamApproval.approversOf(booking));
+        return detail;
     }
 
     /**
@@ -175,9 +227,9 @@ public class BookingService {
             target.setDocumentType(TYPE);
             target.setOrganizationId(context.requireOrganizationId());
             target.setBusinessUnit(references.currentBusinessUnit());
-            // ADM-7: a Booking is where the team is decided — the creator's own team, or none
-            // for an unrestricted user. Every downstream document inherits it from here.
-            target.stampMarketingTeam(references.marketingTeam(context.requireRowScope().soleMarketingTeam()));
+            // ADM-7: a Booking is where the team is decided, once. Every downstream document
+            // inherits it from here, and no later save can move it.
+            target.stampMarketingTeam(owningTeam(submitted.getMarketingTeamId()));
             if (target.getDocumentDate() == null) {
                 target.setDocumentDate(LocalDate.now());
             }

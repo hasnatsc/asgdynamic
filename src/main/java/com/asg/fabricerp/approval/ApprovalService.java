@@ -4,6 +4,7 @@ import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentRepository;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.marketing.TeamApprovalRule;
 import com.asg.fabricerp.security.AuthorityChecks;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,10 @@ import java.util.List;
  * this, but {@link com.asg.fabricerp.security.AuthorityChecks} reading one field is clearer
  * than introducing that indirection for a single caller.
  *
+ * <h2>Team-wise</h2>
+ * A document of a marketing team that has its own approvers is decided by them alone
+ * ({@link TeamApprovalRule}); otherwise the business-wide rule below is the whole rule.
+ *
  * <h2>Four-eyes</h2>
  * The approver may not be the document's own creator, regardless of which roles they hold.
  * asgdynamic's client-side {@code *ChangeStatus()} handlers had no such check — anyone who
@@ -50,13 +55,16 @@ public class ApprovalService {
     private final BusinessDocumentRepository repository;
     private final ApprovalHistoryRepository historyRepository;
     private final OrgContext context;
+    private final TeamApprovalRule teamRule;
 
     public ApprovalService(BusinessDocumentRepository repository,
                            ApprovalHistoryRepository historyRepository,
-                           OrgContext context) {
+                           OrgContext context,
+                           TeamApprovalRule teamRule) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.context = context;
+        this.teamRule = teamRule;
     }
 
     @Transactional
@@ -80,6 +88,7 @@ public class ApprovalService {
     public BusinessDocument approve(Long documentId, String remarks) {
         BusinessDocument doc = load(documentId);
         AuthorityChecks.require(doc.getDocumentType().approveAuthority());
+        teamRule.assertMayDecide(doc);
         assertNotSelfApproval(doc);
 
         BusinessDocumentStatus from = doc.getStatus();
@@ -92,6 +101,7 @@ public class ApprovalService {
     public BusinessDocument reject(Long documentId, String remarks) {
         BusinessDocument doc = load(documentId);
         AuthorityChecks.require(doc.getDocumentType().approveAuthority());
+        teamRule.assertMayDecide(doc);
 
         BusinessDocumentStatus from = doc.getStatus();
         doc.transitionTo(BusinessDocumentStatus.REJECTED);

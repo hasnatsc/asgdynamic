@@ -32,7 +32,8 @@ public enum Screen {
     ACC_CREDIT("Credit control", Section.ACCOUNTS, "/accounts/credit"),
     ACC_SETUP("Accounting setup", Section.ACCOUNTS, "/accounts/setup"),
     NUMBERING("Document numbering", Section.ADMINISTRATION, "/setup/numbering"),
-    SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security");
+    SECURITY_ADMIN("Security administration", Section.ADMINISTRATION, "/setup/security"),
+    MARKETING_TEAM("Marketing teams", Section.SETUP, "/setup/marketing-teams");
 
     /** Declaration order is menu order: reference data first, then the order-to-delivery modules. */
     public enum Section {
