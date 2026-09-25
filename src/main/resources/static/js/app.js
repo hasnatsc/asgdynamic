@@ -719,6 +719,617 @@
     }
 
     // ------------------------------------------------------------------------------------------
+    // Remote select: a searchable, paged picker over the LookupPage contract
+    // ------------------------------------------------------------------------------------------
+
+    const POPOVER = typeof HTMLElement !== 'undefined' && HTMLElement.prototype.hasOwnProperty('popover');
+
+    /**
+     * The one picker for any list too large to ship whole into a <select> - Select2's job,
+     * without jQuery. Declare it on a plain select and it is enhanced on page load:
+     *
+     *   <select id="fCategory" class="field" data-remote="/api/lookup/inventory/categories"
+     *           data-placeholder="Choose…" data-allow-clear required></select>
+     *
+     * or build it from script: new App.RemoteSelect(select, { url, params, placeholder,
+     * allowClear, pageSize, emptyText }). The feed answers ?q=&page=&size= (page 1-based) with
+     * {results: [{id, text, code?, sub?}], pagination: {more}} and ?id= with that one option -
+     * com.asg.fabricerp.common.LookupPage on the server.
+     *
+     * The native <select> stays in the form and holds the value, so .value, required, the
+     * change event, form reset and App.viewMode all work as on any select. From script:
+     *   App.RemoteSelect.of(select).setValue(id)   - labels it with one ?id= request
+     *   .setValue(id, text), .setValue(option)     - no request
+     *   .selected                                  - the chosen option object, or null
+     *   .refresh()                                 - after params() would answer differently
+     */
+    class RemoteSelect {
+        static of(select) {
+            return select._remote || new RemoteSelect(select);
+        }
+
+        constructor(select, opts) {
+            if (select._remote) return select._remote;
+            select._remote = this;
+            const data = select.dataset;
+            this.select = select;
+            this.opts = Object.assign({
+                url: data.remote,
+                placeholder: data.placeholder || 'Choose…',
+                allowClear: 'allowClear' in data,
+                pageSize: Number(data.pageSize) || 20,
+                emptyText: data.emptyText || 'No matches',
+                params: null
+            }, opts || {});
+            this.selected = null;
+            this.results = [];
+            this.page = 0;
+            this.more = false;
+            this.draw = 0;
+            this.active = -1;
+            this.build();
+            const initial = select.value || data.value;
+            if (initial) this.setValue(initial, select.selectedOptions[0]?.textContent);
+            else this.renderValue();
+        }
+
+        build() {
+            const s = this.select;
+            const id = s.id || ('rs-' + Math.random().toString(36).slice(2, 8));
+            this.wrap = document.createElement('div');
+            this.wrap.className = 'rselect';
+            s.parentNode.insertBefore(this.wrap, s);
+            this.wrap.appendChild(s);
+            s.classList.add('rselect-native');
+            s.tabIndex = -1;
+            s.setAttribute('aria-hidden', 'true');
+
+            // The trigger is not a <button>: App.viewMode locks the native select and the trigger
+            // follows it, so a record shown read-only reads as a value, not a hidden control.
+            this.trigger = document.createElement('div');
+            this.trigger.className = 'field rselect-trigger';
+            this.trigger.tabIndex = 0;
+            this.trigger.setAttribute('role', 'combobox');
+            this.trigger.setAttribute('aria-haspopup', 'listbox');
+            this.trigger.setAttribute('aria-expanded', 'false');
+            this.trigger.setAttribute('aria-controls', id + '-list');
+            const label = s.id && document.querySelector(`label[for="${CSS.escape(s.id)}"]`);
+            if (label) {
+                label.id = label.id || id + '-label';
+                this.trigger.setAttribute('aria-labelledby', label.id);
+                label.addEventListener('click', e => { e.preventDefault(); this.trigger.focus(); });
+            }
+            this.trigger.innerHTML = `<span class="rselect-value"></span>`
+                + `<button type="button" class="rselect-clear" tabindex="-1" aria-label="Clear" hidden>${icon('x')}</button>`
+                + icon('chevron-down', 'rselect-caret');
+            this.wrap.insertBefore(this.trigger, s);
+
+            this.menu = document.createElement('div');
+            this.menu.className = 'rselect-menu';
+            this.menu.setAttribute('data-view-keep', '');
+            if (POPOVER) this.menu.popover = 'manual';
+            else this.menu.hidden = true;
+            this.menu.innerHTML = `
+                <div class="rselect-search">${icon('search')}<input type="search" autocomplete="off" spellcheck="false"
+                     placeholder="Type to search…" aria-label="Search" aria-controls="${id}-list"></div>
+                <ul class="rselect-list scroll-thin" role="listbox" id="${id}-list"></ul>`;
+            this.wrap.appendChild(this.menu);
+            this.input = this.menu.querySelector('input');
+            this.list = this.menu.querySelector('ul');
+
+            this.trigger.addEventListener('click', e => {
+                if (e.target.closest('.rselect-clear')) {
+                    e.stopPropagation();
+                    this.pick(null);
+                    return;
+                }
+                this.isOpen ? this.close() : this.open();
+            });
+            this.trigger.addEventListener('keydown', e => {
+                if (this.disabled) return;
+                if (['Enter', ' ', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+                    e.preventDefault();
+                    this.open();
+                } else if ((e.key === 'Delete' || e.key === 'Backspace') && this.opts.allowClear) {
+                    e.preventDefault();
+                    this.pick(null);
+                } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    e.preventDefault();
+                    this.open(e.key);           // start searching with the key just typed
+                }
+            });
+            this.input.addEventListener('input', debounce(() => this.search(), 250));
+            this.input.addEventListener('keydown', e => this.onKey(e));
+            this.list.addEventListener('mousedown', e => e.preventDefault());   // keep focus in the search box
+            this.list.addEventListener('click', e => {
+                const li = e.target.closest('li[data-index]');
+                if (li) this.pick(this.results[Number(li.dataset.index)]);
+            });
+            this.list.addEventListener('mousemove', e => {
+                const li = e.target.closest('li[data-index]');
+                if (li) this.highlight(Number(li.dataset.index), false);
+            });
+            this.list.addEventListener('scroll', () => {
+                if (this.more && !this.loading
+                        && this.list.scrollTop + this.list.clientHeight >= this.list.scrollHeight - 40) {
+                    this.load(this.page + 1);
+                }
+            });
+
+            this.onOutside = e => {
+                if (!this.wrap.contains(e.target)) this.close();
+            };
+            this.onReflow = e => {
+                if (e && e.target && this.menu.contains(e.target)) return;
+                this.position();
+            };
+            // A page or App.viewMode enabling / disabling the select carries through to the trigger.
+            new MutationObserver(() => this.syncDisabled())
+                .observe(s, { attributes: true, attributeFilter: ['disabled'] });
+            s.form?.addEventListener('reset', () => setTimeout(() => this.setValue(null)));
+            s.closest('dialog')?.addEventListener('close', () => this.close());
+            this.syncDisabled();
+        }
+
+        get disabled() {
+            return this.select.disabled;
+        }
+
+        get isOpen() {
+            return this.wrap.classList.contains('is-open');
+        }
+
+        syncDisabled() {
+            const off = this.disabled;
+            this.trigger.tabIndex = off ? -1 : 0;
+            this.trigger.setAttribute('aria-disabled', String(off));
+            this.trigger.classList.toggle('is-disabled', off);
+            if (off) this.close();
+            this.renderValue();
+        }
+
+        open(seed) {
+            if (this.disabled || this.isOpen) return;
+            this.wrap.classList.add('is-open');
+            this.trigger.setAttribute('aria-expanded', 'true');
+            if (POPOVER) this.menu.showPopover();
+            else this.menu.hidden = false;
+            this.position();
+            this.input.value = seed || '';
+            this.input.focus();
+            this.search();
+            document.addEventListener('pointerdown', this.onOutside, true);
+            window.addEventListener('resize', this.onReflow);
+            window.addEventListener('scroll', this.onReflow, true);
+        }
+
+        close(refocus) {
+            if (!this.isOpen) return;
+            this.wrap.classList.remove('is-open');
+            this.trigger.setAttribute('aria-expanded', 'false');
+            this.trigger.removeAttribute('aria-activedescendant');
+            if (POPOVER) this.menu.hidePopover();
+            else this.menu.hidden = true;
+            this.draw++;                       // drop any reply still on its way
+            document.removeEventListener('pointerdown', this.onOutside, true);
+            window.removeEventListener('resize', this.onReflow);
+            window.removeEventListener('scroll', this.onReflow, true);
+            if (refocus) this.trigger.focus();
+        }
+
+        /** Under the trigger, or above it when the viewport has no room below. */
+        position() {
+            if (!this.isOpen) return;
+            const r = this.trigger.getBoundingClientRect();
+            const m = this.menu.style;
+            m.position = 'fixed';
+            m.left = r.left + 'px';
+            m.width = r.width + 'px';
+            const below = window.innerHeight - r.bottom;
+            const height = this.menu.offsetHeight || 320;
+            if (below < height + 8 && r.top > below) {
+                m.top = '';
+                m.bottom = (window.innerHeight - r.top + 4) + 'px';
+            } else {
+                m.bottom = '';
+                m.top = (r.bottom + 4) + 'px';
+            }
+        }
+
+        search() {
+            this.results = [];
+            this.active = -1;
+            this.list.scrollTop = 0;
+            this.load(1);
+        }
+
+        async load(page) {
+            const draw = ++this.draw;
+            this.loading = true;
+            this.renderList(true);
+            const extra = this.opts.params ? this.opts.params() : {};
+            try {
+                const data = await api(this.opts.url, { query: Object.assign({
+                    q: this.input.value.trim(), page, size: this.opts.pageSize }, extra) });
+                if (draw !== this.draw) return;        // superseded by a newer search or closed
+                this.page = page;
+                this.more = !!(data.pagination && data.pagination.more);
+                this.results = this.results.concat(data.results || []);
+                if (this.active < 0 && this.results.length) {
+                    const current = this.results.findIndex(o => this.selected && String(o.id) === String(this.selected.id));
+                    this.active = current >= 0 ? current : 0;
+                }
+                this.loading = false;
+                this.renderList();
+                // A short first page leaves nothing to scroll; fetch on until the list can scroll.
+                if (this.more && this.list.scrollHeight <= this.list.clientHeight) this.load(page + 1);
+            } catch (error) {
+                if (draw !== this.draw) return;
+                this.loading = false;
+                this.more = false;
+                this.list.innerHTML = `<li class="rselect-note text-red-600">${esc(error.message || 'Could not load the list')}</li>`;
+            }
+        }
+
+        renderList(loading) {
+            const q = this.input.value.trim();
+            const mark = text => {
+                const safe = esc(text);
+                if (!q) return safe;
+                const at = String(text).toLowerCase().indexOf(q.toLowerCase());
+                return at < 0 ? safe
+                    : esc(text.slice(0, at)) + '<mark>' + esc(text.slice(at, at + q.length)) + '</mark>' + esc(text.slice(at + q.length));
+            };
+            const items = this.results.map((o, i) => {
+                const chosen = this.selected && String(o.id) === String(this.selected.id);
+                return `<li role="option" id="${this.list.id}-${i}" data-index="${i}" aria-selected="${chosen}"
+                            class="rselect-option${i === this.active ? ' is-active' : ''}">
+                    <span class="min-w-0 flex-1"><span class="block truncate">${mark(o.text)}</span>
+                        ${o.sub ? `<span class="rselect-sub">${esc(o.sub)}</span>` : ''}</span>
+                    ${o.code ? `<span class="rselect-code">${mark(o.code)}</span>` : ''}
+                    ${chosen ? icon('check', 'shrink-0 text-brand-600') : ''}</li>`;
+            }).join('');
+            const note = loading
+                ? `<li class="rselect-note"><span class="rselect-spinner"></span>${this.results.length ? 'Loading more…' : 'Searching…'}</li>`
+                : !this.results.length ? `<li class="rselect-note">${esc(q ? 'No matches for "' + q + '"' : this.opts.emptyText)}</li>`
+                : this.more ? '<li class="rselect-note">Scroll for more…</li>' : '';
+            this.list.innerHTML = items + note;
+            this.syncActive();
+            this.position();
+        }
+
+        highlight(index, scroll) {
+            if (index < 0 || index >= this.results.length || index === this.active) return;
+            this.list.querySelector('.rselect-option.is-active')?.classList.remove('is-active');
+            this.active = index;
+            this.syncActive(scroll);
+        }
+
+        syncActive(scroll) {
+            const li = this.list.querySelector(`li[data-index="${this.active}"]`);
+            if (!li) return this.input.removeAttribute('aria-activedescendant');
+            li.classList.add('is-active');
+            this.input.setAttribute('aria-activedescendant', li.id);
+            if (scroll) li.scrollIntoView({ block: 'nearest' });
+        }
+
+        onKey(e) {
+            const step = { ArrowDown: 1, ArrowUp: -1, PageDown: 8, PageUp: -8 }[e.key];
+            if (step) {
+                e.preventDefault();
+                const next = Math.max(0, Math.min(this.results.length - 1, this.active + step));
+                this.highlight(next, true);
+                if (next >= this.results.length - 1 && this.more && !this.loading) this.load(this.page + 1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this.results[this.active]) this.pick(this.results[this.active]);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();             // close the list, not the dialog around it
+                e.stopPropagation();
+                this.close(true);
+            } else if (e.key === 'Tab') {
+                this.close();
+            }
+        }
+
+        /** A user's choice: sets the value and fires change, as picking from a select would. */
+        pick(option) {
+            const changed = String(this.selected ? this.selected.id : '') !== String(option ? option.id : '');
+            this.apply(option);
+            this.close(true);
+            if (changed) this.select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        apply(option) {
+            this.selected = option || null;
+            this.select.innerHTML = '<option value=""></option>' + (option
+                ? `<option value="${esc(option.id)}" selected>${esc(option.text)}</option>` : '');
+            this.select.value = option ? String(option.id) : '';
+            this.renderValue();
+        }
+
+        /**
+         * Sets the value from script without firing change: an option object, an id and its
+         * text, or a bare id - which one ?id= request labels.
+         */
+        async setValue(id, text) {
+            if (id == null || id === '') return this.apply(null);
+            if (typeof id === 'object') return this.apply(id);
+            if (text) return this.apply({ id, text });
+            this.apply({ id, text: '…' });
+            try {
+                const data = await api(this.opts.url, { query: { id } });
+                const option = (data.results || [])[0];
+                if (String(this.select.value) === String(id)) this.apply(option || { id, text: '#' + id });
+            } catch (error) {
+                if (String(this.select.value) === String(id)) this.apply({ id, text: '#' + id });
+            }
+        }
+
+        refresh() {
+            this.results = [];
+            if (this.isOpen) this.search();
+        }
+
+        renderValue() {
+            const o = this.selected;
+            this.trigger.querySelector('.rselect-value').innerHTML = o
+                ? `<span class="truncate">${esc(o.text)}</span>${o.code ? `<span class="rselect-code">${esc(o.code)}</span>` : ''}`
+                : `<span class="truncate text-gray-400">${esc(this.opts.placeholder)}</span>`;
+            this.trigger.querySelector('.rselect-clear').hidden = !(o && this.opts.allowClear && !this.disabled);
+        }
+    }
+
+    /** Enhances every select[data-remote] under root (the page on load). Safe to call again. */
+    function remoteSelects(root) {
+        (root || document).querySelectorAll('select[data-remote]').forEach(s => RemoteSelect.of(s));
+    }
+    document.addEventListener('DOMContentLoaded', () => remoteSelects());
+
+    // ------------------------------------------------------------------------------------------
+    // Tree: an expandable hierarchy (item categories, chart of accounts, ...)
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * new App.Tree(ulElement, {
+     *   row: (r, { mark, depth, children }) => html,  // the row after its toggle; mark(text) highlights the search
+     *   parentKey: r => r.parentId, key: r => r.id,   // defaults shown
+     *   text: r => [r.name, r.code],                  // what the search matches
+     *   filter: r => true,                            // e.g. show-inactive, a type chip
+     *   rowClass: r => '',                            // e.g. 'is-inactive' (struck through)
+     *   search,                                       // optional <input>
+     *   storageKey, openDepth: 1,                     // remembered expansion; first visit opens this deep
+     *   onSelect(r), onAction(action, r, event),      // row click / Enter, and [data-action] buttons in a row
+     *   emptyText: () => 'No match.'
+     * }).setRows(rows)
+     *
+     * Rows arrive flat, parents before or after children, in display order among siblings. A
+     * search keeps every match plus the ancestors leading to it, all open. Arrow keys walk the
+     * visible rows; Right / Left open and fold, as in any file tree. .select(key) marks the row
+     * a page has open, .reveal(key) opens its ancestors, .expandAll() / .collapseAll().
+     */
+    class Tree {
+        constructor(root, opts) {
+            this.root = root;
+            this.opts = Object.assign({
+                key: r => r.id, parentKey: r => r.parentId, text: r => [r.name, r.code],
+                filter: () => true, openDepth: 1, emptyText: () => 'Nothing matches.'
+            }, opts);
+            this.rows = [];
+            this.byKey = new Map();
+            this.kids = new Map();
+            this.selectedKey = null;
+            const stored = this.opts.storageKey && localStorage.getItem(this.opts.storageKey);
+            this.expanded = new Set(stored ? JSON.parse(stored) : []);
+            this.fresh = !stored;
+            root.classList.add('tree');
+            root.setAttribute('role', 'tree');
+            this.opts.search?.addEventListener('input', debounce(() => this.render(), 150));
+
+            root.addEventListener('click', e => {
+                const li = e.target.closest('li[data-key]');
+                if (!li) return;
+                const r = this.row(li);
+                const action = e.target.closest('[data-action]');
+                if (action) return this.opts.onAction && this.opts.onAction(action.dataset.action, r, e);
+                if (e.target.closest('[data-toggle]')) return this.toggle(r);
+                this.opts.onSelect && this.opts.onSelect(r);
+            });
+            root.addEventListener('dblclick', e => {
+                const li = e.target.closest('li[data-key][aria-expanded]');
+                if (li && !e.target.closest('[data-action], [data-toggle]')) this.toggle(this.row(li));
+            });
+            root.addEventListener('keydown', e => this.onKey(e));
+        }
+
+        row(li) {
+            return this.byKey.get(li.dataset.key);
+        }
+
+        keyOf(r) {
+            return String(this.opts.key(r));
+        }
+
+        parentOf(r) {
+            const p = this.opts.parentKey(r);
+            return p == null ? null : this.byKey.get(String(p)) || null;
+        }
+
+        /** Replaces the data and redraws, keeping expansion and selection. */
+        setRows(rows) {
+            this.rows = rows;
+            this.byKey = new Map(rows.map(r => [this.keyOf(r), r]));
+            this.kids = new Map();
+            rows.forEach(r => {
+                const p = this.parentOf(r);
+                const k = p ? this.keyOf(p) : '';
+                if (!this.kids.has(k)) this.kids.set(k, []);
+                this.kids.get(k).push(r);
+            });
+            if (this.fresh && rows.length) {           // first visit: open the top openDepth levels
+                rows.filter(r => this.children(r).length && this.depth(r) < this.opts.openDepth)
+                    .forEach(r => this.expanded.add(this.keyOf(r)));
+                this.fresh = false;
+                this.save();
+            }
+            this.render();
+            return this;
+        }
+
+        get(key) {
+            return this.byKey.get(String(key));
+        }
+
+        children(r) {
+            return this.kids.get(r ? this.keyOf(r) : '') || [];
+        }
+
+        ancestors(r) {
+            const out = [];
+            for (let p = r && this.parentOf(r); p; p = this.parentOf(p)) out.unshift(p);
+            return out;
+        }
+
+        depth(r) {
+            return this.ancestors(r).length;
+        }
+
+        save() {
+            if (this.opts.storageKey) localStorage.setItem(this.opts.storageKey, JSON.stringify([...this.expanded]));
+        }
+
+        query() {
+            return this.opts.search ? this.opts.search.value.trim().toLowerCase() : '';
+        }
+
+        render() {
+            const q = this.query();
+            const visible = new Set();
+            this.rows.forEach(r => {
+                if (!this.opts.filter(r)) return;
+                if (q && !this.opts.text(r).some(t => t != null && String(t).toLowerCase().includes(q))) return;
+                visible.add(this.keyOf(r));
+                this.ancestors(r).forEach(a => visible.add(this.keyOf(a)));
+            });
+            const mark = text => {
+                text = text == null ? '' : String(text);
+                const at = q ? text.toLowerCase().indexOf(q) : -1;
+                return at < 0 ? esc(text) : esc(text.slice(0, at)) + '<mark>' + esc(text.slice(at, at + q.length))
+                    + '</mark>' + esc(text.slice(at + q.length));
+            };
+            const node = (r, depth) => {
+                const key = this.keyOf(r);
+                const all = this.children(r);
+                const kids = all.filter(k => visible.has(this.keyOf(k)));
+                const open = kids.length > 0 && (!!q || this.expanded.has(key));
+                const selected = key === this.selectedKey;
+                return `<li role="treeitem" data-key="${esc(key)}" aria-level="${depth + 1}" aria-selected="${selected}"
+                            ${kids.length ? `aria-expanded="${open}"` : ''}>
+                    <div class="tree-row${selected ? ' is-selected' : ''} ${this.opts.rowClass ? this.opts.rowClass(r) : ''}" data-row tabindex="-1">
+                        ${kids.length ? `<span class="tree-toggle" data-toggle aria-hidden="true">${icon('chevron-right')}</span>`
+                                      : '<span class="tree-spacer"></span>'}
+                        ${this.opts.row(r, { mark, depth, children: all.length })}
+                    </div>
+                    ${open ? `<ul role="group">${kids.map(k => node(k, depth + 1)).join('')}</ul>` : ''}
+                </li>`;
+            };
+            const top = this.children(null).filter(r => visible.has(this.keyOf(r)));
+            this.root.innerHTML = top.length ? top.map(r => node(r, 0)).join('')
+                : `<li class="empty py-12"><span class="empty-icon">${icon('search', 'icon-lg')}</span>
+                       <p class="empty-text">${esc(this.opts.emptyText(this.rows.length > 0))}</p></li>`;
+            // One tab stop into the tree: the selected row, else the first.
+            const stop = this.root.querySelector('.tree-row.is-selected') || this.root.querySelector('.tree-row');
+            if (stop) stop.tabIndex = 0;
+        }
+
+        rowEl(key) {
+            return this.root.querySelector(`li[data-key="${CSS.escape(String(key))}"] > .tree-row`);
+        }
+
+        toggle(r, open) {
+            const key = this.keyOf(r);
+            const want = open === undefined ? !this.expanded.has(key) : open;
+            want ? this.expanded.add(key) : this.expanded.delete(key);
+            this.save();
+            this.render();
+            this.rowEl(key)?.focus();
+        }
+
+        /** Opens every ancestor of key (and key itself with self=true) and redraws. */
+        reveal(key, self) {
+            const r = this.get(key);
+            if (!r) return;
+            this.ancestors(r).forEach(a => this.expanded.add(this.keyOf(a)));
+            if (self) this.expanded.add(this.keyOf(r));
+            this.save();
+            this.render();
+        }
+
+        expandAll() {
+            this.rows.filter(r => this.children(r).length).forEach(r => this.expanded.add(this.keyOf(r)));
+            this.save();
+            this.render();
+        }
+
+        collapseAll() {
+            this.expanded.clear();
+            this.save();
+            this.render();
+        }
+
+        /** Marks the row a page has open (null clears), revealing and scrolling to it. */
+        select(key) {
+            this.selectedKey = key == null ? null : String(key);
+            if (this.selectedKey && !this.rowEl(this.selectedKey)) this.reveal(this.selectedKey);
+            this.root.querySelectorAll('.tree-row.is-selected').forEach(el => el.classList.remove('is-selected'));
+            this.root.querySelectorAll('li[aria-selected="true"]').forEach(li => li.setAttribute('aria-selected', 'false'));
+            const el = this.selectedKey && this.rowEl(this.selectedKey);
+            if (el) {
+                el.classList.add('is-selected');
+                el.parentElement.setAttribute('aria-selected', 'true');
+                el.scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        onKey(e) {
+            const row = e.target.closest('.tree-row');
+            if (!row) return;
+            const li = row.parentElement;
+            const r = this.row(li);
+            const all = [...this.root.querySelectorAll('.tree-row')];
+            const at = all.indexOf(row);
+            const go = el => {
+                if (!el) return;
+                all.forEach(x => { x.tabIndex = -1; });
+                el.tabIndex = 0;
+                el.focus();
+            };
+            const state = li.getAttribute('aria-expanded');
+            switch (e.key) {
+                case 'ArrowDown': go(all[at + 1]); break;
+                case 'ArrowUp':   go(all[at - 1]); break;
+                case 'Home':      go(all[0]); break;
+                case 'End':       go(all[all.length - 1]); break;
+                case 'ArrowRight':
+                    if (state === 'false') this.toggle(r, true);
+                    else if (state === 'true') go(all[at + 1]);
+                    break;
+                case 'ArrowLeft':
+                    if (state === 'true') this.toggle(r, false);
+                    else go(li.parentElement.closest('li[data-key]')?.querySelector(':scope > .tree-row'));
+                    break;
+                case 'Enter':
+                case ' ':
+                    if (e.target.closest('[data-action]')) return;
+                    this.opts.onSelect && this.opts.onSelect(r);
+                    break;
+                default: return;
+            }
+            e.preventDefault();
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Document status
     // ------------------------------------------------------------------------------------------
 
@@ -1115,5 +1726,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, status, debounce, downloadCsv, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, debounce, downloadCsv, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, RemoteSelect, remoteSelects, Tree, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
 })();

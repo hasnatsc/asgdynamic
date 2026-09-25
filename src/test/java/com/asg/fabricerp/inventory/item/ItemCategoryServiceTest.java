@@ -1,9 +1,13 @@
 package com.asg.fabricerp.inventory.item;
 
+import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.inventory.item.ItemCategoryService.CategoryRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.SliceImpl;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -11,6 +15,8 @@ import java.util.Optional;
 import static com.asg.fabricerp.inventory.item.ItemTestSupport.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 /**
@@ -179,5 +185,43 @@ class ItemCategoryServiceTest {
         assertThat(tree).extracting(r -> r.get("code"))
             .containsExactly("CAF110000", "CAF111100", "CAF111111", "CAF120000");
         assertThat(tree).extracting(r -> r.get("depth")).containsExactly(0, 1, 2, 0);
+    }
+
+    // ---------------------------------------------------------------------------- parent picker
+
+    @Test
+    void aNewCategoryMayGoUnderAnyRootOrGroup() {
+        when(repository.search(eq(ORG), any(), isNull(), isNull(), eq("%yarn%"), any()))
+            .thenReturn(new SliceImpl<>(List.of(rawMaterial), PageRequest.of(0, 20), true));
+
+        LookupPage<LookupPage.Option> page = service.parentLookup(null, " Yarn ", 1, 20);
+
+        verify(repository).search(eq(ORG), eq(EnumSet.of(ItemCategory.Layer.ROOT, ItemCategory.Layer.GROUP)),
+            isNull(), isNull(), eq("%yarn%"), eq(PageRequest.of(0, 20)));
+        assertThat(page.results()).extracting(LookupPage.Option::id).containsExactly(1L);
+        assertThat(page.pagination().more()).isTrue();
+    }
+
+    @Test
+    void aMoveOffersOnlyParentsOnTheSameLevelAndNeverItself() {
+        ItemCategory group = category(2L, "CAF111100", rawMaterial, null);
+        when(repository.findScoped(2L, ORG)).thenReturn(Optional.of(group));
+        when(repository.search(any(), any(), any(), any(), any(), any()))
+            .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(0, 20), false));
+
+        service.parentLookup(2L, null, null, null);
+
+        verify(repository).search(eq(ORG), eq(EnumSet.of(ItemCategory.Layer.ROOT)), isNull(), eq(2L), eq("%"), any());
+        assertThat(service.parentLookup(1L, null, null, null).results()).isEmpty();   // a root has no parent
+    }
+
+    @Test
+    void anOptionSaysWhereTheCategorySits() {
+        ItemCategory group = category(2L, "CAF111100", rawMaterial, null);
+        ItemCategory leaf = category(3L, "CAF111111", group, ItemType.YARN);
+
+        assertThat(ItemCategoryService.option(rawMaterial).sub()).isEqualTo("Root");
+        assertThat(ItemCategoryService.option(leaf).sub())
+            .isEqualTo("Item category in Category CAF110000 › Category CAF111100");
     }
 }

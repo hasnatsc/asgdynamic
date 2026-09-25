@@ -1,15 +1,18 @@
 package com.asg.fabricerp.inventory.item;
 
+import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.common.OrgContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import static com.asg.fabricerp.inventory.item.Masters.*;
 
@@ -93,13 +96,47 @@ public class ItemCategoryService {
         return row(get(id));
     }
 
-    /** Categories an item of {@code itemType} may be filed under (null = any type). */
+    /**
+     * One page of parents a category may sit under. Creating ({@code forId} null): any root or
+     * group. Moving {@code forId}: only parents that keep it on its own level, never itself - a
+     * root has none.
+     */
     @Transactional(readOnly = true)
-    public List<Option> itemCategoryLookup(ItemType itemType) {
-        return repository.itemLayerLookup(context.requireOrganizationId(), itemType).stream()
-            .map(c -> new Option(c.getId(), c.getCode(),
-                c.getParent() == null ? c.getName() : c.getName() + " (" + c.getParent().getName() + ")"))
-            .toList();
+    public LookupPage<LookupPage.Option> parentLookup(Long forId, String q, Integer page, Integer size) {
+        Set<ItemCategory.Layer> layers = EnumSet.of(ItemCategory.Layer.ROOT, ItemCategory.Layer.GROUP);
+        if (forId != null) {
+            ItemCategory.Layer own = get(forId).getLayer();
+            if (own == ItemCategory.Layer.ROOT) return LookupPage.of(List.of(), false);
+            layers = EnumSet.of(own == ItemCategory.Layer.GROUP ? ItemCategory.Layer.ROOT : ItemCategory.Layer.GROUP);
+        }
+        return LookupPage.of(repository.search(context.requireOrganizationId(), layers, null, forId,
+            LookupPage.like(q), LookupPage.pageable(page, size)), ItemCategoryService::option);
+    }
+
+    /** One page of item-level categories an item of {@code itemType} may be filed under. */
+    @Transactional(readOnly = true)
+    public LookupPage<LookupPage.Option> itemCategoryPage(ItemType itemType, String q, Integer page, Integer size) {
+        return LookupPage.of(repository.search(context.requireOrganizationId(), EnumSet.of(ItemCategory.Layer.ITEM),
+            itemType, null, LookupPage.like(q), LookupPage.pageable(page, size)), ItemCategoryService::option);
+    }
+
+    /** The option for one saved category, so a picker can label its current value. */
+    @Transactional(readOnly = true)
+    public LookupPage<LookupPage.Option> optionFor(Long id) {
+        return LookupPage.single(option(get(id)));
+    }
+
+    /** Name, code, and where it sits: "Group in Yarn", "Item category in Yarn › Cotton". */
+    static LookupPage.Option option(ItemCategory c) {
+        List<String> path = new ArrayList<>();
+        for (ItemCategory p = c.getParent(); p != null; p = p.getParent()) path.add(0, p.getName());
+        String layer = switch (c.getLayer()) {
+            case ROOT -> "Root";
+            case GROUP -> "Group";
+            case ITEM -> "Item category";
+        };
+        return new LookupPage.Option(c.getId(), c.getCode(), c.getName(),
+            path.isEmpty() ? layer : layer + " in " + String.join(" › ", path));
     }
 
     @Transactional(readOnly = true)
@@ -267,6 +304,7 @@ public class ItemCategoryService {
         row.put("name", c.getName());
         row.put("layer", c.getLayer());
         row.put("itemType", c.getItemType());
+        row.put("itemTypeLabel", c.getItemType() == null ? null : c.getItemType().label());
         row.put("parentId", c.getParentId());
         row.put("parentName", c.getParent() == null ? null : c.getParent().getName());
         row.put("description", c.getDescription());

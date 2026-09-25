@@ -76,7 +76,7 @@ class AccountsWebTest {
 
     @ParameterizedTest
     @CsvSource({
-        "/accounts/chart,    accTable",
+        "/accounts/chart,    accTree",
         "/accounts/journals, jvTable",
         "/accounts/reports,  tbTable",
         "/accounts/credit,   clTable",

@@ -89,6 +89,18 @@ class AccountsDomainTest {
     }
 
     @Test
+    void aParentPickerOptionSaysWhereTheAccountSits() {
+        Account assets = new Account("1000", "Assets", AccountType.ASSET);
+        Account current = new Account("1100", "Current assets", AccountType.ASSET).under(assets);
+        Account cash = new Account("1101", "Cash", AccountType.ASSET).under(current);
+
+        assertThat(AccountsSetupService.option(assets).sub()).isEqualTo("Asset · top level");
+        assertThat(AccountsSetupService.option(cash))
+            .extracting(o -> o.code(), o -> o.text(), o -> o.sub())
+            .containsExactly("1101", "Cash", "Asset in Assets › Current assets");
+    }
+
+    @Test
     void theTreeCannotLoop() {
         Account a = new Account("1", "A", AccountType.ASSET);
         Account b = new Account("2", "B", AccountType.ASSET).under(a);

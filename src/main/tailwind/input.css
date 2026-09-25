@@ -74,6 +74,56 @@
   .input-icon > .icon  { @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400; }
   .input-icon > .field { @apply pl-9; }
 
+  /* Remote select (App.RemoteSelect): a searchable, paged picker over a hidden native select.
+     The menu is a popover, so it floats above a dialog's overflow and the dialog itself. */
+  .rselect             { @apply relative; }
+  .rselect-native      { @apply pointer-events-none absolute bottom-0 left-1/2 h-px w-px opacity-0; }
+  .rselect-trigger     { @apply flex min-h-[38px] cursor-pointer items-center gap-2 pr-2 text-left focus:outline-none; }
+  .rselect.is-open .rselect-trigger { @apply border-brand-500 ring-2 ring-brand-500/15; }
+  .rselect-trigger.is-disabled { @apply cursor-default bg-gray-50 text-gray-500 hover:border-gray-300; }
+  .rselect-value       { @apply flex min-w-0 flex-1 items-center gap-2; }
+  .rselect-caret       { @apply shrink-0 text-gray-400 transition-transform; }
+  .rselect.is-open .rselect-caret { @apply rotate-180; }
+  .rselect-trigger.is-disabled .rselect-caret { @apply hidden; }
+  .rselect-clear       { @apply -my-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400
+                                hover:bg-gray-100 hover:text-gray-700; }
+  .rselect-menu        { @apply z-50 m-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-0 text-sm
+                                text-gray-900 shadow-float; inset: auto; }
+  .rselect-search      { @apply relative border-b border-gray-100; }
+  .rselect-search > .icon { @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400; }
+  .rselect-search > input { @apply w-full border-0 bg-transparent py-2.5 pl-9 pr-3 text-sm placeholder:text-gray-400
+                                   focus:outline-none focus:ring-0; }
+  .rselect-list        { @apply max-h-64 overflow-y-auto py-1; }
+  .rselect-option      { @apply mx-1 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2; }
+  .rselect-option.is-active { @apply bg-brand-50 text-brand-900; }
+  .rselect-option[aria-selected="true"] { @apply font-medium; }
+  .rselect-option mark, .tree-row mark { @apply rounded-sm bg-amber-100 px-px text-inherit; }
+  .rselect-sub         { @apply block truncate text-xs font-normal text-gray-500; }
+  .rselect-code        { @apply shrink-0 font-mono text-xs font-normal text-gray-500; }
+  .rselect-note        { @apply flex items-center gap-2 px-4 py-2.5 text-xs text-gray-500; }
+  .rselect-spinner     { @apply inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-brand-600; }
+  [data-view-mode] .rselect-trigger.is-disabled { @apply border-gray-200 bg-gray-50 text-gray-900 shadow-none; }
+
+  /* Tree (role=tree): expandable rows with guide lines, e.g. the item category tree. */
+  .tree                { @apply py-1 text-sm; }
+  .tree ul             { @apply ml-[1.125rem] border-l border-gray-200 pl-1.5; }
+  .tree-row            { @apply flex min-h-[36px] cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1
+                                text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2
+                                focus-visible:ring-brand-500; }
+  .tree-row.is-selected{ @apply bg-brand-50 text-gray-900 hover:bg-brand-50; }
+  .tree-toggle         { @apply inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400
+                                hover:bg-gray-200/70 hover:text-gray-700; }
+  .tree-toggle > .icon { @apply transition-transform; }
+  [aria-expanded="true"] > .tree-row .tree-toggle > .icon { @apply rotate-90; }
+  .tree-spacer         { @apply inline-block h-6 w-6 shrink-0; }
+  .tree-icon           { @apply inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md; }
+  .tree-name           { @apply min-w-0 truncate; }
+  .tree-code           { @apply ml-auto shrink-0 font-mono text-xs text-gray-500; }
+  .tree-add            { @apply invisible inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400
+                                hover:bg-gray-200/70 hover:text-brand-700; }
+  .tree-row:hover .tree-add, .tree-row:focus-within .tree-add, .tree-row.is-selected .tree-add { @apply visible; }
+  .tree-row.is-inactive .tree-name { @apply text-gray-400 line-through decoration-gray-300; }
+
   /* Form layout: titled sections of a responsive grid, and a sticky action bar. */
   .form-section        { @apply border-b border-gray-200 px-5 py-5 last:border-b-0; }
   .form-section-head   { @apply mb-4 flex flex-wrap items-center justify-between gap-2; }
@@ -423,6 +473,18 @@
   .dark .table-grid tbody tr{ @apply hover:bg-gray-800/60; }
   .dark .field              { @apply border-gray-700 bg-gray-900 text-gray-100 read-only:bg-gray-800; }
   .dark .label              { @apply text-gray-300; }
+  .dark .rselect-menu       { @apply border-gray-700 bg-gray-900 text-gray-100; }
+  .dark .rselect-search     { @apply border-gray-800; }
+  .dark .rselect-search > input { @apply text-gray-100; }
+  .dark .rselect-option.is-active { @apply bg-brand-500/15 text-white; }
+  .dark .rselect-clear      { @apply hover:bg-gray-800 hover:text-gray-100; }
+  .dark .rselect-trigger.is-disabled, .dark [data-view-mode] .rselect-trigger.is-disabled
+                            { @apply border-gray-800 bg-gray-800/60 text-gray-100; }
+  .dark .rselect-option mark, .dark .tree-row mark { @apply bg-amber-500/30; }
+  .dark .tree ul            { @apply border-gray-800; }
+  .dark .tree-row           { @apply text-gray-300 hover:bg-gray-800; }
+  .dark .tree-row.is-selected { @apply bg-brand-500/15 text-white; }
+  .dark .tree-toggle, .dark .tree-add { @apply hover:bg-gray-700; }
   .dark .btn-ghost          { @apply border-gray-700 bg-gray-900 text-gray-200 hover:bg-gray-800; }
   .dark .btn-icon, .dark .btn-subtle { @apply text-gray-400 hover:bg-gray-800 hover:text-gray-100; }
   .dark .nav-link           { @apply text-gray-400 hover:bg-gray-800 hover:text-gray-100; }

@@ -91,8 +91,9 @@
                             </div>
                             <div>
                                 <label class="label" for="fCategory">Category</label>
-                                <select id="fCategory" class="field" data-f="categoryId" data-t="id" required></select>
-                                <p class="hint" id="categoryHint"></p>
+                                <select id="fCategory" class="field" data-f="categoryId" data-t="id" required
+                                        data-remote="/api/lookup/inventory/categories" data-placeholder="Choose…"
+                                        data-empty-text="No item-level category of this type - add one under Item setup, Categories."></select>
                             </div>
                             <div class="sm:col-span-2" id="nameBox">
                                 <label class="label" for="fName">Item name</label>
@@ -317,12 +318,12 @@
             options(select, list, select.required || select.classList.contains('yarn-req') ? 'Choose…' : 'None');
         })).catch(fail);
 
+        // Searched and paged on the server: the item-level categories of the chosen type.
+        const categoryPicker = new App.RemoteSelect($('#fCategory'), { params: () => ({ itemType: $('#fItemType').value }) });
+
         async function loadCategories(type, selected) {
-            const list = await api('/api/lookup/inventory/categories', { query: { itemType: type } });
-            options($('#fCategory'), list, list.length ? 'Choose…' : 'No item-level category for this type');
-            $('#fCategory').value = selected == null ? '' : String(selected);
-            $('#categoryHint').textContent = list.length ? ''
-                : 'Create an item-level category of this type under Item setup, Categories.';
+            categoryPicker.refresh();
+            await categoryPicker.setValue(selected);
         }
 
         async function loadModels(brandId, selected) {

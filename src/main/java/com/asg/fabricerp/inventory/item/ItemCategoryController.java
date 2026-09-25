@@ -1,5 +1,6 @@
 package com.asg.fabricerp.inventory.item;
 
+import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.inventory.item.ItemCategoryService.CategoryRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -34,6 +35,21 @@ public class ItemCategoryController {
     @PreAuthorize("hasAuthority('SCREEN_ITEM_SETUP_VIEW')")
     public List<Map<String, Object>> tree() {
         return service.tree();
+    }
+
+    /**
+     * Parent choices for the editor's picker, paged: ?q=cot&amp;page=2, and forId when moving an
+     * existing category; ?id=7 labels a saved parent.
+     */
+    @GetMapping("/api/inventory/categories/parents")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_ITEM_SETUP_VIEW')")
+    public LookupPage<LookupPage.Option> parents(@RequestParam(required = false) Long forId,
+                                                 @RequestParam(required = false) String q,
+                                                 @RequestParam(required = false) Integer page,
+                                                 @RequestParam(required = false) Integer size,
+                                                 @RequestParam(required = false) Long id) {
+        return id != null ? service.optionFor(id) : service.parentLookup(forId, q, page, size);
     }
 
     @GetMapping("/api/inventory/categories/{id}")

@@ -1,9 +1,12 @@
 package com.asg.fabricerp.inventory.item;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,13 +42,17 @@ public interface ItemCategoryRepository extends JpaRepository<ItemCategory, Long
 
     boolean existsByParent_IdAndDeletedFalse(Long parentId);
 
-    /** Item-layer categories a picker may offer, optionally narrowed to one item type. */
+    /** One page of active categories on {@code layers}, searched by name or code, in code order. */
     @Query("""
            select c from ItemCategory c left join fetch c.parent
            where c.organizationId = :orgId and c.active = true and c.deleted = false
-             and c.layer = com.asg.fabricerp.inventory.item.ItemCategory.Layer.ITEM
+             and c.layer in :layers
              and (:itemType is null or c.itemType = :itemType)
-           order by c.name asc
+             and (:excludeId is null or c.id <> :excludeId)
+             and (lower(c.name) like :q escape '\\' or lower(c.code) like :q escape '\\')
+           order by c.code asc
            """)
-    List<ItemCategory> itemLayerLookup(@Param("orgId") Long orgId, @Param("itemType") ItemType itemType);
+    Slice<ItemCategory> search(@Param("orgId") Long orgId, @Param("layers") Collection<ItemCategory.Layer> layers,
+                               @Param("itemType") ItemType itemType, @Param("excludeId") Long excludeId,
+                               @Param("q") String q, Pageable pageable);
 }

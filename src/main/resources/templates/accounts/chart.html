@@ -21,245 +21,328 @@
         </div>
     </div>
 
-    <div class="card overflow-hidden">
-        <div class="toolbar">
-            <div class="input-icon w-full sm:w-72">
-                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
-                <input id="accSearch" type="search" class="field pr-8" placeholder="Search code or name" aria-label="Search accounts"
-                       data-search autocomplete="off">
-                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
-            </div>
-            <div class="segmented" role="group" aria-label="Account type" id="accTypeFilter">
-                <button type="button" data-type="" aria-pressed="true">All</button>
-                <button type="button" data-type="ASSET" aria-pressed="false">Assets</button>
-                <button type="button" data-type="LIABILITY" aria-pressed="false">Liabilities</button>
-                <button type="button" data-type="EQUITY" aria-pressed="false">Equity</button>
-                <button type="button" data-type="INCOME" aria-pressed="false">Income</button>
-                <button type="button" data-type="EXPENSE" aria-pressed="false">Expenses</button>
-            </div>
-            <label class="toolbar-spacer inline-flex items-center gap-2 text-sm text-gray-600">
-                <input type="checkbox" id="accShowInactive" class="checkbox"> Show inactive
-            </label>
-        </div>
-        <div class="table-wrap">
-            <table id="accTable" class="table-grid">
-                <thead>
-                <tr>
-                    <th>Code</th>
-                    <th>Account</th>
-                    <th>Type</th>
-                    <th>Posting</th>
-                    <th>Currency</th>
-                    <th>Status</th>
-                    <th class="w-px">Actions</th>
-                </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-        <div class="pager"><span id="accCount">Loading…</span></div>
-    </div>
+    <div class="grid items-start gap-6 lg:grid-cols-5">
 
-    <!-- ============================== Editor ============================== -->
-    <dialog id="accDialog" class="modal modal-lg" data-sticky aria-labelledby="accDialogTitle">
-        <form id="accForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="accDialogTitle" class="modal-title">New account</h2>
-                    <p id="accDialogSub" class="mt-1 text-sm text-gray-500">Code and type are fixed once saved.</p>
+        <!-- ============================== Tree ============================== -->
+        <div class="card overflow-hidden lg:col-span-2">
+            <div class="toolbar flex-wrap gap-2">
+                <div class="input-icon min-w-0 flex-1">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                    <input id="accSearch" type="search" class="field" placeholder="Search code or name" aria-label="Search accounts"
+                           data-search autocomplete="off">
                 </div>
-                <button type="button" class="btn-icon -mr-2 -mt-1" data-dismiss aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
-                </button>
+                <div class="flex items-center gap-1">
+                    <button type="button" class="btn-subtle btn-sm" id="accExpandAll">Expand all</button>
+                    <button type="button" class="btn-subtle btn-sm" id="accCollapseAll">Collapse</button>
+                </div>
+                <div class="segmented w-full overflow-x-auto [&>*]:flex-1" role="group" aria-label="Account type" id="accTypeFilter">
+                    <button type="button" data-type="" aria-pressed="true">All</button>
+                    <button type="button" data-type="ASSET" aria-pressed="false">Assets</button>
+                    <button type="button" data-type="LIABILITY" aria-pressed="false">Liabilities</button>
+                    <button type="button" data-type="EQUITY" aria-pressed="false">Equity</button>
+                    <button type="button" data-type="INCOME" aria-pressed="false">Income</button>
+                    <button type="button" data-type="EXPENSE" aria-pressed="false">Expenses</button>
+                </div>
             </div>
-            <div class="modal-body space-y-4">
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="label" for="accCode">Code <span class="req">*</span></label>
-                        <input id="accCode" class="field font-mono uppercase" maxlength="40" required>
-                    </div>
-                    <div class="col-span-2">
-                        <label class="label" for="accName">Account name <span class="req">*</span></label>
-                        <input id="accName" class="field" maxlength="200" required>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="label" for="accType">Type <span class="req">*</span></label>
-                        <select id="accType" class="field" required>
-                            <option value="ASSET">Asset</option>
-                            <option value="LIABILITY">Liability</option>
-                            <option value="EQUITY">Equity</option>
-                            <option value="INCOME">Income</option>
-                            <option value="EXPENSE">Expense</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="label" for="accParent">Parent account</label>
-                        <select id="accParent" class="field"></select>
-                        <p class="hint">Only accounts of the same type without postings.</p>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="label" for="accCurrency">Currency</label>
-                        <input id="accCurrency" class="field font-mono uppercase" maxlength="3" placeholder="Any">
-                        <p class="hint">Restrict to one currency, e.g. USD for an export bank account.</p>
-                    </div>
-                    <label class="mt-7 inline-flex items-start gap-2 text-sm text-gray-700">
-                        <input type="checkbox" id="accControl" class="checkbox mt-0.5">
-                        <span><span class="font-medium">Control account</span><br>
-                            <span class="text-xs text-gray-500">Receivable or payable: every line names a customer or supplier; no manual journals.</span></span>
-                    </label>
-                </div>
-                <div>
-                    <label class="label" for="accDescription">Description</label>
-                    <textarea id="accDescription" class="field" rows="2" maxlength="500"></textarea>
-                </div>
-                <p id="accUsageNote" class="alert-info" hidden></p>
+            <div class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-gray-800">
+                <span id="accCount">Loading…</span>
+                <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" id="accShowInactive" class="checkbox"> Show inactive
+                </label>
             </div>
-            <div class="modal-foot">
-                <button type="button" class="btn-ghost mr-auto" id="accActiveBtn" hidden>Deactivate</button>
-                <button type="button" class="btn-ghost" data-dismiss>Cancel</button>
-                <button type="submit" class="btn-primary" id="accSaveBtn">
-                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save account
-                </button>
+            <ul id="accTree" class="max-h-[calc(100vh-20rem)] min-h-[16rem] overflow-y-auto px-2 scroll-thin"
+                aria-label="Chart of accounts"></ul>
+        </div>
+
+        <!-- ============================== Record ============================== -->
+        <div class="card overflow-hidden lg:sticky lg:top-4 lg:col-span-3" id="accPanel">
+            <div id="accEmpty" class="empty py-16">
+                <span class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#ledger}"/></svg></span>
+                <p class="empty-title" id="accEmptyTitle">Select an account</p>
+                <p class="empty-text" id="accEmptyText">Pick one in the tree to see its details, or use + on an account to add a sub-account under it.</p>
             </div>
-        </form>
-    </dialog>
+
+            <form id="accForm" novalidate hidden>
+                <div class="modal-head">
+                    <div class="min-w-0">
+                        <p id="accPath" class="mb-1 truncate text-xs text-gray-500"></p>
+                        <h2 id="accTitle" class="modal-title">New account</h2>
+                        <p id="accSub" class="mt-0.5 text-sm text-gray-500">Code and type are fixed once saved.</p>
+                    </div>
+                    <button type="button" class="btn-ghost btn-sm shrink-0" id="accAddChildBtn" data-view-keep hidden>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add sub-account
+                    </button>
+                </div>
+
+                <div class="modal-body max-h-none space-y-5">
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <label class="label" for="accType">Type <span class="req">*</span></label>
+                            <select id="accType" class="field" required>
+                                <option value="ASSET">Asset</option>
+                                <option value="LIABILITY">Liability</option>
+                                <option value="EQUITY">Equity</option>
+                                <option value="INCOME">Income</option>
+                                <option value="EXPENSE">Expense</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label" for="accParent">Parent account</label>
+                            <select id="accParent" class="field" data-remote="/api/accounts/chart/parents"
+                                    data-placeholder="Top level" data-allow-clear></select>
+                            <p class="hint" id="accParentHint">Only active accounts of the same type, without postings, and not control accounts.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <label class="label" for="accCode">Code <span class="req">*</span></label>
+                            <input id="accCode" class="field font-mono uppercase" maxlength="40" required autocomplete="off">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label" for="accName">Account name <span class="req">*</span></label>
+                            <input id="accName" class="field" maxlength="200" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <label class="label" for="accCurrency">Currency</label>
+                            <input id="accCurrency" class="field font-mono uppercase" maxlength="3" placeholder="Any">
+                            <p class="hint">e.g. USD for an export bank account.</p>
+                        </div>
+                        <label class="inline-flex items-start gap-2 text-sm text-gray-700 sm:col-span-2 sm:mt-7 dark:text-gray-300">
+                            <input type="checkbox" id="accControl" class="checkbox mt-0.5">
+                            <span><span class="font-medium">Control account</span><br>
+                                <span class="text-xs text-gray-500">Receivable or payable: every line names a customer or supplier; no manual journals.</span></span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="label" for="accDescription">Description</label>
+                        <textarea id="accDescription" class="field" rows="3" maxlength="500"></textarea>
+                    </div>
+                    <p id="accUsageNote" class="alert-info" hidden>This account has sub-accounts, so it only totals them and takes no entries.</p>
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn-ghost mr-auto" id="accActiveBtn" hidden>Deactivate</button>
+                    <button type="button" class="btn-ghost" data-dismiss>Cancel</button>
+                    <button type="submit" class="btn-primary" id="accSaveBtn">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
-        const { api, fail, esc, toast } = App;
+        const { api, fail, esc, icon, toast } = App;
         const $ = s => document.querySelector(s);
         const CAN = {
             create: /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_CHART_CREATE'')')}]]*/ false,
             amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_ACC_CHART_AMEND'')')}]]*/ false
         };
         const TYPE_BADGE = { ASSET: 'badge-blue', LIABILITY: 'badge-amber', EQUITY: 'badge-violet', INCOME: 'badge-green', EXPENSE: 'badge-red' };
-        const dialog = $('#accDialog');
+        const TYPE_TONE = {
+            ASSET:     'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300',
+            LIABILITY: 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',
+            EQUITY:    'bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300',
+            INCOME:    'bg-green-50 text-green-600 dark:bg-green-500/15 dark:text-green-300',
+            EXPENSE:   'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-300'
+        };
+        const panel = $('#accPanel');
         const form = $('#accForm');
+        const parent = new App.RemoteSelect($('#accParent'), {
+            params: () => ({ type: $('#accType').value }),
+            emptyText: 'No account of this type can take sub-accounts'
+        });
         let rows = [];
-        let current = null;
+        let current = null;     // the account shown in the panel; null when creating
         let typeFilter = '';
+        let dirty = false;
+
+        // ------------------------------------------------------------------ tree
+        const tree = new App.Tree($('#accTree'), {
+            search: $('#accSearch'),
+            storageKey: 'accounts.chart.expanded',
+            text: r => [r.code, r.name],
+            filter: r => ($('#accShowInactive').checked || r.active) && (!typeFilter || r.type === typeFilter),
+            rowClass: r => r.active ? '' : 'is-inactive',
+            emptyText: any => any ? 'No account matches.' : 'No chart of accounts yet - load the standard textile chart or add accounts one by one.',
+            row: (r, { mark }) => `
+                <span class="tree-icon ${TYPE_TONE[r.type]}">${icon(r.usage === 'SUMMARY' ? 'ledger' : 'document', 'h-3.5 w-3.5')}</span>
+                <span class="tree-name ${r.usage === 'SUMMARY' ? 'font-medium text-gray-900 dark:text-white' : ''}"
+                      title="${esc(r.code)} · ${esc(r.typeLabel)}${r.active ? '' : ' · inactive'}">${mark(r.name)}</span>
+                ${r.usage === 'CONTROL' ? '<span class="badge-brand">Control</span>' : ''}
+                ${r.currency ? `<span class="badge-gray font-mono">${esc(r.currency)}</span>` : ''}
+                <span class="tree-code">${mark(r.code)}</span>
+                ${CAN.create && r.usage !== 'CONTROL' && r.active
+                    ? `<button type="button" class="tree-add" data-action="add" title="Add a sub-account under ${esc(r.code)}"
+                               aria-label="Add a sub-account under ${esc(r.name)}">${icon('plus')}</button>` : ''}`,
+            onSelect: r => guard(() => openRecord(r.id)),
+            onAction: (action, r) => guard(() => openCreate(r.id))
+        });
+        const byId = id => tree.get(id);
+        const pathOf = r => tree.ancestors(r).map(a => a.name).join(' › ');
 
         async function load() {
             try { rows = await api('/api/accounts/chart'); } catch (e) { return fail(e); }
-            render();
+            tree.setRows(rows);
+            renderCount();
+            $('#accEmptyTitle').textContent = rows.length ? 'Select an account' : 'No chart of accounts yet';
+            $('#accEmptyText').textContent = rows.length
+                ? 'Pick one in the tree to see its details, or use + on an account to add a sub-account under it.'
+                : 'Start from the standard textile mill chart and adjust it, or add accounts one by one.';
         }
 
-        function usageBadge(r) {
-            if (r.usage === 'SUMMARY') return '<span class="badge-gray">Summary</span>';
-            if (r.usage === 'CONTROL') return '<span class="badge-brand">Control</span>';
-            return '<span class="text-gray-500">Posting</span>';
-        }
-
-        function render() {
-            const q = $('#accSearch').value.trim().toLowerCase();
-            const showInactive = $('#accShowInactive').checked;
-            const shown = rows.filter(r => (showInactive || r.active)
-                && (!typeFilter || r.type === typeFilter)
-                && (!q || r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)));
-            const tbody = $('#accTable tbody');
-            if (!rows.length) {
-                tbody.innerHTML = `<tr><td colspan="7"><div class="empty">
-                    <span class="empty-icon">${App.icon('ledger', 'icon-lg')}</span>
-                    <p class="empty-title">No chart of accounts yet</p>
-                    <p class="empty-text">Start from the standard textile mill chart and adjust it, or add accounts one by one.</p></div></td></tr>`;
-            } else if (!shown.length) {
-                tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><p class="empty-text">No account matches.</p></div></td></tr>`;
-            } else {
-                // Filtering flattens the tree; the indent stays so the level is still readable.
-                tbody.innerHTML = shown.map(r => `<tr class="cursor-pointer is-clickable" data-id="${r.id}">
-                    <td><span class="font-mono text-[13px] ${r.usage === 'SUMMARY' ? 'font-semibold text-gray-900' : 'text-gray-700'}">${esc(r.code)}</span></td>
-                    <td><div class="flex items-center gap-2" style="padding-left:${r.depth * 20}px">
-                        ${App.icon(r.usage === 'SUMMARY' ? 'ledger' : 'document', 'text-gray-400')}
-                        <span class="${r.usage === 'SUMMARY' ? 'font-semibold text-gray-900' : ''}">${esc(r.name)}</span></div></td>
-                    <td><span class="${TYPE_BADGE[r.type]}">${esc(r.typeLabel)}</span></td>
-                    <td>${usageBadge(r)}</td>
-                    <td><span class="font-mono text-xs">${esc(r.currency || '')}</span></td>
-                    <td>${r.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>'}</td>
-                    <td>${App.rowActions(App.recordButtons(r.id, CAN.amend))}</td>
-                </tr>`).join('');
-            }
+        function renderCount() {
+            const shown = rows.filter(r => (!typeFilter || r.type === typeFilter) && ($('#accShowInactive').checked || r.active));
             $('#accCount').textContent = rows.length
                 ? `${shown.length} of ${rows.length} accounts · ${rows.filter(r => r.usage === 'CONTROL').length} control`
                 : 'No accounts';
         }
 
-        $('#accSearch').addEventListener('input', App.debounce(render, 120));
-        $('#accShowInactive').addEventListener('change', render);
+        $('#accShowInactive').addEventListener('change', () => { tree.render(); renderCount(); });
+        $('#accExpandAll').addEventListener('click', () => tree.expandAll());
+        $('#accCollapseAll').addEventListener('click', () => tree.collapseAll());
         $('#accTypeFilter').addEventListener('click', e => {
             const btn = e.target.closest('[data-type]');
             if (!btn) return;
             typeFilter = btn.dataset.type;
             $('#accTypeFilter').querySelectorAll('[data-type]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-            render();
+            tree.render();
+            renderCount();
         });
 
-        // ------------------------------------------------------------------ editor
-        function fillParents(type, selected) {
-            const options = rows.filter(r => r.type === type && r.usage !== 'CONTROL' && (!current || r.id !== current.id));
-            $('#accParent').innerHTML = '<option value="">- Top level -</option>' + options.map(r =>
-                `<option value="${esc(r.code)}"${r.code === selected ? ' selected' : ''}>${'  '.repeat(r.depth)}${esc(r.code)} · ${esc(r.name)}</option>`).join('');
+        // ------------------------------------------------------------------ panel
+        /** Runs next unless the open form has unsaved edits the user wants to keep. */
+        async function guard(next) {
+            if (dirty && !form.hidden && !panel.hasAttribute('data-view-mode')) {
+                const ok = await App.confirm({ title: 'Discard your changes?', confirmText: 'Discard', danger: true,
+                    message: 'The account you are editing has unsaved changes.' });
+                if (!ok) return;
+            }
+            next();
         }
 
-        function openEditor(id, mode) {
-            current = id ? rows.find(r => r.id === id) : null;
-            const editing = !!current;
-            $('#accDialogTitle').textContent = editing ? `${current.code} · ${current.name}` : 'New account';
-            $('#accDialogSub').textContent = editing ? `${current.typeLabel} account` : 'Code and type are fixed once saved.';
-            $('#accCode').value = editing ? current.code : '';
-            $('#accName').value = editing ? current.name : '';
-            $('#accType').value = editing ? current.type : 'ASSET';
-            fillParents($('#accType').value, editing ? current.parentCode : '');
-            $('#accCurrency').value = editing ? (current.currency || '') : '';
-            $('#accControl').checked = editing && current.usage === 'CONTROL';
-            $('#accDescription').value = editing ? (current.description || '') : '';
-            const note = $('#accUsageNote');
-            note.hidden = !(editing && current.usage === 'SUMMARY');
-            note.textContent = 'This account has sub-accounts, so it only totals them and takes no entries.';
+        function select(id) {
+            tree.select(id);
+            history.replaceState(null, '', id ? `#${id}` : location.pathname);
+        }
 
-            const writable = editing ? CAN.amend : CAN.create;
+        function showForm(on) {
+            App.viewMode(panel, false);
+            $('#accEmpty').hidden = on;
+            form.hidden = !on;
+            dirty = false;
+        }
+
+        function fill(r, parentId) {
+            current = r;
+            const p = byId(r ? r.parentId : parentId);
+            $('#accTitle').textContent = r ? `${r.code} · ${r.name}` : p ? `New sub-account of ${p.code}` : 'New account';
+            $('#accSub').innerHTML = r
+                ? `<span class="${TYPE_BADGE[r.type]}">${esc(r.typeLabel)}</span> `
+                  + (r.usage === 'SUMMARY' ? 'Summary account' : r.usage === 'CONTROL' ? 'Control account' : 'Posting account')
+                : 'Code and type are fixed once saved.';
+            $('#accPath').textContent = r ? pathOf(r) : p ? [pathOf(p), p.name].filter(Boolean).join(' › ') : '';
+            $('#accType').value = r ? r.type : p ? p.type : 'ASSET';
+            parent.setValue(p ? { id: p.id, text: p.name, code: p.code } : null);
+            $('#accCode').value = r ? r.code : '';
+            $('#accName').value = r ? r.name : '';
+            $('#accCurrency').value = r ? (r.currency || '') : '';
+            $('#accControl').checked = !!(r && r.usage === 'CONTROL');
+            $('#accDescription').value = r ? (r.description || '') : '';
+            $('#accUsageNote').hidden = !(r && r.usage === 'SUMMARY');
+            $('#accParentHint').textContent = r
+                ? 'Code, type and place in the tree are fixed once saved.'
+                : 'Only active accounts of the same type, without postings, and not control accounts.';
+
+            const writable = r ? CAN.amend : CAN.create;
             form.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !writable; });
             // Code, type and place in the tree are fixed once saved; summary accounts cannot be control accounts.
-            $('#accCode').disabled = $('#accType').disabled = $('#accParent').disabled = editing || !writable;
-            $('#accControl').disabled = !writable || (editing && current.usage === 'SUMMARY');
+            $('#accCode').disabled = $('#accType').disabled = $('#accParent').disabled = !!r || !writable;
+            $('#accControl').disabled = !writable || !!(r && r.usage === 'SUMMARY');
             $('#accSaveBtn').hidden = !writable;
             const activeBtn = $('#accActiveBtn');
-            activeBtn.hidden = !(editing && CAN.amend);
-            if (editing) activeBtn.textContent = current.active ? 'Deactivate' : 'Reactivate';
-            dialog.showModal();
-            const viewing = mode === 'view' && editing;
-            if (writable && !viewing) (editing ? $('#accName') : $('#accCode')).focus();
-            App.viewMode(dialog, viewing, { canEdit: CAN.amend });
+            activeBtn.hidden = !(r && CAN.amend);
+            if (r) activeBtn.textContent = r.active ? 'Deactivate' : 'Reactivate';
+            $('#accAddChildBtn').hidden = !(r && CAN.create && r.usage !== 'CONTROL' && r.active);
         }
 
-        $('#accType').addEventListener('change', () => fillParents($('#accType').value, ''));
-        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));
-        $('#accNewBtn')?.addEventListener('click', () => openEditor(null));
-        $('#accTable tbody').addEventListener('click', e => {
-            const edit = e.target.closest('[data-edit]');
-            if (edit) return openEditor(Number(edit.dataset.edit));
-            const tr = e.target.closest('tr[data-id]');
-            if (tr) openEditor(Number(tr.dataset.id), 'view');
+        /** An existing account, read-only first; Edit unlocks what may change. */
+        function openRecord(id) {
+            const r = byId(id);
+            if (!r) return;
+            showForm(true);
+            select(id);
+            fill(r);
+            App.viewMode(panel, true, { canEdit: CAN.amend, onEdit: () => { dirty = false; $('#accName').focus(); } });
+        }
+
+        function openCreate(parentId) {
+            showForm(true);
+            select(null);
+            fill(null, parentId);
+            if (parentId) tree.reveal(parentId, true);
+            $('#accCode').focus();
+        }
+
+        function closePanel() {
+            showForm(false);
+            current = null;
+            select(null);
+        }
+
+        // A new account's parent must be of its type: changing the type clears the parent.
+        $('#accType').addEventListener('change', () => {
+            parent.setValue(null);
+            parent.refresh();
+            $('#accPath').textContent = '';
         });
+        $('#accParent').addEventListener('change', () => {
+            const p = parent.selected && byId(parent.selected.id);
+            $('#accPath').textContent = p ? [pathOf(p), p.name].filter(Boolean).join(' › ') : '';
+            $('#accTitle').textContent = p ? `New sub-account of ${p.code}` : 'New account';
+        });
+
+        // The picker's own search box is not an edit.
+        const edited = e => { if (!e.target.closest('.rselect-menu')) dirty = true; };
+        form.addEventListener('input', edited);
+        form.addEventListener('change', edited);
+        form.querySelector('[data-dismiss]').addEventListener('click', () => guard(() => {
+            // Cancel on an edit goes back to viewing it; Close (view mode) or Cancel on a new one clears the panel.
+            if (current && !panel.hasAttribute('data-view-mode')) openRecord(current.id);
+            else closePanel();
+        }));
+        $('#accAddChildBtn').addEventListener('click', () => guard(() => openCreate(current.id)));
+        $('#accNewBtn')?.addEventListener('click', () => guard(() => openCreate(null)));
 
         form.addEventListener('submit', async e => {
             e.preventDefault();
             if (!form.reportValidity()) return;
             const body = {
                 code: $('#accCode').value.trim(), name: $('#accName').value.trim(), accountType: $('#accType').value,
-                parentCode: $('#accParent').value || null, control: $('#accControl').checked,
+                parentCode: parent.selected ? parent.selected.code : null, control: $('#accControl').checked,
                 currencyCode: $('#accCurrency').value.trim() || null, description: $('#accDescription').value.trim() || null
             };
+            const btn = $('#accSaveBtn');
+            btn.disabled = true;
             try {
-                if (current) await api(`/api/accounts/chart/${current.id}`, { method: 'PUT', body });
-                else await api('/api/accounts/chart', { method: 'POST', body });
+                const saved = current
+                    ? await api(`/api/accounts/chart/${current.id}`, { method: 'PUT', body })
+                    : await api('/api/accounts/chart', { method: 'POST', body });
                 toast(current ? 'Account saved.' : 'Account added to the chart.', 'success');
-                dialog.close();
-                load();
-            } catch (err) { fail(err); }
+                dirty = false;
+                await load();
+                openRecord(saved.id);
+            } catch (err) {
+                fail(err);
+            } finally {
+                btn.disabled = false;
+            }
         });
 
         $('#accActiveBtn').addEventListener('click', async () => {
@@ -270,8 +353,10 @@
             try {
                 await api(`/api/accounts/chart/${current.id}/active`, { method: 'POST', query: { value: activate } });
                 toast(activate ? 'Account reactivated.' : 'Account deactivated.', 'success');
-                dialog.close();
-                load();
+                const id = current.id;
+                await load();
+                if (!activate && !$('#accShowInactive').checked) closePanel();
+                else openRecord(id);
             } catch (err) { fail(err); }
         });
 
@@ -287,7 +372,13 @@
             } catch (err) { fail(err); }
         });
 
-        load();
+        window.addEventListener('beforeunload', e => {
+            if (dirty && !form.hidden && !panel.hasAttribute('data-view-mode')) e.preventDefault();
+        });
+
+        // A #id in the address opens that account - links and reloads land where they left off.
+        const linked = Number(location.hash.slice(1)) || null;
+        load().then(() => { if (linked && byId(linked)) openRecord(linked); });
     });
     </script>
 </div>

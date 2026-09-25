@@ -1,5 +1,6 @@
 package com.asg.fabricerp.accounts;
 
+import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.party.Party;
 import com.asg.fabricerp.party.PartyRepository;
@@ -116,6 +117,7 @@ public class AccountsController {
             row.put("type", a.getAccountType().name());
             row.put("typeLabel", a.getAccountType().label());
             row.put("usage", a.getUsage().name());
+            row.put("parentId", a.getParent() == null ? null : a.getParent().getId());
             row.put("parentCode", a.getParent() == null ? null : a.getParent().getCode());
             int depth = 0;
             for (Account at = a.getParent(); at != null; at = at.getParent() == null ? null : byCode.get(at.getParent().getCode())) depth++;
@@ -126,6 +128,18 @@ public class AccountsController {
             row.put("postable", a.acceptsPostings());
             return row;
         }).toList();
+    }
+
+    /** Parent choices for a new account of {@code type}, paged: ?type=ASSET&amp;q=bank&amp;page=2; ?id=7 labels one. */
+    @GetMapping("/api/accounts/chart/parents")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_ACC_CHART_VIEW')")
+    public LookupPage<LookupPage.Option> parentAccounts(@RequestParam(required = false) AccountFlags.AccountType type,
+                                                        @RequestParam(required = false) String q,
+                                                        @RequestParam(required = false) Integer page,
+                                                        @RequestParam(required = false) Integer size,
+                                                        @RequestParam(required = false) Long id) {
+        return id != null ? setup.accountOption(id) : setup.parentLookup(type, q, page, size);
     }
 
     @PostMapping("/api/accounts/chart")

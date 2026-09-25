@@ -3,6 +3,7 @@ package com.asg.fabricerp.accounts;
 import com.asg.fabricerp.accounts.AccountFlags.AccountType;
 import com.asg.fabricerp.accounts.AccountFlags.CostCentreType;
 import com.asg.fabricerp.accounts.AccountFlags.Side;
+import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.OrganizationRepository;
 import com.asg.fabricerp.global.numbering.FinancialYear;
@@ -51,6 +52,27 @@ public class AccountsSetupService {
                                  boolean control, String currencyCode, String description) { }
 
     public List<Account> chart() { return accounts.chart(org()); }
+
+    /** One page of accounts a new {@code type} account may be placed under, for the parent picker. */
+    public LookupPage<LookupPage.Option> parentLookup(AccountType type, String q, Integer page, Integer size) {
+        if (type == null) throw new IllegalArgumentException("Choose the account type first.");
+        return LookupPage.of(accounts.parentCandidates(org(), type, LookupPage.like(q), LookupPage.pageable(page, size)),
+            AccountsSetupService::option);
+    }
+
+    /** The option for one account, so a picker can label a saved value. */
+    public LookupPage<LookupPage.Option> accountOption(Long id) {
+        return LookupPage.single(accounts.findScoped(id, org()).map(AccountsSetupService::option).orElse(null));
+    }
+
+    /** Code, name, and where it sits: "Asset in Assets › Current assets". */
+    static LookupPage.Option option(Account a) {
+        List<String> path = new ArrayList<>();
+        for (Account p = a.getParent(); p != null; p = p.getParent()) path.add(0, p.getName());
+        String type = a.getAccountType().label();
+        return new LookupPage.Option(a.getId(), a.getCode(), a.getName(),
+            path.isEmpty() ? type + " · top level" : type + " in " + String.join(" › ", path));
+    }
 
     @Transactional
     public Account openAccount(AccountRequest request) {
