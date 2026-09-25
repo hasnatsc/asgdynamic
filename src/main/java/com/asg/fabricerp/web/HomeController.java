@@ -3,6 +3,7 @@ package com.asg.fabricerp.web;
 import com.asg.fabricerp.security.CurrentUser;
 import com.asg.fabricerp.security.FabricUserRepository;
 import com.asg.fabricerp.security.Role;
+import com.asg.fabricerp.web.DashboardService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -18,9 +19,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class HomeController {
 
     private final FabricUserRepository users;
+    private final DashboardService dashboard;
 
-    public HomeController(FabricUserRepository users) {
+    public HomeController(FabricUserRepository users, DashboardService dashboard) {
         this.users = users;
+        this.dashboard = dashboard;
     }
 
     @GetMapping("/")
@@ -37,6 +40,7 @@ public class HomeController {
                     .map(Role::getName).sorted().toList());
             });
         }
+        model.addAttribute("stats", dashboard.stats());
         model.addAttribute("content", "home :: content");
         return "layout/main";
     }

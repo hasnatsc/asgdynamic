@@ -111,4 +111,73 @@
                        text-xs font-semibold text-brand-700; }
   .skeleton   { @apply animate-pulse rounded bg-slate-200; }
   .kbd        { @apply rounded border border-slate-300 bg-slate-50 px-1.5 text-[11px] font-medium text-slate-500; }
+
+  /* ---- Command palette ------------------------------------------------------------------- */
+  .cmd-palette     { @apply w-full max-w-xl rounded-xl p-0 shadow-2xl ring-1 ring-slate-900/10; }
+  .cmd-input       { @apply w-full border-0 bg-transparent px-4 py-3 text-base text-slate-900 placeholder-slate-400
+                            focus:outline-none focus:ring-0; }
+  .cmd-list        { @apply max-h-72 overflow-y-auto border-t border-slate-200 py-1; }
+  .cmd-item        { @apply flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-slate-700
+                            hover:bg-brand-50 hover:text-brand-700; }
+  .cmd-item.is-active { @apply bg-brand-50 text-brand-700; }
+  .cmd-section     { @apply px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400; }
+  .cmd-kbd         { @apply ml-auto flex gap-0.5; }
+
+  .notification-dot { @apply absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500
+                             ring-2 ring-white; }
+  .dark .notification-dot { @apply ring-slate-800; }
+}
+
+@layer base {
+  /* ---- Dark mode overrides -------------------------------------------------------------- */
+  .dark                     { @apply bg-slate-900 text-slate-100; }
+  .dark .card               { @apply bg-slate-800 ring-slate-700; }
+  .dark .card-header        { @apply border-slate-700; }
+  .dark .table-grid thead th{ @apply bg-slate-800 text-slate-400; }
+  .dark .table-grid tbody td{ @apply text-slate-300; }
+  .dark .table-grid tbody tr{ @apply hover:bg-slate-700/50; }
+  .dark .toolbar            { @apply border-slate-700; }
+  .dark .pager              { @apply border-slate-700 text-slate-400; }
+  .dark .field              { @apply border-slate-600 bg-slate-800 text-slate-100; }
+  .dark .nav-section        { @apply text-slate-500; }
+  .dark .nav-link           { @apply text-slate-400 hover:bg-slate-800 hover:text-slate-100; }
+  .dark .nav-link.is-active { @apply bg-brand-900/50 text-brand-400; }
+  .dark .nav-sublink        { @apply text-slate-500 hover:bg-slate-800 hover:text-slate-100; }
+  .dark .nav-sublink.is-active { @apply text-brand-400; }
+  .dark .page-title         { @apply text-white; }
+  .dark .page-sub           { @apply text-slate-400; }
+  .dark .modal              { @apply bg-slate-800 ring-slate-700; }
+  .dark .modal-head         { @apply border-slate-700; }
+  .dark .modal-body         { @apply text-slate-200; }
+  .dark .modal-foot         { @apply border-slate-700 bg-slate-800; }
+  .dark .label              { @apply text-slate-300; }
+  .dark .kpi                { @apply bg-slate-800 ring-slate-700; }
+  .dark .kpi-value          { @apply text-white; }
+  .dark .kpi-label          { @apply text-slate-400; }
+  .dark .tabs               { @apply border-slate-700; }
+  .dark .tab                { @apply text-slate-400 hover:text-slate-200; }
+  .dark .tab[aria-selected="true"] { @apply border-brand-500 text-brand-400; }
+  .dark .cmd-palette        { @apply bg-slate-800 ring-slate-700; }
+  .dark .cmd-input          { @apply text-white placeholder-slate-500; }
+  .dark .cmd-list           { @apply border-slate-700; }
+  .dark .cmd-item           { @apply text-slate-300 hover:bg-slate-700 hover:text-white; }
+  .dark .cmd-item.is-active { @apply bg-slate-700 text-white; }
+}
+
+/* ---- Responsive table stacking (opt-in: add .table-stack to .table-grid) -------------- */
+@media (max-width: 640px) {
+  .table-grid.table-stack thead { display: none; }
+  .table-grid.table-stack tbody tr {
+    display: block; margin-bottom: .75rem; border-radius: .5rem;
+    border: 1px solid theme('colors.slate.200'); padding: .75rem;
+  }
+  .table-grid.table-stack tbody td {
+    display: flex; justify-content: space-between; padding: .25rem 0;
+  }
+  .table-grid.table-stack tbody td::before {
+    content: attr(data-label); font-weight: 500; color: theme('colors.slate.500');
+  }
+  .dark .table-grid.table-stack tbody tr {
+    border-color: theme('colors.slate.700');
+  }
 }

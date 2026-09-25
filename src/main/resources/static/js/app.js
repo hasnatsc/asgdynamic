@@ -71,6 +71,28 @@
     }
 
     // ------------------------------------------------------------------------------------------
+    // Dark mode
+    // ------------------------------------------------------------------------------------------
+
+    function darkMode() {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = stored ? stored === 'dark' : prefersDark;
+        if (isDark) document.documentElement.classList.add('dark');
+
+        return {
+            toggle() {
+                const dark = document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', dark ? 'dark' : 'light');
+                return dark;
+            },
+            get isDark() { return document.documentElement.classList.contains('dark'); }
+        };
+    }
+
+    const theme = darkMode();
+
+    // ------------------------------------------------------------------------------------------
     // HTTP
     // ------------------------------------------------------------------------------------------
 
@@ -254,6 +276,111 @@
 
     function confirmDialog(opts) {
         return formDialog(Object.assign({ fields: [] }, opts)).then(result => result !== null);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Command palette (Ctrl+K)
+    // ------------------------------------------------------------------------------------------
+
+    function openCommandPalette() {
+        const existing = document.getElementById('cmd-palette');
+        if (existing?.open) { existing.close(); return; }
+        if (existing) existing.remove();
+
+        // Harvest links from the sidebar navigation
+        const items = [];
+        document.querySelectorAll('#sidebar .nav-section').forEach(section => {
+            const sectionLabel = section.textContent.trim();
+            let el = section.nextElementSibling;
+            while (el && !el.classList.contains('nav-section')) {
+                if (el.tagName === 'A' && el.classList.contains('nav-link')) {
+                    items.push({ label: el.textContent.trim(), path: el.getAttribute('href'), section: sectionLabel });
+                }
+                if (el.tagName === 'DETAILS') {
+                    const groupLabel = el.querySelector('summary span')?.textContent.trim() || '';
+                    el.querySelectorAll('.nav-sublink').forEach(sub => {
+                        items.push({ label: sub.textContent.trim(), path: sub.getAttribute('href'),
+                                     section: sectionLabel, group: groupLabel });
+                    });
+                }
+                el = el.nextElementSibling;
+            }
+        });
+        // Always include Home
+        const homeLink = document.querySelector('#sidebar a[href="/"]');
+        if (homeLink) items.unshift({ label: 'Home', path: '/', section: '' });
+
+        const dialog = document.createElement('dialog');
+        dialog.id = 'cmd-palette';
+        dialog.className = 'cmd-palette';
+        dialog.innerHTML = `
+            <input class="cmd-input" placeholder="Search screens…" autocomplete="off" spellcheck="false">
+            <div class="cmd-list" id="cmd-list"></div>
+            <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 px-4 py-2 text-xs text-slate-400">
+                <span>Navigate with <kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> then <kbd class="kbd">Enter</kbd></span>
+                <span><kbd class="kbd">Esc</kbd> to close</span>
+            </div>`;
+        document.body.appendChild(dialog);
+
+        const input = dialog.querySelector('.cmd-input');
+        const list = dialog.querySelector('#cmd-list');
+        let activeIndex = 0;
+
+        function render(query) {
+            const q = (query || '').toLowerCase();
+            const filtered = q ? items.filter(i =>
+                i.label.toLowerCase().includes(q) ||
+                (i.section && i.section.toLowerCase().includes(q)) ||
+                (i.group && i.group.toLowerCase().includes(q))
+            ) : items;
+
+            if (!filtered.length) {
+                list.innerHTML = '<div class="px-4 py-6 text-center text-sm text-slate-500">No screens found.</div>';
+                return;
+            }
+            let html = '';
+            let lastSection = null;
+            filtered.forEach((item, i) => {
+                const sec = item.section || '';
+                if (sec !== lastSection) {
+                    html += `<div class="cmd-section">${esc(sec || 'Navigation')}</div>`;
+                    lastSection = sec;
+                }
+                const active = i === activeIndex ? ' is-active' : '';
+                const sub = item.group ? `<span class="text-xs text-slate-400">${esc(item.group)}</span>` : '';
+                html += `<a href="${esc(item.path)}" class="cmd-item${active}" data-cmd="${i}">
+                    <svg class="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 0 0 2 4.25v11.5A2.25 2.25 0 0 0 4.25 18h11.5A2.25 2.25 0 0 0 18 15.75V4.25A2.25 2.25 0 0 0 15.75 2H4.25ZM6 13.25V6.75a.75.75 0 0 1 1.5 0v6.5a.75.75 0 0 1-1.5 0ZM9.25 6a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0v-6.5A.75.75 0 0 1 9.25 6ZM12 10.25v3a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0Z" clip-rule="evenodd"/></svg>
+                    <span class="flex-1">${esc(item.label)}</span>${sub}
+                </a>`;
+            });
+            list.innerHTML = html;
+        }
+
+        function navigate() {
+            const active = list.querySelector('.cmd-item.is-active');
+            if (active) { dialog.close(); window.location.href = active.getAttribute('href'); }
+        }
+
+        function clampIndex(filtered) {
+            const count = list.querySelectorAll('.cmd-item').length;
+            if (activeIndex < 0) activeIndex = count - 1;
+            if (activeIndex >= count) activeIndex = 0;
+        }
+
+        input.addEventListener('input', () => { activeIndex = 0; render(input.value); });
+        dialog.addEventListener('keydown', e => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex++; clampIndex(); render(input.value); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex--; clampIndex(); render(input.value); }
+            else if (e.key === 'Enter') { e.preventDefault(); navigate(); }
+        });
+        list.addEventListener('click', e => {
+            const item = e.target.closest('.cmd-item');
+            if (item) { e.preventDefault(); dialog.close(); window.location.href = item.getAttribute('href'); }
+        });
+
+        render('');
+        dialog.showModal();
+        input.focus();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -445,7 +572,24 @@
                 if (!menu.contains(event.target)) menu.removeAttribute('open');
             });
         });
+
+        // Ctrl+K / Cmd+K opens the command palette.
+        document.addEventListener('keydown', event => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+                event.preventDefault();
+                openCommandPalette();
+            }
+        });
+
+        // Dark mode toggle button.
+        document.querySelectorAll('[data-theme-toggle]').forEach(btn => btn.addEventListener('click', () => {
+            const isDark = theme.toggle();
+            btn.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+        }));
+
+        // Command palette button.
+        document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, debounce, toast, form: formDialog, confirm: confirmDialog, tabs, Grid };
+    window.App = { api, fail, esc, fmt, debounce, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, theme, commandPalette: openCommandPalette };
 })();

@@ -19,7 +19,7 @@
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <script th:src="@{/js/app.js}" defer></script>
 </head>
-<body class="h-full bg-slate-50 font-sans text-slate-900 antialiased">
+<body class="h-full bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100">
 
 <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 btn-primary">Skip to content</a>
 
@@ -29,8 +29,8 @@
 <!-- ============================== Sidebar ============================== -->
 <aside id="sidebar"
        class="fixed inset-y-0 left-0 z-40 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white
-              transition-transform duration-200 lg:translate-x-0">
-    <div class="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-4">
+              transition-transform duration-200 lg:translate-x-0 dark:border-slate-700 dark:bg-slate-900">
+    <div class="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-700">
         <a th:href="@{/}" class="flex items-center gap-2 font-semibold tracking-tight">
             <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-brand-600 text-xs font-bold text-white">A</span>
             <span><span class="text-brand-600">ASG</span> FabricERP</span>
@@ -76,7 +76,7 @@
 
 <!-- ============================== Main column ============================== -->
 <div class="flex min-h-full flex-col lg:pl-64">
-    <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur">
+    <header class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/90">
         <button type="button" class="btn-icon lg:hidden" data-sidebar-toggle aria-label="Open menu">
             <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm0 5a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm1 4a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2H4Z" clip-rule="evenodd"/></svg>
         </button>
@@ -95,6 +95,17 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
+            <!-- Command palette -->
+            <button type="button" class="btn-icon" data-cmd-trigger
+                    title="Search screens (Ctrl+K)" aria-label="Command palette">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.45 4.39l3.08 3.08a1 1 0 0 1-1.42 1.42l-3.08-3.08A7 7 0 0 1 2 9Z" clip-rule="evenodd"/></svg>
+            </button>
+
+            <!-- Dark mode toggle -->
+            <button type="button" class="btn-icon" data-theme-toggle
+                    title="Toggle dark mode" aria-label="Toggle dark mode">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M7.455 2.004a.75.75 0 0 1 .26.77 7 7 0 0 0 9.958 7.967.75.75 0 0 1 1.067.853A8.5 8.5 0 1 1 6.647 1.921a.75.75 0 0 1 .808.083Z" clip-rule="evenodd"/></svg>
+            </button>
             <details class="relative" data-menu th:if="${currentUser != null}">
                 <summary class="flex cursor-pointer list-none items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-100">
                     <span class="avatar" th:text="${#strings.toUpperCase(#strings.substring(currentUser.displayName, 0, 1))}">A</span>

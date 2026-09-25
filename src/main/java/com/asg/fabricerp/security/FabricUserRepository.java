@@ -22,6 +22,8 @@ public interface FabricUserRepository extends JpaRepository<FabricUser, Long> {
 
     boolean existsByUsernameIgnoreCase(String username);
 
+    long countByAccountLockedTrue();
+
     /** Used by {@code RoleService.delete} to block deleting a role still in use. */
     boolean existsByRolesId(Long roleId);
 

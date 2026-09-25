@@ -8,6 +8,33 @@
         Your password has been changed.
     </div>
 
+    <!-- KPI dashboard -->
+    <div th:if="${stats != null}" class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <a th:href="@{/booking}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Bookings</span>
+            <span class="kpi-value" th:text="${stats.bookings}">0</span>
+            <span class="text-xs text-slate-500"><span th:text="${stats.draftBookings}">0</span> drafts</span>
+        </a>
+        <a th:href="@{/bpo}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Production orders</span>
+            <span class="kpi-value" th:text="${stats.productionOrders}">0</span>
+            <span class="text-xs text-slate-500"><span th:text="${stats.activeProductionOrders}">0</span> active</span>
+        </a>
+        <a th:href="@{/inventory/items}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Inventory items</span>
+            <span class="kpi-value" th:text="${stats.inventoryItems}">0</span>
+        </a>
+        <a th:href="@{/setup/parties}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Parties</span>
+            <span class="kpi-value" th:text="${stats.parties}">0</span>
+        </a>
+        <a th:href="@{/setup/security}" class="kpi hover:ring-brand-300">
+            <span class="kpi-label">Users</span>
+            <span class="kpi-value" th:text="${stats.users}">0</span>
+            <span class="text-xs text-slate-500"><span th:text="${stats.lockedUsers}">0</span> locked</span>
+        </a>
+    </div>
+
     <div class="page-header">
         <div>
             <h1 class="page-title">Welcome<th:block th:if="${currentUser != null}">, <span th:text="${currentUser.displayName}">name</span></th:block></h1>
