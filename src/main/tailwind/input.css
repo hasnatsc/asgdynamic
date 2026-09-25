@@ -103,7 +103,10 @@
   .breadcrumb [aria-current] { @apply truncate font-medium text-gray-900; }
 
   /* ---- Data grid -------------------------------------------------------------------------
-     Compact by default (about 40 px rows) with dark text: registers are scanned all day. */
+     ONE look for every register, applied here and nowhere else - templates only say
+     class="table-grid". Compact rows (about 44 px), dark 14 px text, uppercase headers, zebra
+     rows. Row buttons come from App.rowActions()/App.editButton(); any table whose rows carry
+     .row-actions gets its actions column pinned to the right edge automatically. */
   .table-grid { @apply min-w-full text-sm; }
   .table-grid thead th { @apply whitespace-nowrap border-b border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs
                                 font-semibold uppercase tracking-wide text-gray-700; }
@@ -113,26 +116,30 @@
   .table-grid thead th[aria-sort="descending"]::after { content: ' \2193'; @apply text-brand-600; }
   .table-grid tbody td { @apply border-b border-gray-100 px-3 py-2 align-middle text-gray-800; }
   .table-grid tbody tr:last-child td { @apply border-b-0; }
-  .table-grid tbody tr { @apply bg-white transition-colors hover:bg-gray-50; }
+  /* Row colours are opaque so the pinned actions cell never shows content scrolling under it. */
+  .table-grid tbody tr { @apply bg-white transition-colors; }
+  .table-grid tbody tr:nth-child(even) { @apply bg-gray-50; }
+  .table-grid tbody tr:hover { @apply bg-brand-50; }
   .table-grid tbody tr.is-clickable:hover td:first-child { box-shadow: inset 2px 0 0 theme('colors.brand.500'); }
   .table-grid .num     { @apply text-right tabular-nums; }
   .table-grid .doc-no  { @apply font-medium text-brand-700; }
-  /* Opt-in zebra rows for wide registers: <table class="table-grid table-striped">. */
-  .table-striped tbody tr:nth-child(even) { @apply bg-gray-50; }
-  .table-striped tbody tr:hover { @apply bg-brand-50; }
-  /* Right-aligned per-row buttons; always visible, never hover-only. The cell holding them stays
-     pinned to the right edge when a wide table scrolls sideways (row colours are opaque for this). */
+  /* Badge lists in a cell stay on one line; a wide table scrolls sideways instead of growing rows. */
+  .table-grid .badge-list { @apply flex flex-nowrap items-center gap-1; }
+
+  /* Per-row buttons: always visible, never hover-only. */
   .row-actions { @apply flex items-center justify-end gap-1.5 whitespace-nowrap; }
   .row-actions .btn { @apply h-7 px-2 text-xs; }
   .row-actions .btn .icon { @apply h-3.5 w-3.5; }
-  .table-grid td:has(> .row-actions), .table-grid th.col-actions {
+  .table-grid td:has(> .row-actions),
+  .table-grid:has(td > .row-actions) thead th:last-child {
     @apply sticky right-0 z-[1]; background-color: inherit;
     box-shadow: -10px 0 10px -10px rgb(23 25 29 / 0.15); }
-  .table-grid th.col-actions { @apply bg-gray-50; }
-  /* Line-entry tables inside forms: tighter, inputs fill the cell. */
+  .table-grid:has(td > .row-actions) thead th:last-child { @apply bg-gray-50 text-right; }
+
+  /* Line-entry tables inside forms and drawers: tighter, plain rows, inputs fill the cell. */
   .table-lines thead th { @apply px-2 py-2; }
   .table-lines tbody td { @apply px-2 py-1.5; }
-  .table-lines tbody tr { @apply hover:bg-transparent; }
+  .table-lines tbody tr, .table-lines tbody tr:nth-child(even), .table-lines tbody tr:hover { @apply bg-transparent; }
   .table-lines .field   { @apply py-1.5; }
 
   .table-wrap { @apply overflow-x-auto scroll-thin; }
@@ -271,7 +278,7 @@
   /* Inline-editable line grid (colour breakdown, requisition lines): same as .table-lines. */
   .table-edit thead th { @apply px-2 py-2; }
   .table-edit tbody td { @apply px-2 py-1.5; }
-  .table-edit tbody tr { @apply hover:bg-transparent; }
+  .table-edit tbody tr, .table-edit tbody tr:nth-child(even), .table-edit tbody tr:hover { @apply bg-transparent; }
   .table-edit .field   { @apply py-1.5; }
   .totals     { @apply flex flex-wrap items-baseline justify-end gap-x-6 gap-y-1 border-t border-gray-200 pt-3 text-sm; }
   .totals dt  { @apply text-gray-500; }
@@ -371,8 +378,10 @@
   .dark .table-grid thead th{ @apply border-gray-800 bg-gray-900 text-gray-300; }
   .dark .table-grid tbody td{ @apply border-gray-800 text-gray-200; }
   .dark .table-grid tbody tr { @apply bg-gray-900 hover:bg-gray-800; }
-  .dark .table-striped tbody tr:nth-child(even) { @apply bg-[#1d1f24]; }
-  .dark .table-grid th.col-actions { @apply bg-gray-900; }
+  .dark .table-grid tbody tr:nth-child(even) { @apply bg-[#1d1f24]; }
+  .dark .table-grid tbody tr:hover { @apply bg-gray-800; }
+  .dark .table-grid:has(td > .row-actions) thead th:last-child { @apply bg-gray-900; }
+  .dark .table-lines tbody tr, .dark .table-edit tbody tr { @apply bg-transparent; }
   .dark .table-grid tbody tr{ @apply hover:bg-gray-800/60; }
   .dark .field              { @apply border-gray-700 bg-gray-900 text-gray-100 read-only:bg-gray-800; }
   .dark .label              { @apply text-gray-300; }

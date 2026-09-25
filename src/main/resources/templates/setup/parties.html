@@ -75,7 +75,7 @@
                     <th>Location</th>
                     <th>TIN / BIN</th>
                     <th data-sort="active">Status</th>
-                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                    <th class="w-px">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -287,18 +287,18 @@
                    + (r.legalName && r.legalName !== r.name ? `<div class="max-w-xs truncate text-xs text-gray-500">${esc(r.legalName)}</div>` : '')
                    + (r.partyType === 'INDIVIDUAL' ? '<div class="text-xs text-gray-400">Individual</div>' : ''),
                 r => (r.roles || []).length
-                    ? `<div class="flex max-w-xs flex-wrap gap-1">${r.roles.map(roleBadge).join('')}</div>`
+                    ? `<div class="badge-list">${r.roles.map(roleBadge).join('')}</div>`
                     : '<span class="badge-red">No role</span>',
                 r => r.contactName
-                    ? `<div class="text-gray-800">${esc(r.contactName)}</div>`
-                      + (r.contactPhone ? `<div class="text-xs text-gray-500">${esc(r.contactPhone)}</div>` : '')
+                    ? `<span class="whitespace-nowrap">${esc(r.contactName)}</span>`
+                      + (r.contactPhone ? ` <span class="whitespace-nowrap text-xs text-gray-500">· ${esc(r.contactPhone)}</span>` : '')
                     : '<span class="text-gray-400">-</span>',
                 r => r.location ? `<div class="max-w-[14rem] truncate" title="${esc(r.location)}">${esc(r.location)}</div>` : '<span class="text-gray-400">-</span>',
                 r => (r.tin || r.bin)
-                    ? `<div class="font-mono text-xs">${r.tin ? 'TIN ' + esc(r.tin) : ''}${r.tin && r.bin ? '<br>' : ''}${r.bin ? 'BIN ' + esc(r.bin) : ''}</div>`
+                    ? `<span class="whitespace-nowrap font-mono text-xs">${r.tin ? 'TIN ' + esc(r.tin) : ''}${r.tin && r.bin ? ' · ' : ''}${r.bin ? 'BIN ' + esc(r.bin) : ''}</span>`
                     : '<span class="text-gray-400">-</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
-                r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+                r => App.rowActions(App.editButton(r.id, CAN.amend))
             ],
             onRowClick: row => openEditor(row.id)
         });

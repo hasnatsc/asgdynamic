@@ -42,7 +42,7 @@
                         <th>Description</th>
                         <th data-sort="displayOrder" class="text-right">Order</th>
                         <th data-sort="active">Status</th>
-                        <th class="w-px"><span class="sr-only">Actions</span></th>
+                        <th class="w-px">Actions</th>
                     </tr>
                     </thead>
                     <tbody></tbody>
@@ -122,8 +122,8 @@
                     r => `<span class="text-gray-500">${App.esc(r.description)}</span>`,
                     r => `<span class="block text-right tabular-nums">${App.esc(r.displayOrder)}</span>`,
                     r => r.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>',
-                    r => canDelete ? `<button type="button" class="btn-icon btn-sm" data-delete="${r.id}"
-                                         aria-label="Delete ${App.esc(r.name)}">${App.icon('trash')}</button>` : ''
+                    r => App.rowActions(App.rowButton('Edit', 'edit', `data-edit="${r.id}"`),
+                                        canDelete ? App.rowButton('Delete', 'trash', `data-delete="${r.id}"`, 'text-red-700') : '')
                 ],
                 onRowClick: row => edit(row)
             });
@@ -163,6 +163,8 @@
             });
 
             document.getElementById('attributeTable').addEventListener('click', async event => {
+                const editBtn = event.target.closest('[data-edit]');
+                if (editBtn) { edit(grid.rows.find(r => String(r.id) === editBtn.dataset.edit)); return; }
                 const btn = event.target.closest('[data-delete]');
                 if (!btn) return;
                 const row = grid.rows.find(r => String(r.id) === btn.dataset.delete);

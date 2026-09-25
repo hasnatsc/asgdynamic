@@ -153,6 +153,22 @@
         return `<svg class="icon ${cls || ''}" aria-hidden="true"><use href="/images/icons.svg#${esc(name)}"/></svg>`;
     }
 
+    /**
+     * Per-row buttons, identical on every register: bordered, icon + word, always visible, and
+     * pinned to the table's right edge automatically (the .row-actions rules in input.css).
+     *   App.rowActions(App.editButton(r.id, CAN.amend), App.rowButton('Unlock', 'unlock', `data-unlock="${r.id}"`))
+     */
+    function rowButton(label, iconName, attrs, cls) {
+        return `<button type="button" class="btn-ghost btn-sm ${cls || ''}" ${attrs || ''} title="${esc(label)}">`
+            + `${icon(iconName)}${esc(label)}</button>`;
+    }
+    function editButton(id, canAmend, key) {
+        return rowButton(canAmend ? 'Edit' : 'View', canAmend ? 'edit' : 'eye', `data-${key || 'edit'}="${esc(id)}"`);
+    }
+    function rowActions(...buttons) {
+        return `<div class="row-actions">${buttons.filter(Boolean).join('')}</div>`;
+    }
+
     // One neutral surface for every toast; the type shows in the icon, never in colour alone.
     const TOAST_STYLES = {
         success: ['check-circle', 'text-emerald-600'],
@@ -654,6 +670,10 @@
                 columns: cols.map(col => row => this.cell(row, col)),
                 onRowClick: row => this.open(row.id)
             });
+            table.addEventListener('click', event => {
+                const btn = event.target.closest('[data-open]');
+                if (btn) this.open(Number(btn.dataset.open));
+            });
             ['status', 'from', 'to'].forEach(name => filter(name)?.addEventListener('change', () => this.grid.reload(true)));
             root.querySelector('[data-filter-reset]')?.addEventListener('click', () => {
                 ['search', 'status', 'from', 'to'].forEach(name => { const el = filter(name); if (el) el.value = ''; });
@@ -688,8 +708,7 @@
                 case 'num':    return `<span class="block text-right tabular-nums">${esc(formatNumber(value))}</span>`;
                 case 'status': return statusBadge(value);
                 case 'actions':
-                    return `<button type="button" class="btn-icon btn-sm" aria-label="Open ${esc(row.documentNo || 'document')}">`
-                        + `${icon('chevron-right')}</button>`;
+                    return rowActions(rowButton('Open', 'eye', `data-open="${esc(row.id)}"`));
                 default:       return esc(value);
             }
         }
@@ -950,5 +969,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, status, debounce, icon, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, debounce, icon, rowButton, editButton, rowActions, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
 })();

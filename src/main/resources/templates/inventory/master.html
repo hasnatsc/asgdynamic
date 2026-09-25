@@ -36,7 +36,7 @@
                     <th th:each="col : ${page.columns}" th:text="${col.label}"
                         th:attr="data-sort=${col.sort}"
                         th:classappend="${col.kind == 'number'} ? 'text-right'">Column</th>
-                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                    <th class="w-px">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -106,8 +106,7 @@
             pager: $('#masterPager'),
             emptyText: 'Nothing here yet.',
             columns: PAGE.columns.map(col => row => (cell[col.kind] || cell.text)(row[col.key], row))
-                .concat([r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">
-                                 ${CAN.amend ? 'Edit' : 'View'}</button></div>`]),
+                .concat([r => App.rowActions(App.editButton(r.id, CAN.amend))]),
             onRowClick: row => openEditor(row.id)
         });
         $('#masterTable tbody').addEventListener('click', e => {

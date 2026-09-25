@@ -33,7 +33,7 @@
             </select>
         </div>
         <div class="table-wrap">
-            <table id="userTable" class="table-grid table-striped">
+            <table id="userTable" class="table-grid">
                 <thead>
                 <tr>
                     <th data-sort="fullName">Name</th>
@@ -43,7 +43,7 @@
                     <th>Access</th>
                     <th>Status</th>
                     <th data-sort="lastLoginAt">Last sign-in</th>
-                    <th class="col-actions w-px text-right">Actions</th>
+                    <th class="w-px">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -150,7 +150,7 @@
                     <div class="overflow-x-auto rounded-lg border border-gray-200">
                         <table class="table-grid">
                             <thead>
-                            <tr><th>Dimension</th><th>Value</th><th>From</th><th>Revoked</th><th>Remarks</th><th class="w-px"></th></tr>
+                            <tr><th>Dimension</th><th>Value</th><th>From</th><th>Revoked</th><th>Remarks</th><th class="w-px">Actions</th></tr>
                             </thead>
                             <tbody id="scopeRows"></tbody>
                         </table>
@@ -248,7 +248,7 @@
             const shown = roles.slice(0, 2).map(n => `<span class="badge-gray">${esc(n)}</span>`).join('');
             const more = roles.length > 2
                 ? `<span class="badge-gray" title="${esc(roles.slice(2).join(', '))}">+${roles.length - 2}</span>` : '';
-            return `<div class="flex flex-nowrap gap-1">${shown}${more}</div>`;
+            return `<div class="badge-list">${shown}${more}</div>`;
         }
         function statusCell(r) {
             const out = [];
@@ -257,17 +257,12 @@
             if (r.cannotSignIn && !r.accountLocked) out.push('<span class="badge-amber badge-dot" title="Scoped access with no grant held today">No scope</span>');
             if (r.mustChangePassword) out.push('<span class="badge-amber badge-dot" title="Administrator-set password not yet replaced">Password pending</span>');
             if (!out.length) out.push('<span class="badge-green badge-dot">Active</span>');
-            return `<div class="flex flex-nowrap gap-1">${out.join('')}</div>`;
+            return `<div class="badge-list">${out.join('')}</div>`;
         }
         function actionsCell(r) {
-            const name = esc(r.fullName || r.username);
             const unlock = r.accountLocked && CAN.amend && r.id !== SELF_ID
-                ? `<button type="button" class="btn-ghost btn-sm" data-unlock="${r.id}" title="Unlock ${name}">
-                       ${App.icon('unlock')}Unlock</button>` : '';
-            const label = CAN.amend ? 'Edit' : 'View';
-            return `<div class="row-actions">${unlock}
-                <button type="button" class="btn-ghost btn-sm" data-edit="${r.id}" title="${label} ${name}">
-                    ${App.icon(CAN.amend ? 'edit' : 'eye')}${label}</button></div>`;
+                ? App.rowButton('Unlock', 'unlock', `data-unlock="${r.id}"`) : '';
+            return App.rowActions(unlock, App.editButton(r.id, CAN.amend));
         }
 
         const grid = new App.Grid({
@@ -428,7 +423,7 @@
                         <td>${s.revokedFrom ? `${esc(fmt.date(s.revokedFrom))}<span class="block text-xs">${esc(s.revokedReason)}</span>`
                                             : (s.heldToday ? '<span class="badge-green">Held</span>' : '<span class="badge-gray">Starts later</span>')}</td>
                         <td class="text-gray-500">${esc(s.remarks)}</td>
-                        <td>${!s.revokedFrom && canRevoke ? `<button type="button" class="btn-subtle btn-sm text-red-600" data-revoke="${s.id}">Revoke</button>` : ''}</td>
+                        <td>${App.rowActions(!s.revokedFrom && canRevoke ? App.rowButton('Revoke', 'x', `data-revoke="${s.id}"`, 'text-red-700') : '')}</td>
                     </tr>`).join('')
                     : '<tr><td colspan="6" class="py-6 text-center text-gray-500">No scope grants.</td></tr>';
             } catch (error) { fail(error); }

@@ -49,7 +49,7 @@
                     <th>Unit</th>
                     <th>Approval</th>
                     <th data-sort="active">Status</th>
-                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                    <th class="w-px">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -285,13 +285,13 @@
             columns: [
                 r => `<span class="font-mono text-xs text-gray-600">${esc(r.itemCode)}</span>`,
                 r => `<span class="font-medium text-gray-900">${esc(r.name)}</span>`
-                   + (r.sku ? `<div class="text-xs text-gray-500">SKU ${esc(r.sku)}</div>` : ''),
+                   + (r.sku ? ` <span class="text-xs text-gray-500">· SKU ${esc(r.sku)}</span>` : ''),
                 r => `<span class="badge-gray">${esc(r.itemTypeLabel)}</span>`,
                 r => esc(r.categoryName),
                 r => `<span title="${esc(r.baseUnitName)}">${esc(r.baseUnitCode)}</span>`,
                 r => r.approved ? `<span class="badge-green" title="${esc(r.approvedBy)}">Approved</span>` : '<span class="badge-amber">Pending</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
-                r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+                r => App.rowActions(App.editButton(r.id, CAN.amend))
             ],
             onRowClick: row => openEditor(row.id)
         });

@@ -33,7 +33,7 @@
                     <th>Composition</th>
                     <th>Approval</th>
                     <th data-sort="active">Status</th>
-                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                    <th class="w-px">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -69,7 +69,7 @@
                                 <th class="w-28 text-right">%</th>
                                 <th>Certification</th>
                                 <th>Remarks</th>
-                                <th class="w-px"><span class="sr-only">Remove</span></th>
+                                <th class="w-px">Actions</th>
                             </tr>
                             </thead>
                             <tbody></tbody>
@@ -140,7 +140,7 @@
                 r => `<span class="text-gray-600">${esc(r.composition)}</span>`,
                 r => r.approved ? `<span class="badge-green" title="${esc(r.approvedBy)}">Approved</span>` : '<span class="badge-amber">Pending</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
-                r => `<div class="flex justify-end"><button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+                r => App.rowActions(App.editButton(r.id, CAN.amend))
             ],
             onRowClick: row => openEditor(row.id)
         });
@@ -168,7 +168,7 @@
                 <td><select class="field comp-cert"><option value="">None</option>
                       ${CERTIFICATIONS.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></td>
                 <td><input class="field comp-remarks" maxlength="500"></td>
-                <td><button type="button" class="btn-icon comp-remove" aria-label="Remove fiber">&#x2715;</button></td>`;
+                <td>${App.rowActions(App.rowButton('Remove', 'trash', 'aria-label="Remove fiber"', 'comp-remove'))}</td>`;
             tbody.appendChild(tr);
             tr.querySelector('.comp-fiber').value = c.fiberId || '';
             tr.querySelector('.comp-pct').value = c.percentage == null ? '' : c.percentage;

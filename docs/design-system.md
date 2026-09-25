@@ -286,6 +286,18 @@ the only signal** — badges always carry text.
 
 ## 8. Tables
 
+**Every table looks the same because the look lives in one place.** A template writes only
+`class="table-grid"`; `input.css` supplies compact 44 px rows, 14 px `gray-800` text, uppercase
+headers and zebra rows. Never add per-page table classes or colours.
+
+- **Row buttons** come only from `App.rowActions(...)` with `App.editButton(id, canAmend)` (Edit, or
+  View without AMEND) and `App.rowButton(label, icon, attrs)`: bordered, icon + word, always
+  visible. The header cell reads `<th class="w-px">Actions</th>`. Any table whose rows carry
+  `.row-actions` pins that column to the right edge automatically, so Edit never scrolls away.
+- **One line per row**: secondary facts go inline in gray (`name · SKU 123`), not on a second
+  line; badge groups use `.badge-list` (no wrap). A wide table scrolls sideways instead.
+- Line-entry grids (`.table-lines`, `.table-edit`) stay plain (no zebra, no hover).
+
 - Text left, **numbers right with `.num`** (a bare `text-right` on a `<th>` is overridden by
   `.table-grid`), status as a badge, dates via `fmt`. Codes/numbers `font-mono`.
 - Sortable columns carry `data-sort="field"`; the Grid sets `aria-sort`.

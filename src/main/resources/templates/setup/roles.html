@@ -37,7 +37,7 @@
                     <th>Screens</th>
                     <th>Users</th>
                     <th data-sort="active">Status</th>
-                    <th class="w-px"><span class="sr-only">Actions</span></th>
+                    <th class="w-px">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -157,8 +157,8 @@
             emptyText: 'No roles match.',
             params: () => ({ grants: grantsFilter }),
             columns: [
-                r => `<div class="font-medium text-gray-900">${esc(r.name)}</div>`
-                   + (r.description ? `<div class="max-w-md truncate text-xs text-gray-500">${esc(r.description)}</div>` : ''),
+                r => `<div class="flex max-w-md items-baseline gap-2"><span class="whitespace-nowrap font-medium text-gray-900">${esc(r.name)}</span>`
+                   + (r.description ? `<span class="truncate text-xs text-gray-500" title="${esc(r.description)}">${esc(r.description)}</span>` : '') + '</div>',
                 r => {
                     const pct = Math.round(100 * r.screenCount / SCREEN_TOTAL);
                     return r.screenCount === 0 ? '<span class="badge-gray">Grants nothing</span>'
@@ -168,9 +168,9 @@
                 },
                 r => r.userCount ? `<span class="font-medium">${r.userCount}</span>` : '<span class="text-gray-400">0</span>',
                 r => r.active ? '<span class="badge-green">Active</span>' : '<span class="badge-gray">Inactive</span>',
-                r => `<div class="flex justify-end gap-1">
-                        ${CAN.create ? `<button type="button" class="btn-subtle btn-sm" data-duplicate="${r.id}" title="Start a new role from this one">Duplicate</button>` : ''}
-                        <button type="button" class="btn-subtle btn-sm" data-edit="${r.id}">${CAN.amend ? 'Edit' : 'View'}</button></div>`
+                r => App.rowActions(
+                        CAN.create ? App.rowButton('Duplicate', 'document', `data-duplicate="${r.id}"`) : '',
+                        App.editButton(r.id, CAN.amend))
             ],
             onRowClick: row => openEditor(row.id)
         });

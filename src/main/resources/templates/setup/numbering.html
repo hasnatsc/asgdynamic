@@ -38,7 +38,7 @@
                     <th>Counter</th>
                     <th>Issued this period</th>
                     <th>Next number</th>
-                    <th></th>
+                    <th class="w-px">Actions</th>
                 </tr>
                 </thead>
                 <tbody></tbody>
@@ -85,7 +85,7 @@
                     <td>${esc(SCOPES[r.counterScope])}</td>
                     <td>${esc(r.issuedThisPeriod)}</td>
                     <td class="font-mono text-xs">${esc(r.nextNumber || '—')}</td>
-                    <td class="text-right">${CAN_AMEND ? `<button type="button" class="btn-subtle btn-sm" data-edit="${esc(r.seriesCode)}">Edit</button>` : ''}</td>
+                    <td>${App.rowActions(CAN_AMEND ? App.editButton(r.seriesCode, true) : '')}</td>
                 </tr>`);
             });
             $('#seriesTable tbody').innerHTML = html.join('');
