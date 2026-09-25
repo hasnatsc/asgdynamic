@@ -82,17 +82,22 @@
     <!-- ================================================================================== -->
     <!-- Editor                                                                             -->
     <!-- ================================================================================== -->
-    <form id="bookingForm" class="card mt-6 scroll-mt-24" novalidate hidden autocomplete="off">
-        <div class="card-header">
-            <div>
-                <h2 class="card-title" data-editor-title>New booking</h2>
-                <p class="card-sub">Saved as a draft; submit it for approval from the list once it is complete.</p>
+    <!-- A large modal: header and actions stay put while the body scrolls. data-sticky - a stray
+         click on the backdrop must not throw away a half-keyed booking; Esc asks first. -->
+    <dialog id="bookingDialog" class="modal modal-editor" data-sticky aria-labelledby="bookingDialogTitle">
+    <form id="bookingForm" class="flex max-h-[94vh] min-h-0 flex-col" novalidate autocomplete="off">
+        <div class="modal-head items-center">
+            <div class="min-w-0">
+                <h2 id="bookingDialogTitle" class="modal-title" data-editor-title>New booking</h2>
+                <p class="mt-0.5 text-sm text-gray-500">Saved as a draft; submit it for approval from the list once it is complete.</p>
             </div>
             <div class="ml-auto hidden md:block" data-editor-rail><th:block th:replace="~{fragments/ui :: workflow(${draft})}"></th:block></div>
-            <button type="button" class="btn-icon" data-editor-close aria-label="Close editor">
+            <button type="button" class="btn-icon -mr-2" data-editor-close aria-label="Close editor">
                 <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
             </button>
         </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto scroll-thin" data-editor-body>
 
         <!-- Header ---------------------------------------------------------------------- -->
         <section class="form-section">
@@ -246,8 +251,8 @@
                     </div>
 
                     <div class="col-span-2 sm:col-span-4 lg:col-span-3">
-                        <span class="label">Fabrics finish type</span>
-                        <div class="flex min-h-9 flex-wrap gap-1.5" data-finish-types></div>
+                        <label class="label" for="spFinishType">Fabrics finish type</label>
+                        <select id="spFinishType" class="field" data-spec="finishType" data-options="finish-type"></select>
                     </div>
                     <div class="col-span-2 sm:col-span-4 lg:col-span-3">
                         <label class="label" for="spFinishRef">Fabrics finish type (REF)</label>
@@ -481,15 +486,18 @@
             </section>
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn-primary">
-                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
-            <button type="button" class="btn-ghost" data-editor-close>Cancel</button>
-            <p class="ml-auto text-sm text-gray-600 dark:text-gray-400">
+        </div><!-- /data-editor-body -->
+
+        <div class="modal-foot">
+            <p class="mr-auto text-sm text-gray-600 dark:text-gray-400">
                 Total quantity <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-total="qty">0</span>
                 · Amount <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-total="amount">0</span></p>
+            <button type="button" class="btn-ghost" data-editor-close>Cancel</button>
+            <button type="submit" class="btn-primary">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
         </div>
     </form>
+    </dialog>
 
     <!-- App.DocumentScreen settings, read by booking.js. -->
     <script>window.BOOKING_SCREEN = { kind: 'Booking', api: '/api/booking', table: 'bookingTable', revise: true };</script>

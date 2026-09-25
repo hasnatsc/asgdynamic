@@ -212,7 +212,19 @@
             root.id = 'toast-root';
             root.className = 'pointer-events-none fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-2';
             root.setAttribute('aria-live', 'polite');
+            // A manual popover lives in the top layer, so toasts stay visible over a modal
+            // (the booking editor). Undo the UA popover box so the classes above still place it.
+            if (HTMLElement.prototype.hasOwnProperty('popover')) {
+                root.popover = 'manual';
+                Object.assign(root.style, { inset: 'auto 1rem 1rem auto', margin: '0', padding: '0',
+                    border: '0', background: 'transparent', overflow: 'visible' });
+            }
             document.body.appendChild(root);
+        }
+        // Re-open on every toast so it stacks above any dialog opened since the last one.
+        if (root.popover) {
+            if (root.matches(':popover-open')) root.hidePopover();
+            root.showPopover();
         }
         return root;
     }

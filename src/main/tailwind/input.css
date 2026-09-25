@@ -274,6 +274,8 @@
   .modal      { @apply w-full max-w-lg overflow-hidden rounded-2xl border-0 p-0 shadow-float; }
   .modal-lg   { @apply max-w-3xl; }
   .modal-xl   { @apply max-w-6xl; }
+  /* A document editor (booking): nearly full-screen, its form a column whose body scrolls. */
+  .modal-editor { @apply max-h-[94vh] w-[96vw] max-w-[88rem]; }
   .modal-head { @apply flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4; }
   .modal-title{ @apply text-base font-semibold text-gray-900; }
   .modal-body { @apply max-h-[70vh] overflow-y-auto px-6 py-5 scroll-thin; }

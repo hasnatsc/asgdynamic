@@ -2,6 +2,7 @@ package com.asg.fabricerp.costing;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -35,8 +36,9 @@ public record FabricCost(
     BigDecimal ppi,
     BigDecimal conversionRate,
 
-    BigDecimal warpYarnConsumption,
-    BigDecimal weftYarnConsumption,
+    // "0.0428 + 0.1069" on a Seersucker costing (one term per warp beam) - bound as the sum.
+    @JsonDeserialize(using = SummedDecimalDeserializer.class) BigDecimal warpYarnConsumption,
+    @JsonDeserialize(using = SummedDecimalDeserializer.class) BigDecimal weftYarnConsumption,
     BigDecimal yarnWillConsumed,
 
     BigDecimal totalYarnCost,

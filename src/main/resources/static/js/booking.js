@@ -27,6 +27,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('bookingForm');
         if (!form) return;
+        const dialog = document.getElementById('bookingDialog');
         const $ = sel => form.querySelector(sel);
         const $$ = sel => [...form.querySelectorAll(sel)];
 
@@ -63,20 +64,12 @@
                 select.innerHTML = '<option value="">—</option>'
                     + rows.map(r => `<option value="${esc(r.text)}">${esc(r.text)}</option>`).join('');
             }),
-            App.api('/api/lookup/fabric/finish-type').catch(() => []).then(rows => {
-                $('[data-finish-types]').innerHTML = rows.map(r => finishChip(r.text)).join('');
-            }),
             App.api('/api/lookup/inventory/items', { query: { itemType: 'FABRICS' } }).catch(() => []).then(rows => {
                 rows.forEach(r => items.set(String(r.id), r.text));
                 document.getElementById('spItem').innerHTML = '<option value="">Choose the item…</option>'
                     + rows.map(r => `<option value="${esc(r.id)}">${esc(r.text)}</option>`).join('');
             })
         ]);
-
-        function finishChip(name, checked) {
-            return `<label class="chip cursor-pointer select-none has-[:checked]:border-brand-300 has-[:checked]:bg-brand-50 has-[:checked]:text-brand-800">
-                <input type="checkbox" class="sr-only" value="${esc(name)}"${checked ? ' checked' : ''}>${esc(name)}</label>`;
-        }
 
         /** Selects a value, adding it as an option first when the list does not carry it (a retired entry, say). */
         function setSelect(select, value) {
@@ -91,9 +84,14 @@
 
         document.querySelector('[data-action="booking-new"]')?.addEventListener('click', () => openEditor(null));
         $$('[data-editor-close]').forEach(b => b.addEventListener('click', () => closeEditor()));
+        // Esc on the modal asks the same question the Cancel button does.
+        dialog.addEventListener('cancel', event => {
+            event.preventDefault();
+            closeEditor();
+        });
 
         async function openEditor(existing) {
-            if (!form.hidden && dirty && !await App.confirm({
+            if (dialog.open && dirty && !await App.confirm({
                 title: 'Discard the booking you are editing?', message: 'Changes not saved yet will be lost.',
                 confirmText: 'Discard', danger: true })) return;
             await optionsReady;
@@ -111,19 +109,18 @@
             editorTabs.select('items');
             form.querySelector('[data-editor-title]').textContent = existing ? `Edit ${existing.documentNo}` : 'New booking';
             form.querySelector('[data-editor-rail]').innerHTML = App.statusSteps(existing ? existing.status : 'DRAFT');
-            form.hidden = false;
             dirty = false;
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (!dialog.open) dialog.showModal();
+            form.querySelector('[data-editor-body]').scrollTop = 0;
         }
 
         async function closeEditor(force) {
             if (!force && dirty && !await App.confirm({
                 title: 'Close without saving?', message: 'Changes not saved yet will be lost.',
                 confirmText: 'Close', danger: true })) return;
-            form.hidden = true;
+            dialog.close();
             doc = null;
             dirty = false;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         form.addEventListener('input', () => { dirty = true; });
@@ -274,7 +271,6 @@
                 if (el.tagName === 'SELECT') setSelect(el, value);
                 else el.value = shown == null ? '' : shown;
             });
-            if (!fromCosting || spec.finishType) setFinishTypes(spec.finishType);
             benchmark = { quoted: numOrNull(spec.quotedPrice), breakEven: numOrNull(spec.breakEvenPrice),
                           quotedRaw: spec.quotedPrice, breakEvenRaw: spec.breakEvenPrice };
             updateConstruction();
@@ -291,16 +287,7 @@
             });
             spec.quotedPrice = benchmark.quotedRaw ?? null;
             spec.breakEvenPrice = benchmark.breakEvenRaw ?? null;
-            spec.finishType = $$('[data-finish-types] input:checked').map(i => i.value).join(', ') || null;
             return spec;
-        }
-
-        function setFinishTypes(value) {
-            const wanted = String(value || '').split(',').map(s => s.trim()).filter(Boolean);
-            const box = $('[data-finish-types]');
-            wanted.filter(w => ![...box.querySelectorAll('input')].some(i => i.value === w))
-                  .forEach(w => box.insertAdjacentHTML('beforeend', finishChip(w)));
-            box.querySelectorAll('input').forEach(i => { i.checked = wanted.includes(i.value); });
         }
 
         /** Construction is derived, as on the legacy form: warp X weft / EPI X PPI. */
@@ -336,7 +323,6 @@
             editingGroup = -1;
             specInputs().forEach(el => { el.value = ''; });
             document.getElementById('spItem').value = '';
-            setFinishTypes('');
             benchmark = {};
             setColorRows([]);
             renderCostingInfo(null);
@@ -679,7 +665,7 @@
 
         form.addEventListener('submit', async event => {
             event.preventDefault();
-            const header = $$('#bookingForm > .form-section:first-of-type [required]').find(el => !String(el.value).trim());
+            const header = $$('[data-editor-body] > .form-section:first-of-type [required]').find(el => !String(el.value).trim());
             if (header) {
                 const label = form.querySelector(`label[for="${header.id}"]`)?.textContent.replace('*', '').trim() || 'A required field';
                 App.toast(`${label} is required.`, 'warn');

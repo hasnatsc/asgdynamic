@@ -111,4 +111,22 @@ class CostingTranslatorTest {
         assertThat(CostingCatalog.weaveType("x")).isNull();
         assertThat(CostingCatalog.lcTenure("1")).isEqualTo("At Sight");
     }
+
+    /** 04102503409 (Seersucker) sends warp consumption per beam, "0.0428 + 0.1069"; it failed the whole fetch. */
+    @Test
+    void aSeersuckerCostingBindsWithItsWarpConsumptionSummed() throws Exception {
+        FabricCost cost = load("04102503409");
+
+        assertThat(cost.warpYarnConsumption()).isEqualByComparingTo("0.1497");
+        assertThat(cost.weftYarnConsumption()).isEqualByComparingTo("0.0824");
+        assertThat(translator.toSpec(cost).getCostingCode()).isEqualTo("04102503409");
+    }
+
+    @Test
+    void aConsumptionThatIsNotANumberBindsToNothing() {
+        assertThat(SummedDecimalDeserializer.sum("0.0428 + 0.1069")).isEqualByComparingTo("0.1497");
+        assertThat(SummedDecimalDeserializer.sum("0.0824")).isEqualByComparingTo("0.0824");
+        assertThat(SummedDecimalDeserializer.sum("n/a")).isNull();
+        assertThat(SummedDecimalDeserializer.sum(" ")).isNull();
+    }
 }
