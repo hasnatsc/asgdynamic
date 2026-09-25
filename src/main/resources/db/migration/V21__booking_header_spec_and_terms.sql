@@ -51,8 +51,7 @@ ALTER TABLE gbl_business_document_line_groups
     ADD COLUMN target_quality_parameter VARCHAR(200),
     ADD COLUMN item_description         VARCHAR(1000);
 
-CREATE INDEX ix_gbdlg_costing_code ON gbl_business_document_line_groups (organization_id, costing_code)
-    WHERE costing_code IS NOT NULL;
+-- The "already booked on" lookup uses V6's ix_gbdlg_costing_code.
 
 -- ---------------------------------------------------------------------------------------------
 -- Global terms & conditions: the organization's standard clauses per document type. Clauses
