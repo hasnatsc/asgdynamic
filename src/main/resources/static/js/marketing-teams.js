@@ -2,8 +2,9 @@
  * Marketing teams screen: the grid, and one dialog that is the team's form in every mode - New,
  * Edit, and View (App.viewMode, the same form read-only), as the Booking screen does.
  *
- * Members and approvers are saved as they are added or removed (each is its own request), so they
- * need a saved team; the Details tab is saved with the Save button.
+ * Members are saved as they are added or removed (each is its own request), so they need a saved
+ * team; the Details tab is saved with the Save button. Approval is the team's matrix, set up on the
+ * Approval matrices screen.
  */
 (() => {
     'use strict';
@@ -22,7 +23,6 @@
         const activeFilter = document.getElementById('mtActiveFilter');
         const tabs = App.tabs(form.querySelector('[data-team-body]'));
         const memberPicker = () => App.RemoteSelect.of(document.getElementById('mtMemberUser'));
-        const approverPicker = () => App.RemoteSelect.of(document.getElementById('mtApproverUser'));
 
         let team = null;       // the team in the dialog, as the server last returned it; null for a new one
         let dirty = false;
@@ -43,9 +43,9 @@
                 r => `<span class="font-medium text-gray-900 dark:text-white">${esc(r.name)}</span>`,
                 r => r.leaderName ? esc(r.leaderName) : '<span class="text-gray-400">—</span>',
                 r => `<span class="block text-right tabular-nums">${esc(r.memberCount)}</span>`,
-                r => r.approverCount
-                    ? `<span class="badge-brand">${esc(r.approverCount)} team approver${r.approverCount === 1 ? '' : 's'}</span>`
-                    : '<span class="badge-gray" title="Anyone with Approve on the Booking screen">Business-wide</span>',
+                r => r.matrixCount
+                    ? `<span class="badge-brand">Team matrix${r.matrixCount > 1 ? 'es (' + esc(r.matrixCount) + ')' : ''}</span>`
+                    : '<span class="badge-gray" title="Approved under the business unit’s matrix">Business unit</span>',
                 r => `<span class="block text-right tabular-nums">${r.bookingTarget == null ? '<span class="text-gray-400">—</span>' : esc(nf.format(r.bookingTarget))}</span>`,
                 r => r.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>',
                 r => App.rowActions(App.recordButtons(r.id, canEdit),
@@ -101,10 +101,13 @@
             f('remarks').value = detail ? (detail.remarks || '') : '';
             f('active').checked = detail ? !!detail.active : true;
             renderMembers(detail ? detail.members : []);
-            renderApprovers(detail ? detail.approvers : []);
+            form.querySelector('[data-matrix-summary]').innerHTML = !detail ? 'Save the team first.'
+                : detail.matrixCount
+                    ? `<span class="badge-brand">Team matrix</span> <span class="ml-1 text-gray-600 dark:text-gray-400">${esc(detail.matrixCount)} active - this team's documents follow it.</span>`
+                    : '<span class="badge-gray">Business unit</span> <span class="ml-1 text-gray-600 dark:text-gray-400">No matrix of its own - it follows the unit-wide one.</span>';
             form.querySelectorAll('[data-need-saved]').forEach(el => { el.hidden = !detail; });
             form.querySelector('[data-foot-note]').textContent = detail ? ''
-                : 'Save the team to add its members and approvers.';
+                : 'Save the team to add its members.';
             dirty = false;
         }
 
@@ -127,7 +130,7 @@
             } else {
                 title.textContent = team ? `Edit ${team.name}` : 'New team';
                 form.querySelector('[data-sub]').textContent = team
-                    ? 'Details are saved with Save; members and approvers are saved as you add or remove them.'
+                    ? 'Details are saved with Save; members are saved as you add or remove them.'
                     : 'Give it a code and a name; add its people once it is saved.';
                 cancel.textContent = team ? 'Close' : 'Cancel';
             }
@@ -168,7 +171,7 @@
             };
             try {
                 const saved = await App.api(API, { method: 'POST', body });
-                App.toast(team ? 'Team saved.' : 'Team created. Add its members and approvers next.', 'success');
+                App.toast(team ? 'Team saved.' : 'Team created. Add its members next.', 'success');
                 const created = !team;
                 fill(await App.api(`${API}/${saved.id}`));
                 setMode(false);
@@ -234,43 +237,5 @@
             } catch (error) { App.fail(error); }
         });
 
-        // ------------------------------------------------------------------ approvers
-
-        function renderApprovers(approvers) {
-            form.querySelector('[data-count="approvers"]').textContent = approvers.length;
-            form.querySelector('[data-list="approvers"]').innerHTML = approvers.length ? `
-                <div class="table-wrap -mx-5"><table class="line-colours">
-                    <thead><tr><th>Approver</th><th>Added</th><th>Account</th><th class="w-px"></th></tr></thead>
-                    <tbody>${approvers.map(a => `${personRow(a, a.unrestricted ? ' <span class="badge-gray ml-1">Unrestricted</span>' : '')}
-                        <td class="text-right"><button type="button" class="btn-ghost btn-sm text-red-700" data-approver-remove="${a.id}">
-                            ${App.icon('trash')}Remove</button></td></tr>`).join('')}</tbody>
-                </table></div>`
-                : `<p class="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700">
-                       No team approvers: this team’s bookings are decided by anyone holding Approve on the Booking screen.</p>`;
-        }
-
-        form.querySelector('[data-action="approver-add"]').addEventListener('click', async () => {
-            const userId = document.getElementById('mtApproverUser').value;
-            if (!userId) { App.toast('Choose the user to add.', 'warn'); return; }
-            try {
-                renderApprovers(await App.api(`${API}/${team.id}/approvers`, { method: 'POST', body: { userId: Number(userId) } }));
-                approverPicker().setValue(null);
-                App.toast('Approver added. This team’s bookings are now decided by its approvers.', 'success');
-                grid.reload();
-            } catch (error) { App.fail(error); }
-        });
-
-        form.querySelector('[data-list="approvers"]').addEventListener('click', async event => {
-            const btn = event.target.closest('[data-approver-remove]');
-            if (!btn) return;
-            if (!await App.confirm({ title: 'Remove this approver?',
-                    message: 'With no approvers left, the team’s bookings fall back to anyone holding Approve on the Booking screen.',
-                    confirmText: 'Remove', danger: true })) return;
-            try {
-                renderApprovers(await App.api(`${API}/${team.id}/approvers/${btn.dataset.approverRemove}`, { method: 'DELETE' }));
-                App.toast('Approver removed.', 'success');
-                grid.reload();
-            } catch (error) { App.fail(error); }
-        });
     });
 })();

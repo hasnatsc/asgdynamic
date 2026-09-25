@@ -1,10 +1,13 @@
 package com.asg.fabricerp.approval;
 
+import com.asg.fabricerp.common.MarketingTeam;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.global.documents.*;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -14,78 +17,125 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * The two things this engine exists to guarantee: a document can only be approved by
- * someone holding the role for its type, and never by whoever created it.
+ * The approval engine: routing by team and amount, levels in order, four-eyes, and the default
+ * rule for a type nobody has configured.
  */
 class ApprovalServiceTest {
 
     private static final Long ORG = 1L;
+    private static final Long UNIT = 10L;
     private static final Long DOC_ID = 100L;
+    private static final Long MANAGER_ROLE = 5L;
+    private static final Long DIRECTOR = 9L;
 
     private BusinessDocumentRepository repository;
-    private ApprovalHistoryRepository historyRepository;
+    private ApprovalHistoryRepository history;
+    private ApprovalRequestRepository requests;
+    private ApprovalMatrixRepository matrices;
+    private ApprovalActors actors;
     private ApprovalService service;
-    private com.asg.fabricerp.marketing.TeamApprovalRule teamRule;
+
+    /** The saved request, as the fake repository holds it. */
+    private ApprovalRequest live;
+
+    @BeforeEach
+    void setUp() {
+        repository = mock(BusinessDocumentRepository.class);
+        history = mock(ApprovalHistoryRepository.class);
+        requests = mock(ApprovalRequestRepository.class);
+        matrices = mock(ApprovalMatrixRepository.class);
+        actors = mock(ApprovalActors.class);
+        ApprovalLabels labels = mock(ApprovalLabels.class);
+        when(labels.approver(any(), any())).thenAnswer(i -> String.valueOf(i.getArgument(0, Approver.class).kind()));
+
+        when(history.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
+        when(requests.save(any())).thenAnswer(i -> {
+            live = i.getArgument(0);
+            if (live.getId() == null) live.setId(500L);
+            return live;
+        });
+        when(requests.findByDocumentIdAndPendingTrue(DOC_ID))
+            .thenAnswer(i -> Optional.ofNullable(live).filter(ApprovalRequest::isPending));
+        when(matrices.findTeamWise(any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(matrices.findUnitWide(any(), any(), any())).thenReturn(Optional.empty());
+
+        OrgContext context = new OrgContext() {
+            @Override public Long organizationId()     { return ORG; }
+            @Override public Long businessUnitId()     { return UNIT; }
+            @Override public String businessUnitCode() { return "AF"; }
+            @Override public Long warehouseId()        { return 1L; }
+            @Override public String username()         { return "whoever"; }
+            @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
+        };
+        service = new ApprovalService(repository, history, requests, matrices, actors, labels, context);
+    }
 
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
     }
 
-    private void authenticateAs(String username, String... authorities) {
-        var grants = java.util.Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList();
-        SecurityContextHolder.getContext().setAuthentication(
-            new UsernamePasswordAuthenticationToken(username, null, grants));
+    // ------------------------------------------------------------------ fixtures
+
+    private void actingAs(Long userId, String username, Set<Long> roles, String... authorities) {
+        when(actors.current()).thenReturn(new Approver.Actor(userId, username, roles, Set.of(authorities)));
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(username, null,
+            java.util.Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList()));
     }
 
-    private void setUpWithContextUsername(String username) {
-        repository = mock(BusinessDocumentRepository.class);
-        historyRepository = mock(ApprovalHistoryRepository.class);
-        when(historyRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
-
-        OrgContext context = new OrgContext() {
-            @Override public Long organizationId()     { return ORG; }
-            @Override public Long businessUnitId()     { return 10L; }
-            @Override public String businessUnitCode() { return "AF"; }
-            @Override public Long warehouseId()        { return 1L; }
-            @Override public String username()         { return username; }
-            @Override public RowScope rowScope()         { return RowScope.unrestrictedScope(); }
-        };
-        teamRule = mock(com.asg.fabricerp.marketing.TeamApprovalRule.class);
-        service = new ApprovalService(repository, historyRepository, context, teamRule);
-    }
-
-    private BusinessDocument bookingCreatedBy(String creator, BusinessDocumentStatus status) {
+    private BusinessDocument booking(String creator, BusinessDocumentStatus status, String amount, Long teamId) {
         BusinessDocument doc = new BusinessDocument();
         doc.setId(DOC_ID);
         doc.setOrganizationId(ORG);
         doc.setDocumentType(DocumentType.BOOKING);
         doc.setDocumentNo("BKAF000001");
         doc.setDocumentDate(LocalDate.now());
+        doc.setBusinessUnit(DocumentRefs.unit(UNIT));
+        if (teamId != null) doc.stampMarketingTeam(DocumentRefs.team(teamId));
         setCreatedBy(doc, creator);
 
-        BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
-        colorLine.setQuantity(new BigDecimal("10"));
+        BusinessDocumentColorLine line = new BusinessDocumentColorLine();
+        line.setQuantity(new BigDecimal("10"));
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
-        group.addColorLine(colorLine);
+        group.addColorLine(line);
         doc.addLineGroup(group);
-
-        if (status == BusinessDocumentStatus.SUBMITTED) {
-            doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
-        }
+        setAmount(doc, amount);
+        if (status == BusinessDocumentStatus.SUBMITTED) doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
 
         when(repository.findScopedWithLines(DOC_ID, ORG)).thenReturn(Optional.of(doc));
+        when(repository.findScoped(DOC_ID, ORG)).thenReturn(Optional.of(doc));
         return doc;
     }
 
-    /** createdBy is stamped by OrgContextListener in production; set directly for the test. */
-    private void setCreatedBy(BusinessDocument doc, String creator) {
+    /** Levels in order; each is {roleId or null, userId or null, min, max}. */
+    private ApprovalMatrix matrix(Long id, Long teamId, boolean active, ApprovalLevel... levels) {
+        ApprovalMatrix m = new ApprovalMatrix(ORG, UNIT, teamId, DocumentType.BOOKING, teamId == null ? "Booking" : "Team booking");
+        m.setId(id);
+        m.setActive(active);
+        m.replaceLevels(List.of(levels));
+        when(matrices.findScoped(id, ORG)).thenReturn(Optional.of(m));
+        if (teamId == null) when(matrices.findUnitWide(ORG, UNIT, DocumentType.BOOKING)).thenReturn(Optional.of(m));
+        else when(matrices.findTeamWise(ORG, UNIT, DocumentType.BOOKING, teamId)).thenReturn(Optional.of(m));
+        return m;
+    }
+
+    private static ApprovalLevel role(Long roleId, String min, String max) {
+        return new ApprovalLevel(roleId, null, min == null ? null : new BigDecimal(min), max == null ? null : new BigDecimal(max));
+    }
+
+    private static ApprovalLevel user(Long userId) {
+        return new ApprovalLevel(null, userId, null, null);
+    }
+
+    private static void setCreatedBy(BusinessDocument doc, String creator) {
         try {
             var method = com.asg.fabricerp.common.AuditableEntity.class
                 .getDeclaredMethod("stampCreated", String.class, java.time.LocalDateTime.class);
@@ -96,121 +146,243 @@ class ApprovalServiceTest {
         }
     }
 
-    @Test
-    void submitRequiresTheMakerRole() {
-        setUpWithContextUsername("maker1");
-        bookingCreatedBy("maker1", BusinessDocumentStatus.DRAFT);
-        authenticateAs("maker1");   // no SCREEN_BOOKING_CREATE
-
-        assertThatThrownBy(() -> service.submit(DOC_ID))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("SCREEN_BOOKING_CREATE");
+    private static void setAmount(BusinessDocument doc, String amount) {
+        try {
+            var field = BusinessDocument.class.getDeclaredField("subtotalAmount");
+            field.setAccessible(true);
+            field.set(doc, amount == null ? null : new BigDecimal(amount));
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    @Test
-    void submitTransitionsAndRecordsHistory() {
-        setUpWithContextUsername("maker1");
-        BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.DRAFT);
-        authenticateAs("maker1", "SCREEN_BOOKING_CREATE");
-
+    private void submitAs(String maker) {
+        actingAs(1L, maker, Set.of(), "SCREEN_BOOKING_CREATE");
         service.submit(DOC_ID);
+    }
 
-        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
-        ApprovalHistory recorded = capturedHistory();
-        assertThat(recorded.getAction()).isEqualTo(ApprovalAction.SUBMITTED);
-        assertThat(recorded.getFromStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
-        assertThat(recorded.getToStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+    // ------------------------------------------------------------------ submit
+
+    @Test
+    void submitRequiresTheMakerRole() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        actingAs(1L, "maker", Set.of());
+
+        assertThatThrownBy(() -> service.submit(DOC_ID))
+            .isInstanceOf(AccessDeniedException.class).hasMessageContaining("SCREEN_BOOKING_CREATE");
     }
 
     @Test
     void submitRefusesADocumentWithNoLines() {
-        setUpWithContextUsername("maker1");
-        BusinessDocument doc = new BusinessDocument();
-        doc.setId(DOC_ID);
-        doc.setOrganizationId(ORG);
-        doc.setDocumentType(DocumentType.BOOKING);
-        doc.setDocumentNo("BKAF000002");
-        when(repository.findScopedWithLines(DOC_ID, ORG)).thenReturn(Optional.of(doc));
-        authenticateAs("maker1", "SCREEN_BOOKING_CREATE");
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        doc.setLineGroups(List.of());
+        actingAs(1L, "maker", Set.of(), "SCREEN_BOOKING_CREATE");
+
+        assertThatThrownBy(() -> service.submit(DOC_ID)).isInstanceOf(IllegalStateException.class).hasMessageContaining("no lines");
+    }
+
+    @Test
+    void aTypeWithNoMatrixGetsOneLevelUnderTheDefaultRule() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+        assertThat(live.getMatrixId()).isNull();
+        assertThat(live.getTotalLevels()).isEqualTo(1);
+        assertThat(live.getRaisedBy()).isEqualTo("maker");
+        ArgumentCaptor<ApprovalHistory> recorded = ArgumentCaptor.forClass(ApprovalHistory.class);
+        verify(history).save(recorded.capture());
+        assertThat(recorded.getValue().getAction()).isEqualTo(ApprovalAction.SUBMITTED);
+        assertThat(recorded.getValue().getRequestId()).isEqualTo(500L);
+    }
+
+    @Test
+    void theTeamsOwnMatrixIsPreferredAndOnlyTheLevelsCoveringTheAmountApply() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(20L, null, true, role(MANAGER_ROLE, null, null));
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), role(MANAGER_ROLE, "100000", null), user(DIRECTOR));
+        submitAs("maker");
+
+        assertThat(live.getMatrixId()).isEqualTo(30L);
+        assertThat(live.getOwningTeamId()).isEqualTo(3L);
+        assertThat(live.getTotalLevels()).isEqualTo(3);
+    }
+
+    @Test
+    void aSmallAmountSkipsTheLevelsBandedAboveIt() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "5000", 3L);
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), role(MANAGER_ROLE, "100000", null), user(DIRECTOR));
+        submitAs("maker");
+
+        assertThat(live.getTotalLevels()).isEqualTo(2);
+    }
+
+    @Test
+    void anInactiveTeamMatrixFallsBackToTheUnitWideOne() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", 3L);
+        matrix(20L, null, true, role(MANAGER_ROLE, null, null));
+        matrix(30L, 3L, false, user(DIRECTOR));
+        submitAs("maker");
+
+        assertThat(live.getMatrixId()).isEqualTo(20L);
+    }
+
+    @Test
+    void aMatrixWithNoLevelForTheAmountRefusesTheSubmission() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "50", null);
+        matrix(20L, null, true, role(MANAGER_ROLE, "1000", null));
+        actingAs(1L, "maker", Set.of(), "SCREEN_BOOKING_CREATE");
 
         assertThatThrownBy(() -> service.submit(DOC_ID))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("no lines");
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("no level covering");
     }
 
     @Test
-    void aDifferentUserWithTheApprovalRoleCanApprove() {
-        setUpWithContextUsername("approver1");
-        BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("approver1", "SCREEN_BOOKING_APPROVE");
+    void submittingTwiceIsRefused() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
 
-        service.approve(DOC_ID, "looks correct");
+        assertThatThrownBy(() -> service.submit(DOC_ID))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("already awaiting approval");
+    }
+
+    // ------------------------------------------------------------------ decide
+
+    @Test
+    void underTheDefaultRuleAnyoneWithTheApproveVerbApproves() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+
+        service.approve(DOC_ID, null);
 
         assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
-        assertThat(capturedHistory().getRemarks()).isEqualTo("looks correct");
+        assertThat(live.isPending()).isFalse();
+        assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.APPROVED);
     }
 
     @Test
-    void theCreatorCannotApproveTheirOwnDocumentEvenWithTheRole() {
-        setUpWithContextUsername("maker1");
-        bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("maker1", "SCREEN_BOOKING_APPROVE");   // holds the role, but is the creator
-
-        assertThatThrownBy(() -> service.approve(DOC_ID, null))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("Segregation of duties");
-    }
-
-    @Test
-    void approvalIsRefusedWithoutTheRoleEvenForADifferentUser() {
-        setUpWithContextUsername("someone-else");
-        bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("someone-else");   // authenticated, but no SCREEN_BOOKING_APPROVE
-
-        assertThatThrownBy(() -> service.approve(DOC_ID, null))
-            .isInstanceOf(AccessDeniedException.class)
-            .hasMessageContaining("SCREEN_BOOKING_APPROVE");
-    }
-
-    @Test
-    void rejectIsNotSubjectToTheFourEyesRule() {
-        // Sending your own submission back for correction is not the risk self-approval is.
-        setUpWithContextUsername("maker1");
-        BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("maker1", "SCREEN_BOOKING_APPROVE");
-
-        service.reject(DOC_ID, "wrong construction");
-
-        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.REJECTED);
-    }
-
-    @Test
-    void historyIsScopedToTheOrganizationLikeEveryOtherRead() {
-        setUpWithContextUsername("viewer1");
-        when(repository.findScopedWithLines(DOC_ID, ORG)).thenReturn(Optional.empty());
-        authenticateAs("viewer1");
-
-        assertThatThrownBy(() -> service.historyOf(DOC_ID))
-            .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    private ApprovalHistory capturedHistory() {
-        var captor = org.mockito.ArgumentCaptor.forClass(ApprovalHistory.class);
-        verify(historyRepository, atLeastOnce()).save(captor.capture());
-        return captor.getValue();
-    }
-
-    @Test
-    void aTeamsDocumentIsDecidedOnlyByWhomTheTeamRuleAllows() {
-        setUpWithContextUsername("director");
-        BusinessDocument doc = bookingCreatedBy("maker1", BusinessDocumentStatus.SUBMITTED);
-        authenticateAs("director", "SCREEN_BOOKING_APPROVE");
-        doThrow(new AccessDeniedException("London is approved by rahim"))
-            .when(teamRule).assertMayDecide(doc);
+    void withoutTheVerbTheDefaultRuleRefuses() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+        actingAs(2L, "clerk", Set.of());
 
         assertThatThrownBy(() -> service.approve(DOC_ID, null)).isInstanceOf(AccessDeniedException.class);
-        assertThatThrownBy(() -> service.reject(DOC_ID, "no")).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void whoeverSubmittedCannotDecideItHoweverSenior() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+        actingAs(1L, "maker", Set.of(MANAGER_ROLE), "SCREEN_BOOKING_APPROVE");
+
+        assertThatThrownBy(() -> service.approve(DOC_ID, null))
+            .isInstanceOf(AccessDeniedException.class).hasMessageContaining("Segregation of duties");
+    }
+
+    @Test
+    void levelsAreSignedInOrderAndOnlyTheLastApprovesTheDocument() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
+        submitAs("maker");
+
+        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
+        service.approve(DOC_ID, "fine");
         assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
-        verify(historyRepository, never()).save(any());
+        assertThat(live.getCurrentLevel()).isEqualTo(2);
+
+        // the manager cannot sign the director's level
+        assertThatThrownBy(() -> service.approve(DOC_ID, null))
+            .isInstanceOf(AccessDeniedException.class).hasMessageContaining("Level 2 of 2");
+
+        actingAs(DIRECTOR, "director", Set.of());
+        service.approve(DOC_ID, null);
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+        verify(history, times(3)).save(any());   // submitted, level 1, level 2
+    }
+
+    @Test
+    void returnSendsItBackAsADraftAndNeedsAReason() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+
+        assertThatThrownBy(() -> service.returnToMaker(DOC_ID, " "))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Say why");
+
+        service.returnToMaker(DOC_ID, "Wrong buyer");
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
+        assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.RETURNED);
+        assertThat(doc.getStatus().isEditable()).isTrue();
+    }
+
+    @Test
+    void rejectRefusesItAndEndsTheRequest() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+
+        service.reject(DOC_ID, "Price below break-even");
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.REJECTED);
+        assertThat(live.isPending()).isFalse();
+        assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.REJECTED);
+    }
+
+    @Test
+    void aDocumentSubmittedBeforeTheEngineIsEnrolledWithItsCreatorAsTheRaiser() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.SUBMITTED, "100", null);
+
+        actingAs(3L, "maker", Set.of(), "SCREEN_BOOKING_APPROVE");
+        assertThatThrownBy(() -> service.approve(DOC_ID, null)).isInstanceOf(AccessDeniedException.class);
+
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+        service.approve(DOC_ID, null);
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+    }
+
+    @Test
+    void aDocumentNotAwaitingApprovalCannotBeDecided() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+
+        assertThatThrownBy(() -> service.approve(DOC_ID, null))
+            .isInstanceOf(IllegalStateException.class).hasMessageContaining("not awaiting approval");
+    }
+
+    // ------------------------------------------------------------------ read
+
+    @Test
+    void theStateSaysWhoIsNextAndWhetherItIsYou() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
+        submitAs("maker");
+        when(requests.findFirstByDocumentIdOrderByIdDesc(DOC_ID)).thenAnswer(i -> Optional.of(live));
+
+        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
+        ApprovalStateView mine = service.stateOf(DOC_ID);
+        assertThat(mine.pending()).isTrue();
+        assertThat(mine.level()).isEqualTo(1);
+        assertThat(mine.totalLevels()).isEqualTo(2);
+        assertThat(mine.canAct()).isTrue();
+
+        actingAs(1L, "maker", Set.of(MANAGER_ROLE));
+        ApprovalStateView own = service.stateOf(DOC_ID);
+        assertThat(own.canAct()).isFalse();
+        assertThat(own.waitingReason()).contains("You submitted it");
+    }
+
+    @Test
+    void theInboxHoldsOnlyWhatTheCallerMaySignNow() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
+        submitAs("maker");
+        when(requests.findPending(ORG, UNIT)).thenAnswer(i -> List.of(live));
+
+        actingAs(DIRECTOR, "director", Set.of());
+        assertThat(service.inbox()).isEmpty();            // level 1 is the manager's
+
+        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
+        assertThat(service.inbox()).hasSize(1);
     }
 }

@@ -1402,6 +1402,7 @@
         totalQuantity: 'Total quantity', subtotalAmount: 'Amount', revisionNo: 'Revision',
         bookingId: 'Booking', bpoId: 'Production order', deliveryOrderId: 'Delivery order', scheduleId: 'Schedule'
     };
+    const HISTORY_VERBS = { SUBMITTED: 'submitted it', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it' };
     const GROUP_FIELDS = {
         itemName: 'Item', costingCode: 'Costing no', fabricType: 'Fabric type', composition: 'Composition',
         declaredConstruction: 'PI construction', weaveType: 'Weave type', weaveStyle: 'Weave style',
@@ -1458,6 +1459,8 @@
                 this.grid.reload(true);
             });
             this.grid.reload(true);
+            const linked = Number(new URLSearchParams(location.search).get('open'));
+            if (linked) this.open(linked);
 
             // The editor stays out of the way until asked for.
             const form = opts.form && document.getElementById(opts.form);
@@ -1497,11 +1500,13 @@
             // the review modal's own pieces, for that page to use.
             if (this.opts.onView) {
                 try {
-                    const [doc, history] = await Promise.all([
+                    const [doc, history, approval] = await Promise.all([
                         api(`${this.opts.api}/${id}`),
-                        api(`/api/documents/${id}/history`).catch(() => [])
+                        api(`/api/documents/${id}/history`).catch(() => []),
+                        api(`/api/documents/${id}/approval`).catch(() => null)
                     ]);
                     this.current = doc;
+                    this.approval = approval;
                     await this.opts.onView(doc, history || [], this);
                 } catch (error) {
                     fail(error);
@@ -1513,11 +1518,13 @@
                 '<div class="space-y-3 p-6">' + '<div class="skeleton h-5 w-2/3"></div>'.repeat(4) + '</div>';
             if (!drawer.open) drawer.showModal();
             try {
-                const [doc, history] = await Promise.all([
+                const [doc, history, approval] = await Promise.all([
                     api(`${this.opts.api}/${id}`),
-                    api(`/api/documents/${id}/history`).catch(() => [])
+                    api(`/api/documents/${id}/history`).catch(() => []),
+                    api(`/api/documents/${id}/approval`).catch(() => null)
                 ]);
                 this.current = doc;
+                this.approval = approval;
                 this.renderDrawer(doc, history || []);
             } catch (error) {
                 drawer.close();
@@ -1639,15 +1646,16 @@
                 <div class="flex flex-wrap justify-end gap-2">${this.actionButtons(doc)}</div>`;
         }
 
-        /** The approval timeline, newest last. */
+        /** The approval timeline, newest first. */
         historyHtml(history) {
             return history.length ? `<ol class="space-y-4">${history.map(h => `
                 <li class="flex gap-3">
                     <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">
-                        ${icon(h.action === 'REJECT' ? 'x' : h.action === 'APPROVE' ? 'check' : 'send', 'h-3 w-3')}</span>
+                        ${icon({ REJECTED: 'x', RETURNED: 'arrow-right', APPROVED: 'check' }[h.action] || 'send', 'h-3 w-3')}</span>
                     <div class="min-w-0 text-sm">
                         <p><span class="font-medium text-gray-900 dark:text-white">${esc(h.actor || 'System')}</span>
-                           <span class="text-gray-500">moved it to</span> ${statusBadge(h.toStatus)}</p>
+                           <span class="text-gray-500">${esc(HISTORY_VERBS[h.action] || 'moved it to')}${h.level ? ' level ' + esc(h.level) : ''}</span>
+                           ${h.fromStatus === h.toStatus ? '' : `<span class="text-gray-500">·</span> ${statusBadge(h.toStatus)}`}</p>
                         ${h.remarks ? `<p class="mt-1 rounded-lg bg-gray-50 px-3 py-2 text-gray-700 dark:bg-gray-800 dark:text-gray-300">${esc(h.remarks)}</p>` : ''}
                         <p class="mt-0.5 text-xs text-gray-500">${fmt.timeTag(h.at)}</p>
                     </div>
@@ -1671,8 +1679,17 @@
                 actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}Submit for approval</button>`);
             }
             if (s === 'SUBMITTED') {
-                actions.push(`<button type="button" class="btn-danger-ghost" data-doc-action="reject">${icon('x')}Reject</button>`);
-                actions.push(`<button type="button" class="btn-primary" data-doc-action="approve">${icon('check')}Approve</button>`);
+                // The engine says whether this user signs the current level; without its answer the
+                // buttons are offered and the server decides, as before.
+                const a = this.approval && this.approval.requestId !== undefined ? this.approval : null;
+                const levels = a && a.totalLevels > 1 ? ` level ${a.level} of ${a.totalLevels}` : '';
+                if (!a || a.canAct) {
+                    actions.push(`<button type="button" class="btn-danger-ghost" data-doc-action="reject">${icon('x')}Reject</button>`);
+                    actions.push(`<button type="button" class="btn-ghost" data-doc-action="return">${icon('arrow-right')}Return</button>`);
+                    actions.push(`<button type="button" class="btn-primary" data-doc-action="approve">${icon('check')}Approve${esc(levels)}</button>`);
+                } else {
+                    actions.push(`<p class="text-sm text-gray-500">${esc(a.waitingReason || 'Awaiting approval')}${levels ? ' ·' + esc(levels) : ''}</p>`);
+                }
             }
             if (s === 'REJECTED') {
                 actions.push('<p class="text-sm text-gray-500">Rejected - edit and save it to return it to draft.</p>');
@@ -1693,14 +1710,21 @@
             }
             const label = doc.documentNo || 'this document';
             let query;
-            if (action === 'approve' || action === 'reject') {
+            if (action === 'approve' || action === 'reject' || action === 'return') {
                 const approve = action === 'approve';
+                const a = this.approval;
+                const lastLevel = !a || !a.totalLevels || a.level >= a.totalLevels;
                 const values = await formDialog({
-                    title: approve ? `Approve ${label}?` : `Reject ${label}?`,
-                    message: approve ? 'It is locked for editing once approved.' : 'It goes back to the maker with your reason.',
+                    title: { approve: `Approve ${label}?`, reject: `Reject ${label}?`, return: `Return ${label} to the maker?` }[action],
+                    message: {
+                        approve: lastLevel ? 'It is locked for editing once approved.'
+                                           : `This signs level ${a.level} of ${a.totalLevels}; it then goes to the next approver.`,
+                        reject: 'It is refused. The maker sees your reason.',
+                        return: 'It goes back to the maker as a draft to correct and submit again.'
+                    }[action],
                     fields: [{ name: 'remarks', label: approve ? 'Remarks (optional)' : 'Reason', type: 'textarea',
-                               required: !approve, maxlength: 500 }],
-                    confirmText: approve ? 'Approve' : 'Reject', danger: !approve
+                               required: !approve, maxlength: 1000 }],
+                    confirmText: { approve: 'Approve', reject: 'Reject', return: 'Return' }[action], danger: action === 'reject'
                 });
                 if (!values) return;
                 query = { remarks: values.remarks };
@@ -1716,7 +1740,8 @@
             const url = action === 'revise' ? `${this.opts.api}/${doc.id}/revise` : `/api/documents/${doc.id}/${action}`;
             try {
                 const result = await api(url, { method: 'POST', query });
-                toast({ submit: 'Submitted for approval.', approve: 'Approved.', reject: 'Rejected and returned to the maker.',
+                toast({ submit: 'Submitted for approval.', approve: 'Approved.', reject: 'Rejected.',
+                        return: 'Returned to the maker as a draft.',
                         revise: 'Revision raised as a new draft.' }[action], 'success');
                 this.grid.reload();
                 this.open(action === 'revise' && result && result.id ? result.id : doc.id);

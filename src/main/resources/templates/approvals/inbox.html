@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  Approvals - asfl-erp's approval inbox and report.
+
+  "Waiting for me" lists what the signed-in user may sign now: pending, a document they can see,
+  their level (their role, their name, or the screen's Approve verb where no matrix is set up),
+  and never one they submitted. "All requests" is every approval in this business unit.
+-->
+<head>
+    <title>Approvals</title>
+</head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Approvals</h1>
+            <p class="page-sub">Documents waiting for your signature, and every approval in this business unit.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn-ghost" th:href="@{/setup/approval-matrices}" sec:authorize="hasAuthority('SCREEN_APPROVAL_SETUP_VIEW')">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#workflow}"/></svg>Approval matrices</a>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden" data-approvals>
+        <div class="tabs" role="tablist">
+            <button type="button" class="tab" role="tab" data-tab="mine" aria-selected="true">
+                Waiting for me <span class="badge-gray ml-1" data-count="mine">0</span></button>
+            <button type="button" class="tab" role="tab" data-tab="all">All requests</button>
+        </div>
+
+        <div data-panel="mine">
+            <div class="table-wrap">
+                <table class="table-grid table-stack" id="inboxTable">
+                    <thead>
+                    <tr>
+                        <th>Document</th>
+                        <th>Buyer</th>
+                        <th>Team</th>
+                        <th class="text-right">Amount</th>
+                        <th>Level</th>
+                        <th>Submitted</th>
+                        <th class="w-px">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div data-panel="all" hidden>
+            <div class="toolbar">
+                <select id="apFilter" class="field w-auto" aria-label="Status">
+                    <option value="">All requests</option>
+                    <option value="true" selected>Pending</option>
+                    <option value="false">Settled</option>
+                </select>
+            </div>
+            <div class="table-wrap">
+                <table class="table-grid table-stack" id="requestsTable">
+                    <thead>
+                    <tr>
+                        <th>Document</th>
+                        <th>Team</th>
+                        <th class="text-right">Amount</th>
+                        <th>Matrix</th>
+                        <th>Progress</th>
+                        <th>Raised by</th>
+                        <th>Submitted</th>
+                        <th class="w-px">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="apPager" class="pager"></div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/approvals.js}" defer></script>
+</div>
+</body>
+</html>

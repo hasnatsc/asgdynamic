@@ -5,8 +5,8 @@
 
   A restricted user in a team sees that team's bookings and production orders and nothing of any
   other team's. Members are the user's MARKETING_TEAM scope grant: one team per person, dated.
-  A team with approvers has its bookings approved or rejected by them alone; a team with none
-  falls back to anyone holding Approve on the Booking screen.
+  Who approves a team's bookings is its team-wise approval matrix (Approval matrices); a team
+  without one follows the business unit's matrix.
 -->
 <head>
     <title>Marketing teams</title>
@@ -17,7 +17,7 @@
     <div class="page-header">
         <div>
             <h1 class="page-title">Marketing teams</h1>
-            <p class="page-sub">Each team sees only its own bookings and production orders, and approves them through its own approvers.</p>
+            <p class="page-sub">Each team sees only its own bookings and production orders, and can have its own approval matrix.</p>
         </div>
         <div class="page-actions" sec:authorize="hasAuthority('SCREEN_MARKETING_TEAM_CREATE')">
             <button type="button" class="btn-primary" data-action="team-new">
@@ -79,8 +79,7 @@
                     <button type="button" class="tab" role="tab" data-tab="details" aria-selected="true">Details</button>
                     <button type="button" class="tab" role="tab" data-tab="members">
                         Members <span class="badge-gray ml-1" data-count="members">0</span></button>
-                    <button type="button" class="tab" role="tab" data-tab="approvers">
-                        Approvers <span class="badge-gray ml-1" data-count="approvers">0</span></button>
+                    <button type="button" class="tab" role="tab" data-tab="approval">Approval</button>
                 </div>
 
                 <!-- Details -->
@@ -139,23 +138,17 @@
                     <div data-list="members"></div>
                 </section>
 
-                <!-- Approvers -->
-                <section class="form-section" data-panel="approvers" hidden>
-                    <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                        With approvers, this team's bookings are approved or rejected by them alone. With none, anyone holding
-                        Approve on the Booking screen decides them. An approver must be unrestricted or a member of the team,
-                        and also needs Approve on the Booking screen.</p>
-                    <div class="mb-4 grid gap-3 rounded-xl border border-dashed border-gray-300 p-3 sm:grid-cols-[1fr_auto] sm:items-end dark:border-gray-700"
-                         data-view-hide data-need-saved>
-                        <div>
-                            <label class="label" for="mtApproverUser">Add an approver</label>
-                            <select id="mtApproverUser" class="field" data-remote="/api/setup/marketing-teams/users"
-                                    data-placeholder="Choose a user…"></select>
-                        </div>
-                        <button type="button" class="btn-primary" data-action="approver-add">
-                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add</button>
+                <!-- Approval: the team's own matrices live on the Approval matrices screen -->
+                <section class="form-section" data-panel="approval" hidden>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        This team's bookings are approved under its own approval matrix when it has one - its levels, roles,
+                        named people and amount bands - and under the business unit's matrix when it has none. A document is
+                        decided under the matrix it was submitted with.</p>
+                    <div class="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-800">
+                        <span data-matrix-summary class="text-sm"></span>
+                        <a class="btn-ghost btn-sm ml-auto" th:href="@{/setup/approval-matrices}" data-view-keep>
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#workflow}"/></svg>Approval matrices</a>
                     </div>
-                    <div data-list="approvers"></div>
                 </section>
             </div>
 

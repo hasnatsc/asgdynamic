@@ -146,10 +146,8 @@
                 return;
             }
             title.innerHTML = `${esc(d.documentNo || 'Unnumbered booking')} ${App.statusBadge(d.status)}`;
-            const deciders = d.status === 'SUBMITTED' && (d.teamApprovers || []).length
-                ? `<p class="mr-2 text-sm text-gray-500" title="This team's own approvers decide its bookings">
-                       Approved by ${esc(d.marketingTeamName)}’s approvers: ${esc(d.teamApprovers.join(', '))}</p>` : '';
-            actions.innerHTML = deciders + screen.actionButtons(d);
+            // Who signs next, and whether it is you, comes with the approval state (screen.approval).
+            actions.innerHTML = screen.actionButtons(d);
             actions.hidden = !actions.innerHTML;
             form.querySelector('[data-history]').innerHTML =
                 `<h3 class="form-section-title mb-4">Approval history</h3>${screen.historyHtml(history || [])}`;

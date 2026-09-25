@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  Approval matrices - asfl-erp's approval matrix setup.
+
+  One matrix per document type in this business unit, plus optionally one per marketing team; a
+  team's own matrix governs its documents, the unit-wide one everybody else's. Levels are signed in
+  order, each by a role or one named person, optionally only within an amount band. A document type
+  with no matrix is approved as before: one signature, anyone with Approve on its screen.
+-->
+<head>
+    <title>Approval matrices</title>
+</head>
+<body>
+<div th:fragment="content">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Approval matrices</h1>
+            <p class="page-sub">Who signs each document type, in what order, and up to what amount - for the whole unit or one marketing team.</p>
+        </div>
+        <div class="page-actions" sec:authorize="hasAuthority('SCREEN_APPROVAL_SETUP_CREATE')">
+            <button type="button" class="btn-primary" data-action="matrix-new">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New matrix
+            </button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input id="amSearch" type="search" class="field pr-8" placeholder="Search name" aria-label="Search"
+                       data-search autocomplete="off">
+            </div>
+            <select id="amTypeFilter" class="field w-auto" aria-label="Document type">
+                <option value="">All document types</option>
+                <option th:each="t : ${documentTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
+            </select>
+        </div>
+        <div class="table-wrap">
+            <table id="matrixGrid" class="table-grid table-stack">
+                <thead>
+                <tr>
+                    <th data-sort="documentType">Document</th>
+                    <th>Applies to</th>
+                    <th data-sort="name">Name</th>
+                    <th>Signatures</th>
+                    <th data-sort="active">Status</th>
+                    <th class="w-px">Actions</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="amPager" class="pager"></div>
+    </div>
+
+    <!-- ============================================================================ editor -->
+    <dialog id="matrixDialog" class="modal modal-review" data-sticky aria-labelledby="matrixDialogTitle">
+        <form id="matrixForm" class="flex min-h-0 flex-1 flex-col" novalidate autocomplete="off">
+            <div class="modal-head items-center">
+                <div class="min-w-0">
+                    <h2 id="matrixDialogTitle" class="modal-title" data-title>New approval matrix</h2>
+                    <p class="mt-0.5 text-sm text-gray-500">A document is signed at each level in turn; the last signature approves it.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2" data-matrix-close data-view-keep aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+
+            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin">
+                <section class="form-section form-float">
+                    <div class="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-6">
+                        <div class="sm:col-span-2">
+                            <label class="label" for="amType">Document type <span class="req">*</span></label>
+                            <select id="amType" class="field" name="documentType" required>
+                                <option th:each="t : ${documentTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label" for="amTeam">Applies to</label>
+                            <select id="amTeam" class="field" name="marketingTeamId"></select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="label" for="amName">Name <span class="req">*</span></label>
+                            <input id="amName" class="field" name="name" maxlength="150" required placeholder="e.g. Booking - London">
+                        </div>
+                        <div class="sm:col-span-6">
+                            <label class="field-check" for="amActive">
+                                <input id="amActive" type="checkbox" class="checkbox" name="active">
+                                <span>Active <span class="text-xs text-gray-500">— an inactive matrix is skipped at submission; documents already submitted under it finish under it.</span></span>
+                            </label>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs text-gray-500" data-fixed-note hidden>The document type and team are fixed once a matrix exists - approvals already given under it refer to them.</p>
+                </section>
+
+                <section class="form-section">
+                    <div class="form-section-head">
+                        <div>
+                            <h3 class="form-section-title">Signatures, in order</h3>
+                            <p class="form-section-sub">Each level is a role (anyone holding it) or one named person. A band limits a level to documents whose total falls inside it.</p>
+                        </div>
+                        <button type="button" class="btn-subtle btn-sm text-brand-700" data-action="level-add" data-view-hide>
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add level</button>
+                    </div>
+                    <div class="table-wrap -mx-5">
+                        <table class="line-colours line-colours-edit min-w-[760px]" id="levelTable">
+                            <thead>
+                            <tr>
+                                <th class="w-12 !pl-5">#</th>
+                                <th class="w-40">Signed by</th>
+                                <th>Role or person <span class="req text-brand-600">*</span></th>
+                                <th class="num w-36">From amount</th>
+                                <th class="num w-36">Up to amount</th>
+                                <th class="w-px"></th>
+                            </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <div class="modal-foot">
+                <div class="mr-auto flex flex-wrap items-center gap-2" data-view-actions data-view-keep hidden></div>
+                <button type="button" class="btn-ghost" data-matrix-close data-view-keep data-cancel>Cancel</button>
+                <button type="submit" class="btn-primary">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <span sec:authorize="hasAuthority('SCREEN_APPROVAL_SETUP_AMEND')" id="canEdit" hidden></span>
+    <span sec:authorize="hasAuthority('SCREEN_APPROVAL_SETUP_DELETE')" id="canDelete" hidden></span>
+    <script th:src="@{/js/approval-matrices.js}" defer></script>
+</div>
+</body>
+</html>
