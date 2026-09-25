@@ -24,24 +24,21 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Marketing teams - ADM-4's master, its members and its approvers.
+ * Marketing teams - ADM-4's master and its members. Approval is the team's matrix (Approval matrices).
  *
  * <pre>
  *   GET    /setup/marketing-teams                         page
  *   GET    /api/setup/marketing-teams                     grid rows
- *   GET    /api/setup/marketing-teams/{id}                one team, with members and approvers
+ *   GET    /api/setup/marketing-teams/{id}                one team, with its members
  *   POST   /api/setup/marketing-teams                     create or update
  *   DELETE /api/setup/marketing-teams/{id}                soft delete (refused while it owns anything)
  *   POST   /api/setup/marketing-teams/{id}/members        {userId, from}
  *   DELETE /api/setup/marketing-teams/{id}/members/{scope} ?reason=
- *   POST   /api/setup/marketing-teams/{id}/approvers      {userId}
- *   DELETE /api/setup/marketing-teams/{id}/approvers/{approverId}
- *   GET    /api/setup/marketing-teams/users               user picker for the two lists above
+ *   GET    /api/setup/marketing-teams/users               user picker for members
  *   GET    /api/marketing-teams                           active teams, for the Booking team picker
  * </pre>
  *
- * Members and approvers change who sees and who decides a team's documents, so both are
- * AMEND on this screen rather than CREATE.
+ * Members change who sees a team's documents, so adding one is AMEND on this screen, not CREATE.
  */
 @Controller
 public class MarketingTeamController {
@@ -100,7 +97,6 @@ public class MarketingTeamController {
     public Map<String, Object> detail(@PathVariable Long id) {
         Map<String, Object> detail = row(service.get(id));
         detail.put("members", service.members(id));
-        detail.put("approvers", service.approvers(id));
         return detail;
     }
 
@@ -137,23 +133,7 @@ public class MarketingTeamController {
         return service.members(id);
     }
 
-    @PostMapping("/api/setup/marketing-teams/{id}/approvers")
-    @ResponseBody
-    @PreAuthorize("hasAuthority('SCREEN_MARKETING_TEAM_AMEND')")
-    public List<MarketingTeamService.Person> addApprover(@PathVariable Long id, @RequestBody MemberRequest request) {
-        service.addApprover(id, request.userId());
-        return service.approvers(id);
-    }
-
-    @DeleteMapping("/api/setup/marketing-teams/{id}/approvers/{approverId}")
-    @ResponseBody
-    @PreAuthorize("hasAuthority('SCREEN_MARKETING_TEAM_AMEND')")
-    public List<MarketingTeamService.Person> removeApprover(@PathVariable Long id, @PathVariable Long approverId) {
-        service.removeApprover(id, approverId);
-        return service.approvers(id);
-    }
-
-    /** The member / approver picker: this organization's active users, marked unrestricted where they are. */
+    /** The member picker: this organization's active users, marked unrestricted where they are. */
     @GetMapping("/api/setup/marketing-teams/users")
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_MARKETING_TEAM_AMEND')")
@@ -197,7 +177,7 @@ public class MarketingTeamController {
         row.put("remarks", t.getRemarks());
         row.put("active", t.getActive());
         row.put("memberCount", t.getId() == null ? 0 : service.memberCount(t.getId()));
-        row.put("approverCount", t.getId() == null ? 0 : service.approverCount(t.getId()));
+        row.put("matrixCount", t.getId() == null ? 0 : service.matrixCount(t.getId()));
         return row;
     }
 

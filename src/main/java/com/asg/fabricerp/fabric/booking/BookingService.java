@@ -13,7 +13,6 @@ import com.asg.fabricerp.global.documents.*;
 import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import com.asg.fabricerp.global.terms.ConditionType;
 import com.asg.fabricerp.global.terms.TermsConditionService;
-import com.asg.fabricerp.marketing.TeamApprovalRule;
 import com.asg.fabricerp.security.CurrentUser;
 import com.asg.fabricerp.security.FabricUser;
 import com.asg.fabricerp.security.FabricUserRepository;
@@ -58,7 +57,6 @@ public class BookingService {
     private final FabricUserRepository users;
     private final OrgContext context;
     private final MarketingTeamRepository marketingTeams;
-    private final TeamApprovalRule teamApproval;
 
     public BookingService(BusinessDocumentRepository repository,
                           BusinessNumberService numbering,
@@ -69,8 +67,7 @@ public class BookingService {
                           TermsConditionService terms,
                           FabricUserRepository users,
                           OrgContext context,
-                          MarketingTeamRepository marketingTeams,
-                          TeamApprovalRule teamApproval) {
+                          MarketingTeamRepository marketingTeams) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
@@ -81,7 +78,6 @@ public class BookingService {
         this.users = users;
         this.context = context;
         this.marketingTeams = marketingTeams;
-        this.teamApproval = teamApproval;
     }
 
     @Transactional(readOnly = true)
@@ -174,11 +170,7 @@ public class BookingService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> detail(Long id) {
-        BusinessDocument booking = get(id);
-        Map<String, Object> detail = BookingView.detail(booking);
-        // Who decides it: the team's own approvers, or empty for the business-wide rule.
-        detail.put("teamApprovers", teamApproval.approversOf(booking));
-        return detail;
+        return BookingView.detail(get(id));
     }
 
     /**

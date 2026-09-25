@@ -1,5 +1,6 @@
 package com.asg.fabricerp.marketing;
 
+import com.asg.fabricerp.approval.ApprovalMatrixRepository;
 import com.asg.fabricerp.common.MarketingTeam;
 import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
@@ -18,7 +19,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * The Marketing teams screen - ADM-4's master, with its members and its approvers.
+ * The Marketing teams screen - ADM-4's master and its members. Who approves a team's documents is
+ * its team-wise approval matrix, on the Approval matrices screen.
  *
  * <h2>Members are data-scope grants</h2>
  * Adding a member is {@link UserAdminService#grantScope} on {@code MARKETING_TEAM}, and removing
@@ -35,24 +37,24 @@ import java.util.List;
 public class MarketingTeamService {
 
     private final MarketingTeamRepository teams;
-    private final MarketingTeamApproverRepository approvers;
+    private final ApprovalMatrixRepository matrices;
     private final DataScopeRepository scopes;
     private final FabricUserRepository users;
     private final UserAdminService userAdmin;
     private final OrgContext context;
 
-    public MarketingTeamService(MarketingTeamRepository teams, MarketingTeamApproverRepository approvers,
+    public MarketingTeamService(MarketingTeamRepository teams, ApprovalMatrixRepository matrices,
                                 DataScopeRepository scopes, FabricUserRepository users,
                                 UserAdminService userAdmin, OrgContext context) {
         this.teams = teams;
-        this.approvers = approvers;
+        this.matrices = matrices;
         this.scopes = scopes;
         this.users = users;
         this.userAdmin = userAdmin;
         this.context = context;
     }
 
-    /** A member or an approver, as the screen lists them. {@code scopeId} is the member's grant. */
+    /** A member, as the screen lists them. {@code id} is their team grant. */
     public record Person(Long id, Long userId, String username, String fullName, LocalDate since,
                          boolean unrestricted, boolean usable) { }
 
@@ -110,11 +112,14 @@ public class MarketingTeamService {
             throw new IllegalStateException(("%s owns %d document(s) and cannot be deleted - the team stays on "
                 + "everything raised under it. Deactivate it instead.").formatted(team.getName(), documents));
         }
+        if (matrices.countActiveForTeam(id) > 0) {
+            throw new IllegalStateException("%s has its own approval matrices. Deactivate them, or deactivate the team instead."
+                .formatted(team.getName()));
+        }
         if (!members(id).isEmpty()) {
             throw new IllegalStateException("%s still has members. Remove them, or deactivate the team instead."
                 .formatted(team.getName()));
         }
-        approvers.findByTeam(id).forEach(approvers::delete);
         team.markDeleted();
         teams.save(team);
     }
@@ -163,45 +168,6 @@ public class MarketingTeamService {
         }
     }
 
-    // ------------------------------------------------------------------------------ approvers
-
-    @Transactional(readOnly = true)
-    public List<Person> approvers(Long teamId) {
-        get(teamId);
-        return approvers.findByTeam(teamId).stream()
-            .map(a -> person(a.getId(), user(a.getUserId()), a.getCreatedAt() == null ? null : a.getCreatedAt().toLocalDate()))
-            .toList();
-    }
-
-    /**
-     * Adds someone who decides the team's documents. They must be able to see them - unrestricted,
-     * or a member of this team - or they would be named as the approver of bookings they cannot
-     * open. They also need Approve on the Booking screen; that is a role grant and is checked when
-     * they act, like every other permission.
-     */
-    @Transactional
-    public void addApprover(Long teamId, Long userId) {
-        MarketingTeam team = get(teamId);
-        FabricUser user = user(userId);
-        if (!user.isUnrestricted() && !isMember(teamId, userId)) {
-            throw new IllegalStateException(("%s cannot see %s's bookings: an approver must be unrestricted or a "
-                + "member of this team.").formatted(display(user), team.getName()));
-        }
-        if (approvers.findByTeamIdAndUserId(teamId, userId).isPresent()) {
-            throw new IllegalStateException(display(user) + " already approves for " + team.getName());
-        }
-        approvers.save(new MarketingTeamApprover(context.requireOrganizationId(), teamId, userId));
-    }
-
-    @Transactional
-    public void removeApprover(Long teamId, Long approverId) {
-        get(teamId);
-        MarketingTeamApprover approver = approvers.findById(approverId)
-            .filter(a -> teamId.equals(a.getTeamId()))
-            .orElseThrow(() -> new IllegalArgumentException("Approver not found: " + approverId));
-        approvers.delete(approver);
-    }
-
     // ------------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
@@ -209,9 +175,10 @@ public class MarketingTeamService {
         return scopes.findHoldersOn(ScopeDimension.MARKETING_TEAM, teamId, LocalDate.now()).size();
     }
 
+    /** The team's own active approval matrices - none means its documents follow the unit-wide ones. */
     @Transactional(readOnly = true)
-    public int approverCount(Long teamId) {
-        return approvers.findByTeam(teamId).size();
+    public long matrixCount(Long teamId) {
+        return matrices.countActiveForTeam(teamId);
     }
 
     @Transactional(readOnly = true)

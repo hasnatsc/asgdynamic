@@ -60,8 +60,7 @@ class BookingServiceRevisionTest {
             revisions, DocumentRefs.references(UNIT),
             mock(com.asg.fabricerp.global.terms.TermsConditionService.class),
             mock(com.asg.fabricerp.security.FabricUserRepository.class), context,
-            mock(com.asg.fabricerp.common.MarketingTeamRepository.class),
-            mock(com.asg.fabricerp.marketing.TeamApprovalRule.class));
+            mock(com.asg.fabricerp.common.MarketingTeamRepository.class));
         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BK-2026-000002");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
