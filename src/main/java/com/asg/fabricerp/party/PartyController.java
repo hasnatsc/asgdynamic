@@ -1,5 +1,6 @@
 package com.asg.fabricerp.party;
 
+import com.asg.fabricerp.common.LookupPage;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +38,23 @@ public class PartyController {
                                                 @RequestParam(defaultValue = "0") int page,
                                                 @RequestParam(defaultValue = "20") int size) {
         return parties.directory(role, q, activeOnly, page, size);
+    }
+
+    /**
+     * The directory for App.RemoteSelect: {@code /api/parties/lookup?role=BRAND&q=zara&page=2}
+     * answers {@code {results, pagination}}; {@code ?id=7} labels a saved value. e.g.
+     * {@code <select data-remote="/api/parties/lookup?role=CUSTOMER">}.
+     */
+    @GetMapping("/lookup")
+    public LookupPage<LookupPage.Option> lookup(@RequestParam(required = false) PartyRoleType role,
+                                                @RequestParam(required = false) String q,
+                                                @RequestParam(defaultValue = "true") boolean activeOnly,
+                                                @RequestParam(required = false) Integer page,
+                                                @RequestParam(required = false) Integer size,
+                                                @RequestParam(required = false) Long id) {
+        if (id != null) return parties.option(id);
+        if (role == null) throw new IllegalArgumentException("Say which role the picker lists, e.g. role=CUSTOMER.");
+        return parties.lookup(role, q, activeOnly, page, size);
     }
 
     /**

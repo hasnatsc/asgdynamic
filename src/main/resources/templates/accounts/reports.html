@@ -48,8 +48,9 @@
                     <option value="CUSTOMER">Customers</option>
                     <option value="SUPPLIER">Suppliers</option>
                 </select>
-                <input id="rpPartySearch" type="search" class="field w-56" placeholder="Find by code or name" list="rpPartyList" autocomplete="off">
-                <datalist id="rpPartyList"></datalist>
+                <div class="w-72">
+                    <select id="rpPartySearch" class="field" aria-label="Customer or supplier"></select>
+                </div>
             </div>
             <button type="button" class="btn-primary" id="rpRun">
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Run
@@ -109,7 +110,6 @@
         let tab = 'tb';
         let chart = [];
         let lastCsv = null;       // rows of the report on screen, for Export CSV
-        let partyMatches = [];
 
         /** A debit-positive BDT figure shown on its natural side: "1,200.00 Dr". */
         const drcr = v => {
@@ -198,10 +198,9 @@
         }
 
         async function partyLedger() {
-            const typed = $('#rpPartySearch').value.trim();
-            const party = partyMatches.find(p => `${p.code} · ${p.name}` === typed);
-            if (!party) return App.toast('Pick a customer or supplier from the list.', 'warn');
-            const ledger = await api('/api/accounts/reports/party-ledger', { query: { partyId: party.id, from: $('#rpFrom').value, to: $('#rpTo').value } });
+            const partyId = $('#rpPartySearch').value;
+            if (!partyId) return App.toast('Pick a customer or supplier from the list.', 'warn');
+            const ledger = await api('/api/accounts/reports/party-ledger', { query: { partyId, from: $('#rpFrom').value, to: $('#rpTo').value } });
             $('#plTable tbody').innerHTML = ledgerRows(ledger, true);
             lastCsv = [ ['Date', 'Entry', 'Account', 'Narration', 'Debit', 'Credit', 'Balance (Dr+)'], ['', '', '', 'Opening balance', '', '', ledger.opening]]
                 .concat(ledger.lines.map(l => [l.date, l.entryNo, l.accountCode, l.narration, l.debit, l.credit, l.balance]));
@@ -216,15 +215,13 @@
         }
         $('#rpRun').addEventListener('click', run);
 
-        const findParties = App.debounce(async () => {
-            try {
-                const page = await api('/api/parties/directory', { query: { role: $('#rpPartyRole').value, q: $('#rpPartySearch').value.trim(), activeOnly: false, size: 20 } });
-                partyMatches = page.rows;
-                $('#rpPartyList').innerHTML = page.rows.map(p => `<option value="${esc(p.code + ' · ' + p.name)}">`).join('');
-            } catch (e) { /* the list just stays empty */ }
-        }, 200);
-        $('#rpPartySearch').addEventListener('input', findParties);
-        $('#rpPartyRole').addEventListener('change', () => { $('#rpPartySearch').value = ''; findParties(); });
+        // Retired parties included: their history is exactly what a ledger report is asked for.
+        const partyPicker = new App.RemoteSelect($('#rpPartySearch'), {
+            url: '/api/parties/lookup',
+            placeholder: 'Find by code or name',
+            params: () => ({ role: $('#rpPartyRole').value, activeOnly: false })
+        });
+        $('#rpPartyRole').addEventListener('change', () => { partyPicker.setValue(null); partyPicker.refresh(); });
 
         $('#rpCsv').addEventListener('click', () => {
             if (!lastCsv) return App.toast('Run a report first.', 'warn');

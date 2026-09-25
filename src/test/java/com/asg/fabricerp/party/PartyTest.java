@@ -27,6 +27,21 @@ class PartyTest {
     }
 
     @Test
+    void aPickerOptionNamesEveryRoleSoTwoMangosCanBeToldApart() {
+        Party mango = party("CAF000094");
+        mango.grantRole(CUSTOMER, MARKETING, "CAF000094", DAY);
+        mango.grantRole(BRAND, DAY);
+        mango.grantRole(BUYING_HOUSE, DAY);
+
+        assertThat(PartyService.option(mango))
+            .extracting(o -> o.code(), o -> o.text(), o -> o.sub())
+            .containsExactly("CAF000094", "CAF000094 Ltd", "Customer · Brand · Buying house");
+
+        mango.setActive(false);
+        assertThat(PartyService.option(mango).sub()).startsWith("Inactive · ");
+    }
+
+    @Test
     void aCustomerMustBeQualified_andNothingElseMayBe() {
         Party p = party("X");
         assertThatThrownBy(() -> p.grantRole(CUSTOMER, null, null, DAY)).isInstanceOf(IllegalArgumentException.class);

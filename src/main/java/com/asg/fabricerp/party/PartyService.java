@@ -1,5 +1,6 @@
 package com.asg.fabricerp.party;
 
+import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.common.OrgContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Resolving parties and checking what they may be named as. Ported from asfl-erp's
@@ -75,5 +77,33 @@ public class PartyService {
                 .map(p -> new DirectoryRow(p.getId(), p.getCode(), p.getName(), p.getActive()))
                 .toList(),
             found.getNumber(), found.getSize(), found.getTotalElements(), found.getTotalPages());
+    }
+
+    /**
+     * The same search in the shape App.RemoteSelect reads: page 1-based, each option's second
+     * line naming every role the party holds - "Customer · Brand · Buying house" tells two
+     * "Mango" rows apart.
+     */
+    public LookupPage<LookupPage.Option> lookup(PartyRoleType role, String q, boolean activeOnly,
+                                                Integer page, Integer size) {
+        Page<Party> found = parties.directory(context.requireOrganizationId(), role, LookupPage.like(q), !activeOnly,
+            LookupPage.pageable(page, size, Sort.by(Sort.Direction.ASC, "code")));
+        return LookupPage.of(found, PartyService::option);
+    }
+
+    /** The option for one party, so a picker can label a saved value - retired parties included. */
+    public LookupPage<LookupPage.Option> option(Long id) {
+        return LookupPage.single(option(require(id)));
+    }
+
+    static LookupPage.Option option(Party p) {
+        String roles = p.activeRoles().stream().map(PartyService::roleLabel).collect(Collectors.joining(" · "));
+        return new LookupPage.Option(p.getId(), p.getCode(), p.getName(),
+            Boolean.TRUE.equals(p.getActive()) ? roles : "Inactive · " + roles);
+    }
+
+    private static String roleLabel(PartyRoleType role) {
+        String words = role.name().replace('_', ' ').toLowerCase(Locale.ROOT);
+        return Character.toUpperCase(words.charAt(0)) + words.substring(1);
     }
 }

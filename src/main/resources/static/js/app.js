@@ -761,6 +761,10 @@
                 emptyText: data.emptyText || 'No matches',
                 params: null
             }, opts || {});
+            // Parameters written into the URL (data-remote="/api/parties/lookup?role=BRAND") go with every request.
+            const [base, fixed] = String(this.opts.url).split('?');
+            this.base = base;
+            this.fixed = Object.fromEntries(new URLSearchParams(fixed || ''));
             this.selected = null;
             this.results = [];
             this.page = 0;
@@ -949,7 +953,7 @@
             this.renderList(true);
             const extra = this.opts.params ? this.opts.params() : {};
             try {
-                const data = await api(this.opts.url, { query: Object.assign({
+                const data = await api(this.base, { query: Object.assign({}, this.fixed, {
                     q: this.input.value.trim(), page, size: this.opts.pageSize }, extra) });
                 if (draw !== this.draw) return;        // superseded by a newer search or closed
                 this.page = page;
@@ -1058,7 +1062,7 @@
             if (text) return this.apply({ id, text });
             this.apply({ id, text: '…' });
             try {
-                const data = await api(this.opts.url, { query: { id } });
+                const data = await api(this.base, { query: Object.assign({}, this.fixed, { id }) });
                 const option = (data.results || [])[0];
                 if (String(this.select.value) === String(id)) this.apply(option || { id, text: '#' + id });
             } catch (error) {

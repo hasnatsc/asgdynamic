@@ -69,8 +69,8 @@
             <div class="modal-body space-y-4">
                 <div>
                     <label class="label" for="clParty">Customer <span class="req">*</span></label>
-                    <input id="clParty" class="field" list="clPartyList" placeholder="Type a code or name" autocomplete="off" required>
-                    <datalist id="clPartyList"></datalist>
+                    <select id="clParty" class="field" data-remote="/api/parties/lookup?role=CUSTOMER"
+                            data-placeholder="Search a customer by code or name" required></select>
                     <p class="hint" id="clPartyHint"></p>
                 </div>
                 <div class="grid grid-cols-3 gap-4">
@@ -128,7 +128,6 @@
         };
         let rows = [];
         let filter = '';
-        let partyMatches = [];
 
         async function load() {
             try { rows = await api('/api/accounts/credit'); } catch (e) { return fail(e); }
@@ -216,20 +215,13 @@
         // ------------------------------------------------------------------ new limit
         const dialog = $('#clDialog');
         dialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dialog.close()));
-        const findCustomers = App.debounce(async () => {
-            try {
-                const page = await api('/api/parties/directory', { query: { role: 'CUSTOMER', q: $('#clParty').value.trim(), size: 20 } });
-                partyMatches = page.rows;
-                $('#clPartyList').innerHTML = page.rows.map(p => `<option value="${esc(p.code + ' · ' + p.name)}">`).join('');
-            } catch (e) { /* list stays empty */ }
-        }, 200);
-        $('#clParty').addEventListener('input', async () => {
-            findCustomers();
-            const p = partyMatches.find(x => `${x.code} · ${x.name}` === $('#clParty').value);
+        const customer = App.RemoteSelect.of($('#clParty'));
+        $('#clParty').addEventListener('change', async () => {
+            const partyId = $('#clParty').value;
             $('#clPartyHint').textContent = '';
-            if (p) {
+            if (partyId) {
                 try {
-                    const ex = await api('/api/accounts/credit/exposure', { query: { partyId: p.id } });
+                    const ex = await api('/api/accounts/credit/exposure', { query: { partyId } });
                     $('#clPartyHint').textContent = `Owes ${fmt.money(ex.receivable)} BDT today` + (ex.hasLimit ? `; current limit ${fmt.money(ex.limit)} will be superseded.` : '; no limit yet.');
                 } catch (e) { /* hint stays empty */ }
             }
@@ -241,19 +233,17 @@
             $('#clSecured').value = '0';
             $('#clFrom').value = new Date().toLocaleDateString('en-CA');
             $('#clPartyHint').textContent = '';
-            findCustomers();
+            customer.setValue(null);
             dialog.showModal();
-            $('#clParty').focus();
+            customer.trigger.focus();
         });
 
         $('#clForm').addEventListener('submit', async e => {
             e.preventDefault();
             if (!$('#clForm').reportValidity()) return;
-            const party = partyMatches.find(x => `${x.code} · ${x.name}` === $('#clParty').value);
-            if (!party) return toast('Pick the customer from the list.', 'warn');
             try {
                 await api('/api/accounts/credit', { method: 'POST', body: {
-                    partyId: party.id, limitAmount: Number($('#clLimit').value), currencyCode: $('#clCurrency').value.trim().toUpperCase() || 'BDT',
+                    partyId: Number($('#clParty').value), limitAmount: Number($('#clLimit').value), currencyCode: $('#clCurrency').value.trim().toUpperCase() || 'BDT',
                     effectiveFrom: $('#clFrom').value || null, securedAmount: Number($('#clSecured').value || 0),
                     reviewOn: $('#clReview').value || null, remarks: $('#clRemarks').value.trim() || null } });
                 toast('Credit limit granted.', 'success');

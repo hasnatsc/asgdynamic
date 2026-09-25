@@ -3,6 +3,7 @@ package com.asg.fabricerp.common;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Locale;
@@ -45,9 +46,14 @@ public record LookupPage<T>(List<T> results, Pagination pagination) {
 
     /** A 1-based {@code page} and a {@code size} clamped to {@link #MAX_SIZE}, as a Pageable. */
     public static Pageable pageable(Integer page, Integer size) {
+        return pageable(page, size, Sort.unsorted());
+    }
+
+    /** The same, sorted - for a query whose order is not written into it. */
+    public static Pageable pageable(Integer page, Integer size, Sort sort) {
         int p = page == null || page < 1 ? 0 : page - 1;
         int s = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
-        return PageRequest.of(p, s);
+        return PageRequest.of(p, s, sort);
     }
 
     /** {@code q} as a case-insensitive LIKE pattern; {@code "%"} (match all) when blank. */
