@@ -1,5 +1,6 @@
 package com.asg.fabricerp.global.documents;
 
+import com.asg.fabricerp.common.AuditableEntity;
 import com.asg.fabricerp.common.OrgContext;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +43,14 @@ public class ParentLineDrawService {
         this.context = context;
     }
 
+    /**
+     * Loads the parent a document names - a submitted {@code {"id": ...}} stand-in or a managed
+     * reference alike - as a full, scope-checked document of the expected type.
+     */
+    public BusinessDocument loadParent(BusinessDocument parentRef, DocumentType expectedType) {
+        return loadParent(AuditableEntity.idOf(parentRef), expectedType);
+    }
+
     /** Loads a parent document, confirming it is the type the caller expects. */
     public BusinessDocument loadParent(Long parentId, DocumentType expectedType) {
         if (parentId == null) {
@@ -81,8 +90,11 @@ public class ParentLineDrawService {
         Map<Long, BusinessDocumentColorLine> byId = indexById(flatten(parent));
         for (BusinessDocumentLineGroup group : childGroups) {
             for (BusinessDocumentColorLine line : group.getColorLines()) {
-                if (line.getSourceColorLineId() == null) continue;
-                sourceLine(byId, line, parent).fulfil(line.getQuantity());
+                if (line.getSourceColorLine() == null) continue;
+                BusinessDocumentColorLine source = sourceLine(byId, line, parent);
+                source.fulfil(line.getQuantity());
+                // The request named its source as an {"id": ...} stand-in; link the real line.
+                line.setSourceColorLine(source);
             }
         }
     }
@@ -92,7 +104,7 @@ public class ParentLineDrawService {
         Map<Long, BusinessDocumentColorLine> byId = indexById(flatten(parent));
         for (BusinessDocumentLineGroup group : childGroups) {
             for (BusinessDocumentColorLine line : group.getColorLines()) {
-                if (line.getSourceColorLineId() == null) continue;
+                if (line.getSourceColorLine() == null) continue;
                 sourceLine(byId, line, parent).release(line.getQuantity());
             }
         }
@@ -105,11 +117,12 @@ public class ParentLineDrawService {
     private BusinessDocumentColorLine sourceLine(Map<Long, BusinessDocumentColorLine> byId,
                                                  BusinessDocumentColorLine childLine,
                                                  BusinessDocument parent) {
-        BusinessDocumentColorLine source = byId.get(childLine.getSourceColorLineId());
+        Long sourceId = AuditableEntity.idOf(childLine.getSourceColorLine());
+        BusinessDocumentColorLine source = byId.get(sourceId);
         if (source == null) {
             throw new IllegalArgumentException(
                 "Colour line %d names source colour line %d, which is not on %s %s"
-                    .formatted(childLine.getColorLineNo(), childLine.getSourceColorLineId(),
+                    .formatted(childLine.getColorLineNo(), sourceId,
                               parent.getDocumentType().label(), parent.getDocumentNo()));
         }
         return source;

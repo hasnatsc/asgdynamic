@@ -34,17 +34,20 @@ public class BookingService {
     private final DocumentNumberService numbering;
     private final CostingService costing;
     private final DocumentRevisionService revisions;
+    private final DocumentReferences references;
     private final OrgContext context;
 
     public BookingService(BusinessDocumentRepository repository,
                           DocumentNumberService numbering,
                           CostingService costing,
                           DocumentRevisionService revisions,
+                          DocumentReferences references,
                           OrgContext context) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
         this.revisions = revisions;
+        this.references = references;
         this.context = context;
     }
 
@@ -78,10 +81,10 @@ public class BookingService {
             target = submitted;
             target.setDocumentType(TYPE);
             target.setOrganizationId(context.requireOrganizationId());
-            target.setBusinessUnitId(context.requireBusinessUnitId());
+            target.setBusinessUnit(references.currentBusinessUnit());
             // ADM-7: a Booking is where the team is decided — the creator's own team, or none
             // for an unrestricted user. Every downstream document inherits it from here.
-            target.stampMarketingTeam(context.requireRowScope().soleMarketingTeam());
+            target.stampMarketingTeam(references.marketingTeam(context.requireRowScope().soleMarketingTeam()));
             target.setDocumentNo(numbering.next(TYPE));
             if (target.getDocumentDate() == null) {
                 target.setDocumentDate(LocalDate.now());
@@ -94,6 +97,7 @@ public class BookingService {
         }
 
         refreshCostingFigures(target);
+        references.resolve(target);
         target.recalculateTotals();
         return repository.save(target);
     }
@@ -121,14 +125,14 @@ public class BookingService {
     }
 
     private void applyHeader(BusinessDocument from, BusinessDocument to) {
-        to.setPartyId(from.getPartyId());
+        to.setParty(from.getParty());
         to.setDocumentDate(from.getDocumentDate());
         to.setRequiredDate(from.getRequiredDate());
         to.setCurrencyCode(from.getCurrencyCode());
         to.setExchangeRate(from.getExchangeRate());
         to.setReferenceNo(from.getReferenceNo());
         to.setRemarks(from.getRemarks());
-        to.setWarehouseId(from.getWarehouseId());
+        to.setWarehouse(from.getWarehouse());
     }
 
     /**

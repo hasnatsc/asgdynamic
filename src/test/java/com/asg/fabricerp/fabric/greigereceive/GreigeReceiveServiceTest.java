@@ -40,7 +40,7 @@ class GreigeReceiveServiceTest {
         };
 
         ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);
-        service = new GreigeReceiveService(repository, numbering, parentDraw, context);
+        service = new GreigeReceiveService(repository, numbering, parentDraw, DocumentRefs.references(UNIT), context);
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -48,7 +48,7 @@ class GreigeReceiveServiceTest {
         BusinessDocument bpo = new BusinessDocument();
         bpo.setId(BPO_ID);
         bpo.setOrganizationId(ORG);
-        bpo.setBusinessUnitId(UNIT);
+        bpo.setBusinessUnit(DocumentRefs.unit(UNIT));
         bpo.setDocumentType(DocumentType.BULK_PRODUCTION_ORDER);
         bpo.setDocumentNo("BPOAF000003");
 
@@ -73,10 +73,10 @@ class GreigeReceiveServiceTest {
     private BusinessDocument receiptRequest(BigDecimal quantity) {
         BusinessDocument receipt = new BusinessDocument();
         receipt.setDocumentDate(LocalDate.now());
-        receipt.setParentDocumentId(BPO_ID);
+        receipt.setParentDocument(DocumentRefs.document(BPO_ID));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
-        colorLine.setSourceColorLineId(BPO_COLOR_LINE_ID);
+        colorLine.setSourceColorLine(DocumentRefs.colorLine(BPO_COLOR_LINE_ID));
         colorLine.setQuantity(quantity);
 
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();

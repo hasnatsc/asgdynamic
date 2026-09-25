@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -32,17 +33,45 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
     Optional<BusinessDocument> findScoped(@Param("id") Long id, @Param("orgId") Long orgId);
 
     /**
-     * Lines are almost always needed with the document; fetching them here avoids the
-     * N+1 that a lazy collection produces on every detail screen.
+     * The document with both levels of lines loaded - almost every caller needs them, and
+     * controllers read them after the transaction has closed ({@code open-in-view} is off).
+     *
+     * <p>Two queries, not one entity graph. The graph this replaced asked for
+     * {@code lineGroups} and {@code lineGroups.colorLines} together; both are {@code List}s
+     * ("bags"), and Hibernate refuses to join-fetch two bags at once
+     * ({@code MultipleBagFetchException}) because the cartesian product would duplicate rows.
+     * Every detail, edit, revise and draw failed that way against a real database; the unit
+     * tests mock this method and never ran the query. Loading the colour lines second, in the
+     * same persistence context, initialises every group's collection and keeps the lists -
+     * whose order the line numbering depends on - as lists.
+     *
+     * <p>Must run inside a transaction so both queries share one persistence context; every
+     * caller is a {@code @Transactional} service method, and this one joins it.
      */
-    @EntityGraph(attributePaths = {"lineGroups", "lineGroups.colorLines"})
+    @Transactional(readOnly = true)
+    default Optional<BusinessDocument> findScopedWithLines(Long id, Long orgId) {
+        Optional<BusinessDocument> document = findScopedWithGroups(id, orgId);
+        document.ifPresent(this::fetchColorLines);
+        return document;
+    }
+
+    /** Use {@link #findScopedWithLines}: this loads only the first level. */
+    @EntityGraph(attributePaths = "lineGroups")
     @Query("""
            select d from BusinessDocument d
            where d.id = :id
              and d.organizationId = :orgId
              and d.deleted = false
            """)
-    Optional<BusinessDocument> findScopedWithLines(@Param("id") Long id, @Param("orgId") Long orgId);
+    Optional<BusinessDocument> findScopedWithGroups(@Param("id") Long id, @Param("orgId") Long orgId);
+
+    /** Use {@link #findScopedWithLines}: initialises the colour lines of a loaded document's groups. */
+    @Query("""
+           select distinct g from BusinessDocumentLineGroup g
+             left join fetch g.colorLines
+           where g.document = :document
+           """)
+    List<BusinessDocumentLineGroup> fetchColorLines(@Param("document") BusinessDocument document);
 
     /**
      * A list screen's query, narrowed by the caller's row scope (ADM-3, ADM-5).
@@ -70,7 +99,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
     @Query("""
            select d from BusinessDocument d
            where d.organizationId = :orgId
-             and d.businessUnitId = :unitId
+             and d.businessUnit.id = :unitId
              and d.documentType = :type
              and d.deleted = false
              and (:status is null or d.status = :status)
@@ -79,9 +108,9 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
              and (:q is null
                   or lower(d.documentNo) like lower(concat('%', cast(:q as string), '%'))
                   or lower(d.referenceNo) like lower(concat('%', cast(:q as string), '%')))
-             and (:allUnits = true or d.businessUnitId in :unitIds)
-             and (:allWarehouses = true or d.warehouseId is null or d.warehouseId in :warehouseIds)
-             and (:allTeams = true or d.marketingTeamId in :teamIds)
+             and (:allUnits = true or d.businessUnit.id in :unitIds)
+             and (:allWarehouses = true or d.warehouse is null or d.warehouse.id in :warehouseIds)
+             and (:allTeams = true or d.marketingTeam.id in :teamIds)
            """)
     Page<BusinessDocument> searchWithin(@Param("orgId") Long orgId,
                                         @Param("unitId") Long unitId,
@@ -102,7 +131,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
     @Query("""
            select d from BusinessDocument d
            where d.organizationId = :orgId
-             and (d.id = :rootId or d.revisionOfId = :rootId)
+             and (d.id = :rootId or d.revisionOf.id = :rootId)
              and d.deleted = false
            order by d.revisionNo desc
            """)
@@ -112,7 +141,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
     @Query("""
            select d from BusinessDocument d
            where d.organizationId = :orgId
-             and d.parentDocumentId = :parentId
+             and d.parentDocument.id = :parentId
              and d.deleted = false
            """)
     List<BusinessDocument> childrenOf(@Param("parentId") Long parentId, @Param("orgId") Long orgId);

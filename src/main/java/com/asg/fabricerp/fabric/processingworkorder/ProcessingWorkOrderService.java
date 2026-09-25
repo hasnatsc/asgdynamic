@@ -30,15 +30,18 @@ public class ProcessingWorkOrderService {
     private final BusinessDocumentRepository repository;
     private final DocumentNumberService numbering;
     private final ParentLineDrawService parentDraw;
+    private final DocumentReferences references;
     private final OrgContext context;
 
     public ProcessingWorkOrderService(BusinessDocumentRepository repository,
                                       DocumentNumberService numbering,
                                       ParentLineDrawService parentDraw,
+                                      DocumentReferences references,
                                       OrgContext context) {
         this.repository = repository;
         this.numbering = numbering;
         this.parentDraw = parentDraw;
+        this.references = references;
         this.context = context;
     }
 
@@ -70,23 +73,25 @@ public class ProcessingWorkOrderService {
     }
 
     private BusinessDocument create(BusinessDocument submitted) {
-        BusinessDocument bpo = parentDraw.loadParent(submitted.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument bpo = parentDraw.loadParent(submitted.getParentDocument(), PARENT_TYPE);
 
         submitted.setDocumentType(TYPE);
         submitted.setOrganizationId(context.requireOrganizationId());
-        submitted.setBusinessUnitId(context.requireBusinessUnitId());
-        submitted.setParentDocumentId(bpo.getId());
-        submitted.stampMarketingTeam(bpo.getMarketingTeamId());   // ADM-7: the team travels downstream
+        submitted.setBusinessUnit(references.currentBusinessUnit());
+        submitted.setParentDocument(bpo);
+        submitted.stampMarketingTeam(bpo.getMarketingTeam());   // ADM-7: the team travels downstream
         submitted.setDocumentNo(numbering.next(TYPE));
         if (submitted.getDocumentDate() == null) {
             submitted.setDocumentDate(LocalDate.now());
         }
-        if (submitted.getPartyId() == null) {
-            submitted.setPartyId(bpo.getPartyId());
+        if (submitted.getParty() == null) {
+            submitted.setParty(bpo.getParty());
         }
 
         parentDraw.draw(bpo, submitted.getLineGroups());
         parentDraw.save(bpo);
+
+        references.resolve(submitted);
 
         submitted.recalculateTotals();
         return repository.save(submitted);
@@ -96,7 +101,7 @@ public class ProcessingWorkOrderService {
         BusinessDocument target = get(submitted.getId());
         target.assertEditable();
 
-        BusinessDocument bpo = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument bpo = parentDraw.loadParent(target.getParentDocument(), PARENT_TYPE);
         parentDraw.release(bpo, target.getLineGroups());
 
         applyHeader(submitted, target);
@@ -104,6 +109,8 @@ public class ProcessingWorkOrderService {
 
         parentDraw.draw(bpo, target.getLineGroups());
         parentDraw.save(bpo);
+
+        references.resolve(target);
 
         target.recalculateTotals();
         return repository.save(target);
@@ -114,7 +121,7 @@ public class ProcessingWorkOrderService {
         BusinessDocument doc = get(id);
         doc.assertEditable();
 
-        BusinessDocument bpo = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument bpo = parentDraw.loadParent(doc.getParentDocument(), PARENT_TYPE);
         parentDraw.release(bpo, doc.getLineGroups());
         parentDraw.save(bpo);
 
@@ -126,6 +133,6 @@ public class ProcessingWorkOrderService {
         to.setDocumentDate(from.getDocumentDate());
         to.setRequiredDate(from.getRequiredDate());
         to.setRemarks(from.getRemarks());
-        to.setWarehouseId(from.getWarehouseId());
+        to.setWarehouse(from.getWarehouse());
     }
 }

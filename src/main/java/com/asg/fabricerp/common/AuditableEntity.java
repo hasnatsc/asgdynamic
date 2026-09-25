@@ -83,4 +83,13 @@ public abstract class AuditableEntity implements Serializable {
     public boolean isNew() {
         return id == null;
     }
+
+    /**
+     * The id of a possibly-null association. Safe on an uninitialised lazy proxy: Hibernate
+     * answers the identifier getter without loading the row, so a controller mapping a document
+     * outside its transaction can still read {@code idOf(doc.getParty())}.
+     */
+    public static Long idOf(AuditableEntity entity) {
+        return entity == null ? null : entity.getId();
+    }
 }

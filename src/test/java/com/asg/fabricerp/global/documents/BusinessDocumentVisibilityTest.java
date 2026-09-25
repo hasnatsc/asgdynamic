@@ -24,9 +24,9 @@ class BusinessDocumentVisibilityTest {
 
     private static BusinessDocument document(Long team, Long warehouse) {
         BusinessDocument doc = new BusinessDocument();
-        doc.setBusinessUnitId(UNIT);
-        doc.setWarehouseId(warehouse);
-        doc.stampMarketingTeam(team);
+        doc.setBusinessUnit(DocumentRefs.unit(UNIT));
+        doc.setWarehouse(DocumentRefs.warehouse(warehouse));
+        doc.stampMarketingTeam(DocumentRefs.team(team));
         return doc;
     }
 

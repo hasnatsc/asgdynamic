@@ -44,7 +44,7 @@ class DeliveryOrderServiceTest {
         };
 
         ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);
-        service = new DeliveryOrderService(repository, numbering, parentDraw, context);
+        service = new DeliveryOrderService(repository, numbering, parentDraw, DocumentRefs.references(UNIT), context);
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -52,10 +52,10 @@ class DeliveryOrderServiceTest {
         BusinessDocument schedule = new BusinessDocument();
         schedule.setId(RPI_ID);
         schedule.setOrganizationId(ORG);
-        schedule.setBusinessUnitId(UNIT);
+        schedule.setBusinessUnit(DocumentRefs.unit(UNIT));
         schedule.setDocumentType(type);
         schedule.setDocumentNo("XAF000001");
-        schedule.setPartyId(55L);
+        schedule.setParty(DocumentRefs.party(55L));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
         colorLine.setId(RPI_COLOR_LINE_ID);
@@ -78,10 +78,10 @@ class DeliveryOrderServiceTest {
     private BusinessDocument dloRequest(BigDecimal quantity) {
         BusinessDocument dlo = new BusinessDocument();
         dlo.setDocumentDate(LocalDate.now());
-        dlo.setParentDocumentId(RPI_ID);
+        dlo.setParentDocument(DocumentRefs.document(RPI_ID));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
-        colorLine.setSourceColorLineId(RPI_COLOR_LINE_ID);
+        colorLine.setSourceColorLine(DocumentRefs.colorLine(RPI_COLOR_LINE_ID));
         colorLine.setQuantity(quantity);
 
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
@@ -96,7 +96,7 @@ class DeliveryOrderServiceTest {
 
         BusinessDocument dlo = service.save(dloRequest(new BigDecimal("150")));
 
-        assertThat(dlo.getPartyId()).isEqualTo(55L);
+        assertThat(DocumentRefs.id(dlo.getParty())).isEqualTo(55L);
         assertThat(onlyColorLine(rpi).getFulfilledQuantity()).isEqualByComparingTo("150");
     }
 

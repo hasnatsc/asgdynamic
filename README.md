@@ -27,6 +27,7 @@ costing/             CostingService — external fabric costing, server-side onl
 fabric/              setup · booking · productionorder · requestforpi · weavingworkorder ·
                      processingworkorder · greigereceive · deliveryorder · fabricsdelivery
 approval/            maker → checker → approver
+inventory/item/      item master + categories, UoM, HS codes, brands, models, yarn masters
 utility/datatable/   grid support
 resources/db/migration/  Flyway; V1 creates the document model, V6 corrects its shape
 ```
@@ -119,6 +120,28 @@ resolve. Details under **Security**, further down.
 template, routed by slug (`/setup/fabric/weave-type`). Adding a list means adding one
 `AttributeType` constant. Seeded with the 98 real values recovered from the live asgdynamic
 screens.
+
+**Item master** (`inventory/item`, V13) — SpindleERP's `inventory.item` package ported onto
+this project's conventions: one `InventoryItem` for every item type (the legacy system split it
+into seven screens over one table), the three-level category tree with its positional codes
+(`CAF110000` → `CAF111100` → `CAF111111`, the same shape as the legacy roots), units of measure,
+HS codes, brands, models, yarn types/counts/plies and fiber blends. Two screen grants:
+`ITEM` and `ITEM_SETUP`. The seven simple lists share one controller and one spec-driven
+template (`inventory/master`), the way the fabric lists do. Master codes come from
+`DocumentNumberService.nextCode` (`ITMAF000001`, `YTAF0001`) - SpindleERP's `MAX()+1` hands
+two concurrent callers the same code. Corrections, each enforced in the database too:
+
+- yarn attributes live on the item, not in a 1:1 `yarn_items` table; `ck_inv_item_yarn_spec`
+  makes "YARN if and only if type + count + ply + blend are all set" a database fact, and
+  `ux_inv_item_yarn_identity` stops two active yarns sharing that combination
+- one base unit per UoM category (`ux_inv_uom_base_per_category`); SpindleERP allowed two,
+  which makes every conversion factor in that category ambiguous
+- a category moves only if it has no children, only within its level, and is re-coded; SpindleERP
+  could turn a GROUP with children into an ITEM with children
+- item-level categories must name their item type; SpindleERP's form never sent one, so the
+  type filter on the category picker could never match
+- a blend that yarn items use cannot be re-composed; a fiber that blends use stays a fiber
+- items, brands, models and yarn masters carry approval with the same four-eyes rule as documents
 
 **Booking** (1st document type) — service (save, submit, revise, delete), controller
 (page + grid + detail + actions), Thymeleaf screen with the fabric line table.
@@ -226,13 +249,20 @@ concatenates its `ORDER BY` and `WHERE` over raw `JdbcTemplate`.
 - A real **5-hop sales chain** (Booking → BPO → RPI → Delivery Order → Fabrics Delivery)
   inserted and queried end to end, every hop's ledger correct, `CHECK` still enforced at
   full depth
+- **V1–V13 on an empty database, with `ddl-auto=validate`** — every item entity matches its
+  hand-written DDL. Through the running app's API: a category tree (`CAF111100`,
+  `CAF111111`), two fibers, a 60/40 blend named `60% Cotton 40% Viscose`, and a yarn named
+  `30/1 CD 60% Cotton 40% Viscose` (`ITMAF000003`); a duplicate yarn, a 90% blend, a fiber
+  filed under a yarn category, re-composing the in-use blend and deleting the fiber it uses
+  all refused with a readable message; a new yarn type numbered `YTAF0003`, after the two seeded
+- Written straight into the tables, bypassing Java: a yarn without its four attributes, a fiber
+  carrying one, a second identical yarn, a case-variant duplicate item name, a second base unit,
+  a 0% blend component and a root with a parent are each rejected by the database
 
-Java sources parse cleanly. **They have not been compiled and the tests have not run** —
-there is no Maven CLI on this machine, so dependencies were never resolved. Eleven test
-classes are written but unexecuted: document rules (now covering multi-colour groups),
-revision semantics (now covering per-colour reference fields), ceiling/release behaviour
-across all six draw-against-parent types, security context resolution, approval
-role/four-eyes checks.
+Compiled and tested with IntelliJ's bundled Maven (`plugins/maven/lib/maven3/bin/mvn`) on
+JDK 21: all 145 tests pass, 42 of them for the item master (category codes and tree rules,
+blend composition, yarn naming and identity, UoM base units, four-eyes approval, and the item
+screens rendered through the real security config and layout).
 
 ## Before it runs
 
@@ -326,7 +356,18 @@ every other secret in this project.
   `layout/main.html` and have not been moved onto it.
 - **Switching operating unit/store mid-session** — the header shows it read-only; see
   `FabricUser`'s javadoc.
-- **Party, item and UoM masters** — currently referenced by id only.
+- **Party master** — currently referenced by id only. Document line groups' `item_id` and
+  `uom_id` are still plain ids too: point them at `inv_items`/`inv_uoms` (with the FK and its
+  index) when a document screen first picks from `/api/lookup/inventory/items`.
+- **Fibers and blends.** V13 seeds the 19 legacy units, 13 HS codes, the brand and the yarn
+  type/count/ply lists; V14 the full legacy category tree (6 roots, 32 groups, 8 item-level
+  categories, codes exactly as issued - including `CAF111201` and the `SFB…` ones). The legacy
+  tree has no fiber category, so the four fibers (Viscose, Tencel, Cotton, Linen) and their
+  three blends still need an item-level FIBER category created first, then entry through the
+  screens. V14's item types on the item-level categories (Dyes/Chemicals → CHEMICALS, Yarn →
+  YARN, the three fabrics → FABRICS, the two MRO ones → MRO) are inferred from their names.
+- **Unit conversions to confirm:** V13 takes `Ton` as the metric tonne and `Gallon` as the US
+  gallon; the legacy list carried names only.
 - Purchase, store, commercial and accounts modules.
 
 Per-screen field and event inventories for all of it are in

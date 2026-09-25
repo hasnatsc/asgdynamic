@@ -54,7 +54,7 @@ class BookingServiceRevisionTest {
         // Real DocumentRevisionService over the same mocked repository/numbering, so the
         // revision behaviour under test is the actual shared logic, not a stand-in for it.
         DocumentRevisionService revisions = new DocumentRevisionService(repository, numbering);
-        service = new BookingService(repository, numbering, costing, revisions, context);
+        service = new BookingService(repository, numbering, costing, revisions, DocumentRefs.references(UNIT), context);
         when(numbering.next(DocumentType.BOOKING)).thenReturn("BKAF000002");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
@@ -63,11 +63,11 @@ class BookingServiceRevisionTest {
         BusinessDocument doc = new BusinessDocument();
         doc.setId(1L);
         doc.setOrganizationId(ORG);
-        doc.setBusinessUnitId(UNIT);
+        doc.setBusinessUnit(DocumentRefs.unit(UNIT));
         doc.setDocumentType(DocumentType.BOOKING);
         doc.setDocumentNo("BKAF000001");
         doc.setDocumentDate(LocalDate.of(2026, 1, 10));
-        doc.setPartyId(77L);
+        doc.setParty(DocumentRefs.party(77L));
         doc.setCurrencyCode("USD");
 
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
@@ -142,7 +142,7 @@ class BookingServiceRevisionTest {
         BusinessDocument revision = service.revise(1L, "reason");
 
         assertThat(revision.getRevisionNo()).isEqualTo(1);
-        assertThat(revision.getRevisionOfId()).isEqualTo(1L);
+        assertThat(DocumentRefs.id(revision.getRevisionOf())).isEqualTo(1L);
         assertThat(revision.getDocumentNo()).isEqualTo("BKAF000002");
         assertThat(revision.getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
     }
@@ -152,12 +152,12 @@ class BookingServiceRevisionTest {
         BusinessDocument firstRevision = new BusinessDocument();
         firstRevision.setId(2L);
         firstRevision.setOrganizationId(ORG);
-        firstRevision.setBusinessUnitId(UNIT);
+        firstRevision.setBusinessUnit(DocumentRefs.unit(UNIT));
         firstRevision.setDocumentType(DocumentType.BOOKING);
         firstRevision.setDocumentNo("BKAF000002");
         firstRevision.setDocumentDate(LocalDate.now());
         firstRevision.setRevisionNo(1);
-        firstRevision.setRevisionOfId(1L);          // root
+        firstRevision.setRevisionOf(DocumentRefs.document(1L));          // root
         firstRevision.transitionTo(BusinessDocumentStatus.SUBMITTED);
         firstRevision.transitionTo(BusinessDocumentStatus.APPROVED);
         when(repository.findScopedWithLines(2L, ORG)).thenReturn(Optional.of(firstRevision));
@@ -166,7 +166,7 @@ class BookingServiceRevisionTest {
 
         assertThat(second.getRevisionNo()).isEqualTo(2);
         // Lineage stays flat: every revision points at the root, so no chain walking.
-        assertThat(second.getRevisionOfId()).isEqualTo(1L);
+        assertThat(DocumentRefs.id(second.getRevisionOf())).isEqualTo(1L);
     }
 
     @Test

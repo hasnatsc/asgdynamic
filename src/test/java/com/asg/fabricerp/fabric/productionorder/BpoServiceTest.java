@@ -50,7 +50,7 @@ class BpoServiceTest {
         };
 
         ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);
-        service = new BpoService(repository, numbering, costing, revisions, parentDraw, context);
+        service = new BpoService(repository, numbering, costing, revisions, parentDraw, DocumentRefs.references(UNIT), context);
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -59,10 +59,10 @@ class BpoServiceTest {
         BusinessDocument booking = new BusinessDocument();
         booking.setId(BOOKING_ID);
         booking.setOrganizationId(ORG);
-        booking.setBusinessUnitId(UNIT);
+        booking.setBusinessUnit(DocumentRefs.unit(UNIT));
         booking.setDocumentType(DocumentType.BOOKING);
         booking.setDocumentNo("BKAF000001");
-        booking.setPartyId(42L);
+        booking.setParty(DocumentRefs.party(42L));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
         colorLine.setId(BOOKING_COLOR_LINE_ID);
@@ -85,10 +85,10 @@ class BpoServiceTest {
     private BusinessDocument bpoRequest(BigDecimal quantity) {
         BusinessDocument bpo = new BusinessDocument();
         bpo.setDocumentDate(LocalDate.now());
-        bpo.setParentDocumentId(BOOKING_ID);
+        bpo.setParentDocument(DocumentRefs.document(BOOKING_ID));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
-        colorLine.setSourceColorLineId(BOOKING_COLOR_LINE_ID);
+        colorLine.setSourceColorLine(DocumentRefs.colorLine(BOOKING_COLOR_LINE_ID));
         colorLine.setQuantity(quantity);
         colorLine.setRate(new BigDecimal("2"));
 
@@ -105,8 +105,8 @@ class BpoServiceTest {
         BusinessDocument bpo = service.save(bpoRequest(new BigDecimal("600")));
 
         assertThat(bpo.getDocumentType()).isEqualTo(DocumentType.BULK_PRODUCTION_ORDER);
-        assertThat(bpo.getParentDocumentId()).isEqualTo(BOOKING_ID);
-        assertThat(bpo.getPartyId()).isEqualTo(42L);   // inherited from the booking
+        assertThat(DocumentRefs.id(bpo.getParentDocument())).isEqualTo(BOOKING_ID);
+        assertThat(DocumentRefs.id(bpo.getParty())).isEqualTo(42L);   // inherited from the booking
 
         BusinessDocumentColorLine bookingLine = onlyColorLine(booking);
         assertThat(bookingLine.getFulfilledQuantity()).isEqualByComparingTo("600");
@@ -177,7 +177,7 @@ class BpoServiceTest {
         bookingWithOpenLine(new BigDecimal("1000"));
 
         BusinessDocument request = bpoRequest(new BigDecimal("100"));
-        request.getLineGroups().get(0).getColorLines().get(0).setSourceColorLineId(999999L);   // not on this booking
+        request.getLineGroups().get(0).getColorLines().get(0).setSourceColorLine(DocumentRefs.colorLine(999999L));   // not on this booking
 
         assertThatThrownBy(() -> service.save(request))
             .isInstanceOf(IllegalArgumentException.class)
@@ -187,7 +187,7 @@ class BpoServiceTest {
     @Test
     void refusesToCreateWithoutNamingABooking() {
         BusinessDocument orphan = bpoRequest(new BigDecimal("100"));
-        orphan.setParentDocumentId(null);
+        orphan.setParentDocument(null);
 
         assertThatThrownBy(() -> service.save(orphan))
             .isInstanceOf(IllegalArgumentException.class)

@@ -40,8 +40,10 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
      * moved here because the real drawable unit is a colour line, not a fabric-spec group
      * (a BPO can commit less than the full colour breakdown of a Booking line).
      */
-    @Column(name = "source_color_line_id")
-    private Long sourceColorLineId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_color_line_id",
+                foreignKey = @ForeignKey(name = "fk_gbdcl_source_color_line"))
+    private BusinessDocumentColorLine sourceColorLine;
 
     @Column(name = "color_code", length = 40)
     private String colorCode;
@@ -101,8 +103,8 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
     public void setLineGroup(BusinessDocumentLineGroup v){ this.lineGroup = v; }
     public Integer getColorLineNo()                      { return colorLineNo; }
     public void setColorLineNo(Integer v)                { this.colorLineNo = v; }
-    public Long getSourceColorLineId()                   { return sourceColorLineId; }
-    public void setSourceColorLineId(Long v)             { this.sourceColorLineId = v; }
+    public BusinessDocumentColorLine getSourceColorLine() { return sourceColorLine; }
+    public void setSourceColorLine(BusinessDocumentColorLine v) { this.sourceColorLine = v; }
     public String getColorCode()                         { return colorCode; }
     public void setColorCode(String v)                   { this.colorCode = v; }
     public String getColorName()                         { return colorName; }

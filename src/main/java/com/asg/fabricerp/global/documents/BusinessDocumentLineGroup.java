@@ -1,6 +1,8 @@
 package com.asg.fabricerp.global.documents;
 
 import com.asg.fabricerp.common.BaseOrgLineEntity;
+import com.asg.fabricerp.inventory.item.InventoryItem;
+import com.asg.fabricerp.inventory.item.UnitOfMeasure;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
 
@@ -24,6 +26,7 @@ import java.util.Objects;
     indexes = {
         @Index(name = "ix_gbdlg_document", columnList = "document_id"),
         @Index(name = "ix_gbdlg_item",     columnList = "item_id"),
+        @Index(name = "ix_gbdlg_uom",      columnList = "uom_id"),
         @Index(name = "ix_gbdlg_org",      columnList = "organization_id")
     })
 public class BusinessDocumentLineGroup extends BaseOrgLineEntity {
@@ -36,11 +39,13 @@ public class BusinessDocumentLineGroup extends BaseOrgLineEntity {
     @Column(name = "group_no", nullable = false)
     private Integer groupNo = 0;
 
-    @Column(name = "item_id")
-    private Long itemId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_id", foreignKey = @ForeignKey(name = "fk_gbdlg_item"))
+    private InventoryItem item;
 
-    @Column(name = "uom_id")
-    private Long uomId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "uom_id", foreignKey = @ForeignKey(name = "fk_gbdlg_uom"))
+    private UnitOfMeasure uom;
 
     @Embedded
     private FabricSpec fabric = new FabricSpec();
@@ -53,10 +58,10 @@ public class BusinessDocumentLineGroup extends BaseOrgLineEntity {
     public void setDocument(BusinessDocument d)        { this.document = d; }
     public Integer getGroupNo()                        { return groupNo; }
     public void setGroupNo(Integer v)                  { this.groupNo = v; }
-    public Long getItemId()                            { return itemId; }
-    public void setItemId(Long v)                      { this.itemId = v; }
-    public Long getUomId()                             { return uomId; }
-    public void setUomId(Long v)                       { this.uomId = v; }
+    public InventoryItem getItem()                     { return item; }
+    public void setItem(InventoryItem v)               { this.item = v; }
+    public UnitOfMeasure getUom()                      { return uom; }
+    public void setUom(UnitOfMeasure v)                { this.uom = v; }
     public FabricSpec getFabric()                      { return fabric; }
     public void setFabric(FabricSpec v)                { this.fabric = v == null ? new FabricSpec() : v; }
     public List<BusinessDocumentColorLine> getColorLines() { return colorLines; }

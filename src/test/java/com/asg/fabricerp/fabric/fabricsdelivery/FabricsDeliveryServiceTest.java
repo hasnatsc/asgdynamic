@@ -41,7 +41,7 @@ class FabricsDeliveryServiceTest {
         };
 
         ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);
-        service = new FabricsDeliveryService(repository, numbering, parentDraw, context);
+        service = new FabricsDeliveryService(repository, numbering, parentDraw, DocumentRefs.references(UNIT), context);
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -49,7 +49,7 @@ class FabricsDeliveryServiceTest {
         BusinessDocument dlo = new BusinessDocument();
         dlo.setId(DLO_ID);
         dlo.setOrganizationId(ORG);
-        dlo.setBusinessUnitId(UNIT);
+        dlo.setBusinessUnit(DocumentRefs.unit(UNIT));
         dlo.setDocumentType(DocumentType.DELIVERY_ORDER);
         dlo.setDocumentNo("DOAF000002");
 
@@ -74,10 +74,10 @@ class FabricsDeliveryServiceTest {
     private BusinessDocument fdRequest(BigDecimal quantity) {
         BusinessDocument fd = new BusinessDocument();
         fd.setDocumentDate(LocalDate.now());
-        fd.setParentDocumentId(DLO_ID);
+        fd.setParentDocument(DocumentRefs.document(DLO_ID));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
-        colorLine.setSourceColorLineId(DLO_COLOR_LINE_ID);
+        colorLine.setSourceColorLine(DocumentRefs.colorLine(DLO_COLOR_LINE_ID));
         colorLine.setQuantity(quantity);
 
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();

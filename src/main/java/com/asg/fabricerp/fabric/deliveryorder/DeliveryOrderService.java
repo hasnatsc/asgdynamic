@@ -30,15 +30,18 @@ public class DeliveryOrderService {
     private final BusinessDocumentRepository repository;
     private final DocumentNumberService numbering;
     private final ParentLineDrawService parentDraw;
+    private final DocumentReferences references;
     private final OrgContext context;
 
     public DeliveryOrderService(BusinessDocumentRepository repository,
                                 DocumentNumberService numbering,
                                 ParentLineDrawService parentDraw,
+                                DocumentReferences references,
                                 OrgContext context) {
         this.repository = repository;
         this.numbering = numbering;
         this.parentDraw = parentDraw;
+        this.references = references;
         this.context = context;
     }
 
@@ -71,23 +74,25 @@ public class DeliveryOrderService {
     }
 
     private BusinessDocument create(BusinessDocument submitted) {
-        BusinessDocument schedule = parentDraw.loadParent(submitted.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument schedule = parentDraw.loadParent(submitted.getParentDocument(), PARENT_TYPE);
 
         submitted.setDocumentType(TYPE);
         submitted.setOrganizationId(context.requireOrganizationId());
-        submitted.setBusinessUnitId(context.requireBusinessUnitId());
-        submitted.setParentDocumentId(schedule.getId());
-        submitted.stampMarketingTeam(schedule.getMarketingTeamId());   // ADM-7: the team travels downstream
+        submitted.setBusinessUnit(references.currentBusinessUnit());
+        submitted.setParentDocument(schedule);
+        submitted.stampMarketingTeam(schedule.getMarketingTeam());   // ADM-7: the team travels downstream
         submitted.setDocumentNo(numbering.next(TYPE));
         if (submitted.getDocumentDate() == null) {
             submitted.setDocumentDate(LocalDate.now());
         }
-        if (submitted.getPartyId() == null) {
-            submitted.setPartyId(schedule.getPartyId());
+        if (submitted.getParty() == null) {
+            submitted.setParty(schedule.getParty());
         }
 
         parentDraw.draw(schedule, submitted.getLineGroups());
         parentDraw.save(schedule);
+
+        references.resolve(submitted);
 
         submitted.recalculateTotals();
         return repository.save(submitted);
@@ -97,7 +102,7 @@ public class DeliveryOrderService {
         BusinessDocument target = get(submitted.getId());
         target.assertEditable();
 
-        BusinessDocument schedule = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument schedule = parentDraw.loadParent(target.getParentDocument(), PARENT_TYPE);
         parentDraw.release(schedule, target.getLineGroups());
 
         applyHeader(submitted, target);
@@ -105,6 +110,8 @@ public class DeliveryOrderService {
 
         parentDraw.draw(schedule, target.getLineGroups());
         parentDraw.save(schedule);
+
+        references.resolve(target);
 
         target.recalculateTotals();
         return repository.save(target);
@@ -115,7 +122,7 @@ public class DeliveryOrderService {
         BusinessDocument doc = get(id);
         doc.assertEditable();
 
-        BusinessDocument schedule = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument schedule = parentDraw.loadParent(doc.getParentDocument(), PARENT_TYPE);
         parentDraw.release(schedule, doc.getLineGroups());
         parentDraw.save(schedule);
 
@@ -127,6 +134,6 @@ public class DeliveryOrderService {
         to.setDocumentDate(from.getDocumentDate());
         to.setRequiredDate(from.getRequiredDate());
         to.setRemarks(from.getRemarks());
-        to.setWarehouseId(from.getWarehouseId());
+        to.setWarehouse(from.getWarehouse());
     }
 }

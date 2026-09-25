@@ -27,7 +27,7 @@ class BusinessDocumentTest {
     private BusinessDocument booking() {
         BusinessDocument doc = new BusinessDocument();
         doc.setOrganizationId(1L);
-        doc.setBusinessUnitId(10L);
+        doc.setBusinessUnit(DocumentRefs.unit(10L));
         doc.setDocumentType(DocumentType.BOOKING);
         doc.setDocumentNo("BKAF000001");
         doc.setDocumentDate(LocalDate.of(2026, 9, 24));

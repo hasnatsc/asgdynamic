@@ -1,5 +1,7 @@
 package com.asg.fabricerp.global.documents;
 
+import com.asg.fabricerp.party.PartyRoleType;
+
 /**
  * Every document the system issues, in one enum — SpindleERP's central idea, carried over.
  *
@@ -151,6 +153,24 @@ public enum DocumentType {
             || this == GREIGE_RECEIVE
             || this == GREIGE_ISSUE
             || this == FINISHED_FABRICS_RECEIVE;
+    }
+
+    /**
+     * The role a party must hold to be named on this type - asfl-erp's
+     * {@code DocumentType.requiredPartyRole}, which {@code DocumentReferences} enforces on save.
+     * Sales and production documents name the customer the fabric is for (downstream ones inherit
+     * it from their parent); purchase documents name a supplier. Store and commercial documents
+     * name none until one is built and says otherwise - the commercial family needs both a
+     * customer (export) and a supplier (import), so it cannot be decided by family alone.
+     *
+     * @return null when the type does not constrain its party
+     */
+    public PartyRoleType requiredPartyRole() {
+        return switch (family) {
+            case SALES, PRODUCTION -> PartyRoleType.CUSTOMER;
+            case PURCHASE -> PartyRoleType.SUPPLIER;
+            case STORE, COMMERCIAL -> null;
+        };
     }
 
     /** Types that carry a revision lineage. Fabric sales documents are revised, not edited. */

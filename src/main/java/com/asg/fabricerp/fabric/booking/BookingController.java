@@ -1,5 +1,7 @@
 package com.asg.fabricerp.fabric.booking;
 
+import static com.asg.fabricerp.common.AuditableEntity.idOf;
+
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
@@ -137,7 +139,7 @@ public class BookingController {
 
     private static Map<String, Object> toDetail(BusinessDocument d) {
         Map<String, Object> detail = new LinkedHashMap<>(toRow(d));
-        detail.put("partyId", d.getPartyId());
+        detail.put("partyId", idOf(d.getParty()));
         detail.put("remarks", d.getRemarks() == null ? "" : d.getRemarks());
         detail.put("lineGroups", d.getLineGroups().stream().map(BookingController::toGroup).toList());
         return detail;

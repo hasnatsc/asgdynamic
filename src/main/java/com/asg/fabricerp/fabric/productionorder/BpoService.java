@@ -20,7 +20,7 @@ import java.util.List;
  * chosen because it is genuinely different from Booking rather than a copy: a BPO line
  * draws against a specific Booking line's outstanding quantity ({@code transaction_qty_so}
  * alongside {@code transactionQty} in the legacy {@code productionOrder} screen). That
- * needed a real model change — {@link BusinessDocumentColorLine#getSourceColorLineId()} — not a
+ * needed a real model change — {@link BusinessDocumentColorLine#getSourceColorLine()} — not a
  * workaround, which is the outcome worth having: the gap showed up here instead of in
  * production.
  *
@@ -40,6 +40,7 @@ public class BpoService {
     private final CostingService costing;
     private final DocumentRevisionService revisions;
     private final ParentLineDrawService parentDraw;
+    private final DocumentReferences references;
     private final OrgContext context;
 
     public BpoService(BusinessDocumentRepository repository,
@@ -47,12 +48,14 @@ public class BpoService {
                       CostingService costing,
                       DocumentRevisionService revisions,
                       ParentLineDrawService parentDraw,
+                      DocumentReferences references,
                       OrgContext context) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
         this.revisions = revisions;
         this.parentDraw = parentDraw;
+        this.references = references;
         this.context = context;
     }
 
@@ -85,25 +88,26 @@ public class BpoService {
     }
 
     private BusinessDocument create(BusinessDocument submitted) {
-        BusinessDocument booking = parentDraw.loadParent(submitted.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument booking = parentDraw.loadParent(submitted.getParentDocument(), PARENT_TYPE);
 
         submitted.setDocumentType(TYPE);
         submitted.setOrganizationId(context.requireOrganizationId());
-        submitted.setBusinessUnitId(context.requireBusinessUnitId());
-        submitted.setParentDocumentId(booking.getId());
-        submitted.stampMarketingTeam(booking.getMarketingTeamId());   // ADM-7: the team travels downstream
+        submitted.setBusinessUnit(references.currentBusinessUnit());
+        submitted.setParentDocument(booking);
+        submitted.stampMarketingTeam(booking.getMarketingTeam());   // ADM-7: the team travels downstream
         submitted.setDocumentNo(numbering.next(TYPE));
         if (submitted.getDocumentDate() == null) {
             submitted.setDocumentDate(LocalDate.now());
         }
-        if (submitted.getPartyId() == null) {
-            submitted.setPartyId(booking.getPartyId());
+        if (submitted.getParty() == null) {
+            submitted.setParty(booking.getParty());
         }
 
         parentDraw.draw(booking, submitted.getLineGroups());
         parentDraw.save(booking);
 
         refreshCostingFigures(submitted);
+        references.resolve(submitted);
         submitted.recalculateTotals();
         return repository.save(submitted);
     }
@@ -112,7 +116,7 @@ public class BpoService {
         BusinessDocument target = get(submitted.getId());
         target.assertEditable();
 
-        BusinessDocument booking = parentDraw.loadParent(target.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument booking = parentDraw.loadParent(target.getParentDocument(), PARENT_TYPE);
         parentDraw.release(booking, target.getLineGroups());
 
         applyHeader(submitted, target);
@@ -122,6 +126,7 @@ public class BpoService {
         parentDraw.save(booking);
 
         refreshCostingFigures(target);
+        references.resolve(target);
         target.recalculateTotals();
         return repository.save(target);
     }
@@ -143,7 +148,7 @@ public class BpoService {
         BusinessDocument doc = get(id);
         doc.assertEditable();
 
-        BusinessDocument booking = parentDraw.loadParent(doc.getParentDocumentId(), PARENT_TYPE);
+        BusinessDocument booking = parentDraw.loadParent(doc.getParentDocument(), PARENT_TYPE);
         parentDraw.release(booking, doc.getLineGroups());
         parentDraw.save(booking);
 
@@ -155,7 +160,7 @@ public class BpoService {
         to.setDocumentDate(from.getDocumentDate());
         to.setRequiredDate(from.getRequiredDate());
         to.setRemarks(from.getRemarks());
-        to.setWarehouseId(from.getWarehouseId());
+        to.setWarehouse(from.getWarehouse());
         // partyId, currency and parentDocumentId are set once at creation from the Booking
         // and never move on an edit.
     }

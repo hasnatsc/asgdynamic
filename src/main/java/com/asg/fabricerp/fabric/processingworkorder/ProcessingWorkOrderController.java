@@ -1,5 +1,7 @@
 package com.asg.fabricerp.fabric.processingworkorder;
 
+import static com.asg.fabricerp.common.AuditableEntity.idOf;
+
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
@@ -103,7 +105,7 @@ public class ProcessingWorkOrderController {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", d.getId());
         row.put("documentNo", d.getDocumentNo());
-        row.put("bpoId", d.getParentDocumentId());
+        row.put("bpoId", idOf(d.getParentDocument()));
         row.put("documentDate", d.getDocumentDate() == null ? "" : d.getDocumentDate().toString());
         row.put("totalQuantity", d.getTotalQuantity());
         row.put("status", d.getStatus().name());
@@ -133,7 +135,7 @@ public class ProcessingWorkOrderController {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", l.getId());
         row.put("colorLineNo", l.getColorLineNo());
-        row.put("sourceColorLineId", l.getSourceColorLineId());
+        row.put("sourceColorLineId", idOf(l.getSourceColorLine()));
         row.put("colorName", l.getColorName());
         row.put("quantity", l.getQuantity());
         return row;

@@ -1,7 +1,11 @@
 package com.asg.fabricerp.global.documents;
 
 import com.asg.fabricerp.common.BaseOrgEntity;
+import com.asg.fabricerp.common.BusinessUnit;
+import com.asg.fabricerp.common.MarketingTeam;
 import com.asg.fabricerp.common.RowScope;
+import com.asg.fabricerp.common.Warehouse;
+import com.asg.fabricerp.party.Party;
 import com.asg.fabricerp.common.ScopeDimension;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
@@ -33,7 +37,7 @@ import java.util.List;
  *   <li><b>Totals are derived, not set.</b> {@code subtotalAmount} and friends have no public
  *       setters; {@link #recalculateTotals()} owns them. asgdynamic computed these in the
  *       browser and POSTed the result.</li>
- *   <li><b>Revision lineage is explicit</b> ({@code revisionNo} + {@code revisionOfId}) rather
+ *   <li><b>Revision lineage is explicit</b> ({@code revisionNo} + {@code revisionOf}) rather
  *       than a separate controller per revisable document.</li>
  * </ul>
  */
@@ -50,7 +54,9 @@ import java.util.List;
         @Index(name = "ix_gbd_parent",          columnList = "parent_document_id"),
         @Index(name = "ix_gbd_revision_of",     columnList = "revision_of_id"),
         @Index(name = "ix_gbd_document_date",   columnList = "document_date"),
-        @Index(name = "ix_gbd_marketing_team",  columnList = "marketing_team_id")
+        @Index(name = "ix_gbd_marketing_team",  columnList = "marketing_team_id"),
+        @Index(name = "ix_gbd_business_unit",   columnList = "business_unit_id"),
+        @Index(name = "ix_gbd_warehouse",       columnList = "warehouse_id")
     })
 public class BusinessDocument extends BaseOrgEntity {
 
@@ -69,11 +75,16 @@ public class BusinessDocument extends BaseOrgEntity {
     @Column(nullable = false, length = 30)
     private BusinessDocumentStatus status = BusinessDocumentStatus.DRAFT;
 
-    @Column(name = "business_unit_id", nullable = false)
-    private Long businessUnitId;
+    /** Stamped by the service from the caller's operating unit, never taken from the request. */
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "business_unit_id", nullable = false,
+                foreignKey = @ForeignKey(name = "fk_gbd_business_unit"))
+    private BusinessUnit businessUnit;
 
-    @Column(name = "warehouse_id")
-    private Long warehouseId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id", foreignKey = @ForeignKey(name = "fk_gbd_warehouse"))
+    private Warehouse warehouse;
 
     @Column(name = "document_date", nullable = false)
     private LocalDate documentDate;
@@ -81,13 +92,18 @@ public class BusinessDocument extends BaseOrgEntity {
     @Column(name = "required_date")
     private LocalDate requiredDate;
 
-    /** Customer or supplier, depending on {@link DocumentType#family()}. */
-    @Column(name = "party_id")
-    private Long partyId;
+    /**
+     * Customer or supplier - whichever {@link DocumentType#requiredPartyRole()} demands, checked
+     * on save by {@link DocumentReferences}.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "party_id", foreignKey = @ForeignKey(name = "fk_gbd_party"))
+    private Party party;
 
     /** Upstream document: BPO -> Booking, Rout Card -> BPO, MRR -> PO. */
-    @Column(name = "parent_document_id")
-    private Long parentDocumentId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_document_id", foreignKey = @ForeignKey(name = "fk_gbd_parent"))
+    private BusinessDocument parentDocument;
 
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode = "BDT";
@@ -104,14 +120,18 @@ public class BusinessDocument extends BaseOrgEntity {
      * the team is decided by the server, never submitted.
      */
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    @Column(name = "marketing_team_id")
-    private Long marketingTeamId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "marketing_team_id", foreignKey = @ForeignKey(name = "fk_gbd_marketing_team"))
+    private MarketingTeam marketingTeam;
 
     @Column(name = "revision_no", nullable = false)
     private Integer revisionNo = 0;
 
-    @Column(name = "revision_of_id")
-    private Long revisionOfId;
+    /** The root of this document's revision chain. Set by {@link DocumentRevisionService} only. */
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "revision_of_id", foreignKey = @ForeignKey(name = "fk_gbd_revision_of"))
+    private BusinessDocument revisionOf;
 
     @Column(name = "remarks", length = 1000)
     private String remarks;
@@ -134,28 +154,28 @@ public class BusinessDocument extends BaseOrgEntity {
     public DocumentType getDocumentType()       { return documentType; }
     public void setDocumentType(DocumentType v) { this.documentType = v; }
     public BusinessDocumentStatus getStatus()   { return status; }
-    public Long getBusinessUnitId()             { return businessUnitId; }
-    public void setBusinessUnitId(Long v)       { this.businessUnitId = v; }
-    public Long getWarehouseId()                { return warehouseId; }
-    public void setWarehouseId(Long v)          { this.warehouseId = v; }
+    public BusinessUnit getBusinessUnit()       { return businessUnit; }
+    public void setBusinessUnit(BusinessUnit v) { this.businessUnit = v; }
+    public Warehouse getWarehouse()             { return warehouse; }
+    public void setWarehouse(Warehouse v)       { this.warehouse = v; }
     public LocalDate getDocumentDate()          { return documentDate; }
     public void setDocumentDate(LocalDate v)    { this.documentDate = v; }
     public LocalDate getRequiredDate()          { return requiredDate; }
     public void setRequiredDate(LocalDate v)    { this.requiredDate = v; }
-    public Long getPartyId()                    { return partyId; }
-    public void setPartyId(Long v)              { this.partyId = v; }
-    public Long getParentDocumentId()           { return parentDocumentId; }
-    public void setParentDocumentId(Long v)     { this.parentDocumentId = v; }
+    public Party getParty()                     { return party; }
+    public void setParty(Party v)               { this.party = v; }
+    public BusinessDocument getParentDocument() { return parentDocument; }
+    public void setParentDocument(BusinessDocument v) { this.parentDocument = v; }
     public String getCurrencyCode()             { return currencyCode; }
     public void setCurrencyCode(String v)       { this.currencyCode = v; }
     public BigDecimal getExchangeRate()         { return exchangeRate; }
     public void setExchangeRate(BigDecimal v)   { this.exchangeRate = v; }
-    public Long getMarketingTeamId()            { return marketingTeamId; }
-    public void stampMarketingTeam(Long v)      { this.marketingTeamId = v; }
+    public MarketingTeam getMarketingTeam()     { return marketingTeam; }
+    public void stampMarketingTeam(MarketingTeam v) { this.marketingTeam = v; }
     public Integer getRevisionNo()              { return revisionNo; }
     public void setRevisionNo(Integer v)        { this.revisionNo = v; }
-    public Long getRevisionOfId()               { return revisionOfId; }
-    public void setRevisionOfId(Long v)         { this.revisionOfId = v; }
+    public BusinessDocument getRevisionOf()     { return revisionOf; }
+    public void setRevisionOf(BusinessDocument v) { this.revisionOf = v; }
     public String getRemarks()                  { return remarks; }
     public void setRemarks(String v)            { this.remarks = v; }
     public BigDecimal getSubtotalAmount()       { return subtotalAmount; }
@@ -174,9 +194,9 @@ public class BusinessDocument extends BaseOrgEntity {
      * team-restricted user sees their own team's work and nothing else.
      */
     public boolean isVisibleTo(RowScope scope) {
-        return scope.permits(ScopeDimension.BUSINESS_UNIT, businessUnitId)
-            && (warehouseId == null || scope.permits(ScopeDimension.WAREHOUSE, warehouseId))
-            && scope.permits(ScopeDimension.MARKETING_TEAM, marketingTeamId);
+        return scope.permits(ScopeDimension.BUSINESS_UNIT, idOf(businessUnit))
+            && (warehouse == null || scope.permits(ScopeDimension.WAREHOUSE, idOf(warehouse)))
+            && scope.permits(ScopeDimension.MARKETING_TEAM, idOf(marketingTeam));
     }
 
     public void setLineGroups(List<BusinessDocumentLineGroup> incoming) {

@@ -1,5 +1,7 @@
 package com.asg.fabricerp.fabric.productionorder;
 
+import static com.asg.fabricerp.common.AuditableEntity.idOf;
+
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
@@ -124,7 +126,7 @@ public class BpoController {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", d.getId());
         row.put("documentNo", d.getDocumentNo());
-        row.put("bookingId", d.getParentDocumentId());
+        row.put("bookingId", idOf(d.getParentDocument()));
         row.put("documentDate", d.getDocumentDate() == null ? "" : d.getDocumentDate().toString());
         row.put("totalQuantity", d.getTotalQuantity());
         row.put("subtotalAmount", d.getSubtotalAmount());
@@ -160,7 +162,7 @@ public class BpoController {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", l.getId());
         row.put("colorLineNo", l.getColorLineNo());
-        row.put("sourceColorLineId", l.getSourceColorLineId());
+        row.put("sourceColorLineId", idOf(l.getSourceColorLine()));
         row.put("colorCode", l.getColorCode());
         row.put("colorName", l.getColorName());
         row.put("quantity", l.getQuantity());

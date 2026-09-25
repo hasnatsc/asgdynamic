@@ -58,7 +58,7 @@
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
                 <label class="label" for="parentDocumentId">Against Request-for-PI</label>
-                <select id="parentDocumentId" class="field" th:field="*{parentDocumentId}"
+                <select id="parentDocumentId" class="field" name="parentDocument.id"
                         data-lookup="requestforpi" data-action="dlo-schedule-selected"></select>
             </div>
             <div>
@@ -101,7 +101,7 @@
                         <tr th:each="line, li : ${group.colorLines}">
                             <td>
                                 <select class="field" data-role="source-line-picker"
-                                        th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].sourceColorLineId}"></select>
+                                        th:name="|lineGroups[${gi.index}].colorLines[${li.index}].sourceColorLine.id|"></select>
                             </td>
                             <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorName}"></td>
                             <td><input type="number" step="0.0001" class="field text-right"

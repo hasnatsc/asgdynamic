@@ -80,6 +80,14 @@ class ItemCategoryServiceTest {
     }
 
     @Test
+    void theLegacyTreesIrregularCodesAreNumberedAfter_notCollidedWith() {
+        // CAF111201 started its group at 01; the next child follows it rather than jumping to 11.
+        assertThat(ItemCategoryService.nextSequence(List.of("CAF111201"), 4)).isEqualTo(2);
+        // SFB121113 sits under a CAF group; only its digits count.
+        assertThat(ItemCategoryService.nextSequence(List.of("CAF121111", "CAF121112", "SFB121113"), 4)).isEqualTo(14);
+    }
+
+    @Test
     void aLevelRunsOutAfterNinetyNine() {
         assertThatThrownBy(() -> ItemCategoryService.nextSequence(List.of("CAF990000"), 0))
             .isInstanceOf(IllegalStateException.class);

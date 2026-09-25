@@ -42,7 +42,7 @@ class ProcessingWorkOrderServiceTest {
         };
 
         ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);
-        service = new ProcessingWorkOrderService(repository, numbering, parentDraw, context);
+        service = new ProcessingWorkOrderService(repository, numbering, parentDraw, DocumentRefs.references(UNIT), context);
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -50,7 +50,7 @@ class ProcessingWorkOrderServiceTest {
         BusinessDocument bpo = new BusinessDocument();
         bpo.setId(BPO_ID);
         bpo.setOrganizationId(ORG);
-        bpo.setBusinessUnitId(UNIT);
+        bpo.setBusinessUnit(DocumentRefs.unit(UNIT));
         bpo.setDocumentType(DocumentType.BULK_PRODUCTION_ORDER);
         bpo.setDocumentNo("BPOAF000002");
 
@@ -75,10 +75,10 @@ class ProcessingWorkOrderServiceTest {
     private BusinessDocument woRequest(BigDecimal quantity) {
         BusinessDocument wo = new BusinessDocument();
         wo.setDocumentDate(LocalDate.now());
-        wo.setParentDocumentId(BPO_ID);
+        wo.setParentDocument(DocumentRefs.document(BPO_ID));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
-        colorLine.setSourceColorLineId(BPO_COLOR_LINE_ID);
+        colorLine.setSourceColorLine(DocumentRefs.colorLine(BPO_COLOR_LINE_ID));
         colorLine.setQuantity(quantity);
 
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();

@@ -5,7 +5,7 @@
   GROUP per row, each with a nested colour-breakdown table. The addition here is the "From
   Booking" picker — selecting a booking loads its open colour lines via
   /api/bpo/booking-lines/{bookingId}, and each colour's Source column binds to one of them
-  (BusinessDocumentColorLine.sourceColorLineId).
+  (BusinessDocumentColorLine.sourceColorLine).
 -->
 <head>
     <title>Bulk Production Order</title>
@@ -66,7 +66,7 @@
             <div>
                 <label class="label" for="parentDocumentId">From Booking</label>
                 <!-- Selecting a booking populates the source-colour picker in each row below -->
-                <select id="parentDocumentId" class="field" th:field="*{parentDocumentId}"
+                <select id="parentDocumentId" class="field" name="parentDocument.id"
                         data-lookup="booking" data-action="bpo-booking-selected"></select>
             </div>
             <div>
@@ -127,7 +127,7 @@
                         <tr th:each="line, li : ${group.colorLines}">
                             <td>
                                 <select class="field" data-role="source-line-picker"
-                                        th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].sourceColorLineId}"></select>
+                                        th:name="|lineGroups[${gi.index}].colorLines[${li.index}].sourceColorLine.id|"></select>
                             </td>
                             <td><input class="field" th:field="*{lineGroups[__${gi.index}__].colorLines[__${li.index}__].colorName}"></td>
                             <td><input type="number" step="0.0001" class="field text-right"

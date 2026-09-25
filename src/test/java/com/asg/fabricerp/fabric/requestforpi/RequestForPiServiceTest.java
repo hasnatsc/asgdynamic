@@ -51,7 +51,7 @@ class RequestForPiServiceTest {
         };
 
         ParentLineDrawService parentDraw = new ParentLineDrawService(repository, context);
-        service = new RequestForPiService(repository, numbering, revisions, parentDraw, context);
+        service = new RequestForPiService(repository, numbering, revisions, parentDraw, DocumentRefs.references(UNIT), context);
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -59,10 +59,10 @@ class RequestForPiServiceTest {
         BusinessDocument bpo = new BusinessDocument();
         bpo.setId(BPO_ID);
         bpo.setOrganizationId(ORG);
-        bpo.setBusinessUnitId(UNIT);
+        bpo.setBusinessUnit(DocumentRefs.unit(UNIT));
         bpo.setDocumentType(DocumentType.BULK_PRODUCTION_ORDER);
         bpo.setDocumentNo("BPOAF000001");
-        bpo.setPartyId(88L);
+        bpo.setParty(DocumentRefs.party(88L));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
         colorLine.setId(BPO_COLOR_LINE_ID);
@@ -85,10 +85,10 @@ class RequestForPiServiceTest {
     private BusinessDocument rpiRequest(BigDecimal quantity) {
         BusinessDocument rpi = new BusinessDocument();
         rpi.setDocumentDate(LocalDate.now());
-        rpi.setParentDocumentId(BPO_ID);
+        rpi.setParentDocument(DocumentRefs.document(BPO_ID));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
-        colorLine.setSourceColorLineId(BPO_COLOR_LINE_ID);
+        colorLine.setSourceColorLine(DocumentRefs.colorLine(BPO_COLOR_LINE_ID));
         colorLine.setQuantity(quantity);
 
         BusinessDocumentLineGroup group = new BusinessDocumentLineGroup();
@@ -104,7 +104,7 @@ class RequestForPiServiceTest {
         BusinessDocument rpi = service.save(rpiRequest(new BigDecimal("200")));
 
         assertThat(rpi.getDocumentType()).isEqualTo(DocumentType.REQUEST_FOR_PI);
-        assertThat(rpi.getPartyId()).isEqualTo(88L);
+        assertThat(DocumentRefs.id(rpi.getParty())).isEqualTo(88L);
         assertThat(onlyColorLine(bpo).getFulfilledQuantity()).isEqualByComparingTo("200");
     }
 
@@ -142,7 +142,7 @@ class RequestForPiServiceTest {
 
         assertThat(revision.getDocumentNo()).isEqualTo("RPIAF000002");
         assertThat(revision.getRevisionNo()).isEqualTo(1);
-        assertThat(onlyColorLine(revision).getSourceColorLineId()).isEqualTo(BPO_COLOR_LINE_ID);
+        assertThat(DocumentRefs.id(onlyColorLine(revision).getSourceColorLine())).isEqualTo(BPO_COLOR_LINE_ID);
         // The BPO ledger is untouched by the revision itself — only the original draw counts.
         assertThat(onlyColorLine(bpo).getFulfilledQuantity()).isEqualByComparingTo("200");
     }

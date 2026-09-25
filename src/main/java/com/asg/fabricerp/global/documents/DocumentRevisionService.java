@@ -42,10 +42,10 @@ public class DocumentRevisionService {
         BusinessDocument revision = new BusinessDocument();
         revision.setDocumentType(original.getDocumentType());
         revision.setOrganizationId(original.getOrganizationId());
-        revision.setBusinessUnitId(original.getBusinessUnitId());
-        revision.setWarehouseId(original.getWarehouseId());
-        revision.stampMarketingTeam(original.getMarketingTeamId());
-        revision.setPartyId(original.getPartyId());
+        revision.setBusinessUnit(original.getBusinessUnit());
+        revision.setWarehouse(original.getWarehouse());
+        revision.stampMarketingTeam(original.getMarketingTeam());
+        revision.setParty(original.getParty());
         revision.setCurrencyCode(original.getCurrencyCode());
         revision.setExchangeRate(original.getExchangeRate());
         revision.setDocumentDate(LocalDate.now());
@@ -53,14 +53,13 @@ public class DocumentRevisionService {
         revision.setReferenceNo(original.getReferenceNo());
         revision.setRemarks(reason);
         // Upstream link travels with the revision: a revised BPO still traces to the same
-        // Booking. revisionOfId is a different axis (previous version of THIS document) and
+        // Booking. revisionOf is a different axis (previous version of THIS document) and
         // is set below, not here.
-        revision.setParentDocumentId(original.getParentDocumentId());
+        revision.setParentDocument(original.getParentDocument());
         revision.setDocumentNo(numbering.next(original.getDocumentType()));
 
         // Lineage always points at the root, so a chain never has to be walked to find it.
-        Long rootId = original.getRevisionOfId() != null ? original.getRevisionOfId() : original.getId();
-        revision.setRevisionOfId(rootId);
+        revision.setRevisionOf(original.getRevisionOf() != null ? original.getRevisionOf() : original);
         revision.setRevisionNo(original.getRevisionNo() + 1);
 
         for (BusinessDocumentLineGroup group : original.getLineGroups()) {
@@ -73,8 +72,8 @@ public class DocumentRevisionService {
     private BusinessDocumentLineGroup copyOf(BusinessDocumentLineGroup source) {
         BusinessDocumentLineGroup copy = new BusinessDocumentLineGroup();
         copy.setGroupNo(source.getGroupNo());
-        copy.setItemId(source.getItemId());
-        copy.setUomId(source.getUomId());
+        copy.setItem(source.getItem());
+        copy.setUom(source.getUom());
         copy.setFabric(copyOf(source.getFabric()));
         for (BusinessDocumentColorLine line : source.getColorLines()) {
             copy.addColorLine(copyOf(line));
@@ -83,7 +82,7 @@ public class DocumentRevisionService {
     }
 
     /**
-     * {@code sourceColorLineId} travels across the copy — the revision still traces to the
+     * {@code sourceColorLine} travels across the copy — the revision still traces to the
      * same upstream allocation. What does NOT happen here is a fresh {@code fulfil()} call
      * against that source: the original draw already recorded the consumption, and revising
      * the wording or price of a colour must not consume the source a second time. A revision
@@ -93,7 +92,7 @@ public class DocumentRevisionService {
     private BusinessDocumentColorLine copyOf(BusinessDocumentColorLine source) {
         BusinessDocumentColorLine copy = new BusinessDocumentColorLine();
         copy.setColorLineNo(source.getColorLineNo());
-        copy.setSourceColorLineId(source.getSourceColorLineId());
+        copy.setSourceColorLine(source.getSourceColorLine());
         copy.setColorCode(source.getColorCode());
         copy.setColorName(source.getColorName());
         copy.setFabricsStyle(source.getFabricsStyle());
