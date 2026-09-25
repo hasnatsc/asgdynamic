@@ -72,6 +72,7 @@ public class BookingController {
     public String page(Model model) {
         model.addAttribute("title", "Booking");
         model.addAttribute("statuses", BusinessDocumentStatus.values());
+        model.addAttribute("draft", BusinessDocumentStatus.DRAFT);
         model.addAttribute("bookingTypes", BookingType.values());
         model.addAttribute("orderTypes", OrderType.values());
         model.addAttribute("currencies", CURRENCIES);

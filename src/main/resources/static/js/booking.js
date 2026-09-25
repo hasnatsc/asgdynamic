@@ -51,10 +51,8 @@
         let dirty = false;
         const items = new Map();   // item id -> label
 
-        const screen = new App.DocumentScreen({
-            kind: 'Booking', api: '/api/booking', table: 'bookingTable', revise: true,
-            canEdit: canAmend, onEdit: d => openEditor(d)
-        });
+        const screen = new App.DocumentScreen(Object.assign({}, window.BOOKING_SCREEN,
+            { canEdit: canAmend, onEdit: d => openEditor(d) }));
         const editorTabs = App.tabs(form.querySelector('[data-editor-tabs]').parentElement);
 
         // ------------------------------------------------------------------ reference lists
@@ -112,6 +110,7 @@
             renderTerms();
             editorTabs.select('items');
             form.querySelector('[data-editor-title]').textContent = existing ? `Edit ${existing.documentNo}` : 'New booking';
+            form.querySelector('[data-editor-rail]').innerHTML = App.statusSteps(existing ? existing.status : 'DRAFT');
             form.hidden = false;
             dirty = false;
             form.scrollIntoView({ behavior: 'smooth', block: 'start' });

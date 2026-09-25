@@ -55,7 +55,11 @@ class BookingServiceRevisionTest {
         // Real DocumentRevisionService over the same mocked repository/numbering, so the
         // revision behaviour under test is the actual shared logic, not a stand-in for it.
         DocumentRevisionService revisions = new DocumentRevisionService(repository, numbering);
-        service = new BookingService(repository, numbering, costing, revisions, DocumentRefs.references(UNIT), context);
+        service = new BookingService(repository, numbering, costing,
+            new com.asg.fabricerp.costing.CostingTranslator(new com.fasterxml.jackson.databind.ObjectMapper()),
+            revisions, DocumentRefs.references(UNIT),
+            mock(com.asg.fabricerp.global.terms.TermsConditionService.class),
+            mock(com.asg.fabricerp.security.FabricUserRepository.class), context);
         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BK-2026-000002");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
@@ -193,6 +197,8 @@ class BookingServiceRevisionTest {
     void saveDoesNotCallCostingForGroupsWithoutACostingCode() {
         BusinessDocument doc = new BusinessDocument();
         doc.setDocumentDate(LocalDate.now());
+        doc.setRequiredDate(LocalDate.now().plusDays(30));
+        doc.setParty(DocumentRefs.party(77L));
 
         BusinessDocumentColorLine colorLine = new BusinessDocumentColorLine();
         colorLine.setQuantity(new BigDecimal("10"));

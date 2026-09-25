@@ -1753,5 +1753,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, status, debounce, downloadCsv, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, RemoteSelect, remoteSelects, Tree, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, statusSteps, debounce, downloadCsv, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, RemoteSelect, remoteSelects, Tree, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
 })();

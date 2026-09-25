@@ -53,7 +53,8 @@ class DocumentReferencesTest {
             @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
         };
         references = new DocumentReferences(new PartyService(parties, context), warehouses,
-            mock(BusinessUnitRepository.class), mock(MarketingTeamRepository.class), items, units, context);
+            mock(BusinessUnitRepository.class), mock(MarketingTeamRepository.class), items, units,
+            mock(com.asg.fabricerp.security.FabricUserRepository.class), context);
     }
 
     private static BusinessDocument booking() {

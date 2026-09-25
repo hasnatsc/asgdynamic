@@ -88,7 +88,8 @@
                 <h2 class="card-title" data-editor-title>New booking</h2>
                 <p class="card-sub">Saved as a draft; submit it for approval from the list once it is complete.</p>
             </div>
-            <button type="button" class="btn-icon ml-auto" data-editor-close aria-label="Close editor">
+            <div class="ml-auto hidden md:block" data-editor-rail><th:block th:replace="~{fragments/ui :: workflow(${draft})}"></th:block></div>
+            <button type="button" class="btn-icon" data-editor-close aria-label="Close editor">
                 <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
             </button>
         </div>
@@ -490,6 +491,8 @@
         </div>
     </form>
 
+    <!-- App.DocumentScreen settings, read by booking.js. -->
+    <script>window.BOOKING_SCREEN = { kind: 'Booking', api: '/api/booking', table: 'bookingTable', revise: true };</script>
     <script th:src="@{/js/booking.js}" defer></script>
 
 </div>
