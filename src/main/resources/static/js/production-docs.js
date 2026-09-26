@@ -22,6 +22,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const OPEN = ['APPROVED', 'PROCESSING', 'PARTIAL'];
     const MONEY = ['BPO', 'RPI', 'DO', 'FD'];
 
+    // Item and fabric specification of a line (ChainViews.fabricOf) - blank values are left out.
+    const SPEC = [
+        ['declaredConstruction', 'PI construction'], ['epiPpi', 'EPI × PPI'], ['warpCount', 'Warp count'], ['weftCount', 'Weft count'],
+        ['warpYarnName', 'Warp yarn'], ['weftYarnName', 'Weft yarn'], ['weave', 'Weave'], ['composition', 'Composition'],
+        ['finishType', 'Finish'], ['finishWidth', 'Finish width'], ['cuttableWidth', 'Cuttable width'], ['gsmText', 'GSM'],
+        ['shrinkage', 'Shrinkage (warp × weft)'], ['washType', 'Wash'], ['lightSource', 'Light source'], ['selvedge', 'Selvedge'],
+        ['endUse', 'End use'], ['costingCode', 'Costing no'], ['qualityReference', 'Quality ref.'], ['styleReference', 'Style ref.'],
+        ['itemDescription', 'Description', true]
+    ];
+    const filled = v => v != null && String(v).trim() !== '';
+    const itemLabel = g => {
+        const parts = [g.itemCode, g.itemName].filter(filled);
+        return parts.length === 2 && parts[0] === parts[1] ? parts[0] : parts.join(' · ');
+    };
+    function specValues(g) {
+        const wash = [filled(g.gsmBeforeWash) && `before wash ${num(g.gsmBeforeWash)}`, filled(g.gsmAfterWash) && `after wash ${num(g.gsmAfterWash)}`].filter(Boolean);
+        return Object.assign({}, g, {
+            epiPpi: filled(g.epi) || filled(g.ppi) ? `${num(g.epi)} × ${num(g.ppi)}` : null,
+            weave: [g.weaveType, g.weaveStyle].filter(filled).join(' · ') || null,
+            gsmText: filled(g.gsm) ? `${num(g.gsm)}${wash.length ? ` (${wash.join(', ')})` : ''}` : (wash.join(', ') || null),
+            finishWidth: filled(g.finishWidth) ? num(g.finishWidth) : null,
+            cuttableWidth: filled(g.cuttableWidth) ? num(g.cuttableWidth) : null
+        });
+    }
+    /** The spec panel of a line card; `skip` leaves out what the card already shows elsewhere. */
+    function specFacts(g, skip, extraClass) {
+        const v = specValues(g);
+        const facts = SPEC.filter(([key]) => !(skip || []).includes(key) && filled(v[key]));
+        if (!facts.length) return '';
+        return `<dl class="spec-facts border-t border-gray-100 px-4 py-3 dark:border-gray-800 ${extraClass || ''}">${facts.map(([key, label, wide]) =>
+            `<div${wide ? ' class="is-wide"' : ''}><dt>${esc(label)}</dt><dd>${esc(v[key])}</dd></div>`).join('')}</dl>`;
+    }
+    /** A colour's references under its name: colour ref, lab dip, strike-off, loom, style, specification. */
+    function colourDetail(l, construction) {
+        const refs = [
+            filled(l.colorReference) && ['Colour ref.', l.colorReference],
+            filled(l.labDip) && ['Lab dip', l.labDip],
+            filled(l.strikeOffReference) && ['Strike-off', l.strikeOffReference],
+            filled(l.loomReference) && ['Loom', l.loomReference],
+            filled(l.fabricsStyle) && l.fabricsStyle !== construction && ['Style', l.fabricsStyle]
+        ].filter(Boolean);
+        return (refs.length ? `<div class="mt-0.5 flex flex-wrap gap-x-3 text-xs text-gray-500 dark:text-gray-400">${refs.map(([k, v]) =>
+                `<span>${esc(k)} <span class="text-gray-700 dark:text-gray-300">${esc(v)}</span></span>`).join('')}</div>` : '')
+            + (filled(l.colorSpecification) ? `<div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">${esc(l.colorSpecification)}</div>` : '');
+    }
+    /** The colour name with its code. */
+    const colourName = l => `<span class="font-medium">${esc(l.colorName || '—')}</span>${filled(l.colorCode)
+        ? ` <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-300">${esc(l.colorCode)}</span>` : ''}`;
+    /** For a line that takes a whole fabric line (greige woven per construction): the colours it covers. */
+    function coveredColours(list) {
+        if (!list || !list.length) return '';
+        return `<ul class="mt-1.5 space-y-1">${list.map(c => `<li class="flex flex-wrap items-baseline gap-x-2 text-xs">
+            <span>${colourName(c)}</span><span class="tabular-nums text-gray-500">${num(c.quantity)}</span>
+            ${colourDetail(c) ? `<div class="basis-full">${colourDetail(c)}</div>` : ''}</li>`).join('')}</ul>`;
+    }
+
     // What can be raised from an open document of this step: [slug, label, icon, condition(doc)].
     const NEXT = {
         BPO: [['weaving-wo', 'Weaving WO', 'loom'], ['processing-wo', 'Dyeing WO', 'dyeing', d => (d.lineGroups || []).some(g => g.route && g.route.needsProcessing)],
@@ -116,8 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
             STEP === 'BPO' && r ? ['Greige allowance', `${num(r.greigeAllowancePct)} %`] : null,
             STEP === 'BPO' && g.greigeQuantity != null ? ['Greige to weave', qtyUnit(g.greigeQuantity, g.uom)] : null,
             g.wovenOrdered != null ? ['On weaving WOs', qtyUnit(g.wovenOrdered, g.uom)] : null,
-            g.composition ? ['Composition', esc(g.composition)] : null,
-            g.gsm ? ['GSM', esc(g.gsm)] : null
         ].filter(Boolean);
         const lines = g.colorLines || [];
         const figureLabels = [...new Set(lines.flatMap(l => (l.figures || []).map(f => f.label)))];
@@ -129,11 +183,15 @@ document.addEventListener('DOMContentLoaded', () => {
             <header class="line-head">
                 <span class="line-no">${esc(g.groupNo)}</span>
                 <div class="min-w-0 flex-1">
-                    <h4 class="line-title font-mono">${esc(g.construction || 'No construction')}</h4>
+                    <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                        <h4 class="line-title font-mono">${esc(g.construction || 'No construction')}</h4>
+                        ${itemLabel(g) ? `<span class="line-sub" title="Item">${esc(itemLabel(g))}</span>` : ''}
+                    </div>
                     ${meta.length ? `<p class="line-meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</p>` : ''}
                 </div>
             </header>
             <dl class="line-strip">${strip.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('')}</dl>
+            ${specFacts(g)}
             <div class="table-wrap"><table class="line-colours">
                 <thead><tr><th>Colour</th><th>From</th>${showLot ? '<th>Lot</th>' : ''}${showDate ? '<th>Delivery</th>' : ''}
                     ${showRolls ? '<th class="num">Rolls</th>' : ''}<th class="num">Quantity</th>
@@ -146,8 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ? `<span class="badge-amber" title="${esc(l.shortCloseReason)}">Short-closed ${num(l.shortClosedQuantity)}</span>`
                         : shortClose ? `<button type="button" class="btn-ghost btn-sm" data-short-close="${esc(l.id)}" data-line-name="${esc(l.colorName || '')}">Short-close</button>` : '';
                     return `<tr>
-                        <td><span class="font-medium">${esc(l.colorName || '—')}</span>${l.colorCode ? ` <span class="text-xs text-gray-500">${esc(l.colorCode)}</span>` : ''}
-                            ${l.labDip ? `<div class="text-xs text-gray-500">Lab dip ${esc(l.labDip)}</div>` : ''}</td>
+                        <td class="min-w-[12rem]">${colourName(l)}${colourDetail(l, g.construction)}${coveredColours(l.coversColours)}</td>
                         <td class="text-xs text-gray-600">${esc(l.sourceLabel || '—')}</td>
                         ${showLot ? `<td class="text-xs">${esc(lot || '—')}</td>` : ''}
                         ${showDate ? `<td>${esc(fmt.date(l.deliveryDate))}</td>` : ''}
@@ -421,12 +478,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <header class="line-head flex-wrap">
                         <div class="min-w-0 flex-1">
                             <h4 class="line-title"><span class="font-mono">${esc(g.construction || 'No construction')}</span>
-                                <span class="line-sub">${esc(g.documentNo)} · line ${esc(g.groupNo)}</span></h4>
+                                <span class="line-sub">${esc(g.documentNo)} · line ${esc(g.groupNo)}${itemLabel(g) ? ` · ${esc(itemLabel(g))}` : ''}</span></h4>
                             <p class="line-meta">${[g.fabricType, g.route || g.routeLabel, g.yarnPrep && g.yarnPrep !== 'None' && `Needs ${g.yarnPrep.toLowerCase()}`,
                                 STEP === 'BPO' && !g.routeCode && 'No process route - add one before submitting']
                                 .filter(Boolean).map(m => `<span>${esc(m)}</span>`).join('')}</p>
                         </div>${allowance}
                     </header>
+                    ${specFacts(g, ['itemDescription', 'costingCode', 'qualityReference', 'styleReference', 'endUse', 'selvedge', 'lightSource', 'washType'], 'spec-facts-compact')}
                     <div class="table-wrap"><table class="line-colours line-colours-edit">
                         <thead><tr><th class="w-8"></th><th>Colour</th><th class="num">Ordered</th><th class="num">Allowed</th><th class="num">Taken</th><th class="num">Open</th>
                             ${figureHead}<th class="num">Quantity</th>${extraHead}</tr></thead>
@@ -461,12 +519,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 FD: `<td class="text-xs">${esc((r.lots || []).map(lotLabel).join(', ') || '—')}</td><td class="num">${input('rolls', 'number', 'min="0" step="1"', p && p.rolls)}</td>`
             }[STEP] || '';
             const figure = { FFR: `<td class="num">${num(r.issued)}</td>`, GI: `<td class="num">${num(r.plannedGreige)}</td>`, FD: `<td class="num">${num(r.reserved)}</td>` }[STEP] || '';
-            const name = r.sourceKind === 'GROUP' ? `Greige - all colours <span class="text-xs text-gray-500">(${esc(r.colours)} colours)</span>`
-                : `${esc(r.colorName || '—')}${r.colorCode ? ` <span class="text-xs text-gray-500">${esc(r.colorCode)}</span>` : ''}`;
+            const name = r.sourceKind === 'GROUP'
+                ? `Greige - all colours <span class="text-xs text-gray-500">(${esc(r.colours)} colours)</span>${coveredColours(r.coversColours)}`
+                : `${colourName(r)}${colourDetail(r, r.construction)}`;
             const open = Number(r.available);
             return `<tr data-key="${esc(key)}" class="${on ? '' : 'opacity-70'}">
                 <td><input type="checkbox" class="checkbox" data-pick${on ? ' checked' : ''}${!on && open <= 0 ? ' disabled' : ''} aria-label="Include"></td>
-                <td>${name}</td>
+                <td class="min-w-[12rem]">${name}</td>
                 <td class="num">${qtyUnit(r.quantity, r.uom)}</td>
                 <td class="num">${num(r.cap)}</td>
                 <td class="num">${num(r.taken)}</td>

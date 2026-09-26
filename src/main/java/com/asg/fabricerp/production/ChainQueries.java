@@ -199,6 +199,36 @@ public class ChainQueries {
             """, new MapSqlParameterSource("p", parentId));
     }
 
+    /**
+     * For a page of documents: the constructions on each and the colours they carry, for the list.
+     * Keyed by document id; each value has "fabric" and "colours" (text) and "colourCount".
+     */
+    public Map<Long, Map<String, Object>> fabricSummaries(Collection<Long> documentIds) {
+        Map<Long, Map<String, Object>> out = new HashMap<>();
+        if (documentIds == null || documentIds.isEmpty()) return out;
+        jdbc.query("""
+            SELECT g.document_id AS d,
+                   string_agg(DISTINCT NULLIF(btrim(g.construction), ''), ', ') AS fabric,
+                   string_agg(DISTINCT COALESCE(sc.color_name, l.color_name), ', ') AS colours,
+                   count(DISTINCT COALESCE(sc.id, l.id)) AS n
+            FROM gbl_business_document_line_groups g
+            JOIN gbl_business_document_color_lines l ON l.line_group_id = g.id
+            -- a line woven for a whole fabric line stands for that line's colours
+            LEFT JOIN gbl_business_document_color_lines sc
+                   ON l.source_line_group_id IS NOT NULL AND l.source_color_line_id IS NULL
+                  AND sc.line_group_id = l.source_line_group_id
+            WHERE g.document_id IN (:ids)
+            GROUP BY g.document_id
+            """, new MapSqlParameterSource("ids", documentIds), rs -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("fabric", rs.getString("fabric"));
+            m.put("colours", rs.getString("colours"));
+            m.put("colourCount", rs.getLong("n"));
+            out.put(rs.getLong("d"), m);
+        });
+        return out;
+    }
+
     private Map<Long, BigDecimal> sumBy(String sql, Collection<Long> ids) {
         Map<Long, BigDecimal> out = new HashMap<>();
         if (ids == null || ids.isEmpty()) return out;

@@ -38,6 +38,11 @@ public class ChainViews {
         return detail(step, documents.get(step, id));
     }
 
+    /** Constructions and colours per document, for a page of the list. */
+    public Map<Long, Map<String, Object>> fabricSummaries(Collection<Long> documentIds) {
+        return queries.fabricSummaries(documentIds);
+    }
+
     public static Map<String, Object> row(BusinessDocument d) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("id", d.getId());
@@ -129,14 +134,7 @@ public class ChainViews {
             Map<String, Object> group = new LinkedHashMap<>();
             group.put("id", g.getId());
             group.put("groupNo", g.getGroupNo());
-            group.put("construction", g.getFabric().getConstruction());
-            group.put("fabricType", g.getFabric().getFabricType());
-            group.put("composition", g.getFabric().getComposition());
-            group.put("weaveType", g.getFabric().getWeaveType());
-            group.put("finishType", g.getFabric().getFinishType());
-            group.put("gsm", g.getFabric().getGsm());
-            group.put("finishWidth", g.getFabric().getFinishWidth());
-            group.put("dispoReference", g.getFabric().getDispoReference());
+            group.putAll(fabricOf(g));
             group.put("uom", g.getUom() == null ? null : uomLabel(g.getUom()));
             group.put("groupQuantity", g.groupQuantity());
             group.put("revisedFromGroupId", g.getRevisedFromGroupId());
@@ -167,9 +165,7 @@ public class ChainViews {
                 Map<String, Object> line = new LinkedHashMap<>();
                 line.put("id", l.getId());
                 line.put("colorLineNo", l.getColorLineNo());
-                line.put("colorName", l.getColorName());
-                line.put("colorCode", l.getColorCode());
-                line.put("labDip", l.getLabDipReference());
+                line.putAll(colourOf(l));
                 line.put("quantity", l.getQuantity());
                 line.put("rate", l.getRate());
                 line.put("lineAmount", l.getLineAmount());
@@ -177,6 +173,10 @@ public class ChainViews {
                 line.put("sourceId", chain.sourceId(l));
                 line.put("sourceLabel", chain.sourceKind(l) == null ? null : chain.describe(l));
                 line.put("sourceDocumentId", chain.sourceGroup(l) == null ? null : chain.sourceGroup(l).getDocument().getId());
+                if (chain.sourceKind(l) == SourceKind.GROUP && chain.sourceGroup(l) != null) {
+                    // A line woven for the whole fabric line: show which colours it covers.
+                    line.put("coversColours", coloursOf(chain.sourceGroup(l)));
+                }
                 line.put("lotId", l.getFabricLotId());
                 line.put("lotLabel", l.getFabricLotId() == null ? null : lotLabels.get(l.getFabricLotId()));
                 line.put("dyeLot", l.getDyeLot());
@@ -242,6 +242,99 @@ public class ChainViews {
 
     private static void add(List<Map<String, Object>> f, String label, BigDecimal value) {
         f.add(Map.of("label", label, "value", value == null ? BigDecimal.ZERO : value));
+    }
+
+
+    /** The item and full fabric specification of a line, as the screens show it (blank values left out by the page). */
+    static Map<String, Object> fabricOf(BusinessDocumentLineGroup g) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        var item = g.getItem();
+        if (item != null) {
+            m.put("itemId", item.getId());
+            m.put("itemCode", item.getItemCode());
+            m.put("itemName", item.getName());
+        }
+        FabricSpec f = g.getFabric();
+        if (f == null) return m;
+        m.put("construction", f.getConstruction());
+        m.put("declaredConstruction", f.getDeclaredConstruction());
+        m.put("fabricType", f.getFabricType());
+        m.put("composition", f.getComposition());
+        m.put("weaveType", f.getWeaveType());
+        m.put("weaveStyle", f.getWeaveStyle());
+        m.put("finishType", f.getFinishType());
+        m.put("epi", f.getEpi());
+        m.put("ppi", f.getPpi());
+        m.put("warpCount", counts(f.getWarpCount1(), f.getWarpCountRatio1(), f.getWarpCount2(), f.getWarpCountRatio2(),
+            f.getWarpCount3(), f.getWarpCountRatio3()));
+        m.put("weftCount", counts(f.getWeftCount1(), f.getWeftCountRatio1(), f.getWeftCount2(), f.getWeftCountRatio2(),
+            f.getWeftCount3(), f.getWeftCountRatio3()));
+        m.put("warpYarnName", f.getWarpYarnName());
+        m.put("weftYarnName", f.getWeftYarnName());
+        m.put("finishWidth", f.getFinishWidth());
+        m.put("cuttableWidth", f.getCuttableWidth());
+        m.put("gsm", f.getGsm());
+        m.put("gsmBeforeWash", f.getGsmBeforeWash());
+        m.put("gsmAfterWash", f.getGsmAfterWash());
+        m.put("shrinkage", joined(" × ", f.getShrinkageWarp(), f.getShrinkageWeft()));
+        m.put("washType", f.getWashType());
+        m.put("lightSource", f.getLightSource());
+        m.put("selvedge", f.getSelvedge());
+        m.put("endUse", f.getEndUse());
+        m.put("dispoReference", f.getDispoReference());
+        m.put("costingCode", f.getCostingCode());
+        m.put("qualityReference", f.getQualityReference());
+        m.put("styleReference", f.getStyleReference());
+        m.put("itemDescription", f.getItemDescription());
+        return m;
+    }
+
+    /** A colour line's colour detail. */
+    static Map<String, Object> colourOf(BusinessDocumentColorLine l) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("colorName", l.getColorName());
+        m.put("colorCode", l.getColorCode());
+        m.put("fabricsStyle", l.getFabricsStyle());
+        m.put("colorReference", l.getColorReference());
+        m.put("strikeOffReference", l.getStrikeOffReference());
+        m.put("labDip", l.getLabDipReference());
+        m.put("loomReference", l.getLoomReference());
+        m.put("colorSpecification", l.getColorSpecification());
+        return m;
+    }
+
+    /** The colours of a fabric line, for lines that take the whole line at once (greige woven per construction). */
+    static List<Map<String, Object>> coloursOf(BusinessDocumentLineGroup g) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (BusinessDocumentColorLine c : g.getColorLines()) {
+            Map<String, Object> m = colourOf(c);
+            m.put("quantity", c.getQuantity());
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** Yarn counts with their ratios: "30" or "30 ×2 + 40 ×1". */
+    static String counts(String c1, BigDecimal r1, String c2, BigDecimal r2, String c3, BigDecimal r3) {
+        String[] cs = {c1, c2, c3};
+        BigDecimal[] rs = {r1, r2, r3};
+        List<String> parts = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            if (cs[i] == null || cs[i].isBlank()) continue;
+            parts.add(cs[i].trim());
+        }
+        if (parts.size() <= 1) return parts.isEmpty() ? null : parts.get(0);
+        parts.clear();
+        for (int i = 0; i < 3; i++) {
+            if (cs[i] == null || cs[i].isBlank()) continue;
+            parts.add(rs[i] == null || rs[i].signum() == 0 ? cs[i].trim() : cs[i].trim() + " ×" + rs[i].stripTrailingZeros().toPlainString());
+        }
+        return String.join(" + ", parts);
+    }
+
+    private static String joined(String sep, String... values) {
+        List<String> parts = Arrays.stream(values).filter(v -> v != null && !v.isBlank()).map(String::trim).toList();
+        return parts.isEmpty() ? null : String.join(sep, parts);
     }
 
     /** A unit as people read it: its symbol (yd, m), else its name. */

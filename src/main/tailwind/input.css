@@ -439,7 +439,9 @@
   .spec-facts  { @apply grid gap-x-6 gap-y-3 text-[13px]; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
   .spec-facts dt { @apply text-[11px] text-gray-500 dark:text-gray-400; }
   .spec-facts dd { @apply text-gray-900 dark:text-gray-100; }
-  .spec-facts .is-wide { grid-column: span 2; }
+  .spec-facts .is-wide { grid-column: 1 / -1; }
+  .spec-facts-compact { @apply gap-y-2 bg-gray-50/60 py-2 text-xs dark:bg-gray-900/40; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
+  @media (max-width: 640px) { .spec-facts.spec-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
   /* Warp and weft counts as a 2 x 3 grid of count/ratio pairs rather than twelve labelled boxes. */
   .yarn-grid   { @apply w-full table-fixed text-sm; }

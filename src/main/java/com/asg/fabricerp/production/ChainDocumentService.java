@@ -558,6 +558,7 @@ public class ChainDocumentService {
                 Map<String, Object> row = baseRow(g, "GROUP", g.getId(), "Greige - all colours", null, g.groupQuantity(), cap, taken);
                 suggest(row, route.greigeFor(g.groupQuantity()), taken);
                 row.put("colours", g.getColorLines().size());
+                row.put("coversColours", ChainViews.coloursOf(g));
                 out.add(row);
                 continue;
             }
@@ -573,7 +574,7 @@ public class ChainDocumentService {
                 row.put("deliveryDate", l.getDeliveryDate());
                 row.put("dyeLot", l.getDyeLot());
                 row.put("shade", l.getShade());
-                row.put("labDip", l.getLabDipReference());
+                row.putAll(ChainViews.colourOf(l));
                 if (issued != null) row.put("issued", issued);
                 if (step == ChainStep.GI) row.put("plannedGreige", effectiveKind == ProcessKind.REWORK ? l.getQuantity() : route.greigeFor(l.getQuantity()));
                 if (step == ChainStep.GI || step == ChainStep.DO) {
@@ -630,8 +631,7 @@ public class ChainDocumentService {
         row.put("documentNo", g.getDocument().getDocumentNo());
         row.put("groupId", g.getId());
         row.put("groupNo", g.getGroupNo());
-        row.put("construction", g.getFabric().getConstruction());
-        row.put("fabricType", g.getFabric().getFabricType());
+        row.putAll(ChainViews.fabricOf(g));
         row.put("uom", g.getUom() == null ? null : uomLabel(g.getUom()));
         row.put("colorName", colour);
         row.put("colorCode", code);

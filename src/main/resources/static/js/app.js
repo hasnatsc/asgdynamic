@@ -1486,8 +1486,17 @@
         cell(row, col) {
             const value = row[col.key];
             switch (col.format) {
-                case 'doc':    return `<span class="doc-no">${esc(value || 'Unnumbered')}</span>`;
-                case 'date':   return esc(fmt.date(value));
+                case 'doc': {
+                    const no = `<span class="doc-no whitespace-nowrap">${esc(value || 'Unnumbered')}</span>`;
+                    if (!row.fabric && !row.colours) return no;
+                    // Production documents also carry their constructions and colours (row.fabric, row.colours).
+                    const n = Number(row.colourCount) || 0;
+                    const sub = [row.fabric && `<span class="font-mono">${esc(row.fabric)}</span>`,
+                                 row.colours && `${n} ${n === 1 ? 'colour' : 'colours'}: ${esc(row.colours)}`].filter(Boolean).join(' · ');
+                    return `${no}<div class="max-w-[15rem] truncate text-xs text-gray-500 dark:text-gray-400"
+                        title="${esc([row.fabric, row.colours].filter(Boolean).join(' - '))}">${sub}</div>`;
+                }
+                case 'date':   return `<span class="whitespace-nowrap">${esc(fmt.date(value))}</span>`;
                 case 'num':    return `<span class="block text-right tabular-nums">${esc(formatNumber(value))}</span>`;
                 case 'status': return statusBadge(value);
                 case 'actions':
