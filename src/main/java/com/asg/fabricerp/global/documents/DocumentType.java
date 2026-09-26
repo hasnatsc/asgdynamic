@@ -27,8 +27,8 @@ public enum DocumentType implements NumberSeries {
     // Prefix confirmed "BK" (not a guessed "BKG") against a real production Booking
     // payload: document codes BKAF000017, BKAF000028, BKAF000059.
     BOOKING("BK", "Booking", Family.SALES, "BOOKING"),
-    BULK_PRODUCTION_ORDER("BPO", "Bulk Production Order", Family.SALES, "BPO"),
-    REQUEST_FOR_PI("RPI", "Request For PI", Family.SALES, "RPI"),
+    BULK_PRODUCTION_ORDER("BPO", "Production Order", Family.SALES, "BPO"),
+    REQUEST_FOR_PI("RPI", "Delivery Schedule", Family.SALES, "RPI"),
     DELIVERY_ORDER("DO", "Delivery Order", Family.SALES, "DO"),
     FABRICS_DELIVERY("FD", "Fabrics Delivery", Family.SALES, "FD"),
     SALES_RETURN("SRT", "Sales Return", Family.SALES, null),
@@ -51,19 +51,17 @@ public enum DocumentType implements NumberSeries {
     STOCK_ADJUSTMENT("SA", "Stock Adjustment", Family.STORE, null),
 
     /* ----------------------------------------------------------- PRODUCTION
-     * Routing, not recipe. Confirmed against the crawl: Weaving Work Order, Processing
-     * Work Order and Greige Receive each draw independently against the BPO (legacy
-     * proPopulate/proReceive on all three) — NOT sequentially through each other, which an
-     * earlier pass through this file assumed before actually checking. Greige Issue and
-     * Finished Fabrics Receive, below, are a genuine open question rather than a confirmed
-     * fact — see their javadoc when a controller is built for either.
+     * Routing, not recipe. The Production-to-Delivery design (com.asg.fabricerp.production):
+     * Weaving WO and Dyeing WO (the legacy Processing WO) each draw their own stream of a
+     * production order line; Greige Receive is taken against a Weaving WO, Greige Issue and
+     * Finished Fabrics Receive against a Dyeing WO. See ChainStep for the whole chain.
      */
     ROUT_CARD("RC", "Rout Card", Family.PRODUCTION, null),
     WEAVING_WORK_ORDER("WWO", "Weaving Work Order", Family.PRODUCTION, "WWO"),
-    PROCESSING_WORK_ORDER("PWO", "Processing Work Order", Family.PRODUCTION, "PWO"),
+    PROCESSING_WORK_ORDER("PWO", "Dyeing Work Order", Family.PRODUCTION, "PWO"),
     GREIGE_RECEIVE("GR", "Greige Fabrics Received", Family.PRODUCTION, "GR"),
-    GREIGE_ISSUE("GI", "Greige Issue For Processing", Family.PRODUCTION, null),
-    FINISHED_FABRICS_RECEIVE("FFR", "Finished Fabrics Received", Family.PRODUCTION, null),
+    GREIGE_ISSUE("GI", "Greige Issue", Family.PRODUCTION, "GI"),
+    FINISHED_FABRICS_RECEIVE("FFR", "Finished Fabrics Receive", Family.PRODUCTION, "FFR"),
     RAW_MATERIAL_ISSUE("RMI", "Raw Material Issue", Family.PRODUCTION, null),
 
     /* ----------------------------------------------------------- COMMERCIAL

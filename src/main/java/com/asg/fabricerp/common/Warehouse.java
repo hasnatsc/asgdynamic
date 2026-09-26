@@ -32,6 +32,14 @@ public class Warehouse extends BaseOrgEntity {
     @Column(name = "business_unit_id")
     private Long businessUnitId;
 
+    /** Greige receive and greige issue may use this store. */
+    @Column(name = "holds_greige", nullable = false)
+    private Boolean holdsGreige = Boolean.FALSE;
+
+    /** Finished receive may use this store. */
+    @Column(name = "holds_finished", nullable = false)
+    private Boolean holdsFinished = Boolean.FALSE;
+
     protected Warehouse() { }
 
     public Warehouse(String code, String name) {
@@ -44,5 +52,9 @@ public class Warehouse extends BaseOrgEntity {
     public String getName()                   { return name; }
     public void setName(String v)             { this.name = v; }
     public Long getBusinessUnitId()           { return businessUnitId; }
+    public boolean isHoldsGreige()            { return Boolean.TRUE.equals(holdsGreige); }
+    public void setHoldsGreige(boolean v)     { this.holdsGreige = v; }
+    public boolean isHoldsFinished()          { return Boolean.TRUE.equals(holdsFinished); }
+    public void setHoldsFinished(boolean v)   { this.holdsFinished = v; }
     public void setBusinessUnitId(Long v)     { this.businessUnitId = v; }
 }

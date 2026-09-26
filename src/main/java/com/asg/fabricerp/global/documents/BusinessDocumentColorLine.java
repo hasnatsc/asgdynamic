@@ -45,6 +45,45 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
                 foreignKey = @ForeignKey(name = "fk_gbdcl_source_color_line"))
     private BusinessDocumentColorLine sourceColorLine;
 
+    /** Construction-keyed draws: the parent fabric line this line takes its quantity from. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_line_group_id",
+                foreignKey = @ForeignKey(name = "fk_gbdcl_source_line_group"))
+    private BusinessDocumentLineGroup sourceLineGroup;
+
+    /** The stock lot a store document's line moves (inv_fabric_lots). */
+    @Column(name = "fabric_lot_id")
+    private Long fabricLotId;
+
+    @Column(name = "dye_lot", length = 40)
+    private String dyeLot;
+
+    @Column(name = "shade", length = 40)
+    private String shade;
+
+    /** A or B - finished fabric only. */
+    @Column(name = "grade", length = 2)
+    private String grade;
+
+    @PositiveOrZero
+    @Column(name = "rolls")
+    private Integer rolls;
+
+    /** A delivery schedule line's date. */
+    @Column(name = "delivery_date")
+    private java.time.LocalDate deliveryDate;
+
+    /** The balance given up when the line was short-closed; no stream may draw on it after. */
+    @Column(name = "short_closed_quantity", nullable = false, precision = 20, scale = 6)
+    private BigDecimal shortClosedQuantity = BigDecimal.ZERO;
+
+    @Column(name = "short_close_reason", length = 300)
+    private String shortCloseReason;
+
+    /** On a revision: the line of the superseded version this one continues. */
+    @Column(name = "revised_from_line_id")
+    private Long revisedFromLineId;
+
     @Column(name = "color_code", length = 40)
     private String colorCode;
 
@@ -89,7 +128,8 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
     private BigDecimal priceInMeter;
 
     @PositiveOrZero
-    @Column(name = "fulfilled_quantity", nullable = false, precision = 20, scale = 6)
+    // Written by LineDrawLedger alone (a mirror of the line's principal stream), so never by an update here.
+    @Column(name = "fulfilled_quantity", nullable = false, updatable = false, precision = 20, scale = 6)
     private BigDecimal fulfilledQuantity = BigDecimal.ZERO;
 
     /** Derived. No setter: {@link #recalculate()} owns it. */
@@ -105,6 +145,42 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
     public void setColorLineNo(Integer v)                { this.colorLineNo = v; }
     public BusinessDocumentColorLine getSourceColorLine() { return sourceColorLine; }
     public void setSourceColorLine(BusinessDocumentColorLine v) { this.sourceColorLine = v; }
+    public BusinessDocumentLineGroup getSourceLineGroup() { return sourceLineGroup; }
+    public void setSourceLineGroup(BusinessDocumentLineGroup v) { this.sourceLineGroup = v; }
+    public Long getFabricLotId()                         { return fabricLotId; }
+    public void setFabricLotId(Long v)                   { this.fabricLotId = v; }
+    public String getDyeLot()                            { return dyeLot; }
+    public void setDyeLot(String v)                      { this.dyeLot = blankToNull(v); }
+    public String getShade()                             { return shade; }
+    public void setShade(String v)                       { this.shade = blankToNull(v); }
+    public String getGrade()                             { return grade; }
+    public void setGrade(String v)                       { this.grade = blankToNull(v); }
+    public Integer getRolls()                            { return rolls; }
+    public void setRolls(Integer v)                      { this.rolls = v; }
+    public java.time.LocalDate getDeliveryDate()         { return deliveryDate; }
+    public void setDeliveryDate(java.time.LocalDate v)   { this.deliveryDate = v; }
+    public BigDecimal getShortClosedQuantity()           { return shortClosedQuantity; }
+    public String getShortCloseReason()                  { return shortCloseReason; }
+    public boolean isShortClosed()                       { return shortCloseReason != null; }
+    public Long getRevisedFromLineId()                   { return revisedFromLineId; }
+    public void setRevisedFromLineId(Long v)             { this.revisedFromLineId = v; }
+
+    /** Closes the line's balance: nothing may be drawn on it after, and the reason stays on record. */
+    public void shortClose(BigDecimal balance, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Say why the line is short-closed");
+        }
+        if (isShortClosed()) {
+            throw new IllegalStateException("Line %d is already short-closed".formatted(colorLineNo));
+        }
+        this.shortClosedQuantity = balance == null || balance.signum() < 0 ? BigDecimal.ZERO : balance;
+        this.shortCloseReason = reason.strip();
+    }
+
+    private static String blankToNull(String v) {
+        return v == null || v.isBlank() ? null : v.strip();
+    }
+
     public String getColorCode()                         { return colorCode; }
     public void setColorCode(String v)                   { this.colorCode = v; }
     public String getColorName()                         { return colorName; }

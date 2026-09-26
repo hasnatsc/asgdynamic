@@ -105,6 +105,12 @@ public final class Navigation {
             case APPROVALS      -> "check-circle";
             case APPROVAL_SETUP -> "workflow";
             case BOOKING_ANALYTICS -> "chart-bar";
+            case PROD_BOARD     -> "activity";
+            case GI             -> "transfer";
+            case FFR            -> "packing";
+            case FABRIC_STOCK   -> "inventory";
+            case DELIVERY_BOARD -> "clock";
+            case PROCESS_ROUTE  -> "workflow";
         };
     }
 
@@ -116,6 +122,7 @@ public final class Navigation {
             case SALES          -> "sales";
             case INVENTORY      -> "inventory";
             case PRODUCTION     -> "production";
+            case STORES         -> "package";
             case ACCOUNTS       -> "ledger";
             case ADMINISTRATION -> "admin";
         };

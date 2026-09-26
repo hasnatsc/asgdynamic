@@ -60,6 +60,8 @@ public class DocumentRevisionService {
         revision.setPreCostBuyer(original.getPreCostBuyer());
         revision.setPriceInMeter(original.isPriceInMeter());
         revision.setMarketingPerson(original.getMarketingPerson());
+        revision.setProcessKind(original.getProcessKind());
+        revision.setVendor(original.getVendor());
         revision.setRemarks(reason);
         // Upstream link travels with the revision: a revised BPO still traces to the same
         // Booking. revisionOf is a different axis (previous version of THIS document) and
@@ -86,7 +88,9 @@ public class DocumentRevisionService {
         copy.setGroupNo(source.getGroupNo());
         copy.setItem(source.getItem());
         copy.setUom(source.getUom());
-        copy.setFabric(copyOf(source.getFabric()));
+        copy.setFabric(copySpec(source.getFabric()));
+        copy.setRoute(source.getRoute().copy());
+        copy.setRevisedFromGroupId(source.getId());
         for (BusinessDocumentColorLine line : source.getColorLines()) {
             copy.addColorLine(copyOf(line));
         }
@@ -105,6 +109,14 @@ public class DocumentRevisionService {
         BusinessDocumentColorLine copy = new BusinessDocumentColorLine();
         copy.setColorLineNo(source.getColorLineNo());
         copy.setSourceColorLine(source.getSourceColorLine());
+        copy.setSourceLineGroup(source.getSourceLineGroup());
+        copy.setRevisedFromLineId(source.getId());
+        copy.setDeliveryDate(source.getDeliveryDate());
+        copy.setFabricLotId(source.getFabricLotId());
+        copy.setDyeLot(source.getDyeLot());
+        copy.setShade(source.getShade());
+        copy.setGrade(source.getGrade());
+        copy.setRolls(source.getRolls());
         copy.setColorCode(source.getColorCode());
         copy.setColorName(source.getColorName());
         copy.setFabricsStyle(source.getFabricsStyle());
@@ -131,7 +143,8 @@ public class DocumentRevisionService {
      * embeddable's column values into each owning row regardless, but there is no reason to
      * carry that fragile aliasing through the Java object graph in the meantime.
      */
-    private FabricSpec copyOf(FabricSpec source) {
+    /** A field-by-field copy of a fabric specification, for revisions and for documents raised against a line. */
+    public static FabricSpec copySpec(FabricSpec source) {
         FabricSpec copy = new FabricSpec();
         copy.setConstruction(source.getConstruction());
         copy.setDeclaredConstruction(source.getDeclaredConstruction());

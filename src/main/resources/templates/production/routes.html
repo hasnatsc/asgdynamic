@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Process routes: which way each fabric type is made, and its allowances. A production order
+  copies its line's route when saved, so a change here never rewrites an order in progress.
+-->
+<head><title>Process routes</title></head>
+<body>
+<div th:fragment="content" data-board="routes" th:attr="data-can-amend=${canAmend}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Process routes</h1>
+            <p class="page-sub">Which work orders each fabric type needs and which store it is delivered from. A type without a route cannot be put into production.</p>
+        </div>
+        <div class="page-actions" th:if="${canAmend}">
+            <button type="button" class="btn-primary" data-route-new>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New route</button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="table-wrap">
+            <table class="table-grid" data-rows>
+                <thead>
+                <tr>
+                    <th>Fabric type</th><th>Route</th><th>Weaving</th><th>Delivered from</th><th>Dyeing</th><th>Yarn preparation</th>
+                    <th class="text-right">Greige allowance</th><th class="text-right">Receive tol.</th><th class="text-right">Delivery tol.</th>
+                    <th class="w-px"></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <script th:inline="javascript">window.ROUTE_OPTIONS = /*[[${options}]]*/ {};</script>
+    <script th:src="@{/js/production-boards.js}" defer></script>
+</div>
+</body>
+</html>

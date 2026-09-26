@@ -45,6 +45,7 @@
 
     <!-- The maker corrects their own draft (returned or rejected included) with Create or Amend. -->
     <span sec:authorize="hasAuthority('SCREEN_BOOKING_AMEND') or hasAuthority('SCREEN_BOOKING_CREATE')" id="canAmendBooking" hidden></span>
+    <span sec:authorize="hasAuthority('SCREEN_BPO_CREATE')" id="canCreateProductionOrder" hidden></span>
 
     <div class="card overflow-hidden" data-doc-screen>
         <div class="toolbar">

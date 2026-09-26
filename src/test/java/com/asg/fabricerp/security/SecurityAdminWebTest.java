@@ -135,7 +135,8 @@ class SecurityAdminWebTest {
     void theRolesScreenRendersTheMatrixWithScreenNames() throws Exception {
         mvc.perform(get("/setup/roles").with(signedIn(admin)))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString("Bulk production order")))
+            .andExpect(content().string(containsString("Production order")))
+            .andExpect(content().string(containsString("Greige issue")))
             .andExpect(content().string(containsString("data-screen=\"SECURITY_ADMIN\"")));
     }
 

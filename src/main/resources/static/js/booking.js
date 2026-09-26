@@ -39,6 +39,7 @@
         const specLines = document.getElementById('specLines');
         const termsBody = document.querySelector('#termsTable tbody');
         const canAmend = !!document.getElementById('canAmendBooking');
+        const canCreateOrders = !!document.getElementById('canCreateProductionOrder');
         const fabricTypeSelect = document.getElementById('spFabricType');
         /** Solid-dyed types: one colour per fabric line (ColourStructure.SINGLE). */
         const singleColourTypes = new Set((fabricTypeSelect.dataset.singleColour || '').split('|').filter(Boolean).map(typeKey));
@@ -139,7 +140,9 @@
             RETURNED: ['Returned', 'text-amber-700 dark:text-amber-400', 'arrow-right'],
             REJECTED: ['Rejected', 'text-red-700 dark:text-red-400', 'x'],
             SUBMITTED: ['Submitted', 'text-gray-600 dark:text-gray-300', 'send'],
-            RESUBMITTED: ['Submitted again', 'text-gray-600 dark:text-gray-300', 'send']
+            RESUBMITTED: ['Submitted again', 'text-gray-600 dark:text-gray-300', 'send'],
+            CANCELLED: ['Cancelled', 'text-red-700 dark:text-red-400', 'x-circle'],
+            SUPERSEDED: ['Superseded by a revision', 'text-gray-600 dark:text-gray-300', 'refresh']
         };
 
         /**
@@ -232,7 +235,10 @@
             }
             title.innerHTML = `${esc(d.documentNo || 'Unnumbered booking')} ${App.statusBadge(d.status)}`;
             // Who signs next, and whether it is you, comes with the approval state (screen.approval).
-            actions.innerHTML = screen.actionButtons(d);
+            // An approved booking goes to production: one draft production order per fabric type.
+            const toProduction = canCreateOrders && ['APPROVED', 'PROCESSING', 'PARTIAL'].includes(d.status)
+                ? `<button type="button" class="btn-secondary" data-bpo-create>${App.icon('planning')}Create production order</button>` : '';
+            actions.innerHTML = toProduction + screen.actionButtons(d);
             actions.hidden = !actions.innerHTML;
             form.querySelector('[data-history]').innerHTML =
                 `<h3 class="form-section-title mb-4">Approval history</h3>${screen.historyHtml(history || [])}`;
@@ -242,6 +248,20 @@
         form.querySelector('[data-view-actions]').addEventListener('click', event => {
             const action = event.target.closest('[data-doc-action]')?.dataset.docAction;
             if (action) screen.act(action);
+        });
+        form.querySelector('[data-view-actions]').addEventListener('click', async event => {
+            if (!event.target.closest('[data-bpo-create]') || !screen.current) return;
+            const d = screen.current;
+            if (!await App.confirm({ title: `Create production orders from ${d.documentNo}?`,
+                message: 'One draft production order per fabric type, with every quantity not yet ordered. Review and submit each one.',
+                confirmText: 'Create' })) return;
+            try {
+                const created = await App.api(`/api/bpo/from-booking/${d.id}`, { method: 'POST' });
+                App.toast(`Created ${created.map(o => o.documentNo).join(', ')}.`, 'success');
+                if (created.length) window.location.href = `/bpo?open=${created[0].id}`;
+            } catch (error) {
+                App.fail(error);
+            }
         });
 
         async function closeEditor(force) {

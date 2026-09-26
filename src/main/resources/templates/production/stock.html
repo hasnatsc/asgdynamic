@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Fabric stock: balances by store, order, lot, shade and grade, each lot's ledger, and the store
+  roles that decide which documents may use which store. Every metre sits in a lot that names its
+  production order; balances are kept by FabricStockService alone.
+-->
+<head><title>Fabric stock</title></head>
+<body>
+<div th:fragment="content" data-board="stock" th:attr="data-can-set-roles=${canSetRoles}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Fabric stock</h1>
+            <p class="page-sub">Greige and finished fabric on hand, by order and lot. Reserved fabric is held for approved delivery orders.</p>
+        </div>
+    </div>
+
+    <div data-tabs-root>
+        <div class="tabs mb-5 !px-0" role="tablist">
+            <button type="button" class="tab" role="tab" data-tab="balances" aria-selected="true">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#inventory}"/></svg>Balances</button>
+            <button type="button" class="tab" role="tab" data-tab="stores" aria-selected="false">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#building}"/></svg>Stores</button>
+        </div>
+
+        <div data-panel="balances">
+            <div class="mb-5 grid grid-cols-2 gap-4 md:grid-cols-5" data-kpis></div>
+            <div class="card overflow-hidden">
+                <div class="toolbar">
+                    <div class="input-icon w-full sm:w-72">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                        <input type="search" class="field" placeholder="Order, buyer, colour, lot or shade" aria-label="Search" data-q autocomplete="off">
+                    </div>
+                    <select class="field w-auto" aria-label="Store" data-store>
+                        <option value="">All stores</option>
+                        <option th:each="s : ${stores}" th:value="${s.id}" th:text="${s.name}">Store</option>
+                    </select>
+                    <select class="field w-auto" aria-label="Stage" data-stage>
+                        <option value="">Greige and finished</option>
+                        <option value="GREIGE">Greige</option>
+                        <option value="FINISHED">Finished</option>
+                    </select>
+                    <label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" class="checkbox" data-zero> Show empty lots</label>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid whitespace-nowrap" data-rows>
+                        <thead>
+                        <tr>
+                            <th>Store</th><th>Stage</th><th>Order</th><th>Buyer</th><th>Fabric · colour</th><th>Lot</th>
+                            <th class="text-right">On hand</th><th class="text-right">Reserved</th><th class="text-right">Free</th>
+                            <th class="text-right">Rolls</th><th class="w-px"></th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pager" data-pager></div>
+            </div>
+        </div>
+
+        <div data-panel="stores" hidden>
+            <div class="card overflow-hidden">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Store roles</h2>
+                        <p class="card-sub">Greige receive and issue use greige stores; finished receive uses finished stores; a delivery uses whichever its order is delivered from. A store may hold both.</p>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid">
+                        <thead><tr><th>Store</th><th>Code</th><th>Holds greige</th><th>Holds finished</th></tr></thead>
+                        <tbody>
+                        <tr th:each="s : ${stores}" th:attr="data-store-id=${s.id}">
+                            <td th:text="${s.name}">Store</td>
+                            <td class="font-mono text-xs" th:text="${s.code}">S1</td>
+                            <td><input type="checkbox" class="checkbox" data-role="holdsGreige" th:checked="${s.holdsGreige}" th:disabled="${!canSetRoles}" aria-label="Holds greige"></td>
+                            <td><input type="checkbox" class="checkbox" data-role="holdsFinished" th:checked="${s.holdsFinished}" th:disabled="${!canSetRoles}" aria-label="Holds finished"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <dialog class="drawer" data-moves aria-labelledby="movesTitle">
+        <div class="modal-head">
+            <div><h2 id="movesTitle" class="modal-title">Lot ledger</h2><p class="mt-0.5 text-sm text-gray-500" data-moves-sub></p></div>
+            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+        </div>
+        <div class="modal-body" data-moves-body></div>
+    </dialog>
+    <script th:src="@{/js/production-boards.js}" defer></script>
+</div>
+</body>
+</html>

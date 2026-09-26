@@ -78,7 +78,7 @@ class ApprovalServiceTest {
             @Override public RowScope rowScope()       { return scope; }
         };
         service = new ApprovalService(repository, history, requests, matrices, actors, labels, context,
-            List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()));
+            List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()), List.of());
     }
 
     @AfterEach

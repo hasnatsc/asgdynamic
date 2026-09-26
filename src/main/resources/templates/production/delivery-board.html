@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Ready to deliver: approved delivery schedule lines by due date, with what the store can send
+  now - the smaller of what is still to go on delivery orders and what is free in stock.
+  Only a line with something deliverable offers "Create delivery order".
+-->
+<head><title>Ready to deliver</title></head>
+<body>
+<div th:fragment="content" data-board="delivery" th:attr="data-can-order=${canOrder}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Ready to deliver</h1>
+            <p class="page-sub">Marketing's approved schedule, against what the store holds. Overdue lines first.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn-ghost" href="/requestforpi"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#calendar}"/></svg>Delivery schedules</a>
+            <a class="btn-primary" href="/delivery-order"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#clipboard-check}"/></svg>Delivery orders</a>
+        </div>
+    </div>
+
+    <div class="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4" data-kpis></div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input type="search" class="field" placeholder="Schedule, order, buyer or colour" aria-label="Search" data-q autocomplete="off">
+            </div>
+            <div class="min-w-[14rem]">
+                <select class="field" aria-label="Buyer" data-buyer data-remote="/api/parties/lookup?role=CUSTOMER" data-allow-clear data-placeholder="Any buyer"></select>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" class="checkbox" data-deliverable checked> Deliverable now only</label>
+            <button type="button" class="btn-subtle toolbar-spacer" data-reset>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset</button>
+        </div>
+        <div class="table-wrap">
+            <table class="table-grid whitespace-nowrap" data-rows>
+                <thead>
+                <tr>
+                    <th>Due</th><th>Schedule</th><th>Buyer</th><th>Order · fabric</th><th>Colour</th>
+                    <th class="text-right">Scheduled</th><th class="text-right">On delivery orders</th><th class="text-right">Delivered</th>
+                    <th class="text-right">Ready</th><th class="text-right">Deliverable now</th><th class="w-px"></th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="pager" data-pager></div>
+    </div>
+    <script th:src="@{/js/production-boards.js}" defer></script>
+</div>
+</body>
+</html>

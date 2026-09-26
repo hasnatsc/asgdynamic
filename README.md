@@ -109,8 +109,7 @@ Naming drift was also fixed: SpindleERP carries `yarn_*` alongside `yrn_*`, `sls
 
 **Core** — `BusinessDocument` → `BusinessDocumentLineGroup` → `BusinessDocumentColorLine` +
 `FabricSpec`, `DocumentType` (33 types), the status machine, org-scoped repository,
-numbering service, `DocumentRevisionService` and `ParentLineDrawService` (shared — see
-below).
+numbering service and `DocumentRevisionService` (shared — see below).
 
 **Security** — `FabricUser` → `FabricUserPrincipal` → `SecurityOrgContext`, deny-by-default
 HTTP config, form login, remember-me. Every fabric service now has a real `OrgContext` to
@@ -242,6 +241,55 @@ legally approve its own document.
 column can never reach the query planner unchecked. SpindleERP's `BaseDataTableService`
 concatenates its `ORDER BY` and `WHERE` over raw `JdbcTemplate`.
 
+## Production to delivery (`production` package, V27–V29)
+
+The chain from an approved Booking to the buyer's gate, as designed in *Production to Delivery —
+System Design*. Nine documents, one engine (`ChainStep` is the whole table):
+
+```
+Booking ─► Production order ─┬─► Weaving WO ─► Greige receive ─────────► greige store
+           (one per fabric    ├─► Dyeing WO ─┬─► Greige issue (out of the greige store)
+            type, route       │              └─► Finished receive ─────► finished store
+            copied)           └─► Delivery schedule ─► Delivery order ─► Fabrics delivery
+```
+
+- **Routes** (`fab_process_routes`, *Master data → Process routes*): the fabric type decides the
+  route - greige, yarn-dyed greige, denim greige, piece-dyed, finished - and with it whether there
+  is dyeing, whether greige is woven per fabric line or per colour, which store delivers, and the
+  greige allowance and tolerances. Seeded for the 20 fabric types. Copied onto the production
+  order's line (`RouteSnapshot`), so a later change never rewrites an order in progress.
+- **One counter per stream** (`gbl_line_draws`, `LineDrawLedger`): weaving, dyeing and the
+  delivery schedule each draw their own balance of a production order line, capped by `DrawCaps`
+  and refused with the exact over-quantity. `fulfilled_quantity` is now a read-only mirror of each
+  line's principal stream.
+- **Fabric stock** (`inv_fabric_*`, `FabricStockService`): order-wise lots (greige by order line;
+  finished by colour, dye lot, shade and grade), an append-only move ledger, locked running
+  balances that can never go negative or over-promise, and delivery-order reservations. Store
+  roles (*holds greige / holds finished*) are set on *Fabric stock → Stores*.
+- **Sign-off**: orders, work orders, schedules and delivery orders go through the approval matrix;
+  greige receive, greige issue, finished receive and fabrics delivery are *posted* by the store and
+  undone only by cancelling, which writes exact reversing rows. A delivery order's approval runs the
+  buyer's credit control and reserves its lots.
+- **Progress** moves by itself (`ChainProgress`): Processing at the first approved Weaving WO,
+  Partial at the first delivery, Completed when delivered within tolerance or short-closed; the
+  Booking follows. Short-close a line to give up its balance (and free what it held upstream for a
+  top-up); close a dyeing batch to book its measured process loss.
+- **Revisions** of a Booking, production order or delivery schedule take over on approval: their
+  draws replace the old version's, everything raised against the old lines is re-pointed, and the
+  old version is superseded. A revision may not cut a line below what has already been drawn.
+- **Screens**: every chain document (one controller, one page, `production-docs.js`), *Create
+  production order* on an approved Booking, the **Production board** (every open order line, stage
+  by stage, late flag, next action), **Ready to deliver** (approved schedule lines against free
+  stock), **Fabric stock** (balances and each lot's ledger) and **Process routes**.
+
+Verified by `ProductionChainDatabaseIT` (opt-in, real PostgreSQL built by Flyway V1–V29 with
+`ddl-auto=validate`): a piece-dyed order from Booking to delivery and back (cancel), independent
+streams on one line, short-close and top-up, revision takeover, and batch close with loss.
+
+Not built yet (design phase 4–5): roll-by-roll tracking, stock transfer and adjustment, sales
+return, yarn-dyeing work orders, accounting postings from receipts and deliveries, production
+analytics.
+
 ## Verified against a real PostgreSQL database
 
 - V1–V6 apply cleanly in order, **0 unindexed foreign keys** throughout — including after
@@ -350,16 +398,6 @@ every other secret in this project.
 
 ## Still to build
 
-- **Greige Issue and Finished Fabrics Receive — genuinely unresolved, not just undone.**
-  `textileIssue`'s captured fields (`woCode`, grid columns "WO NO"/"WO QTY"/"Issue QTY")
-  suggest Greige Issue draws against the **Weaving Work Order**, not against Greige
-  Receive as the family's original comment on `DocumentType` assumed before anyone checked
-  the fields — likewise Finished Fabrics Receive against the **Processing Work Order**
-  (`dyeingReceive` shows the same shape). This is a reasonable reading of the field names,
-  not a confirmed fact: verify against the real legacy screen behaviour, or a stakeholder
-  who worked with it, before picking a `PARENT_TYPE` and building on it. Both would
-  otherwise be a straightforward seventh/eighth instance of the exact same
-  `ParentLineDrawService` pattern.
 - **Raw Material Issue, Sales Return.** Sales Return's capture is unusually thin — 6 generic
   fields, **zero captured functions** — thinner than every other type built here by a wide
   margin. Treat it as unimplemented-in-the-legacy-system-in-practice rather than a normal
@@ -375,10 +413,6 @@ every other secret in this project.
   document type uses the single-stage `ROLE_APPROVAL` path; the three-stage version is a
   documented extension point on `DocumentType.approverRole()`, deliberately not built until
   a Commercial document type exists to test it against.
-- **Front-end JS for the fabric screens** — the line-table behaviour those templates declare via
-  `data-action` / `data-lookup` attributes. `static/js/app.js` now provides the grid, dialogs and
-  fetch helpers the security screens use; the fabric templates are still standalone pages outside
-  `layout/main.html` and have not been moved onto it.
 - **Switching operating unit/store mid-session** — the header shows it read-only; see
   `FabricUser`'s javadoc.
 - **Party data.** The legacy capture has no customer records - enter them on **Setup → Parties**

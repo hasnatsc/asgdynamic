@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  One page for the nine production-chain documents (com.asg.fabricerp.production.ChainStep):
+  production order, weaving and dyeing work orders, greige receive and issue, finished receive,
+  delivery schedule, delivery order and fabrics delivery. The list is App.DocumentScreen; the
+  viewer and the editor are production-docs.js, driven by the step's config below.
+
+  Every line is raised against a parent line and draws that line's own stream, so the editor
+  offers exactly what is still open and the server refuses anything over the cap.
+-->
+<head>
+    <title th:text="${title}">Production</title>
+</head>
+<body>
+<div th:fragment="content" data-chain-page>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="${step.plural()}">Production orders</h1>
+            <p class="page-sub" th:switch="${step.name()}">
+                <span th:case="'BPO'">One per fabric type, raised from an approved Booking. The route decides the work orders it needs.</span>
+                <span th:case="'WWO'">Greige to weave against a production order - per fabric line, or per colour when the colour is in the yarn.</span>
+                <span th:case="'PWO'">Dye, print, finish or rework against a production order's colours. Greige is issued to it and finished fabric received from it.</span>
+                <span th:case="'GR'">Greige off the loom, against a Weaving WO, into a greige store. Posted by the store.</span>
+                <span th:case="'GI'">Greige handed to a dye batch, against a Dyeing WO, out of a greige store. Posted by the store.</span>
+                <span th:case="'FFR'">Finished fabric from the dye house by dye lot, shade and grade, into a finished store. Posted by the store.</span>
+                <span th:case="'RPI'">Marketing's delivery dates and quantities against production order lines - what the store may deliver.</span>
+                <span th:case="'DO'">One dispatch against an approved schedule; approval checks the buyer's credit and reserves the lots.</span>
+                <span th:case="'FD'">The challan and gate pass: fabric out of the store against a delivery order. Posted by the store.</span>
+            </p>
+        </div>
+        <div class="page-actions">
+            <a th:if="${step.name() == 'BPO'}" class="btn-ghost" href="/booking">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#booking}"/></svg>Bookings</a>
+            <a th:if="${step.name() == 'DO'}" class="btn-ghost" href="/production/delivery-board">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#clock}"/></svg>Ready to deliver</a>
+            <a th:if="${step.name() == 'WWO' or step.name() == 'PWO' or step.name() == 'RPI'}" class="btn-ghost" href="/production/board">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#activity}"/></svg>Production board</a>
+            <button type="button" class="btn-primary" data-chain-new th:if="${config.canCreate}">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg><span th:text="|New ${step.label().toLowerCase()}|">New</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden" data-doc-screen>
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input type="search" class="field pr-8" placeholder="Search number or reference" aria-label="Search"
+                       data-filter="search" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select class="field w-auto" aria-label="Status" data-filter="status">
+                <option value="">All statuses</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.label()}">Draft</option>
+            </select>
+            <div class="flex items-center gap-2">
+                <input type="date" class="field w-auto" aria-label="From date" data-filter="from">
+                <span class="text-gray-400">–</span>
+                <input type="date" class="field w-auto" aria-label="To date" data-filter="to">
+            </div>
+            <button type="button" class="btn-subtle toolbar-spacer" data-filter-reset>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset
+            </button>
+        </div>
+        <div class="table-wrap">
+            <table id="chainTable" class="table-grid table-stack">
+                <thead>
+                <tr>
+                    <th data-col="documentNo" data-format="doc" data-sort="documentNo" th:text="|${step.label()} No|">No</th>
+                    <th data-col="documentDate" data-format="date" data-sort="documentDate">Date</th>
+                    <th data-col="parentNo" th:text="${config.parentLabel}">Parent</th>
+                    <th data-col="partyName">Buyer</th>
+                    <th th:if="${!step.isPosting()}" data-col="marketingTeamName">Team</th>
+                    <th th:if="${step.isPosting() or step.name() == 'DO'}" data-col="warehouseName">Store</th>
+                    <th th:if="${step.name() == 'PWO'}" data-col="processKind">Process</th>
+                    <th th:if="${step.name() == 'BPO' or step.name() == 'WWO' or step.name() == 'PWO' or step.name() == 'RPI'}"
+                        data-col="requiredDate" data-format="date" data-sort="requiredDate">Required</th>
+                    <th data-col="totalQuantity" data-format="num" data-sort="totalQuantity" class="text-right">Quantity</th>
+                    <th data-col="status" data-format="status" data-sort="status">Status</th>
+                    <th class="w-px" data-format="actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="pager" data-pager></div>
+    </div>
+
+    <!-- The viewer: a document, where each line stands downstream, and what may be done now. -->
+    <dialog id="chainViewer" class="modal modal-editor" aria-labelledby="chainViewerTitle">
+        <div class="flex max-h-[94vh] min-h-0 flex-col">
+            <div class="modal-head items-center">
+                <div class="min-w-0">
+                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500" th:text="${step.label()}">Document</p>
+                    <h2 id="chainViewerTitle" class="modal-title mt-0.5 flex flex-wrap items-center gap-2" data-view-title></h2>
+                </div>
+                <button type="button" class="btn-icon -mr-2 ml-auto" data-close aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin" data-view-body></div>
+            <div class="modal-foot justify-between" data-view-foot></div>
+        </div>
+    </dialog>
+
+    <!-- The editor: header, then the parent's open lines with what each still allows. -->
+    <dialog id="chainEditor" class="modal modal-editor" data-sticky aria-labelledby="chainEditorTitle">
+        <form class="flex max-h-[94vh] min-h-0 flex-col" novalidate autocomplete="off" data-editor-form>
+            <div class="modal-head items-center">
+                <div class="min-w-0">
+                    <h2 id="chainEditorTitle" class="modal-title" data-editor-title th:text="|New ${step.label().toLowerCase()}|">New</h2>
+                    <p class="mt-0.5 text-sm text-gray-500" th:text="${step.isPosting()
+                        ? 'Saved as a draft; Post writes it to the stock ledger.'
+                        : 'Saved as a draft; submit it for approval from the document once it is complete.'}">Saved as a draft.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2 ml-auto" data-editor-close aria-label="Close editor">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin">
+                <section class="form-section">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-editor-header></div>
+                </section>
+                <section class="form-section">
+                    <div class="form-section-head">
+                        <div>
+                            <h3 class="form-section-title">Lines</h3>
+                            <p class="form-section-sub" data-lines-sub>Choose the document to raise it against; its open lines are listed with what each still allows.</p>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm text-gray-600" data-select-all-wrap hidden>
+                            <input type="checkbox" class="checkbox" data-select-all> All open lines</label>
+                    </div>
+                    <div data-editor-lines>
+                        <p class="text-sm text-gray-500">Nothing chosen yet.</p>
+                    </div>
+                </section>
+            </div>
+            <div class="modal-foot justify-between">
+                <p class="text-sm text-gray-600">Total <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-editor-total>0</span></p>
+                <div class="flex gap-2">
+                    <button type="button" class="btn-ghost" data-editor-close>Cancel</button>
+                    <button type="submit" class="btn-primary" data-editor-save>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
+                </div>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+        window.CHAIN = /*[[${config}]]*/ {};
+    </script>
+    <script th:src="@{/js/production-docs.js}" defer></script>
+</div>
+</body>
+</html>

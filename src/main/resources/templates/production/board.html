@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Production board: every open production order line, and where its fabric is at every stage -
+  read from the draw streams and the stock ledger (ProductionBoardService), never typed in.
+  Each row carries the next thing it needs: weave, dye, schedule.
+-->
+<head><title>Production board</title></head>
+<body>
+<div th:fragment="content" data-board="production"
+     th:attr="data-can-weave=${canWeave},data-can-dye=${canDye},data-can-schedule=${canSchedule}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Production board</h1>
+            <p class="page-sub" th:text="|Every open production order line, from greige to delivery. A line is late when it is due within ${lateDays} days and its fabric is not ready.|">Every open production order line.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn-ghost" href="/stock/fabric"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#inventory}"/></svg>Fabric stock</a>
+            <a class="btn-primary" href="/bpo"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#planning}"/></svg>Production orders</a>
+        </div>
+    </div>
+
+    <div class="mb-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6" data-kpis></div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input type="search" class="field" placeholder="Order, buyer, colour or construction" aria-label="Search" data-q autocomplete="off">
+            </div>
+            <div class="min-w-[14rem]">
+                <select class="field" aria-label="Buyer" data-buyer data-remote="/api/parties/lookup?role=CUSTOMER" data-allow-clear data-placeholder="Any buyer"></select>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-gray-600">Due by <input type="date" class="field w-auto" data-due></label>
+            <label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" class="checkbox" data-completed> Include completed</label>
+            <button type="button" class="btn-subtle toolbar-spacer" data-reset>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset</button>
+        </div>
+        <div class="table-wrap">
+            <table class="table-grid whitespace-nowrap" data-rows>
+                <thead>
+                <tr>
+                    <th>Order</th><th>Buyer</th><th>Fabric · colour</th><th>Due</th>
+                    <th class="text-right">Ordered</th>
+                    <th class="text-right" title="Greige on weaving work orders, of the greige required; greige received below">Weaving</th>
+                    <th class="text-right" title="Finished on dyeing work orders, of the order; greige issued and finished received below">Dyeing</th>
+                    <th class="text-right" title="Free in the delivering store: finished A grade, or greige for greige routes">Ready</th>
+                    <th class="text-right" title="Scheduled by marketing; delivered below">Delivery</th>
+                    <th class="text-right">Balance</th><th class="w-px">Next</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="pager" data-pager></div>
+    </div>
+    <script th:src="@{/js/production-boards.js}" defer></script>
+</div>
+</body>
+</html>

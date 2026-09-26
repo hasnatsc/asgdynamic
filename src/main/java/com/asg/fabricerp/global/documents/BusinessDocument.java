@@ -189,6 +189,28 @@ public class BusinessDocument extends BaseOrgEntity {
     @JoinColumn(name = "marketing_person_id", foreignKey = @ForeignKey(name = "fk_gbd_marketing_person"))
     private FabricUser marketingPerson;
 
+    // --- production chain header (V28) ---
+
+    /** Dyeing work order: dye, print, finish only or rework. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "process_kind", length = 20)
+    private ProcessKind processKind;
+
+    /** Subcontracted weaving or dyeing: the vendor who does the work. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_party_id", foreignKey = @ForeignKey(name = "fk_gbd_vendor"))
+    private Party vendor;
+
+    @Column(name = "vehicle_no", length = 40)
+    private String vehicleNo;
+
+    @Column(name = "driver_name", length = 100)
+    private String driverName;
+
+    /** Dyeing work order: closed, with its unreturned greige booked as process loss. */
+    @Column(name = "batch_closed", nullable = false)
+    private Boolean batchClosed = Boolean.FALSE;
+
     @Transient
     private Long marketingPersonId;
 
@@ -268,6 +290,16 @@ public class BusinessDocument extends BaseOrgEntity {
     public Long getMarketingTeamId()            { return marketingTeamId; }
     public void setMarketingTeamId(Long v)      { this.marketingTeamId = v; }
     public List<BusinessDocumentTerm> getTerms() { return terms; }
+    public ProcessKind getProcessKind()         { return processKind; }
+    public void setProcessKind(ProcessKind v)   { this.processKind = v; }
+    public Party getVendor()                    { return vendor; }
+    public void setVendor(Party v)              { this.vendor = v; }
+    public String getVehicleNo()                { return vehicleNo; }
+    public void setVehicleNo(String v)          { this.vehicleNo = v; }
+    public String getDriverName()               { return driverName; }
+    public void setDriverName(String v)         { this.driverName = v; }
+    public boolean isBatchClosed()              { return Boolean.TRUE.equals(batchClosed); }
+    public void closeBatch()                    { this.batchClosed = Boolean.TRUE; }
     public boolean isTermsSubmitted()           { return termsSubmitted; }
 
     public void setTerms(List<BusinessDocumentTerm> incoming) {
@@ -367,6 +399,22 @@ public class BusinessDocument extends BaseOrgEntity {
         if (!status.canTransitionTo(target)) {
             throw new IllegalStateException(
                 "Illegal transition %s -> %s for %s".formatted(status, target, documentNo));
+        }
+        this.status = target;
+    }
+
+    /**
+     * Moves a committed document along its progress - approved, processing, partial, completed -
+     * as its downstream documents are posted or cancelled. Unlike {@link #transitionTo} it may step
+     * back (a cancelled delivery reopens a completed order), but never out of the committed states:
+     * approval, cancelling and closing keep their own gates.
+     */
+    public void progressTo(BusinessDocumentStatus target) {
+        java.util.Set<BusinessDocumentStatus> inFlight = java.util.EnumSet.of(BusinessDocumentStatus.APPROVED,
+            BusinessDocumentStatus.PROCESSING, BusinessDocumentStatus.PARTIAL, BusinessDocumentStatus.COMPLETED);
+        if (!inFlight.contains(status) || !inFlight.contains(target)) {
+            throw new IllegalStateException(
+                "%s is %s and its progress cannot move to %s".formatted(documentNo, status, target));
         }
         this.status = target;
     }

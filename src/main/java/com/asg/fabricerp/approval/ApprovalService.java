@@ -70,6 +70,7 @@ public class ApprovalService {
     private final ApprovalLabels labels;
     private final OrgContext context;
     private final List<SubmissionCheck> checks;
+    private final List<ApprovalListener> listeners;
 
     public ApprovalService(BusinessDocumentRepository repository,
                            ApprovalHistoryRepository historyRepository,
@@ -78,7 +79,8 @@ public class ApprovalService {
                            ApprovalActors actors,
                            ApprovalLabels labels,
                            OrgContext context,
-                           List<SubmissionCheck> checks) {
+                           List<SubmissionCheck> checks,
+                           List<ApprovalListener> listeners) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.requests = requests;
@@ -87,6 +89,7 @@ public class ApprovalService {
         this.labels = labels;
         this.context = context;
         this.checks = List.copyOf(checks);
+        this.listeners = List.copyOf(listeners);
     }
 
     // ------------------------------------------------------------------------------ submit
@@ -189,7 +192,13 @@ public class ApprovalService {
 
         BusinessDocumentStatus from = doc.getStatus();
         switch (decision) {
-            case APPROVED -> { if (last) doc.transitionTo(BusinessDocumentStatus.APPROVED); }
+            case APPROVED -> {
+                if (last) {
+                    doc.transitionTo(BusinessDocumentStatus.APPROVED);
+                    // The type's own consequences - reserve, start, supersede - inside this transaction.
+                    listeners.stream().filter(l -> l.handles(doc.getDocumentType())).forEach(l -> l.onApproved(doc));
+                }
+            }
             case RETURNED -> doc.transitionTo(BusinessDocumentStatus.DRAFT);
             case REJECTED -> doc.transitionTo(BusinessDocumentStatus.REJECTED);
         }
@@ -428,6 +437,15 @@ public class ApprovalService {
 
     private static String blankToNull(String s) {
         return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    /**
+     * Records a workflow event that is not an approval decision - a posting, a cancellation, a
+     * short-close - on the same timeline the document's screen shows.
+     */
+    @Transactional
+    public void record(BusinessDocument doc, ApprovalAction action, BusinessDocumentStatus from, String remarks) {
+        recordHistory(doc, action, from, remarks, null, null);
     }
 
     private void recordHistory(BusinessDocument doc, ApprovalAction action, BusinessDocumentStatus from,

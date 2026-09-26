@@ -13,19 +13,30 @@ package com.asg.fabricerp.security;
  */
 public enum Screen {
     BOOKING("Booking", Section.SALES, "/booking"),
-    RPI("Request for PI", Section.SALES, "/requestforpi"),
-    DO("Delivery order", Section.SALES, "/delivery-order"),
-    FD("Fabrics delivery", Section.SALES, "/fabrics-delivery"),
-    BPO("Bulk production order", Section.PRODUCTION, "/bpo"),
+    /** The legacy Request for PI: marketing's delivery schedule against production order lines. */
+    RPI("Delivery schedule", Section.SALES, "/requestforpi"),
+    BPO("Production order", Section.PRODUCTION, "/bpo"),
+    /** Every open production order line and where its fabric is. */
+    PROD_BOARD("Production board", Section.PRODUCTION, "/production/board"),
     WWO("Weaving work order", Section.PRODUCTION, "/weaving-wo"),
-    PWO("Processing work order", Section.PRODUCTION, "/processing-wo"),
-    GR("Greige receive", Section.PRODUCTION, "/greige-receive"),
+    /** The legacy Processing Work Order: dye, print, finish or rework. */
+    PWO("Dyeing work order", Section.PRODUCTION, "/processing-wo"),
+    GR("Greige receive", Section.STORES, "/greige-receive"),
+    GI("Greige issue", Section.STORES, "/greige-issue"),
+    FFR("Finished receive", Section.STORES, "/finished-receive"),
+    FABRIC_STOCK("Fabric stock", Section.STORES, "/stock/fabric"),
+    /** Approved schedule lines and what the store can send now. */
+    DELIVERY_BOARD("Ready to deliver", Section.STORES, "/production/delivery-board"),
+    DO("Delivery order", Section.STORES, "/delivery-order"),
+    FD("Fabrics delivery", Section.STORES, "/fabrics-delivery"),
     ITEM("Items", Section.INVENTORY, "/inventory/items"),
     ITEM_SETUP("Item setup", Section.INVENTORY, "/inventory/categories"),
     PARTY("Parties", Section.SETUP, "/setup/parties"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
     TERMS("Terms & conditions", Section.SETUP, "/setup/terms"),
     QUALITY("Fabric qualities", Section.SETUP, "/setup/qualities"),
+    /** Which route each fabric type follows, and its allowances. */
+    PROCESS_ROUTE("Process routes", Section.SETUP, "/setup/process-routes"),
     ACC_CHART("Chart of accounts", Section.ACCOUNTS, "/accounts/chart"),
     ACC_JOURNAL("Journal entries", Section.ACCOUNTS, "/accounts/journals"),
     ACC_REPORTS("Financial reports", Section.ACCOUNTS, "/accounts/reports"),
@@ -53,6 +64,8 @@ public enum Screen {
         SALES("Sales"),
         INVENTORY("Inventory"),
         PRODUCTION("Production"),
+        /** Greige and finished stores: receipts, issues, stock and deliveries. */
+        STORES("Stores"),
         ACCOUNTS("Accounts"),
         ADMINISTRATION("Administration");
 

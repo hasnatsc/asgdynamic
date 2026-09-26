@@ -50,6 +50,14 @@ public class BusinessDocumentLineGroup extends BaseOrgLineEntity {
     @Embedded
     private FabricSpec fabric = new FabricSpec();
 
+    /** The process route, on production orders and every document raised against them. */
+    @Embedded
+    private RouteSnapshot route = new RouteSnapshot();
+
+    /** On a revision: the line group of the superseded version this one continues. */
+    @Column(name = "revised_from_group_id")
+    private Long revisedFromGroupId;
+
     @Valid
     @OneToMany(mappedBy = "lineGroup", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BusinessDocumentColorLine> colorLines = new ArrayList<>();
@@ -65,6 +73,11 @@ public class BusinessDocumentLineGroup extends BaseOrgLineEntity {
     public FabricSpec getFabric()                      { return fabric; }
     public void setFabric(FabricSpec v)                { this.fabric = v == null ? new FabricSpec() : v; }
     public List<BusinessDocumentColorLine> getColorLines() { return colorLines; }
+    /** Never null: Hibernate hands back null for an embeddable whose columns are all empty. */
+    public RouteSnapshot getRoute()                    { return route == null ? (route = new RouteSnapshot()) : route; }
+    public void setRoute(RouteSnapshot v)              { this.route = v == null ? new RouteSnapshot() : v; }
+    public Long getRevisedFromGroupId()                { return revisedFromGroupId; }
+    public void setRevisedFromGroupId(Long v)          { this.revisedFromGroupId = v; }
 
     public void setColorLines(List<BusinessDocumentColorLine> incoming) {
         this.colorLines.clear();
