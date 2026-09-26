@@ -52,6 +52,10 @@ class BookingServiceRevisionTest {
             @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
         };
 
+        // The user is a member of marketing team 3, so they may raise bookings.
+        com.asg.fabricerp.security.DataScopeRepository scopes = mock(com.asg.fabricerp.security.DataScopeRepository.class);
+        when(scopes.findValuesHeldOn(any(), any(), any())).thenReturn(List.of(3L));
+
         // Real DocumentRevisionService over the same mocked repository/numbering, so the
         // revision behaviour under test is the actual shared logic, not a stand-in for it.
         DocumentRevisionService revisions = new DocumentRevisionService(repository, numbering);
@@ -61,7 +65,7 @@ class BookingServiceRevisionTest {
             mock(com.asg.fabricerp.global.terms.TermsConditionService.class),
             mock(com.asg.fabricerp.security.FabricUserRepository.class), context,
             mock(com.asg.fabricerp.common.MarketingTeamRepository.class),
-            mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class));
+            mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class), scopes);
         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BK-2026-000002");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
     }
@@ -73,6 +77,7 @@ class BookingServiceRevisionTest {
         doc.setBusinessUnit(DocumentRefs.unit(UNIT));
         doc.setDocumentType(DocumentType.BOOKING);
         doc.setDocumentNo("BKAF000001");
+        org.springframework.test.util.ReflectionTestUtils.setField(doc, "createdBy", "tester");
         doc.setDocumentDate(LocalDate.of(2026, 1, 10));
         doc.setParty(DocumentRefs.party(77L));
         doc.setCurrencyCode("USD");
@@ -162,6 +167,7 @@ class BookingServiceRevisionTest {
         firstRevision.setBusinessUnit(DocumentRefs.unit(UNIT));
         firstRevision.setDocumentType(DocumentType.BOOKING);
         firstRevision.setDocumentNo("BKAF000002");
+        org.springframework.test.util.ReflectionTestUtils.setField(firstRevision, "createdBy", "tester");
         firstRevision.setDocumentDate(LocalDate.now());
         firstRevision.setRevisionNo(1);
         firstRevision.setRevisionOf(DocumentRefs.document(1L));          // root
@@ -183,6 +189,7 @@ class BookingServiceRevisionTest {
         draft.setOrganizationId(ORG);
         draft.setDocumentType(DocumentType.BOOKING);
         draft.setDocumentNo("BKAF000003");
+        org.springframework.test.util.ReflectionTestUtils.setField(draft, "createdBy", "tester");
         when(repository.findScopedWithLines(3L, ORG)).thenReturn(Optional.of(draft));
 
         assertThatThrownBy(() -> service.revise(3L, "why"))

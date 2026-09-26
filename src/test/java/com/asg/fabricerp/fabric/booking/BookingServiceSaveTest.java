@@ -11,7 +11,9 @@ import com.asg.fabricerp.global.documents.*;
 import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import com.asg.fabricerp.global.terms.ConditionType;
 import com.asg.fabricerp.global.terms.TermsConditionService;
+import com.asg.fabricerp.security.DataScopeRepository;
 import com.asg.fabricerp.security.FabricUserRepository;
+import org.springframework.test.util.ReflectionTestUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,8 @@ class BookingServiceSaveTest {
     private CostingService costing;
     private TermsConditionService terms;
     private MarketingTeamRepository teams;
+    private DataScopeRepository scopes;
+    private DocumentReferences references;
     /** Who is saving: unrestricted unless a test narrows it. */
     private RowScope scope = RowScope.unrestrictedScope();
     private BookingService service;
@@ -46,6 +50,10 @@ class BookingServiceSaveTest {
         costing = mock(CostingService.class);
         terms = mock(TermsConditionService.class);
         teams = mock(MarketingTeamRepository.class);
+        scopes = mock(DataScopeRepository.class);
+        // The saving user is a member of team 3 unless a test says otherwise.
+        when(scopes.findValuesHeldOn(any(), eq(ScopeDimension.MARKETING_TEAM), any())).thenReturn(List.of(3L));
+        references = DocumentRefs.references(10L);
 
         OrgContext context = new OrgContext() {
             @Override public Long organizationId()     { return ORG; }
@@ -57,9 +65,9 @@ class BookingServiceSaveTest {
         };
         service = new BookingService(repository, numbering, costing,
             new CostingTranslator(new ObjectMapper()),
-            new DocumentRevisionService(repository, numbering), DocumentRefs.references(10L),
+            new DocumentRevisionService(repository, numbering), references,
             terms, mock(FabricUserRepository.class), context,
-            teams, mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class));
+            teams, mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class), scopes);
 
         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BKAF000031");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
@@ -240,6 +248,7 @@ class BookingServiceSaveTest {
         original.setDocumentType(DocumentType.BOOKING);
         original.setBusinessUnit(DocumentRefs.unit(10L));
         original.setDocumentNo("BKAF000030");
+        ReflectionTestUtils.setField(original, "createdBy", "tester");
         original.addTerm(new BusinessDocumentTerm(1, "Dead Yarn & Naps Should Be Not Allowed."));
         original.transitionTo(BusinessDocumentStatus.SUBMITTED);
         original.transitionTo(BusinessDocumentStatus.APPROVED);
@@ -277,36 +286,82 @@ class BookingServiceSaveTest {
     }
 
     @Test
-    void anUnrestrictedUserFilesABookingUnderTheTeamTheyChoose() {
-        when(teams.lookup(ORG)).thenReturn(List.of(team(3L, "London"), team(5L, "Tokyo")));
+    void anUnrestrictedUserInATeamFilesTheBookingUnderThatTeamWhateverTheRequestNames() {
         BusinessDocument booking = newBooking();
         booking.setMarketingTeamId(5L);
 
-        assertThat(service.save(booking).getMarketingTeam().getName()).isEqualTo("Tokyo");
+        assertThat(service.save(booking).getMarketingTeam().getId()).isEqualTo(3L);
     }
 
     @Test
-    void anUnrestrictedUserMayLeaveABookingWithoutATeam() {
-        assertThat(service.save(newBooking()).getMarketingTeam()).isNull();
+    void aUserInNoMarketingTeamCannotCreateABooking() {
+        when(scopes.findValuesHeldOn(any(), eq(ScopeDimension.MARKETING_TEAM), any())).thenReturn(List.of());
+
+        assertThat(service.canCreate()).isFalse();
+        assertThatThrownBy(() -> service.save(newBooking()))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("not in a marketing team");
+        verify(repository, never()).save(any());
     }
 
     @Test
-    void anInactiveOrForeignTeamIsRefused() {
-        when(teams.lookup(ORG)).thenReturn(List.of(team(3L, "London")));
-        BusinessDocument booking = newBooking();
-        booking.setMarketingTeamId(99L);
-
-        assertThatThrownBy(() -> service.save(booking))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("No active marketing team");
-    }
-
-    @Test
-    void aRestrictedUserInNoSingleTeamCannotRaiseABooking() {
+    void aRestrictedUserInMoreThanOneTeamCannotRaiseABooking() {
         scope = new RowScope(false, java.util.Map.of(ScopeDimension.MARKETING_TEAM, java.util.Set.of(3L, 4L)));
 
         assertThatThrownBy(() -> service.save(newBooking()))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("no single marketing team");
+            .hasMessageContaining("more than one marketing team");
+    }
+
+    // ------------------------------------------------------------------ marketing person and ownership
+
+    @Test
+    void theMarketingPersonIsNeverTakenFromTheRequest() {
+        BusinessDocument booking = newBooking();
+        booking.setMarketingPersonId(42L);      // someone else, sent by hand
+
+        service.save(booking);
+
+        verify(references, never()).user(anyLong(), eq(42L));
+    }
+
+    private BusinessDocument savedBookingCreatedBy(String username) {
+        BusinessDocument doc = newBooking();
+        doc.setId(8L);
+        doc.setOrganizationId(ORG);
+        doc.setDocumentType(DocumentType.BOOKING);
+        doc.setBusinessUnit(DocumentRefs.unit(10L));
+        ReflectionTestUtils.setField(doc, "createdBy", username);
+        when(repository.findScopedWithLines(8L, ORG)).thenReturn(Optional.of(doc));
+        return doc;
+    }
+
+    @Test
+    void anotherUsersBookingCannotBeOpenedEditedOrDeleted() {
+        savedBookingCreatedBy("someone-else");
+        BusinessDocument edit = newBooking();
+        edit.setId(8L);
+
+        assertThatThrownBy(() -> service.get(8L)).hasMessageContaining("Booking not found");
+        assertThatThrownBy(() -> service.save(edit)).hasMessageContaining("Booking not found");
+        assertThatThrownBy(() -> service.delete(8L)).hasMessageContaining("Booking not found");
+    }
+
+    @Test
+    void theCreatorCanOpenTheirOwnBooking() {
+        BusinessDocument mine = savedBookingCreatedBy("tester");
+
+        assertThat(service.get(8L)).isSameAs(mine);
+    }
+
+    @Test
+    void theListIsNarrowedToTheSignedInUsersBookings() {
+        when(repository.search(any(), any(), any(), any(), any(), any(), any(), any(), eq("tester"), any()))
+            .thenReturn(org.springframework.data.domain.Page.empty());
+
+        service.search(null, null, null, null, org.springframework.data.domain.Pageable.unpaged());
+
+        verify(repository).search(eq(ORG), eq(10L), eq(DocumentType.BOOKING), isNull(), isNull(), isNull(), isNull(),
+            any(RowScope.class), eq("tester"), any());
     }
 }

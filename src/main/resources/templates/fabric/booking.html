@@ -26,11 +26,22 @@
             <p class="page-sub">Buyer order for woven fabric — start of order-to-cash.</p>
         </div>
         <div class="page-actions" sec:authorize="hasAuthority('SCREEN_BOOKING_CREATE')">
-            <button type="button" class="btn-primary" data-action="booking-new">
+            <button type="button" class="btn-primary" data-action="booking-new" th:if="${canCreateBooking}">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New booking
+            </button>
+            <button type="button" class="btn-primary" disabled th:unless="${canCreateBooking}"
+                    title="You are not in a marketing team, so you cannot create a booking">
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New booking
             </button>
         </div>
     </div>
+
+    <!-- A booking is filed under its creator's marketing team: no team, no new booking. -->
+    <p class="alert-warn mb-4" role="alert"
+         sec:authorize="hasAuthority('SCREEN_BOOKING_CREATE')" th:unless="${canCreateBooking}">
+        You are not in a marketing team, so you cannot create a booking.
+        Ask an administrator to add you to a team under Setup › Marketing teams.
+    </p>
 
     <span sec:authorize="hasAuthority('SCREEN_BOOKING_AMEND')" id="canAmendBooking" hidden></span>
 
@@ -161,12 +172,12 @@
                            placeholder="Filled from the costing">
                 </div>
 
-                <!-- ADM-4/ADM-7: whose book the booking lands in. A team member's own team, fixed; an
-                     unrestricted user chooses. Never changes once the booking exists. -->
+                <!-- ADM-4/ADM-7: whose book the booking lands in - always the creator's own team, set by
+                     the server. Never changes once the booking exists. -->
                 <div class="lg:col-span-2">
                     <label class="label" for="bkMarketingTeam">Marketing team</label>
-                    <select id="bkMarketingTeam" class="field" name="marketingTeamId"
-                            th:attr="data-restricted=${teamRestricted},data-own-id=${ownTeam == null ? '' : ownTeam.id},data-own-name=${ownTeam == null ? '' : ownTeam.name}"></select>
+                    <select id="bkMarketingTeam" class="field" name="marketingTeamId" disabled
+                            th:attr="data-own-id=${ownTeam == null ? '' : ownTeam.id},data-own-name=${ownTeam == null ? '' : ownTeam.name}"></select>
                 </div>
                 <div class="lg:col-span-2">
                     <label class="label" for="bkGarments">Garments</label>
@@ -174,10 +185,11 @@
                             data-remote="/api/parties/lookup?role=GARMENT_FACTORY" data-placeholder="Choose the garment factory…"
                             data-empty-text="No garment factories yet - add one under Master data › Parties"></select>
                 </div>
+                <!-- Set by the server to whoever creates the booking; shown, never chosen. -->
                 <div class="lg:col-span-2">
                     <label class="label" for="bkMarketingPerson">Marketing person</label>
-                    <select id="bkMarketingPerson" class="field" name="marketingPersonId" data-allow-clear
-                            data-remote="/api/booking/marketing-persons" data-placeholder="You"></select>
+                    <input id="bkMarketingPerson" class="field" readonly tabindex="-1"
+                           th:attr="data-me=${currentUser == null ? '' : currentUser.displayName}">
                 </div>
                 <div class="lg:col-span-2">
                     <label class="field-check" for="bkPriceInMeter">

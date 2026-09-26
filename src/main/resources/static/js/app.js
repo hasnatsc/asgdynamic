@@ -1694,7 +1694,7 @@
             if (s === 'REJECTED') {
                 actions.push('<p class="text-sm text-gray-500">Rejected - edit and save it to return it to draft.</p>');
             }
-            if (this.opts.revise && committed) {
+            if (this.opts.revise && committed && doc.revisable !== false) {
                 actions.push(`<button type="button" class="btn-ghost" data-doc-action="revise">${icon('refresh')}Raise revision</button>`);
             }
             return actions.join('');

@@ -47,7 +47,6 @@
         const party = () => App.RemoteSelect.of(document.getElementById('bkParty'));
         const brand = () => App.RemoteSelect.of(document.getElementById('bkBrand'));
         const garments = () => App.RemoteSelect.of(document.getElementById('bkGarments'));
-        const marketer = () => App.RemoteSelect.of(document.getElementById('bkMarketingPerson'));
         const priceInMeter = () => document.getElementById('bkPriceInMeter').checked;
 
         let doc = null;            // the booking being edited; null for a new one
@@ -60,7 +59,6 @@
         let dirty = false;
         let lineDirty = false;     // the fabric-line modal has been typed into since it opened
         const items = new Map();   // item id -> label
-        let teams = [];            // active marketing teams, for an unrestricted user's choice
 
         const screen = new App.DocumentScreen(Object.assign({}, window.BOOKING_SCREEN,
             { canEdit: canAmend, onEdit: d => openEditor(d), onView: (d, history) => viewBooking(d, history) }));
@@ -74,7 +72,6 @@
                 select.innerHTML = '<option value="">—</option>'
                     + rows.map(r => `<option value="${esc(r.text)}">${esc(r.text)}</option>`).join('');
             }),
-            App.api('/api/marketing-teams').catch(() => []).then(rows => { teams = Array.isArray(rows) ? rows : []; }),
             App.api('/api/lookup/inventory/items', { query: { itemType: 'FABRICS' } }).catch(() => []).then(rows => {
                 rows.forEach(r => items.set(String(r.id), r.text));
                 document.getElementById('spItem').innerHTML = '<option value="">Choose the item…</option>'
@@ -276,7 +273,8 @@
             party().setValue(d?.partyId ?? null, d?.partyName);
             brand().setValue(d?.brandId ?? null, d?.brandName);
             garments().setValue(d?.garmentsId ?? null, d?.garmentsName);
-            marketer().setValue(d?.marketingPersonId ?? null, d?.marketingPersonName);
+            const marketer = document.getElementById('bkMarketingPerson');
+            marketer.value = d ? (d.marketingPersonName || '') : (marketer.dataset.me || '');
             fillTeam(d);
             syncPriceBasis();
         }
@@ -289,28 +287,18 @@
             document.getElementById(id).addEventListener('change', () => fillLeadTime(false)));
 
         /**
-         * The Marketing team field (ADM-4, ADM-7). A saved booking shows the team it was raised under,
-         * fixed - it never moves. A new one is filed under a team member's own team, fixed, or an
-         * unrestricted user chooses. The server applies the same rule whatever is sent.
+         * The Marketing team field (ADM-4, ADM-7), read-only. A saved booking shows the team it was
+         * raised under; a new one shows the creator's own team, which the server stamps.
          */
         function fillTeam(d) {
             const select = document.getElementById('bkMarketingTeam');
             const option = (id, text) => `<option value="${esc(id ?? '')}">${esc(text)}</option>`;
-            if (d) {
-                select.innerHTML = option(d.marketingTeamId, d.marketingTeamName || 'No team — seen by unrestricted users only');
-                select.disabled = true;
-                select.title = 'A booking keeps the team it was raised under';
-            } else if (select.dataset.restricted === 'true') {
-                select.innerHTML = option(select.dataset.ownId, select.dataset.ownName || 'Your team');
-                select.disabled = true;
-                select.title = 'Every booking you raise is filed under your team';
-            } else {
-                select.innerHTML = option('', '— No team (seen by unrestricted users only)')
-                    + teams.map(t => option(t.id, t.text)).join('');
-                select.disabled = false;
-                select.title = 'Whose book this booking lands in: that team sees it and approves it';
-                select.value = '';
-            }
+            select.innerHTML = d
+                ? option(d.marketingTeamId, d.marketingTeamName || '—')
+                : option(select.dataset.ownId, select.dataset.ownName || 'Your team');
+            select.disabled = true;
+            select.title = d ? 'A booking keeps the team it was raised under'
+                             : 'Every booking you raise is filed under your team';
         }
 
         /** Yard-priced: the metre price is derived and read-only; metre-priced, the reverse. */
@@ -1056,8 +1044,6 @@
             }
             const f = name => form.elements.namedItem(name).value;
             const idOrNull = rs => rs.select.value ? { id: Number(rs.select.value) } : null;
-            const teamSelect = document.getElementById('bkMarketingTeam');
-            const teamChoice = () => !teamSelect.disabled && teamSelect.value ? Number(teamSelect.value) : null;
             const body = {
                 id: doc?.id ?? null,
                 bookingType: f('bookingType'),
@@ -1068,8 +1054,6 @@
                 party: idOrNull(party()),
                 brand: idOrNull(brand()),
                 garments: idOrNull(garments()),
-                marketingPersonId: marketer().select.value ? Number(marketer().select.value) : null,
-                marketingTeamId: teamChoice(),
                 preCostBuyer: strOrNull(f('preCostBuyer')),
                 garmentsAddress: strOrNull(f('garmentsAddress')),
                 remarks: strOrNull(f('remarks')),

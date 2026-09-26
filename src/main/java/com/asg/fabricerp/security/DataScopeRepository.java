@@ -39,4 +39,19 @@ public interface DataScopeRepository extends JpaRepository<DataScope, Long> {
            """)
     List<DataScope> findHoldersOn(@Param("dimension") ScopeDimension dimension,
                                   @Param("valueId") Long valueId, @Param("on") LocalDate on);
+
+    /**
+     * The values one user holds on a dimension on a date - for {@code MARKETING_TEAM}, the team
+     * they are a member of. Read straight from the grants, so it answers for restricted and
+     * unrestricted users alike.
+     */
+    @Query("""
+           select s.scopeValueId from DataScope s
+           where s.userId = :userId and s.dimension = :dimension
+             and s.grantedFrom <= :on and (s.revokedFrom is null or s.revokedFrom > :on)
+           order by s.grantedFrom desc
+           """)
+    List<Long> findValuesHeldOn(@Param("userId") Long userId,
+                                @Param("dimension") ScopeDimension dimension,
+                                @Param("on") LocalDate on);
 }

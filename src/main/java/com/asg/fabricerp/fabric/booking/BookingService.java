@@ -15,7 +15,9 @@ import com.asg.fabricerp.global.documents.*;
 import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import com.asg.fabricerp.global.terms.ConditionType;
 import com.asg.fabricerp.global.terms.TermsConditionService;
+import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.security.CurrentUser;
+import com.asg.fabricerp.security.DataScopeRepository;
 import com.asg.fabricerp.security.FabricUser;
 import com.asg.fabricerp.security.FabricUserRepository;
 import org.springframework.data.domain.Page;
@@ -29,6 +31,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * Booking — the head of order-to-cash for woven fabric.
@@ -60,6 +64,7 @@ public class BookingService {
     private final OrgContext context;
     private final MarketingTeamRepository marketingTeams;
     private final ApprovalRequestRepository approvals;
+    private final DataScopeRepository scopes;
 
     public BookingService(BusinessDocumentRepository repository,
                           BusinessNumberService numbering,
@@ -71,7 +76,8 @@ public class BookingService {
                           FabricUserRepository users,
                           OrgContext context,
                           MarketingTeamRepository marketingTeams,
-                          ApprovalRequestRepository approvals) {
+                          ApprovalRequestRepository approvals,
+                          DataScopeRepository scopes) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
@@ -83,6 +89,7 @@ public class BookingService {
         this.context = context;
         this.marketingTeams = marketingTeams;
         this.approvals = approvals;
+        this.scopes = scopes;
     }
 
     @Transactional(readOnly = true)
@@ -92,7 +99,7 @@ public class BookingService {
         return repository.search(
             context.requireOrganizationId(),
             context.requireBusinessUnitId(),
-            TYPE, status, from, to, query, context.requireRowScope(), pageable);
+            TYPE, status, from, to, query, context.requireRowScope(), currentUsername(), pageable);
     }
 
     /** The grid's rows, mapped inside the transaction because they name the buyer and garments. */
@@ -137,40 +144,60 @@ public class BookingService {
     }
 
     /**
-     * The team a new Booking belongs to. A restricted user's own team, whatever the request says -
-     * letting them name another would file work where they cannot see it, or into another team's
-     * book. An unrestricted user (MD, Accounts) chooses one, or none: an unteamed booking is seen
-     * by unrestricted users only.
+     * The marketing team the signed-in user belongs to - their open {@code MARKETING_TEAM}
+     * data-scope grant, the same membership the Marketing teams screen maintains. Null when they
+     * are in no team, or (which the one-open-grant constraint should prevent) in more than one.
+     *
+     * <p>A Booking is always filed under its creator's own team: there is no choice to make, and a
+     * user in no team cannot raise one at all.
      */
-    private MarketingTeam owningTeam(Long requested) {
-        RowScope scope = context.requireRowScope();
-        if (scope.restricts(ScopeDimension.MARKETING_TEAM)) {
-            Long own = scope.soleMarketingTeam();
-            if (own == null) {
-                throw new IllegalStateException("You belong to no single marketing team, so a booking cannot be "
-                    + "filed under one. Ask an administrator to put you in exactly one team.");
-            }
-            return references.marketingTeam(own);
-        }
-        if (requested == null) {
-            return null;
-        }
-        return marketingTeams.lookup(context.requireOrganizationId()).stream()
-            .filter(t -> t.getId().equals(requested))
-            .findFirst()
-            .orElseThrow(() -> new IllegalArgumentException("No active marketing team with id " + requested));
-    }
-
-    /** Whether the signed-in user's bookings are filed under their own team, with no choice. */
-    public boolean teamRestricted() {
-        return context.requireRowScope().restricts(ScopeDimension.MARKETING_TEAM);
-    }
-
-    /** The team a restricted user's bookings are filed under; null for a user who chooses. */
     @Transactional(readOnly = true)
     public MarketingTeam ownTeam() {
-        Long id = teamRestricted() ? context.requireRowScope().soleMarketingTeam() : null;
-        return id == null ? null : marketingTeams.findScoped(id, context.requireOrganizationId()).orElse(null);
+        Set<Long> ids = memberTeamIds();
+        return ids.size() == 1
+            ? marketingTeams.findScoped(ids.iterator().next(), context.requireOrganizationId()).orElse(null)
+            : null;
+    }
+
+    /** Whether the signed-in user may raise a Booking: they must belong to exactly one marketing team. */
+    @Transactional(readOnly = true)
+    public boolean canCreate() {
+        return memberTeamIds().size() == 1;
+    }
+
+    private Set<Long> memberTeamIds() {
+        RowScope scope = context.requireRowScope();
+        if (scope.restricts(ScopeDimension.MARKETING_TEAM)) {
+            return scope.allowedOn(ScopeDimension.MARKETING_TEAM);
+        }
+        // An unrestricted user's principal carries no scope values; ask the grants directly.
+        return Set.copyOf(scopes.findValuesHeldOn(CurrentUser.id(), ScopeDimension.MARKETING_TEAM, LocalDate.now()));
+    }
+
+    private MarketingTeam requireOwnTeam() {
+        Set<Long> ids = memberTeamIds();
+        if (ids.isEmpty()) {
+            throw new IllegalStateException("You are not in a marketing team, so you cannot create a booking. "
+                + "Ask an administrator to add you to a team under Setup › Marketing teams.");
+        }
+        if (ids.size() > 1) {
+            throw new IllegalStateException("You belong to more than one marketing team, so a booking cannot be "
+                + "filed under one. Ask an administrator to put you in exactly one team.");
+        }
+        return references.marketingTeam(ids.iterator().next());
+    }
+
+    /** The username the audit listener stamps into {@code created_by}: a booking's owner. */
+    private String currentUsername() {
+        String username = context.username();
+        if (username == null || username.isBlank()) {
+            throw new IllegalStateException("No signed-in user");
+        }
+        return username;
+    }
+
+    private boolean ownedByCurrentUser(BusinessDocument d) {
+        return Objects.equals(d.getCreatedBy(), currentUsername());
     }
 
     @Transactional(readOnly = true)
@@ -178,6 +205,22 @@ public class BookingService {
         return repository.findScopedWithLines(id, context.requireOrganizationId())
             .filter(d -> d.getDocumentType() == TYPE)
             .filter(d -> d.isVisibleTo(context.requireRowScope()))
+            .filter(this::ownedByCurrentUser)
+            .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
+    }
+
+    /**
+     * Read-only access for the review drawer. The owner, as {@link #get}; and anyone who may
+     * approve bookings, because the Approvals inbox opens a booking here to decide on it.
+     * Editing, deleting and revising stay with the owner alone.
+     */
+    @Transactional(readOnly = true)
+    public BusinessDocument view(Long id) {
+        boolean approver = AuthorityChecks.holds(TYPE.approveAuthority());
+        return repository.findScopedWithLines(id, context.requireOrganizationId())
+            .filter(d -> d.getDocumentType() == TYPE)
+            .filter(d -> d.isVisibleTo(context.requireRowScope()))
+            .filter(d -> approver || ownedByCurrentUser(d))
             .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
     }
 
@@ -187,7 +230,14 @@ public class BookingService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> detail(Long id) {
-        return BookingView.detail(get(id));
+        BusinessDocument doc = view(id);
+        Map<String, Object> detail = BookingView.detail(doc);
+        if (!ownedByCurrentUser(doc)) {
+            // An approver reviewing someone else's booking: no Edit, no Raise revision.
+            detail.put("editable", false);
+            detail.put("revisable", false);
+        }
+        return detail;
     }
 
     /**
@@ -228,6 +278,10 @@ public class BookingService {
      */
     @Transactional
     public BusinessDocument save(BusinessDocument submitted) {
+        // Marketing person and team are decided here, not by the request.
+        submitted.setMarketingPersonId(null);
+        submitted.setMarketingPerson(null);
+        submitted.setMarketingTeamId(null);
         references.resolve(submitted, TYPE);   // before anything is copied or flushed
         BusinessDocument target;
 
@@ -237,18 +291,17 @@ public class BookingService {
             target.setOrganizationId(context.requireOrganizationId());
             target.setBusinessUnit(references.currentBusinessUnit());
             // ADM-7: a Booking is where the team is decided, once. Every downstream document
-            // inherits it from here, and no later save can move it.
-            target.stampMarketingTeam(owningTeam(submitted.getMarketingTeamId()));
+            // inherits it from here, and no later save can move it. It is always the creator's
+            // own team - a user in no marketing team cannot raise a booking.
+            target.stampMarketingTeam(requireOwnTeam());
             if (target.getDocumentDate() == null) {
                 target.setDocumentDate(LocalDate.now());
             }
             if (target.getBookingType() == null) {
                 target.setBookingType(BookingType.BULK);
             }
-            if (target.getMarketingPerson() == null) {
-                // The legacy screen defaulted Marketing Person to whoever was signed in.
-                target.setMarketingPerson(references.user(context.requireOrganizationId(), CurrentUser.id()));
-            }
+            // The marketing person is whoever creates the booking - set here, never chosen on the page.
+            target.setMarketingPerson(references.user(context.requireOrganizationId(), CurrentUser.id()));
             if (!target.isTermsSubmitted()) {
                 terms.defaultTermsFor(ConditionType.BOOKING).forEach(target::addTerm);
             }
@@ -312,9 +365,7 @@ public class BookingService {
         to.setGarmentsAddress(from.getGarmentsAddress());
         to.setPreCostBuyer(from.getPreCostBuyer());
         to.setPriceInMeter(from.isPriceInMeter());
-        if (from.getMarketingPerson() != null) {
-            to.setMarketingPerson(from.getMarketingPerson());
-        }
+        // Marketing person is not taken from the request: it stays the booking's creator.
     }
 
     /**

@@ -112,7 +112,18 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
                                           BusinessDocumentStatus status,
                                           LocalDate from, LocalDate to, String q,
                                           RowScope scope, Pageable pageable) {
-        return searchWithin(orgId, unitId, type, status, from, to, q,
+        return search(orgId, unitId, type, status, from, to, q, scope, null, pageable);
+    }
+
+    /**
+     * {@link #search}, further narrowed to the documents one user created - {@code createdBy} is
+     * the username the audit listener stamps. Null means anyone's.
+     */
+    default Page<BusinessDocument> search(Long orgId, Long unitId, DocumentType type,
+                                          BusinessDocumentStatus status,
+                                          LocalDate from, LocalDate to, String q,
+                                          RowScope scope, String createdBy, Pageable pageable) {
+        return searchWithin(orgId, unitId, type, status, from, to, q, createdBy,
             !scope.restricts(ScopeDimension.BUSINESS_UNIT),
             scope.idsForQuery(ScopeDimension.BUSINESS_UNIT),
             !scope.restricts(ScopeDimension.WAREHOUSE),
@@ -138,6 +149,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
              and (:allUnits = true or d.businessUnit.id in :unitIds)
              and (:allWarehouses = true or d.warehouse is null or d.warehouse.id in :warehouseIds)
              and (:allTeams = true or d.marketingTeam.id in :teamIds)
+             and (:createdBy is null or d.createdBy = :createdBy)
            """)
     Page<BusinessDocument> searchWithin(@Param("orgId") Long orgId,
                                         @Param("unitId") Long unitId,
@@ -146,6 +158,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
                                         @Param("from") LocalDate from,
                                         @Param("to") LocalDate to,
                                         @Param("q") String q,
+                                        @Param("createdBy") String createdBy,
                                         @Param("allUnits") boolean allUnits,
                                         @Param("unitIds") List<Long> unitIds,
                                         @Param("allWarehouses") boolean allWarehouses,
