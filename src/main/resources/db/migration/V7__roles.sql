@@ -106,13 +106,13 @@ INSERT INTO sec_fabric_permissions (name, module, description, active, created_b
 -- ---------------------------------------------------------------------------------------------
 
 INSERT INTO sec_fabric_roles (name, description, active, created_by, created_at) VALUES
-    ('Fabric Operations', 'Create and submit documents across every fabric module built so far.', TRUE, 'seed', now()),
-    ('Document Approver', 'Approve or reject submitted documents; view-only otherwise.',            TRUE, 'seed', now());
+    ('ROLE_FABRIC_OPERATION', 'Create and submit documents across every fabric module built so far.', TRUE, 'seed', now()),
+    ('ROLE_DOCUMENT_APPROVER', 'Approve or reject submitted documents; view-only otherwise.',            TRUE, 'seed', now());
 
 INSERT INTO sec_fabric_role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM sec_fabric_roles r, sec_fabric_permissions p
-WHERE r.name = 'Fabric Operations'
+WHERE r.name = 'ROLE_FABRIC_OPERATION'
   AND p.name IN (
     'ROLE_FABRIC_SETUP', 'ROLE_BOOKING_VIEW', 'ROLE_BOOKING_MAKER', 'ROLE_SALES',
     'ROLE_BPO_VIEW', 'ROLE_BPO_MAKER', 'ROLE_PRODUCTION', 'ROLE_RPI_VIEW', 'ROLE_RPI_MAKER',
@@ -124,7 +124,7 @@ WHERE r.name = 'Fabric Operations'
 INSERT INTO sec_fabric_role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM sec_fabric_roles r, sec_fabric_permissions p
-WHERE r.name = 'Document Approver'
+WHERE r.name = 'ROLE_DOCUMENT_APPROVER'
   AND p.name IN (
     'ROLE_APPROVAL', 'ROLE_BOOKING_VIEW', 'ROLE_BPO_VIEW', 'ROLE_RPI_VIEW', 'ROLE_WWO_VIEW',
     'ROLE_PWO_VIEW', 'ROLE_GR_VIEW', 'ROLE_DO_VIEW', 'ROLE_FD_VIEW'

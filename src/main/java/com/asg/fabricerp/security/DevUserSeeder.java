@@ -27,8 +27,8 @@ import org.springframework.stereotype.Component;
  *
  * <h2>Roles, not raw grants</h2>
  * Used to call {@code user.grant("ROLE_...")} once per authority (28 calls total). Now assigns
- * the two roles {@code V7__roles.sql} seeds — {@code Fabric Operations} and
- * {@code Document Approver} — which bundle exactly the same permissions. Effective access is
+ * the two roles {@code V7__roles.sql} seeds — {@code ROLE_FABRIC_OPERATION} and
+ * {@code ROLE_DOCUMENT_APPROVER} — which bundle exactly the same permissions. Effective access is
  * unchanged; the roles are now admin-editable via {@code RoleController} instead of requiring a
  * code change and restart.
  */
@@ -73,7 +73,7 @@ public class DevUserSeeder implements CommandLineRunner {
         // Sees every row. A seeded account is a bootstrap for a fresh database, and a restricted
         // one would need a scope grant before it could log in to grant anyone anything.
         user.setUnrestricted(true);
-        user.addRole(requireRole("Fabric Operations"));
+        user.addRole(requireRole("ROLE_FABRIC_OPERATION"));
         repository.save(user);
 
         log.info("Seeded bootstrap user '{}'. Disable app.seed-dev-user once real accounts exist.",
@@ -101,7 +101,7 @@ public class DevUserSeeder implements CommandLineRunner {
         user.setOrganizationId(1L);
         user.setFullName("Development Approver");
         user.setUnrestricted(true);
-        user.addRole(requireRole("Document Approver"));
+        user.addRole(requireRole("ROLE_DOCUMENT_APPROVER"));
         repository.save(user);
 
         log.info("Seeded bootstrap user '{}'. Disable app.seed-dev-user once real accounts exist.",

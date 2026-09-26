@@ -35,7 +35,7 @@ CREATE TABLE sec_fabric_role_screen_grants (
 -- Seed: reproduce today's effective access exactly (V7's two roles, same grant boundaries).
 -- ---------------------------------------------------------------------------------------------
 
--- 'Fabric Operations' — full CRUD on every screen it used to hold ROLE_*_MAKER +
+-- 'ROLE_FABRIC_OPERATION' — full CRUD on every screen it used to hold ROLE_*_MAKER +
 -- ROLE_FABRIC_SETUP + (new) the admin screens this migration adds SCREEN_SECURITY_ADMIN_* for.
 INSERT INTO sec_fabric_role_screen_grants
     (role_id, screen_code, can_view, can_create, can_amend, can_delete, can_approve, created_by, created_at)
@@ -43,9 +43,9 @@ SELECT r.id, s.screen_code, TRUE, TRUE, TRUE, TRUE, FALSE, 'seed', now()
 FROM sec_fabric_roles r,
      (VALUES ('BOOKING'), ('BPO'), ('RPI'), ('WWO'), ('PWO'), ('GR'), ('DO'), ('FD'),
              ('FABRIC_SETUP'), ('SECURITY_ADMIN')) AS s(screen_code)
-WHERE r.name = 'Fabric Operations';
+WHERE r.name = 'ROLE_FABRIC_OPERATION';
 
--- 'Document Approver' — view + approve on the 8 document screens (not FABRIC_SETUP or
+-- 'ROLE_DOCUMENT_APPROVER' — view + approve on the 8 document screens (not FABRIC_SETUP or
 -- SECURITY_ADMIN), matching the old single global ROLE_APPROVAL applied everywhere it held
 -- ROLE_*_VIEW.
 INSERT INTO sec_fabric_role_screen_grants
@@ -53,4 +53,4 @@ INSERT INTO sec_fabric_role_screen_grants
 SELECT r.id, s.screen_code, TRUE, FALSE, FALSE, FALSE, TRUE, 'seed', now()
 FROM sec_fabric_roles r,
      (VALUES ('BOOKING'), ('BPO'), ('RPI'), ('WWO'), ('PWO'), ('GR'), ('DO'), ('FD')) AS s(screen_code)
-WHERE r.name = 'Document Approver';
+WHERE r.name = 'ROLE_DOCUMENT_APPROVER';

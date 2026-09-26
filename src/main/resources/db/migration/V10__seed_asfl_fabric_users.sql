@@ -44,11 +44,13 @@ SELECT (SELECT id FROM org_organizations WHERE code = 'ASG'),
        FALSE, TRUE, FALSE, 'seed', NOW(), NOW()
 FROM (VALUES
     ('hasnat',               'Abul Hasnat',                     'SAF001'),
+    ('robi',                 'Ahsan Habib Robi',                            'SAF001'),
+    ('aontor',               'Aontor',                          'SAF001'),
     ('rassel_marketing',     'Abu Naser Rassel',                'SAF001'),
     ('sabbir_marketing',     'Sabbir Hossain',                  'SAF001'),
     ('imran_marketing',      'Alif Imran',                      'SAF001'),
     ('anik_marketing',       'Anik Das',                        'SAF001'),
-    ('tonoy_marketing',      'Fazlul Karim Tonoy',               'SAF001'),
+    ('tonoy_marketing',      'Fazlul Karim Tonoy',              'SAF001'),
     ('palash_marketing',     'Arifuzzaman Palash',              'SAF001'),
     ('russel_marketing',     'Russel Hossain',                  'SAF001'),
     ('sumon_marketing',      'Sumon Ahamed',                    'SAF001'),
@@ -82,3 +84,11 @@ FROM (VALUES
     ('ashik_commercial',     'Mezbowl Ashik',                   'SAF001')
 ) AS u(username, full_name, warehouse_code)
 WHERE NOT EXISTS (SELECT 1 FROM sec_fabric_users WHERE username = u.username);
+
+INSERT INTO sec_fabric_user_roles (user_id, role_id)
+SELECT u.id, r.id
+FROM sec_fabric_users u
+         CROSS JOIN sec_fabric_roles r
+WHERE u.username IN ('hasnat', 'robi', 'aontor')
+  AND r.name IN ('ROLE_FABRIC_OPERATION', 'ROLE_DOCUMENT_APPROVER')
+    ON CONFLICT (user_id, role_id) DO NOTHING;

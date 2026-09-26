@@ -9,7 +9,7 @@ INSERT INTO sec_fabric_role_screen_grants
     (role_id, screen_code, can_view, can_create, can_amend, can_delete, can_approve, version, created_by, created_at)
 SELECT r.id, 'PARTY', TRUE, TRUE, TRUE, TRUE, FALSE, 0, 'seed', now()
 FROM sec_fabric_roles r
-WHERE r.name = 'Fabric Operations'
+WHERE r.name = 'ROLE_FABRIC_OPERATION'
 ON CONFLICT (role_id, screen_code) DO NOTHING;
 
 -- Approvers see who a document names; they do not maintain the directory.
@@ -17,7 +17,7 @@ INSERT INTO sec_fabric_role_screen_grants
     (role_id, screen_code, can_view, can_create, can_amend, can_delete, can_approve, version, created_by, created_at)
 SELECT r.id, 'PARTY', TRUE, FALSE, FALSE, FALSE, FALSE, 0, 'seed', now()
 FROM sec_fabric_roles r
-WHERE r.name = 'Document Approver'
+WHERE r.name = 'ROLE_DOCUMENT_APPROVER'
 ON CONFLICT (role_id, screen_code) DO NOTHING;
 
 -- ---------------------------------------------------------------------------------------------
