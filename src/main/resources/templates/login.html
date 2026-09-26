@@ -1,125 +1,284 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
-<!-- Standalone: no operating context exists yet, so this does not use layout/main.html. -->
+<html xmlns:th="http://www.thymeleaf.org" lang="en" class="h-full bg-black">
+<!--
+  Sign in · ASG DYNAMIC · FABRICS LTD. ERP
+  Left: Large, immersive machinery video showcase.
+  Right: Login container converted to the existing Brand Red (#ed1c24 / brand-600) structure,
+         weave texture, reverse branding, and security highlights.
+-->
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ed1c24">
-    <title>Sign in · FABRICS LTD. ERP</title>
+    <title>Sign in · ASG DYNAMIC · FABRICS LTD. ERP</title>
     <link rel="icon" type="image/png" th:href="@{/images/logo-mark.png}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
 </head>
-<body class="min-h-screen bg-white font-sans text-[14px] text-gray-900 antialiased">
+<body class="h-full bg-black font-sans text-[14px] text-white antialiased selection:bg-brand-100 selection:text-brand-900">
 
-<div class="flex min-h-screen">
-    <!-- Brand panel -->
-    <div class="weave relative hidden w-[44%] max-w-2xl flex-col justify-between overflow-hidden bg-brand-600 p-12 text-white lg:flex">
-        <img th:src="@{/images/logo-reverse.png}" alt="FABRICS LTD." class="h-11 w-auto self-start" width="645" height="175">
+<div class="relative flex min-h-screen w-full overflow-hidden bg-black">
 
-        <div class="relative">
-            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-brand-100">Enterprise resource planning</p>
-            <p class="mt-3 text-[34px] font-semibold leading-tight tracking-tight">Weaving, dyeing and finishing.<br>From booking to delivery.</p>
-            <ul class="mt-8 space-y-3 text-sm text-brand-50">
-                <li class="flex items-center gap-3">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
-                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#production}"/></svg></span>
-                    Orders, work orders and greige receipts in one flow
-                </li>
-                <li class="flex items-center gap-3">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
-                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#workflow}"/></svg></span>
-                    Maker, checker and approver on every document
-                </li>
-                <li class="flex items-center gap-3">
-                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-white/15">
-                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#shield}"/></svg></span>
-                    Screens and rows limited to what your roles grant
-                </li>
-            </ul>
+    <!-- ==================== Left Side: Large Immersive Video ==================== -->
+    <div class="relative hidden flex-1 flex-col justify-between overflow-hidden bg-black lg:flex">
+        <!-- Dynamic machinery video background -->
+        <video autoplay muted loop playsinline preload="auto"
+               class="absolute inset-0 h-full w-full object-cover opacity-75">
+            <source th:src="@{/media/dynamics.mp4}" type="video/mp4">
+            <source src="https://asgdynamic.com/assets/dynamics-61c24dec81e4bc5620efba668ee5c652.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+
+        <!-- Cinematic depth overlays -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/65"></div>
+        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/40"></div>
+
+        <!-- Top Status Pill -->
+        <div class="relative z-10 p-8 sm:p-12">
+            <div class="inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-black/60 px-4 py-1.5 text-xs font-medium tracking-wide text-white backdrop-blur-md shadow-lg shadow-black/50">
+                <span class="relative flex h-2 w-2">
+                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-500 opacity-80"></span>
+                    <span class="relative inline-flex h-2 w-2 rounded-full bg-brand-500"></span>
+                </span>
+                <span>Amanat Shah Group Dynamic ERP</span>
+            </div>
         </div>
 
-        <p class="relative text-xs text-brand-100">Authorized users only. Sign-ins and refusals are logged.</p>
-    </div>
+        <!-- Bottom News Caption -->
+        <div class="relative z-10 p-8 sm:p-12">
+            <div class="max-w-2xl">
+                <div class="mb-3 inline-block rounded-md border border-white/20 bg-black/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-brand-200 backdrop-blur-sm">
+                    Integrated Textile Operations
+                </div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl drop-shadow-xl">
+                    <b class="font-black text-white">ASG</b> <span class="text-brand-300">DYNAMIC</span>
+                </h1>
+                <p class="mt-4 text-base font-normal leading-relaxed text-gray-200 drop-shadow">
+                    Unified spinning, weaving, dyeing, finishing, and order management — engineered for precision across every production stage.
+                </p>
 
-    <!-- Form -->
-    <div class="flex flex-1 flex-col bg-gray-50/60">
-        <div class="flex flex-1 items-center justify-center px-5 py-12">
-            <div class="w-full max-w-[380px]">
-                <img th:src="@{/images/logo.png}" alt="FABRICS LTD." class="mb-10 h-10 w-auto lg:hidden" width="645" height="175">
-
-                <h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
-                <p class="mt-1.5 text-sm text-gray-500">Welcome back. Use the account your administrator issued.</p>
-
-                <div class="mt-8 space-y-4">
-                    <p th:if="${error and accountStatus != null}" class="alert-error" role="alert">
-                        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#lock}"/></svg>
-                        <span th:text="${accountStatus}">Account status.</span>
-                    </p>
-                    <p th:if="${error and accountStatus == null}" class="alert-error" role="alert">
-                        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x-circle}"/></svg>
-                        Invalid username or password.
-                    </p>
-                    <p th:if="${loggedOut}" class="alert-success" role="status">
-                        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#check-circle}"/></svg>
-                        You have been signed out.
-                    </p>
-
-                    <form th:action="@{/login}" method="post" class="space-y-5">
-                        <div>
-                            <label class="label" for="username">Username</label>
-                            <div class="input-icon">
-                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#user}"/></svg>
-                                <input id="username" name="username" class="field h-11" autocomplete="username"
-                                       autocapitalize="none" spellcheck="false" required autofocus>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="label" for="password">Password</label>
-                            <div class="input-icon">
-                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#lock}"/></svg>
-                                <input id="password" name="password" type="password" class="field h-11 pr-16"
-                                       autocomplete="current-password" required>
-                                <button type="button" data-reveal="password"
-                                        class="absolute inset-y-0 right-0 px-3 text-xs font-medium text-gray-500 hover:text-gray-900">Show</button>
-                            </div>
-                            <p id="capsWarning" class="hint font-medium text-amber-700" hidden>Caps Lock is on.</p>
-                        </div>
-                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
-                            <input type="checkbox" name="remember-me" class="checkbox">
-                            <span>Keep me signed in for 14 days</span>
-                        </label>
-                        <button type="submit" class="btn-primary btn-lg w-full">Sign in</button>
-                    </form>
-
-                    <p class="pt-2 text-center text-xs leading-relaxed text-gray-500">
-                        Forgotten your password or locked out?<br>Your administrator can reset or unlock your account.
-                    </p>
+                <!-- Capability badges -->
+                <div class="mt-6 flex flex-wrap items-center gap-2.5 text-xs font-medium text-white/90">
+                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Spinning & Yarn</span>
+                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Weaving Orders</span>
+                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Processing & Dyeing</span>
+                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Quality Control</span>
                 </div>
             </div>
         </div>
-        <p class="px-5 pb-6 text-center text-xs text-gray-400">
-            <a th:href="@{/}" class="font-medium text-gray-500 hover:text-gray-900">&larr; Back to home</a>
-            · © FABRICS LTD. · <span class="lg:hidden">Authorized users only.</span><span class="hidden lg:inline">ERP</span></p>
     </div>
+
+    <!-- Mobile video backdrop overlay (small screens) -->
+    <div class="absolute inset-0 z-0 lg:hidden">
+        <video autoplay muted loop playsinline preload="metadata"
+               class="h-full w-full object-cover opacity-25">
+            <source th:src="@{/media/dynamics.mp4}" type="video/mp4">
+            <source src="https://asgdynamic.com/assets/dynamics-61c24dec81e4bc5620efba668ee5c652.mp4" type="video/mp4">
+        </video>
+        <div class="absolute inset-0 bg-brand-950/80"></div>
+    </div>
+
+    <!-- ==================== Right Side: Converted Existing Left Structure & Brand Red Color ==================== -->
+    <div class="weave relative z-10 flex w-full flex-col justify-between overflow-y-auto bg-brand-600 p-8 sm:p-12 text-white shadow-2xl lg:w-[480px] lg:flex-none xl:w-[520px]">
+        
+        <!-- Top header: White reverse logo -->
+        <div class="relative z-10">
+            <div class="flex items-center justify-between gap-4">
+                <a th:href="@{/}" class="inline-block transition-transform hover:scale-[1.02]" aria-label="FABRICS LTD.">
+                    <img th:src="@{/images/logo-reverse.png}" alt="FABRICS LTD." class="h-10 w-auto" width="645" height="175">
+                </a>
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/15 px-3 py-0.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+                    ERP
+                </span>
+            </div>
+        </div>
+
+        <!-- Center: Sign In Form with Existing Left Typography & Highlights -->
+        <div class="relative z-10 my-auto py-8">
+            <div class="w-full max-w-[390px] mx-auto">
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-brand-100">Enterprise resource planning</p>
+                <h2 class="mt-1 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Sign in</h2>
+                <p class="mt-1 text-xs text-brand-100">Welcome back. Enter your credentials to access the ERP.</p>
+
+                <!-- Spring Security Alerts -->
+                <div class="space-y-3.5 my-6">
+                    <!-- Locked / Disabled Account Alert -->
+                    <div th:if="${error and accountStatus != null}"
+                         class="flex items-start gap-2.5 rounded-lg border border-white/30 bg-black/30 p-3.5 text-xs text-white backdrop-blur-sm shadow-md"
+                         role="alert">
+                        <svg class="h-4 w-4 shrink-0 text-amber-300 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 1.944A11.954 11.954 0 012.166 5C2.056 5.649 2 6.319 2 7c0 5.225 3.34 9.67 8 11.317C14.66 16.67 18 12.225 18 7c0-.682-.057-1.35-.166-2.001A11.954 11.954 0 0110 1.944zM11 14a1 1 0 11-2 0 1 1 0 012 0zm0-7a1 1 0 10-2 0v3a1 1 0 102 0V7z" clip-rule="evenodd"/>
+                        </svg>
+                        <div>
+                            <span class="font-bold text-white">Access Refused:</span>
+                            <span class="block mt-0.5 text-brand-100" th:text="${accountStatus}">Account status.</span>
+                        </div>
+                    </div>
+
+                    <!-- Invalid Credentials Alert -->
+                    <div th:if="${error and accountStatus == null}"
+                         class="flex items-center gap-2.5 rounded-lg border border-white/30 bg-black/30 p-3.5 text-xs text-white backdrop-blur-sm shadow-md"
+                         role="alert">
+                        <svg class="h-4 w-4 shrink-0 text-amber-300" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>Invalid username or password. Please try again.</span>
+                    </div>
+
+                    <!-- Logged Out Alert -->
+                    <div th:if="${loggedOut}"
+                         class="flex items-center gap-2.5 rounded-lg border border-white/30 bg-white/20 p-3.5 text-xs text-white backdrop-blur-sm shadow-md"
+                         role="status">
+                        <svg class="h-4 w-4 shrink-0 text-white" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>You have been safely signed out.</span>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <form th:action="@{/login}" method="post" class="space-y-4">
+
+                    <!-- Username Field with Floating Label -->
+                    <div class="relative">
+                        <input id="username" name="username" type="text"
+                               class="peer block w-full rounded-lg border-0 bg-white px-4 pb-2.5 pt-5 text-sm text-gray-900 shadow-md placeholder-transparent transition-all focus:outline-none focus:ring-2 focus:ring-white"
+                               placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+                        <label for="username"
+                               class="pointer-events-none absolute left-4 top-2 text-[11px] font-bold tracking-wide text-gray-500 transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:font-normal peer-placeholder-shown:text-gray-400 peer-focus:top-2 peer-focus:text-[11px] peer-focus:font-bold peer-focus:text-brand-700">
+                            Username
+                        </label>
+                    </div>
+
+                    <!-- Password Field with Floating Label & Toggle -->
+                    <div class="relative">
+                        <input id="password" name="password" type="password"
+                               class="peer block w-full rounded-lg border-0 bg-white px-4 pb-2.5 pt-5 pr-14 text-sm text-gray-900 shadow-md placeholder-transparent transition-all focus:outline-none focus:ring-2 focus:ring-white"
+                               placeholder="Password" autocomplete="current-password" required>
+                        <label for="password"
+                               class="pointer-events-none absolute left-4 top-2 text-[11px] font-bold tracking-wide text-gray-500 transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-placeholder-shown:font-normal peer-placeholder-shown:text-gray-400 peer-focus:top-2 peer-focus:text-[11px] peer-focus:font-bold peer-focus:text-brand-700">
+                            Password
+                        </label>
+                        <button type="button" data-reveal="password"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-bold text-gray-500 hover:text-gray-900 focus:outline-none focus:text-brand-700">
+                            Show
+                        </button>
+                    </div>
+
+                    <!-- Caps Lock Warning -->
+                    <p id="capsWarning" class="flex items-center gap-1.5 text-xs font-semibold text-amber-200" hidden>
+                        <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        Caps Lock is ON
+                    </p>
+
+                    <!-- Remember me -->
+                    <div class="flex items-center justify-between pt-1">
+                        <label class="flex cursor-pointer select-none items-center gap-2.5 text-xs font-medium text-brand-100 hover:text-white">
+                            <input type="checkbox" name="remember-me"
+                                   class="h-4 w-4 rounded border-white/40 bg-white/20 text-brand-600 focus:ring-white focus:ring-offset-brand-600">
+                            <span>Keep me signed in for 14 days</span>
+                        </label>
+                    </div>
+
+                    <!-- Primary Action Button: High contrast white on Brand Red -->
+                    <div class="pt-2">
+                        <button type="submit"
+                                class="flex h-11 w-full items-center justify-center rounded-lg bg-white text-sm font-bold text-brand-700 shadow-lg shadow-black/15 transition-all duration-150 hover:bg-brand-50 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-brand-600 disabled:cursor-not-allowed disabled:opacity-75">
+                            Sign in
+                        </button>
+                    </div>
+
+                    <!-- Security & Architecture Highlights from existing left structure -->
+                    <div class="mt-8 border-t border-white/20 pt-6">
+                        <ul class="space-y-3 text-xs text-brand-50">
+                            <li class="flex items-center gap-3">
+                                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/15 backdrop-blur-sm">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                    </svg>
+                                </span>
+                                <span>Orders, work orders and greige receipts in one flow</span>
+                            </li>
+                            <li class="flex items-center gap-3">
+                                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/15 backdrop-blur-sm">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                    </svg>
+                                </span>
+                                <span>Maker, checker and approver on every document</span>
+                            </li>
+                            <li class="flex items-center gap-3">
+                                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/15 backdrop-blur-sm">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                </span>
+                                <span>Screens and rows limited to what your roles grant</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+        <!-- Bottom Footer (Original Left Notice) -->
+        <div class="relative z-10 pt-4 text-center sm:text-left">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-brand-200">
+                <a th:href="@{/}" class="text-white hover:text-brand-100 transition-colors">&larr; Back to portal</a>
+                <span>Authorized users only. Sign-ins and refusals are logged.</span>
+            </div>
+        </div>
+
+    </div>
+
 </div>
 
-<script>
-    // Small enough to inline: this page must work before anything else has loaded.
-    document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
-        const input = document.getElementById(btn.dataset.reveal);
-        const show = input.type === 'password';
-        input.type = show ? 'text' : 'password';
-        btn.textContent = show ? 'Hide' : 'Show';
-    }));
-    document.getElementById('password').addEventListener('keyup', e => {
-        document.getElementById('capsWarning').hidden = !(e.getModifierState && e.getModifierState('CapsLock'));
-    });
-    // Double submits would count as two failed attempts toward the lockout.
-    document.querySelector('form').addEventListener('submit', e => {
-        const btn = e.target.querySelector('[type=submit]');
-        btn.disabled = true;
-        btn.textContent = 'Signing in…';
+<!-- Client-side Enhancements -->
+<script th:inline="none">
+    document.addEventListener('DOMContentLoaded', () => {
+        // Password Show / Hide toggle
+        document.querySelectorAll('[data-reveal]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById(btn.dataset.reveal);
+                if (!input) return;
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                btn.textContent = isPassword ? 'Hide' : 'Show';
+                btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+            });
+        });
+
+        // Caps Lock detection
+        const passwordField = document.getElementById('password');
+        const capsWarning = document.getElementById('capsWarning');
+        if (passwordField && capsWarning) {
+            passwordField.addEventListener('keyup', e => {
+                if (e.getModifierState) {
+                    capsWarning.hidden = !e.getModifierState('CapsLock');
+                }
+            });
+        }
+
+        // Double submit prevention
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', () => {
+                const btn = form.querySelector('[type="submit"]');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = `<svg class="mr-2 inline h-4 w-4 animate-spin text-brand-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Signing in…`;
+                }
+            });
+        }
+
+        // Pause video if user prefers reduced motion
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            document.querySelectorAll('video').forEach(v => v.pause());
+        }
     });
 </script>
+
 </body>
 </html>

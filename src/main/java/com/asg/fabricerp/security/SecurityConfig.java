@@ -67,7 +67,7 @@ public class SecurityConfig {
                 RememberMeAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
-                .requestMatchers("/login", "/login/**").permitAll()
+                .requestMatchers("/login", "/login/**", "/media/**").permitAll()
                 // Exactly "/": visitors get the public company page, signed-in users the dashboard
                 // (HomeController decides). Nothing below it is opened.
                 .requestMatchers("/").permitAll()
@@ -84,7 +84,7 @@ public class SecurityConfig {
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/", false)
+                .defaultSuccessUrl("/", true)
                 .permitAll())
             .logout(out -> out
                 // logoutUrl() defaults to matching POST only, same as the explicit
