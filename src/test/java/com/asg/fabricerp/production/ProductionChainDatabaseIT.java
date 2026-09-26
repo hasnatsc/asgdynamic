@@ -92,6 +92,7 @@ class ProductionChainDatabaseIT {
         when(context.businessUnitCode()).thenReturn("AF");
         when(context.requireBusinessUnitCode()).thenReturn("AF");
         when(context.username()).thenReturn("it");
+        when(context.warehouseId()).thenReturn(greigeStore);
         when(context.rowScope()).thenReturn(RowScope.unrestrictedScope());
         when(context.requireRowScope()).thenReturn(RowScope.unrestrictedScope());
     }
@@ -313,6 +314,26 @@ class ProductionChainDatabaseIT {
             String.class, pwo.getId())).contains("80 process loss");
         // 30 finished short: the order's dyeing stream has room for a top-up again.
         documents.save(ChainStep.PWO, request(null, line("COLOUR", lineOf(bpo, 0), "30")));
+    }
+
+    @Test
+    void aStoreDocumentStartsInTheUsersOwnStore_whenThatStoreCanTakeIt() {
+        BusinessDocument booking = approvedBooking("Greige Yarn Dyed", "Plaid", "300");
+        BusinessDocument bpo = load(documents.createFromBooking(booking.getId()).get(0).getId());
+        approve(bpo);
+        BusinessDocument wwo = documents.save(ChainStep.WWO, request(null, line("COLOUR", lineOf(bpo, 0), "300")));
+        approve(wwo);
+        // No store chosen: the user's own (greige) store takes the greige, and it posts.
+        BusinessDocument gr = documents.save(ChainStep.GR, request(null, line("COLOUR", lineOf(wwo, 0), "250")));
+        assertThat(jdbc.queryForObject("SELECT warehouse_id FROM gbl_business_documents WHERE id = ?", Long.class, gr.getId()))
+            .isEqualTo(greigeStore);
+        posting.post(ChainStep.GR, gr.getId());
+        // A draft saved before the default existed is posted into it as well.
+        BusinessDocument gr2 = documents.save(ChainStep.GR, store(request(null, line("COLOUR", lineOf(wwo, 0), "5")), greigeStore));
+        jdbc.update("UPDATE gbl_business_documents SET warehouse_id = NULL WHERE id = ?", gr2.getId());
+        posting.post(ChainStep.GR, gr2.getId());
+        assertThat(jdbc.queryForObject("SELECT warehouse_id FROM gbl_business_documents WHERE id = ?", Long.class, gr2.getId()))
+            .isEqualTo(greigeStore);
     }
 
     // --------------------------------------------------------------------------------- helpers

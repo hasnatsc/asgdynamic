@@ -69,8 +69,13 @@ public class ChainPostingService {
         if (doc.getLineGroups().stream().allMatch(g -> g.getColorLines().isEmpty())) {
             throw new IllegalStateException(doc.getDocumentNo() + " has no lines to post");
         }
+        if (doc.getWarehouse() == null) doc.setWarehouse(documents.defaultStore(step, doc));
         Warehouse store = doc.getWarehouse();
-        if (store == null) throw new IllegalStateException("Choose the store on %s before posting it".formatted(doc.getDocumentNo()));
+        if (store == null) {
+            throw new IllegalStateException(("Choose the %s store on %s before posting it: edit the draft and pick it "
+                + "(your own store does not hold %s fabric, or you have none).").formatted(
+                    step == ChainStep.FFR ? "finished" : "greige", doc.getDocumentNo(), step == ChainStep.FFR ? "finished" : "greige"));
+        }
 
         Long orgId = context.requireOrganizationId();
         String user = context.username();

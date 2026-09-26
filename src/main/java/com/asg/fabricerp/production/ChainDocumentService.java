@@ -360,7 +360,29 @@ public class ChainDocumentService {
     }
 
     /** A store document's store must hold what it moves; a lot it names must belong to the line. */
+    /**
+     * The signed-in user's own store, when it can take this document - so a store keeper who works
+     * in one store never has to pick it. Null when the user has none or it holds the wrong fabric.
+     */
+    public Warehouse defaultStore(ChainStep step, BusinessDocument doc) {
+        Long own = context.warehouseId();
+        if (own == null) return null;
+        Boolean greige = switch (step) {
+            case GR -> true;
+            case FFR -> false;
+            case GI -> doc.getProcessKind() != ProcessKind.REWORK;
+            case DO -> doc.getLineGroups().isEmpty() ? null
+                : doc.getLineGroups().get(0).getRoute().getDeliverStage() == DeliverStage.GREIGE;
+            default -> null;
+        };
+        if (greige == null) return null;
+        return warehouses.findScoped(own, context.requireOrganizationId())
+            .filter(w -> greige ? w.isHoldsGreige() : w.isHoldsFinished())
+            .orElse(null);
+    }
+
     private void validateStore(ChainStep step, BusinessDocument doc) {
+        if (doc.getWarehouse() == null) doc.setWarehouse(defaultStore(step, doc));
         Warehouse store = doc.getWarehouse();
         if (store != null) {
             switch (step) {

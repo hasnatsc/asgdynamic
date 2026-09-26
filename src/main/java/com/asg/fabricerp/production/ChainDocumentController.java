@@ -74,6 +74,7 @@ public class ChainDocumentController {
         config.put("canCreate", AuthorityChecks.holds(step.authority("CREATE")));
         config.put("canAmend", AuthorityChecks.holds(step.authority("AMEND")));
         config.put("canDelete", AuthorityChecks.holds(step.authority("DELETE")));
+        config.put("defaultStoreId", context.warehouseId());
         config.put("processKinds", Arrays.stream(ProcessKind.values())
             .map(k -> Map.of("value", k.name(), "label", k.label())).toList());
         model.addAttribute("title", step.plural());

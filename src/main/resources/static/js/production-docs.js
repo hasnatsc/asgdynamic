@@ -370,7 +370,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (error) { fail(error); this.stores = []; }
                 store.innerHTML = '<option value="">Choose…</option>' + this.stores.map(s => `<option value="${esc(s.id)}"${s.id === d.warehouseId ? ' selected' : ''}>`
                     + `${esc(s.name)}${STEP === 'DO' ? ` (${[s.holdsGreige && 'greige', s.holdsFinished && 'finished'].filter(Boolean).join(' + ') || 'no fabric role'})` : ''}</option>`).join('');
-                if (!d.warehouseId && this.stores.length === 1) store.value = this.stores[0].id;
+                // A new document starts in the user's own store when it can take it, else the only one there is.
+                if (!d.warehouseId) {
+                    const own = this.stores.find(s => s.id === CFG.defaultStoreId);
+                    if (own) store.value = own.id;
+                    else if (this.stores.length === 1) store.value = this.stores[0].id;
+                }
                 store.addEventListener('change', () => this.renderLines());
             }
         },
@@ -573,6 +578,10 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         const body = editor.payload();
         if (!body.lines.length) return toast('Tick at least one line.', 'warn');
+        if ($('[name="warehouseId"]', headerEl) && !body.warehouseId) {
+            $('[name="warehouseId"]', headerEl).focus();
+            return toast('Choose the store.', 'warn');
+        }
         const button = $('[data-editor-save]', editorDialog);
         button.disabled = true;
         try {
