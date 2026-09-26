@@ -16,7 +16,7 @@ public class LoginController {
      * disabled or unscoped account is named — as asfl-erp does — because retrying will never
      * work and the person needs to call somebody, not keep guessing and feeding the counter.
      */
-    @GetMapping("/login")
+    @GetMapping({"/login", "/login/auth"})
     public String login(@RequestParam(required = false) String error,
                         @RequestParam(required = false) String logout,
                         HttpSession session,
