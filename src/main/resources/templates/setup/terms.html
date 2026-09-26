@@ -108,7 +108,7 @@
     <span sec:authorize="hasAuthority('SCREEN_TERMS_AMEND')" id="canEdit" hidden></span>
     <span sec:authorize="hasAuthority('SCREEN_TERMS_DELETE')" id="canDelete" hidden></span>
 
-    <script>
+    <script th:inline="none">
         document.addEventListener('DOMContentLoaded', () => {
             const endpoint = '/api/setup/terms';
             const form = document.getElementById('tcForm');
@@ -144,10 +144,12 @@
             function view(row) {
                 App.viewRecord({
                     title: row.caption, subtitle: row.conditionTypeLabel + ' clause',
-                    fields: [['Clause', `<span class="whitespace-pre-line">${App.esc(row.bodyText)}</span>`],
-                             ['Default', row.isDefault ? 'Yes - added to new documents' : 'No'],
-                             ['Sort order', App.esc(row.sortOrder)],
-                             ['Status', row.active ? 'Active' : 'Inactive']],
+                    fields: [
+                        ['Clause', `<span class="whitespace-pre-line">${App.esc(row.bodyText)}</span>`],
+                        ['Default', row.isDefault ? 'Yes - added to new documents' : 'No'],
+                        ['Sort order', App.esc(row.sortOrder)],
+                        ['Status', row.active ? 'Active' : 'Inactive']
+                    ],
                     canEdit, onEdit: () => edit(row)
                 });
             }

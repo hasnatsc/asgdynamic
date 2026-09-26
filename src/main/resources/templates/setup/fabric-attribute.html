@@ -99,7 +99,7 @@
     <span sec:authorize="hasAuthority('SCREEN_FABRIC_SETUP_DELETE')" id="canDelete" hidden></span>
     <span sec:authorize="hasAuthority('SCREEN_FABRIC_SETUP_AMEND')" id="canEdit" hidden></span>
 
-    <script>
+    <script th:inline="none">
         document.addEventListener('DOMContentLoaded', () => {
             const slug = document.querySelector('[data-slug]').dataset.slug;
             const endpoint = '/api/setup/fabric/' + slug;
@@ -134,9 +134,13 @@
             function view(row) {
                 App.viewRecord({
                     title: row.name, subtitle: baseTitle.replace(/ details$/, ''),
-                    fields: [ ['Code', `<span class="font-mono">${App.esc(row.code)}</span>`], ['Name', App.esc(row.name)],
-                             ['Description', App.esc(row.description)], ['Order', App.esc(row.displayOrder)],
-                             ['Status', row.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>']],
+                    fields: [
+                        ['Code', `<span class="font-mono">${App.esc(row.code)}</span>`],
+                        ['Name', App.esc(row.name)],
+                        ['Description', App.esc(row.description)],
+                        ['Order', App.esc(row.displayOrder)],
+                        ['Status', row.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Inactive</span>']
+                    ],
                     canEdit, onEdit: () => edit(row)
                 });
             }

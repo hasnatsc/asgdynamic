@@ -32,6 +32,16 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
            """)
     Optional<BusinessDocument> findScoped(@Param("id") Long id, @Param("orgId") Long orgId);
 
+    /** A page of documents with their buyer, in one query - for lists built from another table (the approval inbox). */
+    @Query("""
+           select d from BusinessDocument d
+             left join fetch d.party
+           where d.id in :ids
+             and d.organizationId = :orgId
+             and d.deleted = false
+           """)
+    List<BusinessDocument> findScopedWithParty(@Param("ids") java.util.Collection<Long> ids, @Param("orgId") Long orgId);
+
     /**
      * The document with both levels of lines loaded - almost every caller needs them, and
      * controllers read them after the transaction has closed ({@code open-in-view} is off).

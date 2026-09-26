@@ -65,6 +65,18 @@ public class ApprovalRequest extends AuditableEntity {
     @Column(name = "settled_at")
     private LocalDateTime settledAt;
 
+    /**
+     * Who must sign the current level, copied from the matrix whenever the request moves: the role
+     * or the named user; both null under the default rule (anyone with the screen's Approve verb)
+     * and once settled. Denormalised so the inbox is one indexed query over every pending request
+     * rather than a matrix lookup per request - the matrix stays the authority, this is its index.
+     */
+    @Column(name = "current_role_id")
+    private Long currentRoleId;
+
+    @Column(name = "current_user_id")
+    private Long currentUserId;
+
     protected ApprovalRequest() { }
 
     public ApprovalRequest(Long organizationId, Long documentId, DocumentType documentType, Long businessUnitId,
@@ -109,7 +121,21 @@ public class ApprovalRequest extends AuditableEntity {
         settledAt = LocalDateTime.now();
     }
 
+    /** Points the request at the approver its current level needs. */
+    public void routeTo(Approver approver) {
+        this.currentRoleId = approver != null && approver.kind() == Approver.Kind.ROLE ? approver.roleId() : null;
+        this.currentUserId = approver != null && approver.kind() == Approver.Kind.USER ? approver.userId() : null;
+    }
+
+    /** A settled request waits for nobody. */
+    public void clearRoute() {
+        this.currentRoleId = null;
+        this.currentUserId = null;
+    }
+
     public boolean isFinalLevel()         { return currentLevel >= totalLevels; }
+    public Long getCurrentRoleId()        { return currentRoleId; }
+    public Long getCurrentUserId()        { return currentUserId; }
     public Long getOrganizationId()       { return organizationId; }
     public Long getDocumentId()           { return documentId; }
     public DocumentType getDocumentType() { return documentType; }

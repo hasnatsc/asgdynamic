@@ -313,9 +313,11 @@
             $('#qName').value = c?.name || '';
             $('#qWeaveType').value = c?.weaveTypeId ?? '';
             $('#qWeaveStyle').value = c?.weaveStyleId ?? '';
-            $('#qFinishType').value = c?.finishTypeId ?? '';
-            [['qEpi', 'epi'], ['qPpi', 'ppi'], ['qReed', 'reedCount'], ['qGsm', 'gsm'], ['qGreigeWidth', 'greigeWidth'],
-             ['qFinishWidth', 'finishWidth'], ['qCuttableWidth', 'cuttableWidth']].forEach(([el, key]) => { $('#' + el).value = c?.[key] ?? ''; });
+            const qualityFields = [
+                ['qEpi', 'epi'], ['qPpi', 'ppi'], ['qReed', 'reedCount'], ['qGsm', 'gsm'], ['qGreigeWidth', 'greigeWidth'],
+                ['qFinishWidth', 'finishWidth'], ['qCuttableWidth', 'cuttableWidth']
+            ];
+            qualityFields.forEach(([el, key]) => { $('#' + el).value = c?.[key] ?? ''; });
             $('#qRemarks').value = c?.remarks || '';
             $('#qActive').checked = c ? !!c.active : true;
             ['WARP', 'WEFT'].forEach(dir => {

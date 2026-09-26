@@ -118,11 +118,15 @@
                 const r = tr && rows.find(x => x.seriesCode === tr.dataset.series);
                 if (r) App.viewRecord({
                     title: `Numbering: ${r.label}`, subtitle: r.group,
-                    fields: [ ['Prefix', `<span class="font-mono">${esc(r.prefix)}</span>`],
-                             ['Pattern', `<span class="font-mono">${esc(r.pattern)}</span>`],
-                             ['Sequence digits', esc(r.sequenceWidth)], ['Counter restarts', esc(RESETS[r.resetPolicy])],
-                             ['Counter', esc(SCOPES[r.counterScope])], ['Issued this period', esc(r.issuedThisPeriod)],
-                             ['Next number', `<span class="font-mono">${esc(r.nextNumber || '')}</span>`]],
+                    fields: [
+                        ['Prefix', `<span class="font-mono">${esc(r.prefix)}</span>`],
+                        ['Pattern', `<span class="font-mono">${esc(r.pattern)}</span>`],
+                        ['Sequence digits', esc(r.sequenceWidth)],
+                        ['Counter restarts', esc(RESETS[r.resetPolicy])],
+                        ['Counter', esc(SCOPES[r.counterScope])],
+                        ['Issued this period', esc(r.issuedThisPeriod)],
+                        ['Next number', `<span class="font-mono">${esc(r.nextNumber || '')}</span>`]
+                    ],
                     canEdit: CAN_AMEND,
                     onEdit: () => tr.querySelector('[data-edit]')?.click()
                 });

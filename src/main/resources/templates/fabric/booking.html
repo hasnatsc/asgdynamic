@@ -43,7 +43,8 @@
         Ask an administrator to add you to a team under Setup › Marketing teams.
     </p>
 
-    <span sec:authorize="hasAuthority('SCREEN_BOOKING_AMEND')" id="canAmendBooking" hidden></span>
+    <!-- The maker corrects their own draft (returned or rejected included) with Create or Amend. -->
+    <span sec:authorize="hasAuthority('SCREEN_BOOKING_AMEND') or hasAuthority('SCREEN_BOOKING_CREATE')" id="canAmendBooking" hidden></span>
 
     <div class="card overflow-hidden" data-doc-screen>
         <div class="toolbar">

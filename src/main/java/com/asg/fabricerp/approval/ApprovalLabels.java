@@ -66,14 +66,41 @@ public class ApprovalLabels {
     }
 
     public ApprovalRowView row(ApprovalRequest request, BusinessDocument doc, Approver required) {
-        return new ApprovalRowView(request.getId(), doc.getId(), doc.getDocumentType().name(), doc.getDocumentType().label(),
-            doc.getDocumentNo(), doc.getParty() == null ? null : doc.getParty().getName(),
-            teamName(request.getOwningTeamId()), request.getAmount(), doc.getCurrencyCode(),
-            request.getCurrentLevel(), request.getTotalLevels(),
-            required == null ? null : approver(required, doc.getDocumentType()), scope(request),
-            request.getRaisedByUserId() != null ? userName(request.getRaisedByUserId()) : request.getRaisedBy(),
-            request.getCreatedAt(), request.isPending(), request.getOutcome(), request.getSettledAt(),
-            screenPath(doc.getDocumentType()));
+        return new Batch(this).row(request, doc, required);
+    }
+
+    /**
+     * Labels for one page of rows, each name looked up once: a page of fifty requests from three
+     * teams, two roles and a dozen makers asks for seventeen names, not two hundred.
+     */
+    public static final class Batch {
+        private final ApprovalLabels labels;
+        private final java.util.Map<Long, String> teams = new java.util.HashMap<>();
+        private final java.util.Map<Long, String> users = new java.util.HashMap<>();
+        private final java.util.Map<Long, String> scopes = new java.util.HashMap<>();
+        private final java.util.Map<String, String> approvers = new java.util.HashMap<>();
+
+        public Batch(ApprovalLabels labels) {
+            this.labels = labels;
+        }
+
+        public ApprovalRowView row(ApprovalRequest request, BusinessDocument doc, Approver required) {
+            DocumentType type = doc.getDocumentType();
+            return new ApprovalRowView(request.getId(), doc.getId(), type.name(), type.label(),
+                doc.getDocumentNo(), doc.getParty() == null ? null : doc.getParty().getName(),
+                request.getOwningTeamId() == null ? null
+                    : teams.computeIfAbsent(request.getOwningTeamId(), labels::teamName),
+                request.getAmount(), doc.getCurrencyCode(),
+                request.getCurrentLevel(), request.getTotalLevels(),
+                required == null ? null
+                    : approvers.computeIfAbsent(required + "|" + type, k -> labels.approver(required, type)),
+                request.getMatrixId() == null ? "Default rule"
+                    : scopes.computeIfAbsent(request.getMatrixId(), k -> labels.scope(request)),
+                request.getRaisedByUserId() != null
+                    ? users.computeIfAbsent(request.getRaisedByUserId(), labels::userName) : request.getRaisedBy(),
+                request.getCreatedAt(), request.isPending(), request.getOutcome(), request.getSettledAt(),
+                screenPath(type));
+        }
     }
 
     /** The screen a type's documents live on; null for a type with no screen yet. */

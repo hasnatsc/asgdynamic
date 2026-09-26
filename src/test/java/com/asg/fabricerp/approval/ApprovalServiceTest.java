@@ -44,6 +44,8 @@ class ApprovalServiceTest {
 
     /** The saved request, as the fake repository holds it. */
     private ApprovalRequest live;
+    /** The actor's row scope: unrestricted unless a test narrows it. */
+    private RowScope scope = RowScope.unrestrictedScope();
 
     @BeforeEach
     void setUp() {
@@ -73,7 +75,7 @@ class ApprovalServiceTest {
             @Override public String businessUnitCode() { return "AF"; }
             @Override public Long warehouseId()        { return 1L; }
             @Override public String username()         { return "whoever"; }
-            @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
+            @Override public RowScope rowScope()       { return scope; }
         };
         service = new ApprovalService(repository, history, requests, matrices, actors, labels, context,
             List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()));
@@ -410,16 +412,130 @@ class ApprovalServiceTest {
     }
 
     @Test
-    void theInboxHoldsOnlyWhatTheCallerMaySignNow() {
+    void theInboxAsksOneQueryForWhatTheCallerMaySignNow() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
+        submitAs("maker");
+        when(requests.inbox(any(), any(), any(), any(), any(), any(), anyBoolean(), any(), anyBoolean(), any(),
+                anyBoolean(), any(), any()))
+            .thenAnswer(i -> new org.springframework.data.domain.PageImpl<>(List.of(live)));
+        when(repository.findScopedWithParty(any(), eq(ORG))).thenReturn(List.of(doc));
+
+        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
+        var page = service.inbox(ApprovalService.InboxFilter.NONE, org.springframework.data.domain.PageRequest.of(0, 25));
+
+        assertThat(page.getContent()).hasSize(1);
+        assertThat(page.getContent().get(0).documentId()).isEqualTo(DOC_ID);
+        // the manager's roles and user id went into the query; an unrestricted user sees every team
+        verify(requests).inbox(eq(ORG), eq(UNIT), eq(2L), eq("manager"), isNull(), isNull(),
+            eq(true), any(), eq(true), eq(Set.of(MANAGER_ROLE)), eq(false), any(), any());
+    }
+
+    // ------------------------------------------------------------------ routing index (centralised inbox)
+
+    @Test
+    void theRequestCarriesWhoItsCurrentLevelWaitsFor() {
         booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
         matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
         submitAs("maker");
-        when(requests.findPending(ORG, UNIT)).thenAnswer(i -> List.of(live));
-
-        actingAs(DIRECTOR, "director", Set.of());
-        assertThat(service.inbox()).isEmpty();            // level 1 is the manager's
+        assertThat(live.getCurrentRoleId()).isEqualTo(MANAGER_ROLE);
+        assertThat(live.getCurrentUserId()).isNull();
 
         actingAs(2L, "manager", Set.of(MANAGER_ROLE));
-        assertThat(service.inbox()).hasSize(1);
+        service.approve(DOC_ID, null);
+        assertThat(live.getCurrentRoleId()).isNull();
+        assertThat(live.getCurrentUserId()).isEqualTo(DIRECTOR);
+
+        actingAs(DIRECTOR, "director", Set.of());
+        service.approve(DOC_ID, null);
+        assertThat(live.getCurrentRoleId()).isNull();
+        assertThat(live.getCurrentUserId()).isNull();   // settled: waits for nobody
+    }
+
+    // ------------------------------------------------------------------ team-only approval
+
+    @Test
+    void aRoleHolderFromAnotherTeamCannotDecideThisTeamsDocument() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null));
+        submitAs("maker");
+
+        scope = new RowScope(false, java.util.Map.of(com.asg.fabricerp.common.ScopeDimension.MARKETING_TEAM, Set.of(4L)));
+        actingAs(2L, "other-team-manager", Set.of(MANAGER_ROLE));
+
+        assertThatThrownBy(() -> service.approve(DOC_ID, null))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not found");
+    }
+
+    @Test
+    void aRoleHolderInTheDocumentsTeamDecidesIt() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null));
+        submitAs("maker");
+
+        scope = new RowScope(false, java.util.Map.of(com.asg.fabricerp.common.ScopeDimension.MARKETING_TEAM, Set.of(3L)));
+        actingAs(2L, "team-manager", Set.of(MANAGER_ROLE));
+        service.approve(DOC_ID, null);
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+    }
+
+    @Test
+    void aPersonNamedOnTheLevelDecidesItWhateverTheirOwnTeam() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, user(DIRECTOR));
+        submitAs("maker");
+
+        scope = new RowScope(false, java.util.Map.of(com.asg.fabricerp.common.ScopeDimension.MARKETING_TEAM, Set.of(4L)));
+        actingAs(DIRECTOR, "director", Set.of());
+        assertThat(service.canReview(doc)).isTrue();
+        service.approve(DOC_ID, null);
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+    }
+
+    @Test
+    void someoneWhoIsNotTheApproverCannotReviewIt() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+        matrix(30L, 3L, true, user(DIRECTOR));
+        submitAs("maker");
+
+        actingAs(2L, "bystander", Set.of(MANAGER_ROLE), "SCREEN_BOOKING_APPROVE");
+        assertThat(service.canReview(doc)).isFalse();
+    }
+
+    // ------------------------------------------------------------------ correct and submit again
+
+    @Test
+    void aRejectedDocumentCanBeCorrectedAndSubmittedAgain() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+        ApprovalRequest first = live;
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+        service.reject(DOC_ID, "Price below break-even");
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.REJECTED);
+
+        submitAs("maker");
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+        assertThat(live).isNotSameAs(first);
+        assertThat(live.isPending()).isTrue();
+        ArgumentCaptor<ApprovalHistory> saved = ArgumentCaptor.forClass(ApprovalHistory.class);
+        verify(history, atLeastOnce()).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(ApprovalHistory::getAction)
+            .containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.REJECTED, ApprovalAction.RESUBMITTED);
+    }
+
+    @Test
+    void aReturnedDocumentIsADraftAndCanBeSubmittedAgain() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        submitAs("maker");
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+        service.returnToMaker(DOC_ID, "Wrong buyer");
+
+        submitAs("maker");
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+        assertThat(live.isPending()).isTrue();
     }
 }

@@ -18,7 +18,7 @@
         const canDelete = !!document.getElementById('canDelete');
         const typeFilter = document.getElementById('amTypeFilter');
 
-        let options = { teams: [], roles: [], users: [] };
+        let options = { teams: [] };
         const optionsReady = App.api(`${API}/options`).then(o => { options = o; }).catch(App.fail);
         let matrix = null;
         let dirty = false;
@@ -70,9 +70,13 @@
 
         // ------------------------------------------------------------------ levels
 
-        const optionList = (list, selected, blank) => (blank ? `<option value="">${esc(blank)}</option>` : '')
-            + list.map(o => `<option value="${o.id}"${String(o.id) === String(selected) ? ' selected' : ''}>${esc(o.text)}</option>`).join('');
+        // A saved level's approver as the picker's one pre-selected option - labelled without a request.
+        const saved = (id, text) => id ? `<option value="${esc(id)}" selected>${esc(text || '#' + id)}</option>` : '';
 
+        /*
+         * Role or person: searched and paged on the server as you type (App.RemoteSelect, the same picker
+         * as Booking's buyer), so a list of hundreds of users or roles is never shipped into the page.
+         */
         function levelRow(level) {
             const kind = level && level.userId ? 'user' : 'role';
             return `<tr>
@@ -81,8 +85,12 @@
                     <option value="role"${kind === 'role' ? ' selected' : ''}>A role</option>
                     <option value="user"${kind === 'user' ? ' selected' : ''}>One person</option></select></td>
                 <td>
-                    <select class="field" data-role${kind === 'role' ? '' : ' hidden'}>${optionList(options.roles, level?.roleId, 'Choose the role…')}</select>
-                    <select class="field" data-user${kind === 'user' ? '' : ' hidden'}>${optionList(options.users, level?.userId, 'Choose the person…')}</select>
+                    <div data-role-wrap${kind === 'role' ? '' : ' hidden'}>
+                        <select class="field" data-role data-remote="${API}/roles" data-placeholder="Search a role…"
+                                data-empty-text="No active role matches">${saved(level?.roleId, level?.roleName)}</select></div>
+                    <div data-user-wrap${kind === 'user' ? '' : ' hidden'}>
+                        <select class="field" data-user data-remote="${API}/users" data-placeholder="Search a person by name or username…"
+                                data-empty-text="No user matches">${saved(level?.userId, level?.userName)}</select></div>
                 </td>
                 <td><input type="number" min="0" step="0.01" class="field text-right tabular-nums" data-min placeholder="Any" value="${level?.minAmount ?? ''}"></td>
                 <td><input type="number" min="0" step="0.01" class="field text-right tabular-nums" data-max placeholder="Any" value="${level?.maxAmount ?? ''}"></td>
@@ -96,6 +104,7 @@
 
         function setLevels(levels) {
             levelBody.innerHTML = (levels && levels.length ? levels : [null]).map(levelRow).join('');
+            App.remoteSelects(levelBody);
             renumber();
         }
 
@@ -113,8 +122,8 @@
             const kind = event.target.closest('[data-kind]');
             if (!kind) return;
             const tr = kind.closest('tr');
-            tr.querySelector('[data-role]').hidden = kind.value !== 'role';
-            tr.querySelector('[data-user]').hidden = kind.value !== 'user';
+            tr.querySelector('[data-role-wrap]').hidden = kind.value !== 'role';
+            tr.querySelector('[data-user-wrap]').hidden = kind.value !== 'user';
         });
         levelBody.addEventListener('click', event => {
             if (!event.target.closest('[data-level-remove]')) return;
@@ -125,6 +134,7 @@
         });
         form.querySelector('[data-action="level-add"]').addEventListener('click', () => {
             levelBody.insertAdjacentHTML('beforeend', levelRow(null));
+            App.remoteSelects(levelBody.rows[levelBody.rows.length - 1]);
             renumber();
             dirty = true;
         });

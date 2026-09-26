@@ -1402,7 +1402,7 @@
         totalQuantity: 'Total quantity', subtotalAmount: 'Amount', revisionNo: 'Revision',
         bookingId: 'Booking', bpoId: 'Production order', deliveryOrderId: 'Delivery order', scheduleId: 'Schedule'
     };
-    const HISTORY_VERBS = { SUBMITTED: 'submitted it', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it' };
+    const HISTORY_VERBS = { SUBMITTED: 'submitted it', RESUBMITTED: 'submitted it again', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it' };
     const GROUP_FIELDS = {
         itemName: 'Item', costingCode: 'Costing no', fabricType: 'Fabric type', composition: 'Composition',
         declaredConstruction: 'PI construction', weaveType: 'Weave type', weaveStyle: 'Weave style',
@@ -1675,8 +1675,9 @@
             if (this.opts.onEdit && this.opts.canEdit && doc.editable) {
                 actions.push(`<button type="button" class="btn-ghost" data-doc-action="edit">${icon('edit')}Edit</button>`);
             }
-            if (s === 'DRAFT') {
-                actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}Submit for approval</button>`);
+            // A returned document is a draft again; a rejected one may be corrected and submitted afresh.
+            if ((s === 'DRAFT' || s === 'REJECTED') && doc.submittable !== false) {
+                actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}${s === 'REJECTED' ? 'Submit again' : 'Submit for approval'}</button>`);
             }
             if (s === 'SUBMITTED') {
                 // The engine says whether this user signs the current level; without its answer the
@@ -1691,8 +1692,8 @@
                     actions.push(`<p class="text-sm text-gray-500">${esc(a.waitingReason || 'Awaiting approval')}${levels ? ' ·' + esc(levels) : ''}</p>`);
                 }
             }
-            if (s === 'REJECTED') {
-                actions.push('<p class="text-sm text-gray-500">Rejected - edit and save it to return it to draft.</p>');
+            if (s === 'REJECTED' && doc.submittable !== false) {
+                actions.push('<p class="text-sm text-gray-500">Rejected - see the reason under History, correct it and submit it again.</p>');
             }
             if (this.opts.revise && committed && doc.revisable !== false) {
                 actions.push(`<button type="button" class="btn-ghost" data-doc-action="revise">${icon('refresh')}Raise revision</button>`);

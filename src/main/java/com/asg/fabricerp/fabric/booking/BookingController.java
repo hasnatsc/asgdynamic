@@ -122,7 +122,10 @@ public class BookingController {
     @ResponseBody
     @PreAuthorize("hasAuthority('SCREEN_BOOKING_CREATE') or hasAuthority('SCREEN_BOOKING_AMEND')")
     public Map<String, Object> save(@Valid @RequestBody BusinessDocument booking) {
-        AuthorityChecks.require(booking.getId() == null ? "SCREEN_BOOKING_CREATE" : "SCREEN_BOOKING_AMEND");
+        // A new booking needs Create. Correcting one's own draft - including one an approver returned or
+        // rejected - is part of raising it, so Create or Amend will do; BookingService limits it to the owner.
+        if (booking.getId() == null) AuthorityChecks.require("SCREEN_BOOKING_CREATE");
+        else AuthorityChecks.requireAny("SCREEN_BOOKING_CREATE", "SCREEN_BOOKING_AMEND");
         return service.detail(service.save(booking).getId());
     }
 

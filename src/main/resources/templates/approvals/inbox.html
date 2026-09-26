@@ -3,9 +3,11 @@
 <!--
   Approvals - asfl-erp's approval inbox and report.
 
-  "Waiting for me" lists what the signed-in user may sign now: pending, a document they can see,
-  their level (their role, their name, or the screen's Approve verb where no matrix is set up),
-  and never one they submitted. "All requests" is every approval in this business unit.
+  The one place every document is approved. "Waiting for me" lists what the signed-in user may sign
+  now - their name on the current level, or their role / the screen's Approve verb for their own
+  teams' documents - never one they submitted. It is paged and filtered on the server, and several
+  documents can be decided at once (each is still checked on its own). "All requests" is every
+  approval in the teams the user can see.
 -->
 <head>
     <title>Approvals</title>
@@ -32,10 +34,32 @@
         </div>
 
         <div data-panel="mine">
+            <div class="toolbar">
+                <div class="input-icon w-full sm:w-72">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                    <input id="inSearch" type="search" class="field pr-8" placeholder="Search number, buyer or reference"
+                           aria-label="Search" data-search autocomplete="off">
+                </div>
+                <select id="inType" class="field w-auto" aria-label="Document type">
+                    <option value="">All document types</option>
+                    <option th:each="t : ${documentTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
+                </select>
+                <!-- Shown while documents are ticked: one decision for all of them. -->
+                <div class="toolbar-spacer flex flex-wrap items-center gap-2" data-bulk hidden>
+                    <span class="text-sm text-gray-600 dark:text-gray-300"><b data-bulk-count>0</b> selected</span>
+                    <button type="button" class="btn-danger-ghost btn-sm" data-bulk-decide="REJECTED">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>Reject</button>
+                    <button type="button" class="btn-ghost btn-sm" data-bulk-decide="RETURNED">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>Return</button>
+                    <button type="button" class="btn-primary btn-sm" data-bulk-decide="APPROVED">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#check}"/></svg>Approve selected</button>
+                </div>
+            </div>
             <div class="table-wrap">
                 <table class="table-grid table-stack" id="inboxTable">
                     <thead>
                     <tr>
+                        <th class="w-px"><input type="checkbox" class="checkbox" data-select-all aria-label="Select all on this page"></th>
                         <th>Document</th>
                         <th>Buyer</th>
                         <th>Team</th>
@@ -48,10 +72,20 @@
                     <tbody></tbody>
                 </table>
             </div>
+            <div id="inPager" class="pager"></div>
         </div>
 
         <div data-panel="all" hidden>
             <div class="toolbar">
+                <div class="input-icon w-full sm:w-72">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                    <input id="apSearch" type="search" class="field pr-8" placeholder="Search number, buyer or reference"
+                           aria-label="Search" autocomplete="off">
+                </div>
+                <select id="apType" class="field w-auto" aria-label="Document type">
+                    <option value="">All document types</option>
+                    <option th:each="t : ${documentTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
+                </select>
                 <select id="apFilter" class="field w-auto" aria-label="Status">
                     <option value="">All requests</option>
                     <option value="true" selected>Pending</option>

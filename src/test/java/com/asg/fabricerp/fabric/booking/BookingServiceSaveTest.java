@@ -67,7 +67,8 @@ class BookingServiceSaveTest {
             new CostingTranslator(new ObjectMapper()),
             new DocumentRevisionService(repository, numbering), references,
             terms, mock(FabricUserRepository.class), context,
-            teams, mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class), scopes);
+            teams, mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class), scopes,
+            mock(com.asg.fabricerp.approval.ApprovalService.class));
 
         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BKAF000031");
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
@@ -345,6 +346,19 @@ class BookingServiceSaveTest {
         assertThatThrownBy(() -> service.get(8L)).hasMessageContaining("Booking not found");
         assertThatThrownBy(() -> service.save(edit)).hasMessageContaining("Booking not found");
         assertThatThrownBy(() -> service.delete(8L)).hasMessageContaining("Booking not found");
+    }
+
+    @Test
+    void editingARejectedBookingMakesItADraftAgain() {
+        BusinessDocument mine = savedBookingCreatedBy("tester");
+        mine.transitionTo(BusinessDocumentStatus.SUBMITTED);
+        mine.transitionTo(BusinessDocumentStatus.REJECTED);
+        BusinessDocument edit = newBooking();
+        edit.setId(8L);
+
+        BusinessDocument saved = service.save(edit);
+
+        assertThat(saved.getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
     }
 
     @Test

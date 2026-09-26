@@ -1,0 +1,2224 @@
+diff --git a/src/main/java/com/asg/fabricerp/approval/ApprovalAction.java b/src/main/java/com/asg/fabricerp/approval/ApprovalAction.java
+index 91c0134..70b5399 100644
+--- a/src/main/java/com/asg/fabricerp/approval/ApprovalAction.java
++++ b/src/main/java/com/asg/fabricerp/approval/ApprovalAction.java
+@@ -3,6 +3,8 @@ package com.asg.fabricerp.approval;
+ /** What happened, in one {@link ApprovalHistory} row per event. */
+ public enum ApprovalAction {
+     SUBMITTED,
++    /** Submitted again after a Reject, corrected by the maker. */
++    RESUBMITTED,
+     APPROVED,
+     /** Sent back to the maker as a draft to correct - asfl-erp's RETURNED. */
+     RETURNED,
+diff --git a/src/main/java/com/asg/fabricerp/approval/ApprovalHistoryRepository.java b/src/main/java/com/asg/fabricerp/approval/ApprovalHistoryRepository.java
+index b280e64..e320267 100644
+--- a/src/main/java/com/asg/fabricerp/approval/ApprovalHistoryRepository.java
++++ b/src/main/java/com/asg/fabricerp/approval/ApprovalHistoryRepository.java
+@@ -6,4 +6,7 @@ import java.util.List;
+ 
+ public interface ApprovalHistoryRepository extends JpaRepository<ApprovalHistory, Long> {
+     List<ApprovalHistory> findByDocumentIdOrderByCreatedAtDesc(Long documentId);
++
++    /** Whether this person has recorded anything on the document - an approver who signed a level may still read it. */
++    boolean existsByDocumentIdAndCreatedByIgnoreCase(Long documentId, String createdBy);
+ }
+diff --git a/src/main/java/com/asg/fabricerp/approval/ApprovalLabels.java b/src/main/java/com/asg/fabricerp/approval/ApprovalLabels.java
+index f89a3a4..0d17ca4 100644
+--- a/src/main/java/com/asg/fabricerp/approval/ApprovalLabels.java
++++ b/src/main/java/com/asg/fabricerp/approval/ApprovalLabels.java
+@@ -66,14 +66,41 @@ public class ApprovalLabels {
+     }
+ 
+     public ApprovalRowView row(ApprovalRequest request, BusinessDocument doc, Approver required) {
+-        return new ApprovalRowView(request.getId(), doc.getId(), doc.getDocumentType().name(), doc.getDocumentType().label(),
+-            doc.getDocumentNo(), doc.getParty() == null ? null : doc.getParty().getName(),
+-            teamName(request.getOwningTeamId()), request.getAmount(), doc.getCurrencyCode(),
+-            request.getCurrentLevel(), request.getTotalLevels(),
+-            required == null ? null : approver(required, doc.getDocumentType()), scope(request),
+-            request.getRaisedByUserId() != null ? userName(request.getRaisedByUserId()) : request.getRaisedBy(),
+-            request.getCreatedAt(), request.isPending(), request.getOutcome(), request.getSettledAt(),
+-            screenPath(doc.getDocumentType()));
++        return new Batch(this).row(request, doc, required);
++    }
++
++    /**
++     * Labels for one page of rows, each name looked up once: a page of fifty requests from three
++     * teams, two roles and a dozen makers asks for seventeen names, not two hundred.
++     */
++    public static final class Batch {
++        private final ApprovalLabels labels;
++        private final java.util.Map<Long, String> teams = new java.util.HashMap<>();
++        private final java.util.Map<Long, String> users = new java.util.HashMap<>();
++        private final java.util.Map<Long, String> scopes = new java.util.HashMap<>();
++        private final java.util.Map<String, String> approvers = new java.util.HashMap<>();
++
++        public Batch(ApprovalLabels labels) {
++            this.labels = labels;
++        }
++
++        public ApprovalRowView row(ApprovalRequest request, BusinessDocument doc, Approver required) {
++            DocumentType type = doc.getDocumentType();
++            return new ApprovalRowView(request.getId(), doc.getId(), type.name(), type.label(),
++                doc.getDocumentNo(), doc.getParty() == null ? null : doc.getParty().getName(),
++                request.getOwningTeamId() == null ? null
++                    : teams.computeIfAbsent(request.getOwningTeamId(), labels::teamName),
++                request.getAmount(), doc.getCurrencyCode(),
++                request.getCurrentLevel(), request.getTotalLevels(),
++                required == null ? null
++                    : approvers.computeIfAbsent(required + "|" + type, k -> labels.approver(required, type)),
++                request.getMatrixId() == null ? "Default rule"
++                    : scopes.computeIfAbsent(request.getMatrixId(), k -> labels.scope(request)),
++                request.getRaisedByUserId() != null
++                    ? users.computeIfAbsent(request.getRaisedByUserId(), labels::userName) : request.getRaisedBy(),
++                request.getCreatedAt(), request.isPending(), request.getOutcome(), request.getSettledAt(),
++                screenPath(type));
++        }
+     }
+ 
+     /** The screen a type's documents live on; null for a type with no screen yet. */
+diff --git a/src/main/java/com/asg/fabricerp/approval/ApprovalRequest.java b/src/main/java/com/asg/fabricerp/approval/ApprovalRequest.java
+index 0f14aac..1cbd503 100644
+--- a/src/main/java/com/asg/fabricerp/approval/ApprovalRequest.java
++++ b/src/main/java/com/asg/fabricerp/approval/ApprovalRequest.java
+@@ -65,6 +65,18 @@ public class ApprovalRequest extends AuditableEntity {
+     @Column(name = "settled_at")
+     private LocalDateTime settledAt;
+ 
++    /**
++     * Who must sign the current level, copied from the matrix whenever the request moves: the role
++     * or the named user; both null under the default rule (anyone with the screen's Approve verb)
++     * and once settled. Denormalised so the inbox is one indexed query over every pending request
++     * rather than a matrix lookup per request - the matrix stays the authority, this is its index.
++     */
++    @Column(name = "current_role_id")
++    private Long currentRoleId;
++
++    @Column(name = "current_user_id")
++    private Long currentUserId;
++
+     protected ApprovalRequest() { }
+ 
+     public ApprovalRequest(Long organizationId, Long documentId, DocumentType documentType, Long businessUnitId,
+@@ -109,7 +121,21 @@ public class ApprovalRequest extends AuditableEntity {
+         settledAt = LocalDateTime.now();
+     }
+ 
++    /** Points the request at the approver its current level needs. */
++    public void routeTo(Approver approver) {
++        this.currentRoleId = approver != null && approver.kind() == Approver.Kind.ROLE ? approver.roleId() : null;
++        this.currentUserId = approver != null && approver.kind() == Approver.Kind.USER ? approver.userId() : null;
++    }
++
++    /** A settled request waits for nobody. */
++    public void clearRoute() {
++        this.currentRoleId = null;
++        this.currentUserId = null;
++    }
++
+     public boolean isFinalLevel()         { return currentLevel >= totalLevels; }
++    public Long getCurrentRoleId()        { return currentRoleId; }
++    public Long getCurrentUserId()        { return currentUserId; }
+     public Long getOrganizationId()       { return organizationId; }
+     public Long getDocumentId()           { return documentId; }
+     public DocumentType getDocumentType() { return documentType; }
+diff --git a/src/main/java/com/asg/fabricerp/approval/ApprovalRequestRepository.java b/src/main/java/com/asg/fabricerp/approval/ApprovalRequestRepository.java
+index 0a1448e..9477b3b 100644
+--- a/src/main/java/com/asg/fabricerp/approval/ApprovalRequestRepository.java
++++ b/src/main/java/com/asg/fabricerp/approval/ApprovalRequestRepository.java
+@@ -1,11 +1,13 @@
+ package com.asg.fabricerp.approval;
+ 
++import com.asg.fabricerp.global.documents.DocumentType;
+ import org.springframework.data.domain.Page;
+ import org.springframework.data.domain.Pageable;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ import org.springframework.data.jpa.repository.Query;
+ import org.springframework.data.repository.query.Param;
+ 
++import java.util.Collection;
+ import java.util.List;
+ import java.util.Optional;
+ 
+@@ -14,26 +16,75 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
+     Optional<ApprovalRequest> findByDocumentIdAndPendingTrue(Long documentId);
+ 
+     /** The live requests of one page of documents - a list shows progress without a query per row. */
+-    List<ApprovalRequest> findByDocumentIdInAndPendingTrue(java.util.Collection<Long> documentIds);
++    List<ApprovalRequest> findByDocumentIdInAndPendingTrue(Collection<Long> documentIds);
+ 
+     Optional<ApprovalRequest> findFirstByDocumentIdOrderByIdDesc(Long documentId);
+ 
+     boolean existsByMatrixId(Long matrixId);
+ 
+-    /** Everything awaiting a decision in one unit; the service narrows it to what the caller may act on. */
++    /**
++     * The centralised inbox: every pending request in the unit whose CURRENT level waits for this
++     * person, oldest first, one page at a time - one indexed query however many are pending.
++     *
++     * <ul>
++     *   <li>a level naming this user - theirs wherever the document's team;</li>
++     *   <li>a level naming a role they hold, or the default rule (no matrix) for a type whose
++     *       Approve verb they hold - only for the teams their row scope lets them see
++     *       ({@code allTeams}, {@code teamIds}), so one team's approvers never see another's
++     *       documents;</li>
++     *   <li>never one they raised (four-eyes).</li>
++     * </ul>
++     *
++     * The service re-checks everything when a decision is posted; this only decides what is listed.
++     * {@code roleIds} and {@code defaultTypes} are never empty: the service passes a placeholder
++     * with the matching flag off, since an empty IN list is not portable JPQL.
++     */
+     @Query("""
+            select r from ApprovalRequest r
+            where r.organizationId = :orgId and r.businessUnitId = :unitId and r.pending = true
+-           order by r.createdAt
++             and (r.raisedByUserId is null or r.raisedByUserId <> :userId)
++             and (r.raisedBy is null or lower(r.raisedBy) <> lower(cast(:username as string)))
++             and (:type is null or r.documentType = :type)
++             and (r.currentUserId = :userId
++                  or ((:allTeams = true or r.owningTeamId in :teamIds)
++                      and ((:hasRoles = true and r.currentRoleId in :roleIds)
++                           or (:hasDefault = true and r.matrixId is null and r.documentType in :defaultTypes))))
++             and (:q is null or exists (
++                  select d.id from BusinessDocument d left join d.party p
++                  where d.id = r.documentId
++                    and (lower(d.documentNo) like lower(concat('%', cast(:q as string), '%'))
++                         or lower(coalesce(d.referenceNo, '')) like lower(concat('%', cast(:q as string), '%'))
++                         or lower(coalesce(p.name, '')) like lower(concat('%', cast(:q as string), '%')))))
+            """)
+-    List<ApprovalRequest> findPending(@Param("orgId") Long orgId, @Param("unitId") Long unitId);
++    Page<ApprovalRequest> inbox(@Param("orgId") Long orgId, @Param("unitId") Long unitId,
++                                @Param("userId") Long userId, @Param("username") String username,
++                                @Param("type") DocumentType type, @Param("q") String q,
++                                @Param("allTeams") boolean allTeams, @Param("teamIds") List<Long> teamIds,
++                                @Param("hasRoles") boolean hasRoles, @Param("roleIds") Collection<Long> roleIds,
++                                @Param("hasDefault") boolean hasDefault,
++                                @Param("defaultTypes") Collection<DocumentType> defaultTypes,
++                                Pageable pageable);
+ 
+-    /** The requests report: pending, settled or both, newest first. */
++    /**
++     * The requests report: pending, settled or both, newest first - narrowed in the query to the
++     * teams the caller may see, so a page is a full page and the total is the real total.
++     */
+     @Query("""
+            select r from ApprovalRequest r
+            where r.organizationId = :orgId and r.businessUnitId = :unitId
+              and (:pending is null or r.pending = :pending)
++             and (:type is null or r.documentType = :type)
++             and (:allTeams = true or r.owningTeamId in :teamIds)
++             and (:q is null or exists (
++                  select d.id from BusinessDocument d left join d.party p
++                  where d.id = r.documentId
++                    and (lower(d.documentNo) like lower(concat('%', cast(:q as string), '%'))
++                         or lower(coalesce(d.referenceNo, '')) like lower(concat('%', cast(:q as string), '%'))
++                         or lower(coalesce(p.name, '')) like lower(concat('%', cast(:q as string), '%')))))
+            """)
+     Page<ApprovalRequest> report(@Param("orgId") Long orgId, @Param("unitId") Long unitId,
+-                                 @Param("pending") Boolean pending, Pageable pageable);
++                                 @Param("pending") Boolean pending, @Param("type") DocumentType type,
++                                 @Param("q") String q,
++                                 @Param("allTeams") boolean allTeams, @Param("teamIds") List<Long> teamIds,
++                                 Pageable pageable);
+ }
+diff --git a/src/main/java/com/asg/fabricerp/approval/ApprovalService.java b/src/main/java/com/asg/fabricerp/approval/ApprovalService.java
+index 9566f2b..9fc7feb 100644
+--- a/src/main/java/com/asg/fabricerp/approval/ApprovalService.java
++++ b/src/main/java/com/asg/fabricerp/approval/ApprovalService.java
+@@ -1,13 +1,17 @@
+ package com.asg.fabricerp.approval;
+ 
+ import com.asg.fabricerp.common.OrgContext;
++import com.asg.fabricerp.common.RowScope;
++import com.asg.fabricerp.common.ScopeDimension;
+ import com.asg.fabricerp.global.documents.BusinessDocument;
+ import com.asg.fabricerp.global.documents.BusinessDocumentRepository;
+ import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+ import com.asg.fabricerp.global.documents.DocumentType;
+ import com.asg.fabricerp.security.AuthorityChecks;
+ import org.springframework.data.domain.Page;
++import org.springframework.data.domain.PageImpl;
+ import org.springframework.data.domain.PageRequest;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.data.domain.Sort;
+ import org.springframework.security.access.AccessDeniedException;
+ import org.springframework.stereotype.Service;
+@@ -16,11 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
+ import java.math.BigDecimal;
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Optional;
++import java.util.function.Function;
++import java.util.stream.Collectors;
+ 
+ /**
+  * The approval engine for every document type - asfl-erp's {@code core} approval, on this system's
+- * {@link BusinessDocument}.
++ * {@link BusinessDocument}. Every document type is submitted, approved, returned and rejected here,
++ * and every approver works from one centralised inbox.
+  *
+  * <h2>Routing</h2>
+  * On submission the document's own marketing team's matrix is used if it has an active one, else
+@@ -30,14 +38,19 @@ import java.util.Optional;
+  * approves without ever stopping a type that nobody has configured yet.
+  *
+  * <p>The matrix and the number of levels are fixed on the {@link ApprovalRequest} at submission and
+- * never re-resolved: a matrix edited half way through, or an approver from another team, cannot
+- * change the rules for a document already on its way.
++ * never re-resolved. Whenever the request moves, who its current level waits for is copied onto it
++ * ({@link ApprovalRequest#routeTo}), so the inbox is one indexed query rather than a matrix lookup
++ * per pending document.
+  *
+- * <h2>Deciding</h2>
+- * The actor must satisfy the current level (the role, the named user, or for the default rule the
+- * screen verb), must be able to see the document, and must not be the one who submitted it
+- * (four-eyes, however senior). Approving moves to the next level, or approves the document at the
+- * last; Return sends it back to the maker as a draft; Reject refuses it. Both refusals need a reason.
++ * <h2>Who may decide</h2>
++ * The actor must satisfy the current level and must not be the one who submitted it (four-eyes,
++ * however senior). A level naming one user is that person's wherever the document's team - the
++ * matrix named them. A level naming a role, and the default rule, are further limited to documents
++ * the actor's row scope lets them see: a team's documents are approved by that team's approvers,
++ * never by the holder of the same role in another team. Approving moves to the next level, or
++ * approves the document at the last; Return sends it back to the maker as a draft; Reject refuses it.
++ * Both refusals need a reason, and either way the maker may correct the document and submit it
++ * again.
+  *
+  * <h2>Why the checks are here and not {@code @PreAuthorize}</h2>
+  * The requirement depends on the document - its type, its team, its amount, its current level -
+@@ -46,6 +59,9 @@ import java.util.Optional;
+ @Service
+ public class ApprovalService {
+ 
++    /** A JPQL IN list may not be empty; no row has this id. */
++    private static final List<Long> NO_IDS = List.of(-1L);
++
+     private final BusinessDocumentRepository repository;
+     private final ApprovalHistoryRepository historyRepository;
+     private final ApprovalRequestRepository requests;
+@@ -75,6 +91,10 @@ public class ApprovalService {
+ 
+     // ------------------------------------------------------------------------------ submit
+ 
++    /**
++     * Sends a draft for approval - or, after a Reject, sends the corrected document again: a
++     * rejected document goes back to draft and is submitted afresh under the matrix in force now.
++     */
+     @Transactional
+     public BusinessDocument submit(Long documentId) {
+         BusinessDocument doc = load(documentId);
+@@ -93,10 +113,16 @@ public class ApprovalService {
+         });
+ 
+         BusinessDocumentStatus from = doc.getStatus();
++        if (from == BusinessDocumentStatus.REJECTED) {
++            doc.transitionTo(BusinessDocumentStatus.DRAFT);
++        }
+         doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
+         Approver.Actor actor = actors.current();
+-        ApprovalRequest request = requests.save(open(doc, actor.userId(), actor.username()));
+-        recordHistory(doc, ApprovalAction.SUBMITTED, from, null, request, null);
++        ApprovalRequest opened = open(doc, actor.userId(), actor.username());
++        requiredApprover(opened).ifPresent(opened::routeTo);
++        ApprovalRequest request = requests.save(opened);
++        recordHistory(doc, from == BusinessDocumentStatus.REJECTED ? ApprovalAction.RESUBMITTED : ApprovalAction.SUBMITTED,
++            from, null, request, null);
+         return repository.save(doc);
+     }
+ 
+@@ -119,7 +145,13 @@ public class ApprovalService {
+ 
+     @Transactional
+     public BusinessDocument decide(Long documentId, ApprovalDecision decision, String remarks) {
+-        BusinessDocument doc = load(documentId);
++        BusinessDocument doc = loadAny(documentId);
++        Approver.Actor actor = actors.current();
++        Optional<ApprovalRequest> pending = requests.findByDocumentIdAndPendingTrue(documentId);
++        // Out of the actor's scope is "not found" - unless the current level names them personally.
++        if (!inScope(doc) && !pending.flatMap(this::requiredApprover).map(a -> named(a, actor)).orElse(false)) {
++            throw notFound(documentId);
++        }
+         if (doc.getStatus() != BusinessDocumentStatus.SUBMITTED) {
+             throw new IllegalStateException("%s is %s, not awaiting approval"
+                 .formatted(doc.getDocumentNo(), doc.getStatus().label().toLowerCase()));
+@@ -128,10 +160,8 @@ public class ApprovalService {
+             throw new IllegalArgumentException("Say why it is %s: the maker has no other way to know what to change"
+                 .formatted(decision == ApprovalDecision.RETURNED ? "returned" : "rejected"));
+         }
+-        ApprovalRequest request = requests.findByDocumentIdAndPendingTrue(documentId)
+-            .orElseGet(() -> requests.save(enrolLegacy(doc)));
++        ApprovalRequest request = pending.orElseGet(() -> enrol(doc));
+ 
+-        Approver.Actor actor = actors.current();
+         Approver required = requiredApprover(request)
+             .orElseThrow(() -> new IllegalStateException(("The approval matrix %s was submitted under no longer defines "
+                 + "level %d. Correct the matrix, or return the document and submit it again.")
+@@ -140,15 +170,21 @@ public class ApprovalService {
+             throw new AccessDeniedException("Segregation of duties: %s submitted %s and cannot decide it"
+                 .formatted(actor.username(), doc.getDocumentNo()));
+         }
+-        if (!required.isSatisfiedBy(actor)) {
++        if (!mayAct(required, actor, doc)) {
+             throw new AccessDeniedException("Level %d of %d on %s is for %s"
+                 .formatted(request.getCurrentLevel(), request.getTotalLevels(), doc.getDocumentNo(),
+-                    labels.approver(required, doc.getDocumentType())));
++                    labels.approver(required, doc.getDocumentType())
++                        + (required.isSatisfiedBy(actor) ? " in the document's own team" : "")));
+         }
+ 
+         int level = request.getCurrentLevel();
+         boolean last = request.isFinalLevel();
+         request.decide(decision);
++        if (request.isPending()) {
++            requiredApprover(request).ifPresentOrElse(request::routeTo, request::clearRoute);
++        } else {
++            request.clearRoute();
++        }
+         requests.save(request);
+ 
+         BusinessDocumentStatus from = doc.getStatus();
+@@ -171,7 +207,7 @@ public class ApprovalService {
+     /** Where a document's approval stands, for its screen: who must act next and whether it is you. */
+     @Transactional(readOnly = true)
+     public ApprovalStateView stateOf(Long documentId) {
+-        BusinessDocument doc = load(documentId);
++        BusinessDocument doc = loadForReview(documentId);
+         Optional<ApprovalRequest> latest = requests.findFirstByDocumentIdOrderByIdDesc(documentId);
+         if (latest.isEmpty() || !latest.get().isPending()) {
+             if (doc.getStatus() == BusinessDocumentStatus.SUBMITTED) {
+@@ -186,37 +222,74 @@ public class ApprovalService {
+         return state(doc, latest.get(), actors.current());
+     }
+ 
+-    /** What is waiting for the signed-in user: pending, visible to them, their level, and not their own. */
++    /** What the centralised inbox lists: filters on top of "waiting for me". */
++    public record InboxFilter(DocumentType type, String q) {
++        public static final InboxFilter NONE = new InboxFilter(null, null);
++    }
++
++    /**
++     * What is waiting for the signed-in user, oldest first, one page at a time: pending, at a level
++     * that is theirs (their name; or their role or the default rule within their teams), and not their
++     * own. One query for the page of requests, one for their documents, names looked up once each.
++     */
+     @Transactional(readOnly = true)
+-    public List<ApprovalRowView> inbox() {
++    public Page<ApprovalRowView> inbox(InboxFilter filter, Pageable pageable) {
+         Approver.Actor actor = actors.current();
+-        List<ApprovalRowView> rows = new ArrayList<>();
+-        for (ApprovalRequest request : requests.findPending(context.requireOrganizationId(), context.requireBusinessUnitId())) {
+-            Optional<BusinessDocument> doc = visible(request.getDocumentId());
+-            if (doc.isEmpty() || request.wasRaisedBy(actor)) continue;
+-            Optional<Approver> required = requiredApprover(request);
+-            if (required.isEmpty() || !required.get().isSatisfiedBy(actor)) continue;
+-            rows.add(labels.row(request, doc.get(), required.get()));
+-        }
+-        return rows;
++        RowScope scope = context.requireRowScope();
++        boolean allTeams = !scope.restricts(ScopeDimension.MARKETING_TEAM);
++        List<DocumentType> defaultTypes = ApprovalMatrixService.approvableTypes().stream()
++            .filter(t -> actor.authorities().contains(t.approveAuthority()))
++            .toList();
++        InboxFilter f = filter == null ? InboxFilter.NONE : filter;
++        Page<ApprovalRequest> page = requests.inbox(
++            context.requireOrganizationId(), context.requireBusinessUnitId(),
++            actor.userId(), actor.username(), f.type(), blankToNull(f.q()),
++            allTeams, scope.idsForQuery(ScopeDimension.MARKETING_TEAM),
++            !actor.roleIds().isEmpty(), actor.roleIds().isEmpty() ? NO_IDS : actor.roleIds(),
++            !defaultTypes.isEmpty(), defaultTypes.isEmpty() ? List.of(DocumentType.BOOKING) : defaultTypes,
++            withDefaultSort(pageable, Sort.by(Sort.Direction.ASC, "createdAt", "id")));
++        return rows(page);
+     }
+ 
+-    /** Every request in the unit, newest first - pending, settled or both - that the caller may see. */
++    /** How many are waiting for the signed-in user - the inbox badge. */
+     @Transactional(readOnly = true)
+-    public Page<ApprovalRowView> report(Boolean pending, int page, int size) {
++    public long inboxCount() {
++        return inbox(InboxFilter.NONE, PageRequest.of(0, 1)).getTotalElements();
++    }
++
++    /** Every request in the unit the caller's teams cover, newest first - pending, settled or both. */
++    @Transactional(readOnly = true)
++    public Page<ApprovalRowView> report(Boolean pending, DocumentType type, String q, Pageable pageable) {
++        RowScope scope = context.requireRowScope();
+         Page<ApprovalRequest> found = requests.report(context.requireOrganizationId(), context.requireBusinessUnitId(),
+-            pending, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(Sort.Direction.DESC, "id")));
+-        return found.map(request -> visible(request.getDocumentId())
+-            .map(doc -> labels.row(request, doc, request.isPending() ? requiredApprover(request).orElse(null) : null))
+-            .orElse(null));
++            pending, type, blankToNull(q),
++            !scope.restricts(ScopeDimension.MARKETING_TEAM), scope.idsForQuery(ScopeDimension.MARKETING_TEAM),
++            withDefaultSort(pageable, Sort.by(Sort.Direction.DESC, "id")));
++        return rows(found);
+     }
+ 
+     @Transactional(readOnly = true)
+     public List<ApprovalHistory> historyOf(Long documentId) {
+-        load(documentId);   // scope check
++        loadForReview(documentId);   // scope check
+         return historyRepository.findByDocumentIdOrderByCreatedAtDesc(documentId);
+     }
+ 
++    /**
++     * Whether the signed-in user may read a document as its approver: its current level is theirs
++     * to sign, or they have already signed or refused a level of it. A document screen that shows
++     * only its owner's documents uses this to let the approvers - and only them - open it.
++     */
++    @Transactional(readOnly = true)
++    public boolean canReview(BusinessDocument doc) {
++        Approver.Actor actor = actors.current();
++        Optional<ApprovalRequest> pending = requests.findByDocumentIdAndPendingTrue(doc.getId());
++        if (pending.isPresent() && !pending.get().wasRaisedBy(actor)
++                && requiredApprover(pending.get()).map(a -> mayAct(a, actor, doc)).orElse(false)) {
++            return true;
++        }
++        return actor.username() != null && historyRepository.existsByDocumentIdAndCreatedByIgnoreCase(doc.getId(), actor.username());
++    }
++
+     // ------------------------------------------------------------------------------ internals
+ 
+     /** A new request for a document being submitted now, routed by its team and amount. */
+@@ -246,6 +319,12 @@ public class ApprovalService {
+         return open(doc, null, doc.getCreatedBy());
+     }
+ 
++    private ApprovalRequest enrol(BusinessDocument doc) {
++        ApprovalRequest request = enrolLegacy(doc);
++        requiredApprover(request).ifPresent(request::routeTo);
++        return requests.save(request);
++    }
++
+     /** Team-wise first, unit-wide second, both only when active; empty means the default rule. */
+     Optional<ApprovalMatrix> resolve(DocumentType type, Long unitId, Long teamId) {
+         Long orgId = context.requireOrganizationId();
+@@ -264,9 +343,23 @@ public class ApprovalService {
+             .map(ApprovalLevel::approver);
+     }
+ 
++    /**
++     * Whether the actor satisfies the level for THIS document: a named user always; a role or the
++     * default rule only within the actor's row scope - the document's team's approvers, not another
++     * team's holders of the same role.
++     */
++    private boolean mayAct(Approver required, Approver.Actor actor, BusinessDocument doc) {
++        if (!required.isSatisfiedBy(actor)) return false;
++        return required.kind() == Approver.Kind.USER || inScope(doc);
++    }
++
++    private static boolean named(Approver required, Approver.Actor actor) {
++        return required.kind() == Approver.Kind.USER && required.isSatisfiedBy(actor);
++    }
++
+     private ApprovalStateView state(BusinessDocument doc, ApprovalRequest request, Approver.Actor actor) {
+         Optional<Approver> required = requiredApprover(request);
+-        boolean canAct = required.isPresent() && required.get().isSatisfiedBy(actor) && !request.wasRaisedBy(actor);
++        boolean canAct = required.isPresent() && mayAct(required.get(), actor, doc) && !request.wasRaisedBy(actor);
+         String why = required.isEmpty() ? "The matrix no longer defines this level"
+             : request.wasRaisedBy(actor) ? "You submitted it, so another person must decide it"
+             : !canAct ? "Waiting for " + labels.approver(required.get(), doc.getDocumentType())
+@@ -277,15 +370,64 @@ public class ApprovalService {
+             canAct, why, null);
+     }
+ 
+-    private Optional<BusinessDocument> visible(Long documentId) {
+-        return repository.findScoped(documentId, context.requireOrganizationId())
+-            .filter(d -> d.isVisibleTo(context.requireRowScope()));
++    /** One page of requests as rows: their documents in one query, every name looked up once. */
++    private Page<ApprovalRowView> rows(Page<ApprovalRequest> page) {
++        if (page.isEmpty()) {
++            return new PageImpl<>(List.of(), page.getPageable(), page.getTotalElements());
++        }
++        Map<Long, BusinessDocument> docs = repository.findScopedWithParty(
++                page.getContent().stream().map(ApprovalRequest::getDocumentId).toList(), context.requireOrganizationId())
++            .stream().collect(Collectors.toMap(BusinessDocument::getId, Function.identity(), (a, b) -> a));
++        ApprovalLabels.Batch batch = new ApprovalLabels.Batch(labels);
++        Map<Long, Optional<ApprovalMatrix>> matrixCache = new java.util.HashMap<>();
++        List<ApprovalRowView> rows = new ArrayList<>();
++        for (ApprovalRequest request : page.getContent()) {
++            BusinessDocument doc = docs.get(request.getDocumentId());
++            if (doc == null) continue;   // deleted since
++            Approver required = !request.isPending() ? null
++                : request.getMatrixId() == null ? Approver.authority(request.getDocumentType().approveAuthority())
++                : matrixCache.computeIfAbsent(request.getMatrixId(),
++                        id -> matrices.findScoped(id, request.getOrganizationId()))
++                    .flatMap(m -> m.levelFor(request.getAmount(), request.getCurrentLevel()))
++                    .map(ApprovalLevel::approver).orElse(null);
++            rows.add(batch.row(request, doc, required));
++        }
++        return new PageImpl<>(rows, page.getPageable(), page.getTotalElements());
+     }
+ 
+-    private BusinessDocument load(Long id) {
++    private boolean inScope(BusinessDocument doc) {
++        return doc.isVisibleTo(context.requireRowScope());
++    }
++
++    private BusinessDocument loadAny(Long id) {
+         return repository.findScopedWithLines(id, context.requireOrganizationId())
+-            .filter(d -> d.isVisibleTo(context.requireRowScope()))
+-            .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
++            .orElseThrow(() -> notFound(id));
++    }
++
++    private BusinessDocument load(Long id) {
++        BusinessDocument doc = loadAny(id);
++        if (!inScope(doc)) throw notFound(id);
++        return doc;
++    }
++
++    /** In the actor's scope, or theirs to approve (or already approved by them). */
++    private BusinessDocument loadForReview(Long id) {
++        BusinessDocument doc = loadAny(id);
++        if (!inScope(doc) && !canReview(doc)) throw notFound(id);
++        return doc;
++    }
++
++    private static IllegalArgumentException notFound(Long id) {
++        return new IllegalArgumentException("Document not found: " + id);
++    }
++
++    private static Pageable withDefaultSort(Pageable pageable, Sort sort) {
++        Pageable p = pageable == null ? PageRequest.of(0, 25) : pageable;
++        return p.getSort().isSorted() ? p : PageRequest.of(p.getPageNumber(), p.getPageSize(), sort);
++    }
++
++    private static String blankToNull(String s) {
++        return s == null || s.isBlank() ? null : s.trim();
+     }
+ 
+     private void recordHistory(BusinessDocument doc, ApprovalAction action, BusinessDocumentStatus from,
+diff --git a/src/main/java/com/asg/fabricerp/approval/ApprovalsController.java b/src/main/java/com/asg/fabricerp/approval/ApprovalsController.java
+index 07e727c..f2a6f9b 100644
+--- a/src/main/java/com/asg/fabricerp/approval/ApprovalsController.java
++++ b/src/main/java/com/asg/fabricerp/approval/ApprovalsController.java
+@@ -1,9 +1,12 @@
+ package com.asg.fabricerp.approval;
+ 
++import com.asg.fabricerp.common.LookupPage;
+ import com.asg.fabricerp.common.MarketingTeamRepository;
+ import com.asg.fabricerp.common.OrgContext;
+ import com.asg.fabricerp.global.documents.DocumentType;
+ import com.asg.fabricerp.security.AuthorityChecks;
++import com.asg.fabricerp.security.FabricUser;
++import com.asg.fabricerp.security.Role;
+ import com.asg.fabricerp.security.FabricUserRepository;
+ import com.asg.fabricerp.security.RoleRepository;
+ import com.asg.fabricerp.utility.datatable.DataTableRequest;
+@@ -11,6 +14,7 @@ import com.asg.fabricerp.utility.datatable.DataTableResponse;
+ import com.asg.fabricerp.utility.datatable.SortWhitelist;
+ import org.springframework.data.domain.Page;
+ import org.springframework.data.domain.PageRequest;
++import org.springframework.data.domain.Pageable;
+ import org.springframework.data.domain.Sort;
+ import org.springframework.security.access.prepost.PreAuthorize;
+ import org.springframework.stereotype.Controller;
+@@ -26,12 +30,16 @@ import java.util.*;
+  *
+  * <pre>
+  *   GET    /approvals                          the inbox page
+- *   GET    /api/approvals/inbox                what is waiting for the signed-in user
++ *   GET    /api/approvals/inbox                what is waiting for the signed-in user (paged grid)
++ *   GET    /api/approvals/inbox/count          how many - the badge
++ *   POST   /api/approvals/decide               one decision on many documents (bulk approve/return/reject)
+  *   GET    /api/approvals/requests?pending=    every request in the unit (grid)
+  *   GET    /setup/approval-matrices            the setup page
+  *   GET    /api/setup/approval-matrices        matrices (grid)
+  *   GET    /api/setup/approval-matrices/{id}   one, with its levels
+- *   GET    /api/setup/approval-matrices/options  document types, teams, roles, users for the editor
++ *   GET    /api/setup/approval-matrices/options  teams for the editor
++ *   GET    /api/setup/approval-matrices/roles    role picker feed (LookupPage: ?q, ?page, ?id)
++ *   GET    /api/setup/approval-matrices/users    person picker feed (LookupPage: ?q, ?page, ?id)
+  *   POST   /api/setup/approval-matrices        define or change
+  *   DELETE /api/setup/approval-matrices/{id}   delete (refused once used - deactivate instead)
+  * </pre>
+@@ -42,6 +50,9 @@ import java.util.*;
+ @Controller
+ public class ApprovalsController {
+ 
++    /** At most this many documents in one bulk decision - each is decided, and checked, on its own. */
++    static final int BULK_LIMIT = 200;
++
+     private static final SortWhitelist MATRIX_SORT = SortWhitelist.of(Map.of(
+         "documentType", "documentType",
+         "name",         "name",
+@@ -74,15 +85,73 @@ public class ApprovalsController {
+     @PreAuthorize("hasAuthority('SCREEN_APPROVALS_VIEW')")
+     public String inboxPage(Model model) {
+         model.addAttribute("title", "Approvals");
++        model.addAttribute("documentTypes", ApprovalMatrixService.approvableTypes());
+         model.addAttribute("content", "approvals/inbox :: content");
+         return "layout/main";
+     }
+ 
++    /** The centralised inbox, one page at a time: oldest first, filtered by type and by number/buyer/reference. */
+     @GetMapping("/api/approvals/inbox")
+     @ResponseBody
+     @PreAuthorize("hasAuthority('SCREEN_APPROVALS_VIEW')")
+-    public List<ApprovalRowView> inbox() {
+-        return approvals.inbox();
++    public DataTableResponse<ApprovalRowView> inbox(
++            @RequestParam(defaultValue = "1") int draw,
++            @RequestParam(defaultValue = "0") int start,
++            @RequestParam(defaultValue = "25") int length,
++            @RequestParam(name = "search[value]", required = false) String search,
++            @RequestParam(required = false) DocumentType type) {
++        Page<ApprovalRowView> page = approvals.inbox(new ApprovalService.InboxFilter(type, search), pageOf(start, length));
++        return new DataTableResponse<>(draw, page.getTotalElements(), page.getTotalElements(), page.getContent());
++    }
++
++    @GetMapping("/api/approvals/inbox/count")
++    @ResponseBody
++    @PreAuthorize("hasAuthority('SCREEN_APPROVALS_VIEW')")
++    public Map<String, Object> inboxCount() {
++        return Map.of("count", approvals.inboxCount());
++    }
++
++    /** What a bulk decision posts: the documents, the decision, one remark for all (required to return or reject). */
++    public record BulkDecision(List<Long> documentIds, ApprovalDecision decision, String remarks) { }
++
++    /**
++     * One decision on many documents. Each is decided in its own transaction with every check a
++     * single decision gets - level, team, four-eyes - so one that fails is reported and the rest
++     * still go through. Deliberately not @Transactional.
++     */
++    @PostMapping("/api/approvals/decide")
++    @ResponseBody
++    @PreAuthorize("hasAuthority('SCREEN_APPROVALS_VIEW')")
++    public Map<String, Object> decideAll(@RequestBody BulkDecision request) {
++        List<Long> ids = request.documentIds() == null ? List.of()
++            : request.documentIds().stream().filter(Objects::nonNull).distinct().toList();
++        if (ids.isEmpty()) {
++            throw new IllegalArgumentException("Choose at least one document");
++        }
++        if (ids.size() > BULK_LIMIT) {
++            throw new IllegalArgumentException("At most %d documents at a time - you chose %d".formatted(BULK_LIMIT, ids.size()));
++        }
++        if (request.decision() == null) {
++            throw new IllegalArgumentException("Choose approve, return or reject");
++        }
++        if (request.decision().isRefusal() && (request.remarks() == null || request.remarks().isBlank())) {
++            throw new IllegalArgumentException("Give the reason - every maker will see it");
++        }
++        List<Map<String, Object>> done = new ArrayList<>();
++        List<Map<String, Object>> failed = new ArrayList<>();
++        for (Long id : ids) {
++            try {
++                var doc = approvals.decide(id, request.decision(), request.remarks());
++                done.add(Map.of("id", doc.getId(), "documentNo", String.valueOf(doc.getDocumentNo()),
++                    "status", doc.getStatus().name()));
++            } catch (RuntimeException e) {
++                Map<String, Object> failure = new LinkedHashMap<>();
++                failure.put("id", id);
++                failure.put("message", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
++                failed.add(failure);
++            }
++        }
++        return Map.of("done", done, "failed", failed);
+     }
+ 
+     @GetMapping("/api/approvals/requests")
+@@ -92,12 +161,16 @@ public class ApprovalsController {
+             @RequestParam(defaultValue = "1") int draw,
+             @RequestParam(defaultValue = "0") int start,
+             @RequestParam(defaultValue = "25") int length,
+-            @RequestParam(required = false) Boolean pending) {
+-        int size = Math.max(length, 1);
+-        Page<ApprovalRowView> page = approvals.report(pending, start / size, size);
+-        // A request whose document the caller cannot see comes back null and is left out.
+-        List<ApprovalRowView> rows = page.getContent().stream().filter(Objects::nonNull).toList();
+-        return new DataTableResponse<>(draw, page.getTotalElements(), page.getTotalElements(), rows);
++            @RequestParam(name = "search[value]", required = false) String search,
++            @RequestParam(required = false) Boolean pending,
++            @RequestParam(required = false) DocumentType type) {
++        Page<ApprovalRowView> page = approvals.report(pending, type, search, pageOf(start, length));
++        return new DataTableResponse<>(draw, page.getTotalElements(), page.getTotalElements(), page.getContent());
++    }
++
++    private static Pageable pageOf(int start, int length) {
++        int size = Math.min(Math.max(length, 1), 100);
++        return PageRequest.of(Math.max(start, 0) / size, size);
+     }
+ 
+     // ------------------------------------------------------------------------------ matrices
+@@ -145,16 +218,53 @@ public class ApprovalsController {
+         Map<String, Object> options = new LinkedHashMap<>();
+         options.put("teams", teams.lookup(orgId).stream()
+             .map(t -> Map.of("id", t.getId(), "text", t.getName())).toList());
+-        options.put("roles", roles.findAll(Sort.by("name")).stream()
+-            .filter(r -> !Boolean.FALSE.equals(r.getActive()))
+-            .map(r -> Map.of("id", r.getId(), "text", r.getName())).toList());
+-        options.put("users", users.search(orgId, null, false, null, null, PageRequest.of(0, 500, Sort.by("fullName")))
+-            .stream().map(u -> Map.of("id", u.getId(), "text",
+-                u.getFullName() == null || u.getFullName().isBlank() ? u.getUsername() : u.getFullName() + " (" + u.getUsername() + ")"))
+-            .toList());
++        // Roles and people are searched and paged on demand - see roleLookup / userLookup.
+         return options;
+     }
+ 
++    /** The level editor's role picker, searched and paged like the Booking buyer picker. */
++    @GetMapping("/api/setup/approval-matrices/roles")
++    @ResponseBody
++    @PreAuthorize("hasAuthority('SCREEN_APPROVAL_SETUP_VIEW')")
++    @Transactional(readOnly = true)
++    public LookupPage<LookupPage.Option> roleLookup(@RequestParam(required = false) String q,
++                                                    @RequestParam(required = false) Integer page,
++                                                    @RequestParam(required = false) Integer size,
++                                                    @RequestParam(required = false) Long id) {
++        if (id != null) {
++            return LookupPage.single(roles.findById(id).map(ApprovalsController::roleOption).orElse(null));
++        }
++        return LookupPage.of(roles.lookup(LookupPage.like(q), LookupPage.pageable(page, size, Sort.by("name"))),
++            ApprovalsController::roleOption);
++    }
++
++    /** The level editor's person picker: this organization's unlocked users, by name or username. */
++    @GetMapping("/api/setup/approval-matrices/users")
++    @ResponseBody
++    @PreAuthorize("hasAuthority('SCREEN_APPROVAL_SETUP_VIEW')")
++    @Transactional(readOnly = true)
++    public LookupPage<LookupPage.Option> userLookup(@RequestParam(required = false) String q,
++                                                    @RequestParam(required = false) Integer page,
++                                                    @RequestParam(required = false) Integer size,
++                                                    @RequestParam(required = false) Long id) {
++        Long orgId = context.requireOrganizationId();
++        if (id != null) {
++            return LookupPage.single(users.findScoped(id, orgId).map(ApprovalsController::userOption).orElse(null));
++        }
++        return LookupPage.of(users.search(orgId, q == null || q.isBlank() ? null : q.trim(), false, null, null,
++                LookupPage.pageable(page, size, Sort.by("fullName"))),
++            ApprovalsController::userOption);
++    }
++
++    private static LookupPage.Option roleOption(Role r) {
++        return new LookupPage.Option(r.getId(), null, r.getName(), r.getDescription());
++    }
++
++    private static LookupPage.Option userOption(FabricUser u) {
++        String name = u.getFullName() == null || u.getFullName().isBlank() ? u.getUsername() : u.getFullName();
++        return new LookupPage.Option(u.getId(), u.getUsername(), name, null);
++    }
++
+     @PostMapping("/api/setup/approval-matrices")
+     @ResponseBody
+     @PreAuthorize("hasAuthority('SCREEN_APPROVAL_SETUP_CREATE') or hasAuthority('SCREEN_APPROVAL_SETUP_AMEND')")
+@@ -187,6 +297,10 @@ public class ApprovalsController {
+             level.put("roleId", l.getRoleId());
+             level.put("userId", l.getUserId());
+             level.put("approver", labels.approver(l.approver(), m.getDocumentType()));
++            // The pickers' labels, so a saved level shows without a lookup round-trip.
++            level.put("roleName", l.getRoleId() == null ? null
++                : roles.findById(l.getRoleId()).map(Role::getName).orElse("#" + l.getRoleId()));
++            level.put("userName", l.getUserId() == null ? null : labels.userName(l.getUserId()));
+             level.put("minAmount", l.getMinAmount());
+             level.put("maxAmount", l.getMaxAmount());
+             level.put("band", band(l.getMinAmount(), l.getMaxAmount()));
+diff --git a/src/main/java/com/asg/fabricerp/fabric/booking/BookingController.java b/src/main/java/com/asg/fabricerp/fabric/booking/BookingController.java
+index 8f22ebc..acfb9e7 100644
+--- a/src/main/java/com/asg/fabricerp/fabric/booking/BookingController.java
++++ b/src/main/java/com/asg/fabricerp/fabric/booking/BookingController.java
+@@ -82,9 +82,9 @@ public class BookingController {
+         model.addAttribute("baseMaterials", BASE_MATERIALS);
+         model.addAttribute("lcTenures", CostingCatalog.LC_TENURES);
+         model.addAttribute("lcPaymentTypes", CostingCatalog.LC_PAYMENT_TYPES);
+-        // The Marketing team field: fixed to a restricted user's own team, a choice otherwise.
+-        model.addAttribute("teamRestricted", service.teamRestricted());
++        // The Marketing team field is always the signed-in user's own team; no team, no new booking.
+         model.addAttribute("ownTeam", service.ownTeam());
++        model.addAttribute("canCreateBooking", service.canCreate());
+         model.addAttribute("content", "fabric/booking :: content");
+         return "layout/main";
+     }
+@@ -122,7 +122,10 @@ public class BookingController {
+     @ResponseBody
+     @PreAuthorize("hasAuthority('SCREEN_BOOKING_CREATE') or hasAuthority('SCREEN_BOOKING_AMEND')")
+     public Map<String, Object> save(@Valid @RequestBody BusinessDocument booking) {
+-        AuthorityChecks.require(booking.getId() == null ? "SCREEN_BOOKING_CREATE" : "SCREEN_BOOKING_AMEND");
++        // A new booking needs Create. Correcting one's own draft - including one an approver returned or
++        // rejected - is part of raising it, so Create or Amend will do; BookingService limits it to the owner.
++        if (booking.getId() == null) AuthorityChecks.require("SCREEN_BOOKING_CREATE");
++        else AuthorityChecks.requireAny("SCREEN_BOOKING_CREATE", "SCREEN_BOOKING_AMEND");
+         return service.detail(service.save(booking).getId());
+     }
+ 
+diff --git a/src/main/java/com/asg/fabricerp/fabric/booking/BookingService.java b/src/main/java/com/asg/fabricerp/fabric/booking/BookingService.java
+index 1c15718..f8d87b2 100644
+--- a/src/main/java/com/asg/fabricerp/fabric/booking/BookingService.java
++++ b/src/main/java/com/asg/fabricerp/fabric/booking/BookingService.java
+@@ -2,6 +2,7 @@ package com.asg.fabricerp.fabric.booking;
+ 
+ import com.asg.fabricerp.approval.ApprovalRequest;
+ import com.asg.fabricerp.approval.ApprovalRequestRepository;
++import com.asg.fabricerp.approval.ApprovalService;
+ import com.asg.fabricerp.common.LookupPage;
+ import com.asg.fabricerp.common.MarketingTeam;
+ import com.asg.fabricerp.common.MarketingTeamRepository;
+@@ -16,6 +17,7 @@ import com.asg.fabricerp.global.numbering.BusinessNumberService;
+ import com.asg.fabricerp.global.terms.ConditionType;
+ import com.asg.fabricerp.global.terms.TermsConditionService;
+ import com.asg.fabricerp.security.CurrentUser;
++import com.asg.fabricerp.security.DataScopeRepository;
+ import com.asg.fabricerp.security.FabricUser;
+ import com.asg.fabricerp.security.FabricUserRepository;
+ import org.springframework.data.domain.Page;
+@@ -29,6 +31,8 @@ import java.time.LocalDate;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
++import java.util.Objects;
++import java.util.Set;
+ 
+ /**
+  * Booking — the head of order-to-cash for woven fabric.
+@@ -60,6 +64,8 @@ public class BookingService {
+     private final OrgContext context;
+     private final MarketingTeamRepository marketingTeams;
+     private final ApprovalRequestRepository approvals;
++    private final DataScopeRepository scopes;
++    private final ApprovalService approvalService;
+ 
+     public BookingService(BusinessDocumentRepository repository,
+                           BusinessNumberService numbering,
+@@ -71,7 +77,9 @@ public class BookingService {
+                           FabricUserRepository users,
+                           OrgContext context,
+                           MarketingTeamRepository marketingTeams,
+-                          ApprovalRequestRepository approvals) {
++                          ApprovalRequestRepository approvals,
++                          DataScopeRepository scopes,
++                          ApprovalService approvalService) {
+         this.repository = repository;
+         this.numbering = numbering;
+         this.costing = costing;
+@@ -83,6 +91,8 @@ public class BookingService {
+         this.context = context;
+         this.marketingTeams = marketingTeams;
+         this.approvals = approvals;
++        this.scopes = scopes;
++        this.approvalService = approvalService;
+     }
+ 
+     @Transactional(readOnly = true)
+@@ -92,7 +102,7 @@ public class BookingService {
+         return repository.search(
+             context.requireOrganizationId(),
+             context.requireBusinessUnitId(),
+-            TYPE, status, from, to, query, context.requireRowScope(), pageable);
++            TYPE, status, from, to, query, context.requireRowScope(), currentUsername(), pageable);
+     }
+ 
+     /** The grid's rows, mapped inside the transaction because they name the buyer and garments. */
+@@ -137,40 +147,60 @@ public class BookingService {
+     }
+ 
+     /**
+-     * The team a new Booking belongs to. A restricted user's own team, whatever the request says -
+-     * letting them name another would file work where they cannot see it, or into another team's
+-     * book. An unrestricted user (MD, Accounts) chooses one, or none: an unteamed booking is seen
+-     * by unrestricted users only.
++     * The marketing team the signed-in user belongs to - their open {@code MARKETING_TEAM}
++     * data-scope grant, the same membership the Marketing teams screen maintains. Null when they
++     * are in no team, or (which the one-open-grant constraint should prevent) in more than one.
++     *
++     * <p>A Booking is always filed under its creator's own team: there is no choice to make, and a
++     * user in no team cannot raise one at all.
+      */
+-    private MarketingTeam owningTeam(Long requested) {
++    @Transactional(readOnly = true)
++    public MarketingTeam ownTeam() {
++        Set<Long> ids = memberTeamIds();
++        return ids.size() == 1
++            ? marketingTeams.findScoped(ids.iterator().next(), context.requireOrganizationId()).orElse(null)
++            : null;
++    }
++
++    /** Whether the signed-in user may raise a Booking: they must belong to exactly one marketing team. */
++    @Transactional(readOnly = true)
++    public boolean canCreate() {
++        return memberTeamIds().size() == 1;
++    }
++
++    private Set<Long> memberTeamIds() {
+         RowScope scope = context.requireRowScope();
+         if (scope.restricts(ScopeDimension.MARKETING_TEAM)) {
+-            Long own = scope.soleMarketingTeam();
+-            if (own == null) {
+-                throw new IllegalStateException("You belong to no single marketing team, so a booking cannot be "
+-                    + "filed under one. Ask an administrator to put you in exactly one team.");
+-            }
+-            return references.marketingTeam(own);
++            return scope.allowedOn(ScopeDimension.MARKETING_TEAM);
+         }
+-        if (requested == null) {
+-            return null;
++        // An unrestricted user's principal carries no scope values; ask the grants directly.
++        return Set.copyOf(scopes.findValuesHeldOn(CurrentUser.id(), ScopeDimension.MARKETING_TEAM, LocalDate.now()));
++    }
++
++    private MarketingTeam requireOwnTeam() {
++        Set<Long> ids = memberTeamIds();
++        if (ids.isEmpty()) {
++            throw new IllegalStateException("You are not in a marketing team, so you cannot create a booking. "
++                + "Ask an administrator to add you to a team under Setup › Marketing teams.");
+         }
+-        return marketingTeams.lookup(context.requireOrganizationId()).stream()
+-            .filter(t -> t.getId().equals(requested))
+-            .findFirst()
+-            .orElseThrow(() -> new IllegalArgumentException("No active marketing team with id " + requested));
++        if (ids.size() > 1) {
++            throw new IllegalStateException("You belong to more than one marketing team, so a booking cannot be "
++                + "filed under one. Ask an administrator to put you in exactly one team.");
++        }
++        return references.marketingTeam(ids.iterator().next());
+     }
+ 
+-    /** Whether the signed-in user's bookings are filed under their own team, with no choice. */
+-    public boolean teamRestricted() {
+-        return context.requireRowScope().restricts(ScopeDimension.MARKETING_TEAM);
++    /** The username the audit listener stamps into {@code created_by}: a booking's owner. */
++    private String currentUsername() {
++        String username = context.username();
++        if (username == null || username.isBlank()) {
++            throw new IllegalStateException("No signed-in user");
++        }
++        return username;
+     }
+ 
+-    /** The team a restricted user's bookings are filed under; null for a user who chooses. */
+-    @Transactional(readOnly = true)
+-    public MarketingTeam ownTeam() {
+-        Long id = teamRestricted() ? context.requireRowScope().soleMarketingTeam() : null;
+-        return id == null ? null : marketingTeams.findScoped(id, context.requireOrganizationId()).orElse(null);
++    private boolean ownedByCurrentUser(BusinessDocument d) {
++        return Objects.equals(d.getCreatedBy(), currentUsername());
+     }
+ 
+     @Transactional(readOnly = true)
+@@ -178,6 +208,22 @@ public class BookingService {
+         return repository.findScopedWithLines(id, context.requireOrganizationId())
+             .filter(d -> d.getDocumentType() == TYPE)
+             .filter(d -> d.isVisibleTo(context.requireRowScope()))
++            .filter(this::ownedByCurrentUser)
++            .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
++    }
++
++    /**
++     * Read-only access for the review drawer. The owner, as {@link #get}; and the booking's own
++     * approvers - whoever its current level waits for (a team's bookings wait for that team's
++     * approvers) or has already signed a level - because the Approvals inbox opens a booking here
++     * to decide on it. Nobody else, however senior. Editing, deleting and revising stay with the
++     * owner alone.
++     */
++    @Transactional(readOnly = true)
++    public BusinessDocument view(Long id) {
++        return repository.findScopedWithLines(id, context.requireOrganizationId())
++            .filter(d -> d.getDocumentType() == TYPE)
++            .filter(d -> (d.isVisibleTo(context.requireRowScope()) && ownedByCurrentUser(d)) || approvalService.canReview(d))
+             .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
+     }
+ 
+@@ -187,7 +233,15 @@ public class BookingService {
+      */
+     @Transactional(readOnly = true)
+     public Map<String, Object> detail(Long id) {
+-        return BookingView.detail(get(id));
++        BusinessDocument doc = view(id);
++        Map<String, Object> detail = BookingView.detail(doc);
++        if (!ownedByCurrentUser(doc)) {
++            // An approver reviewing someone else's booking: no Edit, no Submit, no Raise revision.
++            detail.put("editable", false);
++            detail.put("submittable", false);
++            detail.put("revisable", false);
++        }
++        return detail;
+     }
+ 
+     /**
+@@ -228,6 +282,10 @@ public class BookingService {
+      */
+     @Transactional
+     public BusinessDocument save(BusinessDocument submitted) {
++        // Marketing person and team are decided here, not by the request.
++        submitted.setMarketingPersonId(null);
++        submitted.setMarketingPerson(null);
++        submitted.setMarketingTeamId(null);
+         references.resolve(submitted, TYPE);   // before anything is copied or flushed
+         BusinessDocument target;
+ 
+@@ -237,18 +295,17 @@ public class BookingService {
+             target.setOrganizationId(context.requireOrganizationId());
+             target.setBusinessUnit(references.currentBusinessUnit());
+             // ADM-7: a Booking is where the team is decided, once. Every downstream document
+-            // inherits it from here, and no later save can move it.
+-            target.stampMarketingTeam(owningTeam(submitted.getMarketingTeamId()));
++            // inherits it from here, and no later save can move it. It is always the creator's
++            // own team - a user in no marketing team cannot raise a booking.
++            target.stampMarketingTeam(requireOwnTeam());
+             if (target.getDocumentDate() == null) {
+                 target.setDocumentDate(LocalDate.now());
+             }
+             if (target.getBookingType() == null) {
+                 target.setBookingType(BookingType.BULK);
+             }
+-            if (target.getMarketingPerson() == null) {
+-                // The legacy screen defaulted Marketing Person to whoever was signed in.
+-                target.setMarketingPerson(references.user(context.requireOrganizationId(), CurrentUser.id()));
+-            }
++            // The marketing person is whoever creates the booking - set here, never chosen on the page.
++            target.setMarketingPerson(references.user(context.requireOrganizationId(), CurrentUser.id()));
+             if (!target.isTermsSubmitted()) {
+                 terms.defaultTermsFor(ConditionType.BOOKING).forEach(target::addTerm);
+             }
+@@ -256,6 +313,10 @@ public class BookingService {
+         } else {
+             target = get(submitted.getId());
+             target.assertEditable();
++            if (target.getStatus() == BusinessDocumentStatus.REJECTED) {
++                // Corrected after a Reject: it is a draft again, to be submitted afresh.
++                target.transitionTo(BusinessDocumentStatus.DRAFT);
++            }
+             applyHeader(submitted, target);
+             target.setLineGroups(submitted.getLineGroups());
+             if (submitted.isTermsSubmitted()) {
+@@ -312,9 +373,7 @@ public class BookingService {
+         to.setGarmentsAddress(from.getGarmentsAddress());
+         to.setPreCostBuyer(from.getPreCostBuyer());
+         to.setPriceInMeter(from.isPriceInMeter());
+-        if (from.getMarketingPerson() != null) {
+-            to.setMarketingPerson(from.getMarketingPerson());
+-        }
++        // Marketing person is not taken from the request: it stays the booking's creator.
+     }
+ 
+     /**
+diff --git a/src/main/java/com/asg/fabricerp/global/documents/BusinessDocumentRepository.java b/src/main/java/com/asg/fabricerp/global/documents/BusinessDocumentRepository.java
+index c77639d..9989adc 100644
+--- a/src/main/java/com/asg/fabricerp/global/documents/BusinessDocumentRepository.java
++++ b/src/main/java/com/asg/fabricerp/global/documents/BusinessDocumentRepository.java
+@@ -32,6 +32,16 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
+            """)
+     Optional<BusinessDocument> findScoped(@Param("id") Long id, @Param("orgId") Long orgId);
+ 
++    /** A page of documents with their buyer, in one query - for lists built from another table (the approval inbox). */
++    @Query("""
++           select d from BusinessDocument d
++             left join fetch d.party
++           where d.id in :ids
++             and d.organizationId = :orgId
++             and d.deleted = false
++           """)
++    List<BusinessDocument> findScopedWithParty(@Param("ids") java.util.Collection<Long> ids, @Param("orgId") Long orgId);
++
+     /**
+      * The document with both levels of lines loaded - almost every caller needs them, and
+      * controllers read them after the transaction has closed ({@code open-in-view} is off).
+@@ -112,7 +122,18 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
+                                           BusinessDocumentStatus status,
+                                           LocalDate from, LocalDate to, String q,
+                                           RowScope scope, Pageable pageable) {
+-        return searchWithin(orgId, unitId, type, status, from, to, q,
++        return search(orgId, unitId, type, status, from, to, q, scope, null, pageable);
++    }
++
++    /**
++     * {@link #search}, further narrowed to the documents one user created - {@code createdBy} is
++     * the username the audit listener stamps. Null means anyone's.
++     */
++    default Page<BusinessDocument> search(Long orgId, Long unitId, DocumentType type,
++                                          BusinessDocumentStatus status,
++                                          LocalDate from, LocalDate to, String q,
++                                          RowScope scope, String createdBy, Pageable pageable) {
++        return searchWithin(orgId, unitId, type, status, from, to, q, createdBy,
+             !scope.restricts(ScopeDimension.BUSINESS_UNIT),
+             scope.idsForQuery(ScopeDimension.BUSINESS_UNIT),
+             !scope.restricts(ScopeDimension.WAREHOUSE),
+@@ -138,6 +159,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
+              and (:allUnits = true or d.businessUnit.id in :unitIds)
+              and (:allWarehouses = true or d.warehouse is null or d.warehouse.id in :warehouseIds)
+              and (:allTeams = true or d.marketingTeam.id in :teamIds)
++             and (:createdBy is null or d.createdBy = :createdBy)
+            """)
+     Page<BusinessDocument> searchWithin(@Param("orgId") Long orgId,
+                                         @Param("unitId") Long unitId,
+@@ -146,6 +168,7 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
+                                         @Param("from") LocalDate from,
+                                         @Param("to") LocalDate to,
+                                         @Param("q") String q,
++                                        @Param("createdBy") String createdBy,
+                                         @Param("allUnits") boolean allUnits,
+                                         @Param("unitIds") List<Long> unitIds,
+                                         @Param("allWarehouses") boolean allWarehouses,
+diff --git a/src/main/java/com/asg/fabricerp/security/DataScopeRepository.java b/src/main/java/com/asg/fabricerp/security/DataScopeRepository.java
+index 208ca80..1ab2535 100644
+--- a/src/main/java/com/asg/fabricerp/security/DataScopeRepository.java
++++ b/src/main/java/com/asg/fabricerp/security/DataScopeRepository.java
+@@ -39,4 +39,19 @@ public interface DataScopeRepository extends JpaRepository<DataScope, Long> {
+            """)
+     List<DataScope> findHoldersOn(@Param("dimension") ScopeDimension dimension,
+                                   @Param("valueId") Long valueId, @Param("on") LocalDate on);
++
++    /**
++     * The values one user holds on a dimension on a date - for {@code MARKETING_TEAM}, the team
++     * they are a member of. Read straight from the grants, so it answers for restricted and
++     * unrestricted users alike.
++     */
++    @Query("""
++           select s.scopeValueId from DataScope s
++           where s.userId = :userId and s.dimension = :dimension
++             and s.grantedFrom <= :on and (s.revokedFrom is null or s.revokedFrom > :on)
++           order by s.grantedFrom desc
++           """)
++    List<Long> findValuesHeldOn(@Param("userId") Long userId,
++                                @Param("dimension") ScopeDimension dimension,
++                                @Param("on") LocalDate on);
+ }
+diff --git a/src/main/java/com/asg/fabricerp/security/RoleRepository.java b/src/main/java/com/asg/fabricerp/security/RoleRepository.java
+index 15e9d05..bf3d2ab 100644
+--- a/src/main/java/com/asg/fabricerp/security/RoleRepository.java
++++ b/src/main/java/com/asg/fabricerp/security/RoleRepository.java
+@@ -32,6 +32,18 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
+            """)
+     Page<Role> search(@Param("q") String q, @Param("hasGrants") Boolean hasGrants, Pageable pageable);
+ 
++    /**
++     * Picker feed (App.RemoteSelect): active roles whose name or description matches
++     * {@code pattern} - a {@link com.asg.fabricerp.common.LookupPage#like} pattern.
++     */
++    @Query("""
++           select r from Role r
++           where (r.active is null or r.active = true)
++             and (lower(r.name) like :pattern escape '\\'
++                  or lower(coalesce(r.description, '')) like :pattern escape '\\')
++           """)
++    Page<Role> lookup(@Param("pattern") String pattern, Pageable pageable);
++
+     @Query("select count(r) from Role r where r.active = true")
+     long countActive();
+ 
+diff --git a/src/main/resources/static/js/app.js b/src/main/resources/static/js/app.js
+index 09b29c2..955219b 100644
+--- a/src/main/resources/static/js/app.js
++++ b/src/main/resources/static/js/app.js
+@@ -1402,7 +1402,7 @@
+         totalQuantity: 'Total quantity', subtotalAmount: 'Amount', revisionNo: 'Revision',
+         bookingId: 'Booking', bpoId: 'Production order', deliveryOrderId: 'Delivery order', scheduleId: 'Schedule'
+     };
+-    const HISTORY_VERBS = { SUBMITTED: 'submitted it', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it' };
++    const HISTORY_VERBS = { SUBMITTED: 'submitted it', RESUBMITTED: 'submitted it again', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it' };
+     const GROUP_FIELDS = {
+         itemName: 'Item', costingCode: 'Costing no', fabricType: 'Fabric type', composition: 'Composition',
+         declaredConstruction: 'PI construction', weaveType: 'Weave type', weaveStyle: 'Weave style',
+@@ -1675,8 +1675,9 @@
+             if (this.opts.onEdit && this.opts.canEdit && doc.editable) {
+                 actions.push(`<button type="button" class="btn-ghost" data-doc-action="edit">${icon('edit')}Edit</button>`);
+             }
+-            if (s === 'DRAFT') {
+-                actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}Submit for approval</button>`);
++            // A returned document is a draft again; a rejected one may be corrected and submitted afresh.
++            if ((s === 'DRAFT' || s === 'REJECTED') && doc.submittable !== false) {
++                actions.push(`<button type="button" class="btn-primary" data-doc-action="submit">${icon('send')}${s === 'REJECTED' ? 'Submit again' : 'Submit for approval'}</button>`);
+             }
+             if (s === 'SUBMITTED') {
+                 // The engine says whether this user signs the current level; without its answer the
+@@ -1691,10 +1692,10 @@
+                     actions.push(`<p class="text-sm text-gray-500">${esc(a.waitingReason || 'Awaiting approval')}${levels ? ' ·' + esc(levels) : ''}</p>`);
+                 }
+             }
+-            if (s === 'REJECTED') {
+-                actions.push('<p class="text-sm text-gray-500">Rejected - edit and save it to return it to draft.</p>');
++            if (s === 'REJECTED' && doc.submittable !== false) {
++                actions.push('<p class="text-sm text-gray-500">Rejected - see the reason under History, correct it and submit it again.</p>');
+             }
+-            if (this.opts.revise && committed) {
++            if (this.opts.revise && committed && doc.revisable !== false) {
+                 actions.push(`<button type="button" class="btn-ghost" data-doc-action="revise">${icon('refresh')}Raise revision</button>`);
+             }
+             return actions.join('');
+diff --git a/src/main/resources/static/js/approval-matrices.js b/src/main/resources/static/js/approval-matrices.js
+index cdbb461..2efc52c 100644
+--- a/src/main/resources/static/js/approval-matrices.js
++++ b/src/main/resources/static/js/approval-matrices.js
+@@ -18,7 +18,7 @@
+         const canDelete = !!document.getElementById('canDelete');
+         const typeFilter = document.getElementById('amTypeFilter');
+ 
+-        let options = { teams: [], roles: [], users: [] };
++        let options = { teams: [] };
+         const optionsReady = App.api(`${API}/options`).then(o => { options = o; }).catch(App.fail);
+         let matrix = null;
+         let dirty = false;
+@@ -70,9 +70,13 @@
+ 
+         // ------------------------------------------------------------------ levels
+ 
+-        const optionList = (list, selected, blank) => (blank ? `<option value="">${esc(blank)}</option>` : '')
+-            + list.map(o => `<option value="${o.id}"${String(o.id) === String(selected) ? ' selected' : ''}>${esc(o.text)}</option>`).join('');
++        // A saved level's approver as the picker's one pre-selected option - labelled without a request.
++        const saved = (id, text) => id ? `<option value="${esc(id)}" selected>${esc(text || '#' + id)}</option>` : '';
+ 
++        /*
++         * Role or person: searched and paged on the server as you type (App.RemoteSelect, the same picker
++         * as Booking's buyer), so a list of hundreds of users or roles is never shipped into the page.
++         */
+         function levelRow(level) {
+             const kind = level && level.userId ? 'user' : 'role';
+             return `<tr>
+@@ -81,8 +85,12 @@
+                     <option value="role"${kind === 'role' ? ' selected' : ''}>A role</option>
+                     <option value="user"${kind === 'user' ? ' selected' : ''}>One person</option></select></td>
+                 <td>
+-                    <select class="field" data-role${kind === 'role' ? '' : ' hidden'}>${optionList(options.roles, level?.roleId, 'Choose the role…')}</select>
+-                    <select class="field" data-user${kind === 'user' ? '' : ' hidden'}>${optionList(options.users, level?.userId, 'Choose the person…')}</select>
++                    <div data-role-wrap${kind === 'role' ? '' : ' hidden'}>
++                        <select class="field" data-role data-remote="${API}/roles" data-placeholder="Search a role…"
++                                data-empty-text="No active role matches">${saved(level?.roleId, level?.roleName)}</select></div>
++                    <div data-user-wrap${kind === 'user' ? '' : ' hidden'}>
++                        <select class="field" data-user data-remote="${API}/users" data-placeholder="Search a person by name or username…"
++                                data-empty-text="No user matches">${saved(level?.userId, level?.userName)}</select></div>
+                 </td>
+                 <td><input type="number" min="0" step="0.01" class="field text-right tabular-nums" data-min placeholder="Any" value="${level?.minAmount ?? ''}"></td>
+                 <td><input type="number" min="0" step="0.01" class="field text-right tabular-nums" data-max placeholder="Any" value="${level?.maxAmount ?? ''}"></td>
+@@ -96,6 +104,7 @@
+ 
+         function setLevels(levels) {
+             levelBody.innerHTML = (levels && levels.length ? levels : [null]).map(levelRow).join('');
++            App.remoteSelects(levelBody);
+             renumber();
+         }
+ 
+@@ -113,8 +122,8 @@
+             const kind = event.target.closest('[data-kind]');
+             if (!kind) return;
+             const tr = kind.closest('tr');
+-            tr.querySelector('[data-role]').hidden = kind.value !== 'role';
+-            tr.querySelector('[data-user]').hidden = kind.value !== 'user';
++            tr.querySelector('[data-role-wrap]').hidden = kind.value !== 'role';
++            tr.querySelector('[data-user-wrap]').hidden = kind.value !== 'user';
+         });
+         levelBody.addEventListener('click', event => {
+             if (!event.target.closest('[data-level-remove]')) return;
+@@ -125,6 +134,7 @@
+         });
+         form.querySelector('[data-action="level-add"]').addEventListener('click', () => {
+             levelBody.insertAdjacentHTML('beforeend', levelRow(null));
++            App.remoteSelects(levelBody.rows[levelBody.rows.length - 1]);
+             renumber();
+             dirty = true;
+         });
+diff --git a/src/main/resources/static/js/approvals.js b/src/main/resources/static/js/approvals.js
+index 133d6bb..127c001 100644
+--- a/src/main/resources/static/js/approvals.js
++++ b/src/main/resources/static/js/approvals.js
+@@ -1,7 +1,9 @@
+ /*
+- * Approvals: what is waiting for the signed-in user, decided in place or opened on its own screen,
+- * and every request in the unit. Deciding posts to /api/documents/{id}/approve|return|reject - the
+- * same calls the document screens make, so the rules cannot differ between the two.
++ * Approvals: the centralised inbox. What is waiting for the signed-in user is searched, filtered and
++ * paged on the server, decided in place one at a time or several at once, or opened on its own screen;
++ * "All requests" is every approval in the teams the user can see. Deciding posts to
++ * /api/documents/{id}/approve|return|reject (one) or /api/approvals/decide (several) - the same engine
++ * and the same checks as the document screens, so the rules cannot differ between them.
+  */
+ (() => {
+     'use strict';
+@@ -18,99 +20,180 @@
+     const levelCell = r => `<div class="flex flex-col">
+             <span class="font-medium tabular-nums">${r.totalLevels > 1 ? `Level ${esc(r.level)} of ${esc(r.totalLevels)}` : 'Single level'}</span>
+             <span class="text-xs text-gray-500">${esc(r.scope)}${r.approver ? ' · ' + esc(r.approver) : ''}</span></div>`;
++    const teamCell = r => r.teamName ? `<span class="badge-gray">${esc(r.teamName)}</span>` : '<span class="text-gray-400">—</span>';
++    const when = at => App.fmt.timeTag ? App.fmt.timeTag(at) : esc(at || '');
++
++    const VERB = { APPROVED: 'approve', RETURNED: 'return', REJECTED: 'reject' };
+ 
+     document.addEventListener('DOMContentLoaded', () => {
+         const root = document.querySelector('[data-approvals]');
+         if (!root) return;
+         App.tabs(root, name => { if (name === 'all') requests.reload(true); });
+-        const inboxBody = document.querySelector('#inboxTable tbody');
+-        let inbox = [];
+ 
+         // ------------------------------------------------------------------ waiting for me
+ 
+-        async function loadInbox() {
+-            inboxBody.innerHTML = `<tr><td colspan="7" class="py-6"><div class="skeleton mx-auto h-4 w-1/3"></div></td></tr>`;
+-            try {
+-                inbox = await App.api('/api/approvals/inbox');
+-            } catch (error) {
+-                App.fail(error);
+-                inbox = [];
+-            }
+-            root.querySelector('[data-count="mine"]').textContent = inbox.length;
+-            inboxBody.innerHTML = inbox.length ? inbox.map(r => `<tr>
+-                    <td>${docCell(r)}</td>
+-                    <td>${esc(r.partyName || '—')}</td>
+-                    <td>${r.teamName ? `<span class="badge-gray">${esc(r.teamName)}</span>` : '<span class="text-gray-400">—</span>'}</td>
+-                    <td class="num">${money(r.amount, r.currency)}</td>
+-                    <td>${levelCell(r)}</td>
+-                    <td><div class="flex flex-col"><span>${esc(r.raisedBy || '—')}</span>
+-                        <span class="text-xs text-gray-500">${App.fmt.timeTag ? App.fmt.timeTag(r.submittedAt) : esc(r.submittedAt || '')}</span></div></td>
+-                    <td>${App.rowActions(openLink(r),
+-                        App.rowButton('Reject', 'x', `data-decide="reject" data-id="${r.documentId}"`, 'text-red-700'),
+-                        App.rowButton('Return', 'arrow-right', `data-decide="return" data-id="${r.documentId}"`),
+-                        `<button type="button" class="btn-primary btn-sm" data-decide="approve" data-id="${r.documentId}">${App.icon('check')}Approve</button>`)}</td>
+-                </tr>`).join('')
+-                : `<tr><td colspan="7"><div class="empty py-10 text-center">
+-                       <p class="empty-title">Nothing is waiting for you</p>
+-                       <p class="mt-1 text-sm text-gray-500">Documents you may sign appear here as soon as they reach your level.</p>
+-                   </div></td></tr>`;
++        const table = document.getElementById('inboxTable');
++        const typeFilter = document.getElementById('inType');
++        const bulkBar = root.querySelector('[data-bulk]');
++        const selectAll = table.querySelector('[data-select-all]');
++        const count = root.querySelector('[data-count="mine"]');
++        const selected = new Map();   // documentId -> row, across pages
++
++        const inbox = new App.Grid({
++            url: '/api/approvals/inbox',
++            table,
++            search: document.getElementById('inSearch'),
++            pager: document.getElementById('inPager'),
++            params: () => ({ type: typeFilter.value }),
++            emptyText: 'Nothing is waiting for you. Documents you may sign appear here as soon as they reach your level.',
++            emptyIcon: 'check-circle',
++            columns: [
++                r => `<input type="checkbox" class="checkbox" data-select="${esc(r.documentId)}" aria-label="Select ${esc(r.documentNo || '')}"
++                        ${selected.has(r.documentId) ? 'checked' : ''}>`,
++                r => docCell(r),
++                r => esc(r.partyName || '—'),
++                r => teamCell(r),
++                r => `<span class="block text-right">${money(r.amount, r.currency)}</span>`,
++                r => levelCell(r),
++                r => `<div class="flex flex-col"><span>${esc(r.raisedBy || '—')}</span>
++                        <span class="text-xs text-gray-500">${when(r.submittedAt)}</span></div>`,
++                r => App.rowActions(openLink(r),
++                    App.rowButton('Reject', 'x', `data-decide="REJECTED" data-id="${r.documentId}"`, 'text-red-700'),
++                    App.rowButton('Return', 'arrow-right', `data-decide="RETURNED" data-id="${r.documentId}"`),
++                    `<button type="button" class="btn-primary btn-sm" data-decide="APPROVED" data-id="${r.documentId}">${App.icon('check')}Approve</button>`)
++            ]
++        });
++
++        // Every render - paging, searching, filtering, after a decision - refreshes the badge and the ticks.
++        const render = inbox.render.bind(inbox);
++        inbox.render = () => {
++            render();
++            count.textContent = inbox.total || 0;
++            syncSelection();
++        };
++        const reloadInbox = resetPage => inbox.reload(resetPage);
++        reloadInbox(true);
++        typeFilter.addEventListener('change', () => { selected.clear(); reloadInbox(true); });
++
++        function syncSelection() {
++            bulkBar.hidden = selected.size === 0;
++            bulkBar.querySelector('[data-bulk-count]').textContent = selected.size;
++            const boxes = [...table.querySelectorAll('tbody [data-select]')];
++            selectAll.checked = boxes.length > 0 && boxes.every(b => b.checked);
++            selectAll.indeterminate = !selectAll.checked && boxes.some(b => b.checked);
+         }
+-        loadInbox();
+ 
+-        inboxBody.addEventListener('click', async event => {
+-            const btn = event.target.closest('[data-decide]');
+-            if (!btn) return;
+-            const row = inbox.find(r => String(r.documentId) === btn.dataset.id);
+-            const action = btn.dataset.decide;
+-            const approve = action === 'approve';
+-            const last = !row || row.level >= row.totalLevels;
+-            const values = await App.form({
+-                title: { approve: `Approve ${row.documentNo}?`, reject: `Reject ${row.documentNo}?`, return: `Return ${row.documentNo} to the maker?` }[action],
++        table.addEventListener('change', event => {
++            const box = event.target;
++            if (box.matches('[data-select-all]')) {
++                table.querySelectorAll('tbody [data-select]').forEach(b => {
++                    b.checked = box.checked;
++                    const row = inbox.rows.find(r => String(r.documentId) === b.dataset.select);
++                    if (box.checked && row) selected.set(row.documentId, row); else if (row) selected.delete(row.documentId);
++                });
++            } else if (box.matches('[data-select]')) {
++                const row = inbox.rows.find(r => String(r.documentId) === box.dataset.select);
++                if (row) box.checked ? selected.set(row.documentId, row) : selected.delete(row.documentId);
++            }
++            syncSelection();
++        });
++
++        /** Asks for the remark (a reason to return or reject) and confirms what will happen. */
++        function askDecision(decision, rows) {
++            const approve = decision === 'APPROVED';
++            const one = rows.length === 1 ? rows[0] : null;
++            const label = one ? (one.documentNo || 'this document') : `${rows.length} documents`;
++            const last = one && one.level >= one.totalLevels;
++            return App.form({
++                title: { APPROVED: `Approve ${label}?`, REJECTED: `Reject ${label}?`, RETURNED: `Return ${label} to the maker?` }[decision],
+                 message: {
+-                    approve: last ? 'It is locked for editing once approved.'
+-                                  : `This signs level ${row.level} of ${row.totalLevels}; it then goes to the next approver.`,
+-                    reject: 'It is refused. The maker sees your reason.',
+-                    return: 'It goes back to the maker as a draft to correct and submit again.'
+-                }[action],
++                    APPROVED: one ? (last ? 'It is locked for editing once approved.'
++                                          : `This signs level ${one.level} of ${one.totalLevels}; it then goes to the next approver.`)
++                                  : 'Each is signed at its current level: a final level approves it, any other sends it to the next approver.',
++                    REJECTED: 'Refused. The maker sees your reason, and may correct it and submit it again.',
++                    RETURNED: 'It goes back to the maker as a draft to correct and submit again.'
++                }[decision],
+                 fields: [{ name: 'remarks', label: approve ? 'Remarks (optional)' : 'Reason', type: 'textarea',
+                            required: !approve, maxlength: 1000 }],
+-                confirmText: { approve: 'Approve', reject: 'Reject', return: 'Return' }[action],
+-                danger: action === 'reject'
++                confirmText: { APPROVED: 'Approve', REJECTED: 'Reject', RETURNED: 'Return' }[decision],
++                danger: decision === 'REJECTED'
+             });
++        }
++
++        // One document, from its row.
++        table.addEventListener('click', async event => {
++            const btn = event.target.closest('[data-decide]');
++            if (!btn) return;
++            const row = inbox.rows.find(r => String(r.documentId) === btn.dataset.id);
++            if (!row) return;
++            const decision = btn.dataset.decide;
++            const values = await askDecision(decision, [row]);
++            if (!values) return;
++            try {
++                await App.api(`/api/documents/${row.documentId}/${VERB[decision]}`, { method: 'POST', query: { remarks: values.remarks } });
++                App.toast({ APPROVED: row.level >= row.totalLevels ? 'Approved.' : 'Signed - sent to the next level.',
++                            REJECTED: 'Rejected.', RETURNED: 'Returned to the maker.' }[decision], 'success');
++                selected.delete(row.documentId);
++            } catch (error) { App.fail(error); }
++            reloadInbox(false);
++        });
++
++        // Several at once: one call, each decided and checked on its own server-side.
++        bulkBar.addEventListener('click', async event => {
++            const btn = event.target.closest('[data-bulk-decide]');
++            if (!btn || !selected.size) return;
++            const decision = btn.dataset.bulkDecide;
++            const rows = [...selected.values()];
++            const values = await askDecision(decision, rows);
+             if (!values) return;
+             try {
+-                await App.api(`/api/documents/${row.documentId}/${action}`, { method: 'POST', query: { remarks: values.remarks } });
+-                App.toast({ approve: last ? 'Approved.' : 'Signed - sent to the next level.',
+-                            reject: 'Rejected.', return: 'Returned to the maker.' }[action], 'success');
+-                loadInbox();
+-            } catch (error) { App.fail(error); loadInbox(); }
++                const result = await App.api('/api/approvals/decide', { method: 'POST',
++                    body: { documentIds: rows.map(r => r.documentId), decision, remarks: values.remarks || null } });
++                const done = result.done || [];
++                const failed = result.failed || [];
++                done.forEach(d => selected.delete(d.id));
++                if (done.length) {
++                    App.toast(`${done.length} ${done.length === 1 ? 'document' : 'documents'} ${
++                        { APPROVED: 'signed', REJECTED: 'rejected', RETURNED: 'returned' }[decision]}.`, 'success');
++                }
++                if (failed.length) {
++                    const byId = new Map(rows.map(r => [r.documentId, r]));
++                    App.toast(`${failed.length} not decided - ${failed.slice(0, 3).map(f =>
++                        `${(byId.get(f.id) || {}).documentNo || '#' + f.id}: ${f.message}`).join('; ')}${failed.length > 3 ? '…' : ''}`, 'warn');
++                }
++            } catch (error) { App.fail(error); }
++            reloadInbox(false);
+         });
+ 
+         // ------------------------------------------------------------------ all requests
+ 
+         const filter = document.getElementById('apFilter');
++        const apType = document.getElementById('apType');
+         const requests = new App.Grid({
+             url: '/api/approvals/requests',
+             table: document.getElementById('requestsTable'),
++            search: document.getElementById('apSearch'),
+             pager: document.getElementById('apPager'),
+-            params: () => ({ pending: filter.value }),
++            params: () => ({ pending: filter.value, type: apType.value }),
+             emptyText: 'No approvals match.',
+             emptyIcon: 'check-circle',
+             columns: [
+                 r => docCell(r),
+-                r => r.teamName ? `<span class="badge-gray">${esc(r.teamName)}</span>` : '<span class="text-gray-400">—</span>',
++                r => teamCell(r),
+                 r => `<span class="block text-right">${money(r.amount, r.currency)}</span>`,
+                 r => esc(r.scope),
+                 r => r.pending
+-                    ? `<span class="badge-amber badge-dot">Level ${esc(r.level)} of ${esc(r.totalLevels)}</span>`
++                    ? `<div class="flex flex-col"><span class="badge-amber badge-dot">Level ${esc(r.level)} of ${esc(r.totalLevels)}</span>
++                         ${r.approver ? `<span class="mt-0.5 text-xs text-gray-500">Waiting for ${esc(r.approver)}</span>` : ''}</div>`
+                     : { APPROVED: '<span class="badge-green badge-dot">Approved</span>',
+                         RETURNED: '<span class="badge-blue badge-dot">Returned</span>',
+                         REJECTED: '<span class="badge-red badge-dot">Rejected</span>' }[r.outcome] || '—',
+                 r => esc(r.raisedBy || '—'),
+-                r => App.fmt.timeTag ? App.fmt.timeTag(r.submittedAt) : esc(r.submittedAt || ''),
++                r => when(r.submittedAt),
+                 r => App.rowActions(openLink(r))
+             ]
+         });
+         filter.addEventListener('change', () => requests.reload(true));
++        apType.addEventListener('change', () => requests.reload(true));
+     });
+ })();
+diff --git a/src/main/resources/static/js/booking.js b/src/main/resources/static/js/booking.js
+index 925d45c..2421c2a 100644
+--- a/src/main/resources/static/js/booking.js
++++ b/src/main/resources/static/js/booking.js
+@@ -47,7 +47,6 @@
+         const party = () => App.RemoteSelect.of(document.getElementById('bkParty'));
+         const brand = () => App.RemoteSelect.of(document.getElementById('bkBrand'));
+         const garments = () => App.RemoteSelect.of(document.getElementById('bkGarments'));
+-        const marketer = () => App.RemoteSelect.of(document.getElementById('bkMarketingPerson'));
+         const priceInMeter = () => document.getElementById('bkPriceInMeter').checked;
+ 
+         let doc = null;            // the booking being edited; null for a new one
+@@ -60,7 +59,6 @@
+         let dirty = false;
+         let lineDirty = false;     // the fabric-line modal has been typed into since it opened
+         const items = new Map();   // item id -> label
+-        let teams = [];            // active marketing teams, for an unrestricted user's choice
+ 
+         const screen = new App.DocumentScreen(Object.assign({}, window.BOOKING_SCREEN,
+             { canEdit: canAmend, onEdit: d => openEditor(d), onView: (d, history) => viewBooking(d, history) }));
+@@ -74,7 +72,6 @@
+                 select.innerHTML = '<option value="">—</option>'
+                     + rows.map(r => `<option value="${esc(r.text)}">${esc(r.text)}</option>`).join('');
+             }),
+-            App.api('/api/marketing-teams').catch(() => []).then(rows => { teams = Array.isArray(rows) ? rows : []; }),
+             App.api('/api/lookup/inventory/items', { query: { itemType: 'FABRICS' } }).catch(() => []).then(rows => {
+                 rows.forEach(r => items.set(String(r.id), r.text));
+                 document.getElementById('spItem').innerHTML = '<option value="">Choose the item…</option>'
+@@ -141,7 +138,8 @@
+             APPROVED: ['Approved', 'text-emerald-700 dark:text-emerald-400', 'check'],
+             RETURNED: ['Returned', 'text-amber-700 dark:text-amber-400', 'arrow-right'],
+             REJECTED: ['Rejected', 'text-red-700 dark:text-red-400', 'x'],
+-            SUBMITTED: ['Submitted', 'text-gray-600 dark:text-gray-300', 'send']
++            SUBMITTED: ['Submitted', 'text-gray-600 dark:text-gray-300', 'send'],
++            RESUBMITTED: ['Submitted again', 'text-gray-600 dark:text-gray-300', 'send']
+         };
+ 
+         /**
+@@ -157,7 +155,7 @@
+             const round = [];
+             for (const h of history) {
+                 round.push(h);
+-                if (h.action === 'SUBMITTED') break;
++                if (h.action === 'SUBMITTED' || h.action === 'RESUBMITTED') break;
+             }
+             if (!d || !round.length) {
+                 panel.hidden = true;
+@@ -276,7 +274,8 @@
+             party().setValue(d?.partyId ?? null, d?.partyName);
+             brand().setValue(d?.brandId ?? null, d?.brandName);
+             garments().setValue(d?.garmentsId ?? null, d?.garmentsName);
+-            marketer().setValue(d?.marketingPersonId ?? null, d?.marketingPersonName);
++            const marketer = document.getElementById('bkMarketingPerson');
++            marketer.value = d ? (d.marketingPersonName || '') : (marketer.dataset.me || '');
+             fillTeam(d);
+             syncPriceBasis();
+         }
+@@ -289,28 +288,18 @@
+             document.getElementById(id).addEventListener('change', () => fillLeadTime(false)));
+ 
+         /**
+-         * The Marketing team field (ADM-4, ADM-7). A saved booking shows the team it was raised under,
+-         * fixed - it never moves. A new one is filed under a team member's own team, fixed, or an
+-         * unrestricted user chooses. The server applies the same rule whatever is sent.
++         * The Marketing team field (ADM-4, ADM-7), read-only. A saved booking shows the team it was
++         * raised under; a new one shows the creator's own team, which the server stamps.
+          */
+         function fillTeam(d) {
+             const select = document.getElementById('bkMarketingTeam');
+             const option = (id, text) => `<option value="${esc(id ?? '')}">${esc(text)}</option>`;
+-            if (d) {
+-                select.innerHTML = option(d.marketingTeamId, d.marketingTeamName || 'No team — seen by unrestricted users only');
+-                select.disabled = true;
+-                select.title = 'A booking keeps the team it was raised under';
+-            } else if (select.dataset.restricted === 'true') {
+-                select.innerHTML = option(select.dataset.ownId, select.dataset.ownName || 'Your team');
+-                select.disabled = true;
+-                select.title = 'Every booking you raise is filed under your team';
+-            } else {
+-                select.innerHTML = option('', '— No team (seen by unrestricted users only)')
+-                    + teams.map(t => option(t.id, t.text)).join('');
+-                select.disabled = false;
+-                select.title = 'Whose book this booking lands in: that team sees it and approves it';
+-                select.value = '';
+-            }
++            select.innerHTML = d
++                ? option(d.marketingTeamId, d.marketingTeamName || '—')
++                : option(select.dataset.ownId, select.dataset.ownName || 'Your team');
++            select.disabled = true;
++            select.title = d ? 'A booking keeps the team it was raised under'
++                             : 'Every booking you raise is filed under your team';
+         }
+ 
+         /** Yard-priced: the metre price is derived and read-only; metre-priced, the reverse. */
+@@ -1056,8 +1045,6 @@
+             }
+             const f = name => form.elements.namedItem(name).value;
+             const idOrNull = rs => rs.select.value ? { id: Number(rs.select.value) } : null;
+-            const teamSelect = document.getElementById('bkMarketingTeam');
+-            const teamChoice = () => !teamSelect.disabled && teamSelect.value ? Number(teamSelect.value) : null;
+             const body = {
+                 id: doc?.id ?? null,
+                 bookingType: f('bookingType'),
+@@ -1068,8 +1055,6 @@
+                 party: idOrNull(party()),
+                 brand: idOrNull(brand()),
+                 garments: idOrNull(garments()),
+-                marketingPersonId: marketer().select.value ? Number(marketer().select.value) : null,
+-                marketingTeamId: teamChoice(),
+                 preCostBuyer: strOrNull(f('preCostBuyer')),
+                 garmentsAddress: strOrNull(f('garmentsAddress')),
+                 remarks: strOrNull(f('remarks')),
+diff --git a/src/main/resources/templates/approvals/inbox.html b/src/main/resources/templates/approvals/inbox.html
+index 7ac663f..5abe23a 100644
+--- a/src/main/resources/templates/approvals/inbox.html
++++ b/src/main/resources/templates/approvals/inbox.html
+@@ -3,9 +3,11 @@
+ <!--
+   Approvals - asfl-erp's approval inbox and report.
+ 
+-  "Waiting for me" lists what the signed-in user may sign now: pending, a document they can see,
+-  their level (their role, their name, or the screen's Approve verb where no matrix is set up),
+-  and never one they submitted. "All requests" is every approval in this business unit.
++  The one place every document is approved. "Waiting for me" lists what the signed-in user may sign
++  now - their name on the current level, or their role / the screen's Approve verb for their own
++  teams' documents - never one they submitted. It is paged and filtered on the server, and several
++  documents can be decided at once (each is still checked on its own). "All requests" is every
++  approval in the teams the user can see.
+ -->
+ <head>
+     <title>Approvals</title>
+@@ -32,10 +34,32 @@
+         </div>
+ 
+         <div data-panel="mine">
++            <div class="toolbar">
++                <div class="input-icon w-full sm:w-72">
++                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
++                    <input id="inSearch" type="search" class="field pr-8" placeholder="Search number, buyer or reference"
++                           aria-label="Search" data-search autocomplete="off">
++                </div>
++                <select id="inType" class="field w-auto" aria-label="Document type">
++                    <option value="">All document types</option>
++                    <option th:each="t : ${documentTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
++                </select>
++                <!-- Shown while documents are ticked: one decision for all of them. -->
++                <div class="toolbar-spacer flex flex-wrap items-center gap-2" data-bulk hidden>
++                    <span class="text-sm text-gray-600 dark:text-gray-300"><b data-bulk-count>0</b> selected</span>
++                    <button type="button" class="btn-danger-ghost btn-sm" data-bulk-decide="REJECTED">
++                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>Reject</button>
++                    <button type="button" class="btn-ghost btn-sm" data-bulk-decide="RETURNED">
++                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>Return</button>
++                    <button type="button" class="btn-primary btn-sm" data-bulk-decide="APPROVED">
++                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#check}"/></svg>Approve selected</button>
++                </div>
++            </div>
+             <div class="table-wrap">
+                 <table class="table-grid table-stack" id="inboxTable">
+                     <thead>
+                     <tr>
++                        <th class="w-px"><input type="checkbox" class="checkbox" data-select-all aria-label="Select all on this page"></th>
+                         <th>Document</th>
+                         <th>Buyer</th>
+                         <th>Team</th>
+@@ -48,10 +72,20 @@
+                     <tbody></tbody>
+                 </table>
+             </div>
++            <div id="inPager" class="pager"></div>
+         </div>
+ 
+         <div data-panel="all" hidden>
+             <div class="toolbar">
++                <div class="input-icon w-full sm:w-72">
++                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
++                    <input id="apSearch" type="search" class="field pr-8" placeholder="Search number, buyer or reference"
++                           aria-label="Search" autocomplete="off">
++                </div>
++                <select id="apType" class="field w-auto" aria-label="Document type">
++                    <option value="">All document types</option>
++                    <option th:each="t : ${documentTypes}" th:value="${t}" th:text="${t.label()}">Booking</option>
++                </select>
+                 <select id="apFilter" class="field w-auto" aria-label="Status">
+                     <option value="">All requests</option>
+                     <option value="true" selected>Pending</option>
+diff --git a/src/main/resources/templates/fabric/booking.html b/src/main/resources/templates/fabric/booking.html
+index 0747811..700d12f 100644
+--- a/src/main/resources/templates/fabric/booking.html
++++ b/src/main/resources/templates/fabric/booking.html
+@@ -26,13 +26,25 @@
+             <p class="page-sub">Buyer order for woven fabric — start of order-to-cash.</p>
+         </div>
+         <div class="page-actions" sec:authorize="hasAuthority('SCREEN_BOOKING_CREATE')">
+-            <button type="button" class="btn-primary" data-action="booking-new">
++            <button type="button" class="btn-primary" data-action="booking-new" th:if="${canCreateBooking}">
++                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New booking
++            </button>
++            <button type="button" class="btn-primary" disabled th:unless="${canCreateBooking}"
++                    title="You are not in a marketing team, so you cannot create a booking">
+                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New booking
+             </button>
+         </div>
+     </div>
+ 
+-    <span sec:authorize="hasAuthority('SCREEN_BOOKING_AMEND')" id="canAmendBooking" hidden></span>
++    <!-- A booking is filed under its creator's marketing team: no team, no new booking. -->
++    <p class="alert-warn mb-4" role="alert"
++         sec:authorize="hasAuthority('SCREEN_BOOKING_CREATE')" th:unless="${canCreateBooking}">
++        You are not in a marketing team, so you cannot create a booking.
++        Ask an administrator to add you to a team under Setup › Marketing teams.
++    </p>
++
++    <!-- The maker corrects their own draft (returned or rejected included) with Create or Amend. -->
++    <span sec:authorize="hasAuthority('SCREEN_BOOKING_AMEND') or hasAuthority('SCREEN_BOOKING_CREATE')" id="canAmendBooking" hidden></span>
+ 
+     <div class="card overflow-hidden" data-doc-screen>
+         <div class="toolbar">
+@@ -161,12 +173,12 @@
+                            placeholder="Filled from the costing">
+                 </div>
+ 
+-                <!-- ADM-4/ADM-7: whose book the booking lands in. A team member's own team, fixed; an
+-                     unrestricted user chooses. Never changes once the booking exists. -->
++                <!-- ADM-4/ADM-7: whose book the booking lands in - always the creator's own team, set by
++                     the server. Never changes once the booking exists. -->
+                 <div class="lg:col-span-2">
+                     <label class="label" for="bkMarketingTeam">Marketing team</label>
+-                    <select id="bkMarketingTeam" class="field" name="marketingTeamId"
+-                            th:attr="data-restricted=${teamRestricted},data-own-id=${ownTeam == null ? '' : ownTeam.id},data-own-name=${ownTeam == null ? '' : ownTeam.name}"></select>
++                    <select id="bkMarketingTeam" class="field" name="marketingTeamId" disabled
++                            th:attr="data-own-id=${ownTeam == null ? '' : ownTeam.id},data-own-name=${ownTeam == null ? '' : ownTeam.name}"></select>
+                 </div>
+                 <div class="lg:col-span-2">
+                     <label class="label" for="bkGarments">Garments</label>
+@@ -174,10 +186,11 @@
+                             data-remote="/api/parties/lookup?role=GARMENT_FACTORY" data-placeholder="Choose the garment factory…"
+                             data-empty-text="No garment factories yet - add one under Master data › Parties"></select>
+                 </div>
++                <!-- Set by the server to whoever creates the booking; shown, never chosen. -->
+                 <div class="lg:col-span-2">
+                     <label class="label" for="bkMarketingPerson">Marketing person</label>
+-                    <select id="bkMarketingPerson" class="field" name="marketingPersonId" data-allow-clear
+-                            data-remote="/api/booking/marketing-persons" data-placeholder="You"></select>
++                    <input id="bkMarketingPerson" class="field" readonly tabindex="-1"
++                           th:attr="data-me=${currentUser == null ? '' : currentUser.displayName}">
+                 </div>
+                 <div class="lg:col-span-2">
+                     <label class="field-check" for="bkPriceInMeter">
+diff --git a/src/test/java/com/asg/fabricerp/approval/ApprovalServiceTest.java b/src/test/java/com/asg/fabricerp/approval/ApprovalServiceTest.java
+index 0e491c2..dba0b6c 100644
+--- a/src/test/java/com/asg/fabricerp/approval/ApprovalServiceTest.java
++++ b/src/test/java/com/asg/fabricerp/approval/ApprovalServiceTest.java
+@@ -44,6 +44,8 @@ class ApprovalServiceTest {
+ 
+     /** The saved request, as the fake repository holds it. */
+     private ApprovalRequest live;
++    /** The actor's row scope: unrestricted unless a test narrows it. */
++    private RowScope scope = RowScope.unrestrictedScope();
+ 
+     @BeforeEach
+     void setUp() {
+@@ -73,7 +75,7 @@ class ApprovalServiceTest {
+             @Override public String businessUnitCode() { return "AF"; }
+             @Override public Long warehouseId()        { return 1L; }
+             @Override public String username()         { return "whoever"; }
+-            @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
++            @Override public RowScope rowScope()       { return scope; }
+         };
+         service = new ApprovalService(repository, history, requests, matrices, actors, labels, context,
+             List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()));
+@@ -410,16 +412,130 @@ class ApprovalServiceTest {
+     }
+ 
+     @Test
+-    void theInboxHoldsOnlyWhatTheCallerMaySignNow() {
++    void theInboxAsksOneQueryForWhatTheCallerMaySignNow() {
++        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
++        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
++        submitAs("maker");
++        when(requests.inbox(any(), any(), any(), any(), any(), any(), anyBoolean(), any(), anyBoolean(), any(),
++                anyBoolean(), any(), any()))
++            .thenAnswer(i -> new org.springframework.data.domain.PageImpl<>(List.of(live)));
++        when(repository.findScopedWithParty(any(), eq(ORG))).thenReturn(List.of(doc));
++
++        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
++        var page = service.inbox(ApprovalService.InboxFilter.NONE, org.springframework.data.domain.PageRequest.of(0, 25));
++
++        assertThat(page.getContent()).hasSize(1);
++        assertThat(page.getContent().get(0).documentId()).isEqualTo(DOC_ID);
++        // the manager's roles and user id went into the query; an unrestricted user sees every team
++        verify(requests).inbox(eq(ORG), eq(UNIT), eq(2L), eq("manager"), isNull(), isNull(),
++            eq(true), any(), eq(true), eq(Set.of(MANAGER_ROLE)), eq(false), any(), any());
++    }
++
++    // ------------------------------------------------------------------ routing index (centralised inbox)
++
++    @Test
++    void theRequestCarriesWhoItsCurrentLevelWaitsFor() {
+         booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
+         matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
+         submitAs("maker");
+-        when(requests.findPending(ORG, UNIT)).thenAnswer(i -> List.of(live));
++        assertThat(live.getCurrentRoleId()).isEqualTo(MANAGER_ROLE);
++        assertThat(live.getCurrentUserId()).isNull();
++
++        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
++        service.approve(DOC_ID, null);
++        assertThat(live.getCurrentRoleId()).isNull();
++        assertThat(live.getCurrentUserId()).isEqualTo(DIRECTOR);
+ 
+         actingAs(DIRECTOR, "director", Set.of());
+-        assertThat(service.inbox()).isEmpty();            // level 1 is the manager's
++        service.approve(DOC_ID, null);
++        assertThat(live.getCurrentRoleId()).isNull();
++        assertThat(live.getCurrentUserId()).isNull();   // settled: waits for nobody
++    }
+ 
+-        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
+-        assertThat(service.inbox()).hasSize(1);
++    // ------------------------------------------------------------------ team-only approval
++
++    @Test
++    void aRoleHolderFromAnotherTeamCannotDecideThisTeamsDocument() {
++        booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
++        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null));
++        submitAs("maker");
++
++        scope = new RowScope(false, java.util.Map.of(com.asg.fabricerp.common.ScopeDimension.MARKETING_TEAM, Set.of(4L)));
++        actingAs(2L, "other-team-manager", Set.of(MANAGER_ROLE));
++
++        assertThatThrownBy(() -> service.approve(DOC_ID, null))
++            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not found");
++    }
++
++    @Test
++    void aRoleHolderInTheDocumentsTeamDecidesIt() {
++        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
++        matrix(30L, 3L, true, role(MANAGER_ROLE, null, null));
++        submitAs("maker");
++
++        scope = new RowScope(false, java.util.Map.of(com.asg.fabricerp.common.ScopeDimension.MARKETING_TEAM, Set.of(3L)));
++        actingAs(2L, "team-manager", Set.of(MANAGER_ROLE));
++        service.approve(DOC_ID, null);
++
++        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
++    }
++
++    @Test
++    void aPersonNamedOnTheLevelDecidesItWhateverTheirOwnTeam() {
++        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
++        matrix(30L, 3L, true, user(DIRECTOR));
++        submitAs("maker");
++
++        scope = new RowScope(false, java.util.Map.of(com.asg.fabricerp.common.ScopeDimension.MARKETING_TEAM, Set.of(4L)));
++        actingAs(DIRECTOR, "director", Set.of());
++        assertThat(service.canReview(doc)).isTrue();
++        service.approve(DOC_ID, null);
++
++        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
++    }
++
++    @Test
++    void someoneWhoIsNotTheApproverCannotReviewIt() {
++        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
++        matrix(30L, 3L, true, user(DIRECTOR));
++        submitAs("maker");
++
++        actingAs(2L, "bystander", Set.of(MANAGER_ROLE), "SCREEN_BOOKING_APPROVE");
++        assertThat(service.canReview(doc)).isFalse();
++    }
++
++    // ------------------------------------------------------------------ correct and submit again
++
++    @Test
++    void aRejectedDocumentCanBeCorrectedAndSubmittedAgain() {
++        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
++        submitAs("maker");
++        ApprovalRequest first = live;
++        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
++        service.reject(DOC_ID, "Price below break-even");
++        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.REJECTED);
++
++        submitAs("maker");
++
++        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
++        assertThat(live).isNotSameAs(first);
++        assertThat(live.isPending()).isTrue();
++        ArgumentCaptor<ApprovalHistory> saved = ArgumentCaptor.forClass(ApprovalHistory.class);
++        verify(history, atLeastOnce()).save(saved.capture());
++        assertThat(saved.getAllValues()).extracting(ApprovalHistory::getAction)
++            .containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.REJECTED, ApprovalAction.RESUBMITTED);
++    }
++
++    @Test
++    void aReturnedDocumentIsADraftAndCanBeSubmittedAgain() {
++        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
++        submitAs("maker");
++        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
++        service.returnToMaker(DOC_ID, "Wrong buyer");
++
++        submitAs("maker");
++
++        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
++        assertThat(live.isPending()).isTrue();
+     }
+ }
+diff --git a/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceRevisionTest.java b/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceRevisionTest.java
+index 6d178ac..1be50de 100644
+--- a/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceRevisionTest.java
++++ b/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceRevisionTest.java
+@@ -52,6 +52,10 @@ class BookingServiceRevisionTest {
+             @Override public RowScope rowScope()       { return RowScope.unrestrictedScope(); }
+         };
+ 
++        // The user is a member of marketing team 3, so they may raise bookings.
++        com.asg.fabricerp.security.DataScopeRepository scopes = mock(com.asg.fabricerp.security.DataScopeRepository.class);
++        when(scopes.findValuesHeldOn(any(), any(), any())).thenReturn(List.of(3L));
++
+         // Real DocumentRevisionService over the same mocked repository/numbering, so the
+         // revision behaviour under test is the actual shared logic, not a stand-in for it.
+         DocumentRevisionService revisions = new DocumentRevisionService(repository, numbering);
+@@ -61,7 +65,8 @@ class BookingServiceRevisionTest {
+             mock(com.asg.fabricerp.global.terms.TermsConditionService.class),
+             mock(com.asg.fabricerp.security.FabricUserRepository.class), context,
+             mock(com.asg.fabricerp.common.MarketingTeamRepository.class),
+-            mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class));
++            mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class), scopes,
++            mock(com.asg.fabricerp.approval.ApprovalService.class));
+         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BK-2026-000002");
+         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
+     }
+@@ -73,6 +78,7 @@ class BookingServiceRevisionTest {
+         doc.setBusinessUnit(DocumentRefs.unit(UNIT));
+         doc.setDocumentType(DocumentType.BOOKING);
+         doc.setDocumentNo("BKAF000001");
++        org.springframework.test.util.ReflectionTestUtils.setField(doc, "createdBy", "tester");
+         doc.setDocumentDate(LocalDate.of(2026, 1, 10));
+         doc.setParty(DocumentRefs.party(77L));
+         doc.setCurrencyCode("USD");
+@@ -162,6 +168,7 @@ class BookingServiceRevisionTest {
+         firstRevision.setBusinessUnit(DocumentRefs.unit(UNIT));
+         firstRevision.setDocumentType(DocumentType.BOOKING);
+         firstRevision.setDocumentNo("BKAF000002");
++        org.springframework.test.util.ReflectionTestUtils.setField(firstRevision, "createdBy", "tester");
+         firstRevision.setDocumentDate(LocalDate.now());
+         firstRevision.setRevisionNo(1);
+         firstRevision.setRevisionOf(DocumentRefs.document(1L));          // root
+@@ -183,6 +190,7 @@ class BookingServiceRevisionTest {
+         draft.setOrganizationId(ORG);
+         draft.setDocumentType(DocumentType.BOOKING);
+         draft.setDocumentNo("BKAF000003");
++        org.springframework.test.util.ReflectionTestUtils.setField(draft, "createdBy", "tester");
+         when(repository.findScopedWithLines(3L, ORG)).thenReturn(Optional.of(draft));
+ 
+         assertThatThrownBy(() -> service.revise(3L, "why"))
+diff --git a/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceSaveTest.java b/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceSaveTest.java
+index a436bf0..8da4d4e 100644
+--- a/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceSaveTest.java
++++ b/src/test/java/com/asg/fabricerp/fabric/booking/BookingServiceSaveTest.java
+@@ -11,7 +11,9 @@ import com.asg.fabricerp.global.documents.*;
+ import com.asg.fabricerp.global.numbering.BusinessNumberService;
+ import com.asg.fabricerp.global.terms.ConditionType;
+ import com.asg.fabricerp.global.terms.TermsConditionService;
++import com.asg.fabricerp.security.DataScopeRepository;
+ import com.asg.fabricerp.security.FabricUserRepository;
++import org.springframework.test.util.ReflectionTestUtils;
+ import com.fasterxml.jackson.databind.ObjectMapper;
+ import org.junit.jupiter.api.BeforeEach;
+ import org.junit.jupiter.api.Test;
+@@ -35,6 +37,8 @@ class BookingServiceSaveTest {
+     private CostingService costing;
+     private TermsConditionService terms;
+     private MarketingTeamRepository teams;
++    private DataScopeRepository scopes;
++    private DocumentReferences references;
+     /** Who is saving: unrestricted unless a test narrows it. */
+     private RowScope scope = RowScope.unrestrictedScope();
+     private BookingService service;
+@@ -46,6 +50,10 @@ class BookingServiceSaveTest {
+         costing = mock(CostingService.class);
+         terms = mock(TermsConditionService.class);
+         teams = mock(MarketingTeamRepository.class);
++        scopes = mock(DataScopeRepository.class);
++        // The saving user is a member of team 3 unless a test says otherwise.
++        when(scopes.findValuesHeldOn(any(), eq(ScopeDimension.MARKETING_TEAM), any())).thenReturn(List.of(3L));
++        references = DocumentRefs.references(10L);
+ 
+         OrgContext context = new OrgContext() {
+             @Override public Long organizationId()     { return ORG; }
+@@ -57,9 +65,10 @@ class BookingServiceSaveTest {
+         };
+         service = new BookingService(repository, numbering, costing,
+             new CostingTranslator(new ObjectMapper()),
+-            new DocumentRevisionService(repository, numbering), DocumentRefs.references(10L),
++            new DocumentRevisionService(repository, numbering), references,
+             terms, mock(FabricUserRepository.class), context,
+-            teams, mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class));
++            teams, mock(com.asg.fabricerp.approval.ApprovalRequestRepository.class), scopes,
++            mock(com.asg.fabricerp.approval.ApprovalService.class));
+ 
+         when(numbering.next(eq(DocumentType.BOOKING), any(LocalDate.class), any())).thenReturn("BKAF000031");
+         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
+@@ -240,6 +249,7 @@ class BookingServiceSaveTest {
+         original.setDocumentType(DocumentType.BOOKING);
+         original.setBusinessUnit(DocumentRefs.unit(10L));
+         original.setDocumentNo("BKAF000030");
++        ReflectionTestUtils.setField(original, "createdBy", "tester");
+         original.addTerm(new BusinessDocumentTerm(1, "Dead Yarn & Naps Should Be Not Allowed."));
+         original.transitionTo(BusinessDocumentStatus.SUBMITTED);
+         original.transitionTo(BusinessDocumentStatus.APPROVED);
+@@ -277,36 +287,95 @@ class BookingServiceSaveTest {
+     }
+ 
+     @Test
+-    void anUnrestrictedUserFilesABookingUnderTheTeamTheyChoose() {
+-        when(teams.lookup(ORG)).thenReturn(List.of(team(3L, "London"), team(5L, "Tokyo")));
++    void anUnrestrictedUserInATeamFilesTheBookingUnderThatTeamWhateverTheRequestNames() {
+         BusinessDocument booking = newBooking();
+         booking.setMarketingTeamId(5L);
+ 
+-        assertThat(service.save(booking).getMarketingTeam().getName()).isEqualTo("Tokyo");
++        assertThat(service.save(booking).getMarketingTeam().getId()).isEqualTo(3L);
+     }
+ 
+     @Test
+-    void anUnrestrictedUserMayLeaveABookingWithoutATeam() {
+-        assertThat(service.save(newBooking()).getMarketingTeam()).isNull();
++    void aUserInNoMarketingTeamCannotCreateABooking() {
++        when(scopes.findValuesHeldOn(any(), eq(ScopeDimension.MARKETING_TEAM), any())).thenReturn(List.of());
++
++        assertThat(service.canCreate()).isFalse();
++        assertThatThrownBy(() -> service.save(newBooking()))
++            .isInstanceOf(IllegalStateException.class)
++            .hasMessageContaining("not in a marketing team");
++        verify(repository, never()).save(any());
+     }
+ 
+     @Test
+-    void anInactiveOrForeignTeamIsRefused() {
+-        when(teams.lookup(ORG)).thenReturn(List.of(team(3L, "London")));
++    void aRestrictedUserInMoreThanOneTeamCannotRaiseABooking() {
++        scope = new RowScope(false, java.util.Map.of(ScopeDimension.MARKETING_TEAM, java.util.Set.of(3L, 4L)));
++
++        assertThatThrownBy(() -> service.save(newBooking()))
++            .isInstanceOf(IllegalStateException.class)
++            .hasMessageContaining("more than one marketing team");
++    }
++
++    // ------------------------------------------------------------------ marketing person and ownership
++
++    @Test
++    void theMarketingPersonIsNeverTakenFromTheRequest() {
+         BusinessDocument booking = newBooking();
+-        booking.setMarketingTeamId(99L);
++        booking.setMarketingPersonId(42L);      // someone else, sent by hand
+ 
+-        assertThatThrownBy(() -> service.save(booking))
+-            .isInstanceOf(IllegalArgumentException.class)
+-            .hasMessageContaining("No active marketing team");
++        service.save(booking);
++
++        verify(references, never()).user(anyLong(), eq(42L));
++    }
++
++    private BusinessDocument savedBookingCreatedBy(String username) {
++        BusinessDocument doc = newBooking();
++        doc.setId(8L);
++        doc.setOrganizationId(ORG);
++        doc.setDocumentType(DocumentType.BOOKING);
++        doc.setBusinessUnit(DocumentRefs.unit(10L));
++        ReflectionTestUtils.setField(doc, "createdBy", username);
++        when(repository.findScopedWithLines(8L, ORG)).thenReturn(Optional.of(doc));
++        return doc;
+     }
+ 
+     @Test
+-    void aRestrictedUserInNoSingleTeamCannotRaiseABooking() {
+-        scope = new RowScope(false, java.util.Map.of(ScopeDimension.MARKETING_TEAM, java.util.Set.of(3L, 4L)));
++    void anotherUsersBookingCannotBeOpenedEditedOrDeleted() {
++        savedBookingCreatedBy("someone-else");
++        BusinessDocument edit = newBooking();
++        edit.setId(8L);
++
++        assertThatThrownBy(() -> service.get(8L)).hasMessageContaining("Booking not found");
++        assertThatThrownBy(() -> service.save(edit)).hasMessageContaining("Booking not found");
++        assertThatThrownBy(() -> service.delete(8L)).hasMessageContaining("Booking not found");
++    }
+ 
+-        assertThatThrownBy(() -> service.save(newBooking()))
+-            .isInstanceOf(IllegalStateException.class)
+-            .hasMessageContaining("no single marketing team");
++    @Test
++    void editingARejectedBookingMakesItADraftAgain() {
++        BusinessDocument mine = savedBookingCreatedBy("tester");
++        mine.transitionTo(BusinessDocumentStatus.SUBMITTED);
++        mine.transitionTo(BusinessDocumentStatus.REJECTED);
++        BusinessDocument edit = newBooking();
++        edit.setId(8L);
++
++        BusinessDocument saved = service.save(edit);
++
++        assertThat(saved.getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
++    }
++
++    @Test
++    void theCreatorCanOpenTheirOwnBooking() {
++        BusinessDocument mine = savedBookingCreatedBy("tester");
++
++        assertThat(service.get(8L)).isSameAs(mine);
++    }
++
++    @Test
++    void theListIsNarrowedToTheSignedInUsersBookings() {
++        when(repository.search(any(), any(), any(), any(), any(), any(), any(), any(), eq("tester"), any()))
++            .thenReturn(org.springframework.data.domain.Page.empty());
++
++        service.search(null, null, null, null, org.springframework.data.domain.Pageable.unpaged());
++
++        verify(repository).search(eq(ORG), eq(10L), eq(DocumentType.BOOKING), isNull(), isNull(), isNull(), isNull(),
++            any(RowScope.class), eq("tester"), any());
+     }
+ }
+diff --git a/src/main/resources/db/migration/V25__approval_inbox_routing.sql b/src/main/resources/db/migration/V25__approval_inbox_routing.sql
+new file mode 100644
+index 0000000..73d132e
+--- /dev/null
++++ b/src/main/resources/db/migration/V25__approval_inbox_routing.sql
+@@ -0,0 +1,35 @@
++-- Centralised approval inbox.
++--
++-- Until now the inbox loaded every pending request in the business unit and, one by one, loaded
++-- its document and its matrix to ask "is this for me?". That is fine for a handful and hopeless for
++-- the volume Booking, BPO and the work orders produce. Each request now carries WHO its current
++-- level waits for - the role or the named user, copied from the matrix whenever the request moves -
++-- so "waiting for me" is a single indexed, paged query.
++--
++-- Both columns are null under the default rule (no matrix: anyone with the screen's Approve verb)
++-- and once the request is settled. The matrix stays the authority; these are its index.
++
++ALTER TABLE apr_requests
++    ADD COLUMN current_role_id BIGINT,
++    ADD COLUMN current_user_id BIGINT;
++
++-- Backfill every request already in flight: the current_level-th of the levels whose amount band
++-- covers the request's amount, in sequence order - exactly ApprovalMatrix.levelFor().
++UPDATE apr_requests r
++SET current_role_id = l.role_id,
++    current_user_id = l.user_id
++FROM (
++    SELECT q.id AS request_id, lv.role_id, lv.user_id,
++           ROW_NUMBER() OVER (PARTITION BY q.id ORDER BY lv.sequence) AS position
++    FROM apr_requests q
++    JOIN apr_matrix_levels lv ON lv.matrix_id = q.matrix_id
++    WHERE q.pending
++      AND (q.amount IS NULL
++           OR ((lv.min_amount IS NULL OR q.amount >= lv.min_amount)
++               AND (lv.max_amount IS NULL OR q.amount <= lv.max_amount)))
++) l
++WHERE l.request_id = r.id
++  AND l.position = r.current_level;
++
++CREATE INDEX ix_apr_request_current_user ON apr_requests (organization_id, business_unit_id, current_user_id) WHERE pending;
++CREATE INDEX ix_apr_request_current_role ON apr_requests (organization_id, business_unit_id, current_role_id) WHERE pending;

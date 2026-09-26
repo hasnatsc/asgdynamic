@@ -32,6 +32,18 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
            """)
     Page<Role> search(@Param("q") String q, @Param("hasGrants") Boolean hasGrants, Pageable pageable);
 
+    /**
+     * Picker feed (App.RemoteSelect): active roles whose name or description matches
+     * {@code pattern} - a {@link com.asg.fabricerp.common.LookupPage#like} pattern.
+     */
+    @Query("""
+           select r from Role r
+           where (r.active is null or r.active = true)
+             and (lower(r.name) like :pattern escape '\\'
+                  or lower(coalesce(r.description, '')) like :pattern escape '\\')
+           """)
+    Page<Role> lookup(@Param("pattern") String pattern, Pageable pageable);
+
     @Query("select count(r) from Role r where r.active = true")
     long countActive();
 

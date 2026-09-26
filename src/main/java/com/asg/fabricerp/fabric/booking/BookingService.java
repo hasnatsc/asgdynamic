@@ -2,6 +2,7 @@ package com.asg.fabricerp.fabric.booking;
 
 import com.asg.fabricerp.approval.ApprovalRequest;
 import com.asg.fabricerp.approval.ApprovalRequestRepository;
+import com.asg.fabricerp.approval.ApprovalService;
 import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.common.MarketingTeam;
 import com.asg.fabricerp.common.MarketingTeamRepository;
@@ -15,7 +16,6 @@ import com.asg.fabricerp.global.documents.*;
 import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import com.asg.fabricerp.global.terms.ConditionType;
 import com.asg.fabricerp.global.terms.TermsConditionService;
-import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.security.CurrentUser;
 import com.asg.fabricerp.security.DataScopeRepository;
 import com.asg.fabricerp.security.FabricUser;
@@ -65,6 +65,7 @@ public class BookingService {
     private final MarketingTeamRepository marketingTeams;
     private final ApprovalRequestRepository approvals;
     private final DataScopeRepository scopes;
+    private final ApprovalService approvalService;
 
     public BookingService(BusinessDocumentRepository repository,
                           BusinessNumberService numbering,
@@ -77,7 +78,8 @@ public class BookingService {
                           OrgContext context,
                           MarketingTeamRepository marketingTeams,
                           ApprovalRequestRepository approvals,
-                          DataScopeRepository scopes) {
+                          DataScopeRepository scopes,
+                          ApprovalService approvalService) {
         this.repository = repository;
         this.numbering = numbering;
         this.costing = costing;
@@ -90,6 +92,7 @@ public class BookingService {
         this.marketingTeams = marketingTeams;
         this.approvals = approvals;
         this.scopes = scopes;
+        this.approvalService = approvalService;
     }
 
     @Transactional(readOnly = true)
@@ -210,17 +213,17 @@ public class BookingService {
     }
 
     /**
-     * Read-only access for the review drawer. The owner, as {@link #get}; and anyone who may
-     * approve bookings, because the Approvals inbox opens a booking here to decide on it.
-     * Editing, deleting and revising stay with the owner alone.
+     * Read-only access for the review drawer. The owner, as {@link #get}; and the booking's own
+     * approvers - whoever its current level waits for (a team's bookings wait for that team's
+     * approvers) or has already signed a level - because the Approvals inbox opens a booking here
+     * to decide on it. Nobody else, however senior. Editing, deleting and revising stay with the
+     * owner alone.
      */
     @Transactional(readOnly = true)
     public BusinessDocument view(Long id) {
-        boolean approver = AuthorityChecks.holds(TYPE.approveAuthority());
         return repository.findScopedWithLines(id, context.requireOrganizationId())
             .filter(d -> d.getDocumentType() == TYPE)
-            .filter(d -> d.isVisibleTo(context.requireRowScope()))
-            .filter(d -> approver || ownedByCurrentUser(d))
+            .filter(d -> (d.isVisibleTo(context.requireRowScope()) && ownedByCurrentUser(d)) || approvalService.canReview(d))
             .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + id));
     }
 
@@ -233,8 +236,9 @@ public class BookingService {
         BusinessDocument doc = view(id);
         Map<String, Object> detail = BookingView.detail(doc);
         if (!ownedByCurrentUser(doc)) {
-            // An approver reviewing someone else's booking: no Edit, no Raise revision.
+            // An approver reviewing someone else's booking: no Edit, no Submit, no Raise revision.
             detail.put("editable", false);
+            detail.put("submittable", false);
             detail.put("revisable", false);
         }
         return detail;
@@ -309,6 +313,10 @@ public class BookingService {
         } else {
             target = get(submitted.getId());
             target.assertEditable();
+            if (target.getStatus() == BusinessDocumentStatus.REJECTED) {
+                // Corrected after a Reject: it is a draft again, to be submitted afresh.
+                target.transitionTo(BusinessDocumentStatus.DRAFT);
+            }
             applyHeader(submitted, target);
             target.setLineGroups(submitted.getLineGroups());
             if (submitted.isTermsSubmitted()) {

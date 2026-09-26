@@ -138,7 +138,8 @@
             APPROVED: ['Approved', 'text-emerald-700 dark:text-emerald-400', 'check'],
             RETURNED: ['Returned', 'text-amber-700 dark:text-amber-400', 'arrow-right'],
             REJECTED: ['Rejected', 'text-red-700 dark:text-red-400', 'x'],
-            SUBMITTED: ['Submitted', 'text-gray-600 dark:text-gray-300', 'send']
+            SUBMITTED: ['Submitted', 'text-gray-600 dark:text-gray-300', 'send'],
+            RESUBMITTED: ['Submitted again', 'text-gray-600 dark:text-gray-300', 'send']
         };
 
         /**
@@ -154,7 +155,7 @@
             const round = [];
             for (const h of history) {
                 round.push(h);
-                if (h.action === 'SUBMITTED') break;
+                if (h.action === 'SUBMITTED' || h.action === 'RESUBMITTED') break;
             }
             if (!d || !round.length) {
                 panel.hidden = true;

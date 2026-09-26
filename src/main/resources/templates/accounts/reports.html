@@ -164,8 +164,9 @@
             summary.innerHTML = tb.balanced
                 ? `<span class="badge-green badge-dot">Balanced</span><span class="text-gray-600">Debits equal credits at ${esc(fmt.money(tb.totalDebit))} BDT.</span>`
                 : `<span class="badge-red badge-dot">Out of balance</span><span class="text-gray-600">Difference ${esc(fmt.money(Math.abs(tb.totalDebit - tb.totalCredit)))} BDT - investigate before closing the period.</span>`;
-            lastCsv = [ ['Code', 'Account', 'Opening (Dr+)', 'Debit', 'Credit', 'Closing (Dr+)']]
-                .concat(rows.map(r => [r.code, r.name, r.opening, r.debit, r.credit, r.closing]));
+            lastCsv = [
+                ['Code', 'Account', 'Opening (Dr+)', 'Debit', 'Credit', 'Closing (Dr+)']
+            ].concat(rows.map(r => [r.code, r.name, r.opening, r.debit, r.credit, r.closing]));
         }
 
         // ------------------------------------------------------------------ ledgers
@@ -193,8 +194,10 @@
             if (!account) return App.toast('Choose an account first.', 'warn');
             const ledger = await api('/api/accounts/reports/account-ledger', { query: { account, from: $('#rpFrom').value, to: $('#rpTo').value } });
             $('#alTable tbody').innerHTML = ledgerRows(ledger, false);
-            lastCsv = [ ['Date', 'Entry', 'Narration', 'Debit', 'Credit', 'Balance (Dr+)'], ['', '', 'Opening balance', '', '', ledger.opening]]
-                .concat(ledger.lines.map(l => [l.date, l.entryNo, l.narration, l.debit, l.credit, l.balance]));
+            lastCsv = [
+                ['Date', 'Entry', 'Narration', 'Debit', 'Credit', 'Balance (Dr+)'],
+                ['', '', 'Opening balance', '', '', ledger.opening]
+            ].concat(ledger.lines.map(l => [l.date, l.entryNo, l.narration, l.debit, l.credit, l.balance]));
         }
 
         async function partyLedger() {
@@ -202,8 +205,10 @@
             if (!partyId) return App.toast('Pick a customer or supplier from the list.', 'warn');
             const ledger = await api('/api/accounts/reports/party-ledger', { query: { partyId, from: $('#rpFrom').value, to: $('#rpTo').value } });
             $('#plTable tbody').innerHTML = ledgerRows(ledger, true);
-            lastCsv = [ ['Date', 'Entry', 'Account', 'Narration', 'Debit', 'Credit', 'Balance (Dr+)'], ['', '', '', 'Opening balance', '', '', ledger.opening]]
-                .concat(ledger.lines.map(l => [l.date, l.entryNo, l.accountCode, l.narration, l.debit, l.credit, l.balance]));
+            lastCsv = [
+                ['Date', 'Entry', 'Account', 'Narration', 'Debit', 'Credit', 'Balance (Dr+)'],
+                ['', '', '', 'Opening balance', '', '', ledger.opening]
+            ].concat(ledger.lines.map(l => [l.date, l.entryNo, l.accountCode, l.narration, l.debit, l.credit, l.balance]));
         }
 
         async function run() {
