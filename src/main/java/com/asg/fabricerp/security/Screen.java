@@ -36,12 +36,19 @@ public enum Screen {
     MARKETING_TEAM("Marketing teams", Section.SETUP, "/setup/marketing-teams"),
     /** What is waiting for the signed-in user's signature, and every request in the unit. */
     APPROVALS("Approvals", Section.WORKFLOW, "/approvals"),
-    APPROVAL_SETUP("Approval matrices", Section.ADMINISTRATION, "/setup/approval-matrices");
+    APPROVAL_SETUP("Approval matrices", Section.ADMINISTRATION, "/setup/approval-matrices"),
+    /**
+     * Booking analytics & reports. VIEW opens it; what it shows is decided by who is looking - a
+     * team member's own bookings, a supervisor's or approver's teams, management's whole unit.
+     */
+    BOOKING_ANALYTICS("Booking analytics", Section.ANALYTICS, "/analytics/booking");
 
     /** Declaration order is menu order: reference data first, then the order-to-delivery modules. */
     public enum Section {
         /** First: an approver opens the app to what is waiting for them. */
         WORKFLOW("Workflow"),
+        /** Analytics & reports for every module, starting with Booking. */
+        ANALYTICS("Analytics & reports"),
         SETUP("Master data"),
         SALES("Sales"),
         INVENTORY("Inventory"),

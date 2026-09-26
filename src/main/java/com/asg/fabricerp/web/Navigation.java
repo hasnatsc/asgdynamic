@@ -104,12 +104,14 @@ public final class Navigation {
             case MARKETING_TEAM -> "users";
             case APPROVALS      -> "check-circle";
             case APPROVAL_SETUP -> "workflow";
+            case BOOKING_ANALYTICS -> "chart-bar";
         };
     }
 
     static String iconFor(Screen.Section section) {
         return switch (section) {
             case WORKFLOW       -> "workflow";
+            case ANALYTICS      -> "activity";
             case SETUP          -> "master-data";
             case SALES          -> "sales";
             case INVENTORY      -> "inventory";

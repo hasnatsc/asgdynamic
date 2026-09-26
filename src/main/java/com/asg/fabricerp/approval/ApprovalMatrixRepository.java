@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ApprovalMatrixRepository extends JpaRepository<ApprovalMatrix, Long> {
@@ -46,6 +47,16 @@ public interface ApprovalMatrixRepository extends JpaRepository<ApprovalMatrix, 
            """)
     Page<ApprovalMatrix> search(@Param("orgId") Long orgId, @Param("unitId") Long unitId,
                                 @Param("type") DocumentType type, @Param("q") String q, Pageable pageable);
+
+    /** Every active matrix for a type in a unit - team-wise and unit-wide - with its levels (analytics scope). */
+    @EntityGraph(attributePaths = "levels")
+    @Query("""
+           select distinct m from ApprovalMatrix m
+           where m.organizationId = :orgId and m.businessUnitId = :unitId and m.documentType = :type
+             and m.deleted = false and m.active = true
+           """)
+    List<ApprovalMatrix> findActiveForType(@Param("orgId") Long orgId, @Param("unitId") Long unitId,
+                                           @Param("type") DocumentType type);
 
     /** The team-wise matrices a marketing team has, for the team screen. */
     @Query("""

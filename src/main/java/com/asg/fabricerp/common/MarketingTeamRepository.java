@@ -19,6 +19,13 @@ public interface MarketingTeamRepository extends JpaRepository<MarketingTeam, Lo
            """)
     List<MarketingTeam> lookup(@Param("orgId") Long orgId);
 
+    /** The active teams one user leads - a supervisor's teams, for analytics. */
+    @Query("""
+           select t.id from MarketingTeam t
+           where t.organizationId = :orgId and t.leaderUserId = :userId and t.active = true and t.deleted = false
+           """)
+    List<Long> findIdsLedBy(@Param("orgId") Long orgId, @Param("userId") Long userId);
+
     /** One team of this organization, active or not - a retired team still resolves on old documents. */
     @Query("""
            select t from MarketingTeam t

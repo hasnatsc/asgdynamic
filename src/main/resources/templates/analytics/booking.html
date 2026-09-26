@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Booking analytics & reports - the first screen of Analytics & reports.
+
+  One filter row scopes everything below it, so the tiles, charts and reports always agree. What
+  the page can show is decided on the server by who is looking (AnalyticsScope): a team member
+  sees their own bookings, a supervisor or approver their teams, management every team. The
+  "Showing" select offers exactly the views that person has.
+
+  Charts are drawn by analytics-charts.js; every chart has a table view and every report a CSV.
+-->
+<head>
+    <title>Booking analytics</title>
+</head>
+<body>
+<div th:fragment="content" class="viz" data-analytics>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Booking analytics</h1>
+            <p class="page-sub">Bookings, value, approval and delivery at a glance - and the reports behind them.</p>
+        </div>
+        <div class="page-actions">
+            <span class="an-scope" data-scope-chip>
+                <svg class="icon h-3.5 w-3.5" aria-hidden="true"><use th:href="@{/images/icons.svg#users}"/></svg>
+                <span data-scope-label>Loading…</span>
+            </span>
+            <button type="button" class="btn-ghost" data-action="print">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#document}"/></svg>Print
+            </button>
+            <a class="btn-primary" href="/api/analytics/booking/register.csv" data-register-csv>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>Download register
+            </a>
+        </div>
+    </div>
+
+    <!-- Printed instead of the filters: what the pages cover. -->
+    <p class="an-print-head text-sm text-gray-600" data-print-head></p>
+
+    <!-- ============================== filters: one row, scoping everything below ============ -->
+    <form class="an-filters" data-filters autocomplete="off" onsubmit="return false">
+        <div class="an-filter">
+            <label for="anPeriod">Period</label>
+            <select id="anPeriod" class="field w-auto" name="period">
+                <option value="thisMonth">This month</option>
+                <option value="lastMonth">Last month</option>
+                <option value="thisQuarter">This quarter</option>
+                <option value="lastQuarter">Last quarter</option>
+                <option value="ytd">Year to date</option>
+                <option value="last12" selected>Last 12 months</option>
+                <option value="lastYear">Last calendar year</option>
+                <option value="custom">Custom range…</option>
+            </select>
+        </div>
+        <div class="an-filter" data-custom-range hidden>
+            <label for="anFrom">From</label>
+            <input id="anFrom" type="date" class="field w-auto" name="from">
+        </div>
+        <div class="an-filter" data-custom-range hidden>
+            <label for="anTo">To</label>
+            <input id="anTo" type="date" class="field w-auto" name="to">
+        </div>
+        <div class="an-filter" data-view-filter hidden>
+            <label for="anView">Showing</label>
+            <select id="anView" class="field w-auto" name="view"></select>
+        </div>
+        <div class="an-filter" data-team-filter hidden>
+            <label for="anTeam">Team</label>
+            <select id="anTeam" class="field w-auto" name="teamId"></select>
+        </div>
+        <div class="an-filter min-w-[12rem]" data-person-filter hidden>
+            <label for="anPerson">Marketing person</label>
+            <select id="anPerson" class="field" name="personId" data-allow-clear
+                    data-placeholder="Anyone" data-empty-text="Nobody with bookings here"></select>
+        </div>
+        <div class="an-filter min-w-[14rem]">
+            <label for="anBuyer">Buyer</label>
+            <select id="anBuyer" class="field" name="buyerId" data-remote="/api/parties/lookup?role=CUSTOMER"
+                    data-allow-clear data-placeholder="Any buyer"></select>
+        </div>
+        <div class="an-filter">
+            <label for="anCurrency">Currency</label>
+            <select id="anCurrency" class="field w-auto" name="currency">
+                <option value="">Most used</option>
+            </select>
+        </div>
+        <div class="an-filter">
+            <label for="anStatus">Status</label>
+            <select id="anStatus" class="field w-auto" name="status">
+                <option value="">Any status</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="PENDING">Awaiting approval</option>
+                <option value="DRAFT">Draft</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CANCELLED">Cancelled</option>
+            </select>
+        </div>
+        <div class="an-filter">
+            <label for="anType">Booking type</label>
+            <select id="anType" class="field w-auto" name="bookingType">
+                <option value="">Any type</option>
+                <option th:each="t : ${bookingTypes}" th:value="${t}" th:text="${t.label()}">Bulk</option>
+            </select>
+        </div>
+        <button type="button" class="btn-subtle ml-auto" data-action="reset">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset
+        </button>
+    </form>
+
+    <div data-tabs-root>
+        <div class="tabs mb-5 !px-0" role="tablist">
+            <button type="button" class="tab" role="tab" data-tab="overview" aria-selected="true">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chart-bar}"/></svg>Overview</button>
+            <button type="button" class="tab" role="tab" data-tab="reports">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#document}"/></svg>Reports</button>
+        </div>
+
+        <!-- ============================== overview ============================== -->
+        <div data-panel="overview">
+            <p class="mb-3 text-xs text-gray-500" data-period-note></p>
+
+            <div class="an-kpis" data-kpis></div>
+            <div class="an-strip" data-strip></div>
+
+            <div class="an-grid">
+                <section class="an-card an-card-wide" data-chart="trend">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Bookings over time</h2>
+                            <p class="card-sub" data-sub>Confirmed and in the pipeline, by booking date.</p>
+                        </div>
+                        <div class="flex items-center gap-2" data-no-print>
+                            <div class="segmented" role="group" aria-label="Measure" data-measure>
+                                <button type="button" data-measure-key="value" aria-pressed="true">Value</button>
+                                <button type="button" data-measure-key="qty" aria-pressed="false">Quantity</button>
+                                <button type="button" data-measure-key="count" aria-pressed="false">Bookings</button>
+                            </div>
+                            <button type="button" class="btn-ghost btn-sm" data-table-toggle>Table</button>
+                        </div>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+
+                <section class="an-card" data-chart="status">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Status mix</h2>
+                            <p class="card-sub">Where the period's bookings stand now.</p>
+                        </div>
+                    </div>
+                    <div class="an-chart !min-h-0" data-host></div>
+                </section>
+
+                <section class="an-card" data-chart="aging">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Approval queue</h2>
+                            <p class="card-sub">Every booking awaiting approval, by how long it has waited - whenever it was booked.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+
+                <section class="an-card" data-chart="buyer">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Top buyers</h2>
+                            <p class="card-sub" data-sub>Confirmed value.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+
+                <section class="an-card" data-chart="fabric">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Fabric type mix</h2>
+                            <p class="card-sub">Confirmed quantity by fabric type.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+
+                <section class="an-card" data-chart="team" hidden>
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">By marketing team</h2>
+                            <p class="card-sub" data-sub>Confirmed value.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+
+                <section class="an-card" data-chart="person" hidden>
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">By marketing person</h2>
+                            <p class="card-sub" data-sub>Confirmed value.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+
+                <section class="an-card an-card-wide" data-chart="delivery">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Delivery schedule</h2>
+                            <p class="card-sub">Confirmed quantity still to deliver, by the week it is due - every open booking, whenever booked.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <p class="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-300"
+                       role="status" data-overdue hidden></p>
+                    <div class="an-chart" data-host></div>
+                </section>
+            </div>
+            <p class="mt-4 text-xs text-gray-500">
+                A revised booking counts once, as its latest revision. Cancelled bookings are left out of every total.
+                Values are never added across currencies. Margin is the booked price above the costing's break-even,
+                on confirmed lines that quote one.
+            </p>
+        </div>
+
+        <!-- ============================== reports ============================== -->
+        <div data-panel="reports" hidden>
+            <div class="an-reports">
+                <nav class="an-report-list" aria-label="Reports" data-report-list data-no-print>
+                    <button type="button" data-report="REGISTER" aria-selected="true">Booking register</button>
+                    <button type="button" th:each="r : ${reports}" th:attr="data-report=${r.key}" aria-selected="false"
+                            th:text="${r.title}">Buyer-wise summary</button>
+                </nav>
+                <section class="card min-w-0 overflow-hidden">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title" data-report-title>Booking register</h2>
+                            <p class="card-sub" data-report-sub></p>
+                        </div>
+                        <div class="flex items-center gap-2" data-no-print>
+                            <button type="button" class="btn-ghost btn-sm" data-action="report-csv">
+                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>CSV</button>
+                        </div>
+                    </div>
+                    <!-- The register: paged on the server. -->
+                    <div data-register>
+                        <div class="toolbar" data-no-print>
+                            <div class="input-icon w-full sm:w-72">
+                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                                <input id="anRegisterSearch" type="search" class="field" placeholder="Search number, reference or buyer"
+                                       aria-label="Search the register" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="table-wrap">
+                            <table class="table-grid table-stack" id="anRegister">
+                                <thead>
+                                <tr>
+                                    <th data-sort="documentNo">Booking No</th>
+                                    <th data-sort="documentDate">Date</th>
+                                    <th data-sort="buyer">Buyer</th>
+                                    <th data-sort="team">Team</th>
+                                    <th data-sort="person">Marketing person</th>
+                                    <th data-sort="requiredDate">Delivery</th>
+                                    <th data-sort="status">Status</th>
+                                    <th data-sort="quantity" class="text-right">Quantity</th>
+                                    <th class="text-right">Drawn</th>
+                                    <th data-sort="value" class="text-right">Value</th>
+                                </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <div id="anRegisterPager" class="pager"></div>
+                    </div>
+                    <!-- Every other report: one table with a totals row. -->
+                    <div class="overflow-x-auto" data-report-table hidden></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/analytics-charts.js}" defer></script>
+    <script th:src="@{/js/booking-analytics.js}" defer></script>
+</div>
+</body>
+</html>
