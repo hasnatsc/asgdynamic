@@ -49,6 +49,7 @@ public final class Navigation {
         for (Screen.Section section : Screen.Section.values()) {
             List<Item> items = Arrays.stream(Screen.values())
                 .filter(screen -> screen.section() == section)
+                .filter(Screen::isBuilt)
                 .filter(screen -> authorities.contains(screen.authority(Verb.VIEW)))
                 .map(screen -> itemFor(screen, currentPath))
                 .toList();
@@ -111,6 +112,7 @@ public final class Navigation {
             case FABRIC_STOCK   -> "inventory";
             case DELIVERY_BOARD -> "clock";
             case PROCESS_ROUTE  -> "workflow";
+            case PI, LC, CI     -> "document";
         };
     }
 
@@ -123,6 +125,7 @@ public final class Navigation {
             case INVENTORY      -> "inventory";
             case PRODUCTION     -> "production";
             case STORES         -> "package";
+            case COMMERCIAL     -> "document";
             case ACCOUNTS       -> "ledger";
             case ADMINISTRATION -> "admin";
         };

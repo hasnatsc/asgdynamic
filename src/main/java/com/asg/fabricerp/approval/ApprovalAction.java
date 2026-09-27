@@ -5,6 +5,11 @@ public enum ApprovalAction {
     SUBMITTED,
     /** Submitted again after a Reject, corrected by the maker. */
     RESUBMITTED,
+    /**
+     * A level before the last signed on a type with a checker stage - the legacy PI/LC/CI checker.
+     * Whoever checked a request may sign no later level of it.
+     */
+    CHECKED,
     APPROVED,
     /** Sent back to the maker as a draft to correct - asfl-erp's RETURNED. */
     RETURNED,

@@ -38,7 +38,8 @@ public class ApprovalLabels {
         return switch (approver.kind()) {
             case ROLE -> "role " + roles.findById(approver.roleId()).map(r -> r.getName()).orElse("#" + approver.roleId());
             case USER -> userName(approver.userId());
-            case AUTHORITY -> "anyone with Approve on " + screenLabel(type);
+            case AUTHORITY -> "anyone with " + (approver.authority().endsWith("_CHECK") ? "Check" : "Approve")
+                + " on " + screenLabel(type);
         };
     }
 
@@ -99,11 +100,12 @@ public class ApprovalLabels {
                 request.getRaisedByUserId() != null
                     ? users.computeIfAbsent(request.getRaisedByUserId(), labels::userName) : request.getRaisedBy(),
                 request.getCreatedAt(), request.isPending(), request.getOutcome(), request.getSettledAt(),
-                screenPath(type));
+                screenPath(type),
+                request.isPending() && type.hasCheckerStage() && !request.isFinalLevel());
         }
     }
 
-    /** The screen a type's documents live on; null for a type with no screen yet. */
+    /** The page a type's documents open on; null for a type with no screen, or none built yet. */
     public static String screenPath(DocumentType type) {
         Screen screen = screenOf(type);
         return screen == null ? null : screen.path();
@@ -112,6 +114,11 @@ public class ApprovalLabels {
     static String screenLabel(DocumentType type) {
         Screen screen = screenOf(type);
         return screen == null ? type.label() : screen.label();
+    }
+
+    /** Whether a type has a screen whose grants can approve it - built yet or not. */
+    static boolean hasScreen(DocumentType type) {
+        return screenOf(type) != null;
     }
 
     private static Screen screenOf(DocumentType type) {

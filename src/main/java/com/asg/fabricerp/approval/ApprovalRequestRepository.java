@@ -29,14 +29,14 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
      * <ul>
      *   <li>a level naming this user - theirs wherever the document's team;</li>
      *   <li>a level naming a role they hold, or the default rule (no matrix) for a type whose
-     *       Approve verb they hold - only for the teams their row scope lets them see
-     *       ({@code allTeams}, {@code teamIds}), so one team's approvers never see another's
-     *       documents;</li>
-     *   <li>never one they raised (four-eyes).</li>
+     *       Approve verb they hold at its last level, or whose Check verb they hold at a checker
+     *       level before it - only for the teams their row scope lets them see ({@code allTeams},
+     *       {@code teamIds}), so one team's approvers never see another's documents;</li>
+     *   <li>never one they raised (four-eyes), nor one they have already checked.</li>
      * </ul>
      *
      * The service re-checks everything when a decision is posted; this only decides what is listed.
-     * {@code roleIds} and {@code defaultTypes} are never empty: the service passes a placeholder
+     * {@code roleIds}, {@code defaultTypes} and {@code checkTypes} are never empty: the service passes a placeholder
      * with the matching flag off, since an empty IN list is not portable JPQL.
      */
     @Query("""
@@ -48,7 +48,14 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
              and (r.currentUserId = :userId
                   or ((:allTeams = true or r.owningTeamId in :teamIds)
                       and ((:hasRoles = true and r.currentRoleId in :roleIds)
-                           or (:hasDefault = true and r.matrixId is null and r.documentType in :defaultTypes))))
+                           or (:hasDefault = true and r.matrixId is null and r.currentLevel >= r.totalLevels
+                               and r.documentType in :defaultTypes)
+                           or (:hasCheck = true and r.matrixId is null and r.currentLevel < r.totalLevels
+                               and r.documentType in :checkTypes))))
+             and not exists (
+                  select h.id from ApprovalHistory h
+                  where h.requestId = r.id and h.action = com.asg.fabricerp.approval.ApprovalAction.CHECKED
+                    and lower(h.createdBy) = lower(cast(:username as string)))
              and (:q is null or exists (
                   select d.id from BusinessDocument d left join d.party p
                   where d.id = r.documentId
@@ -63,6 +70,8 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
                                 @Param("hasRoles") boolean hasRoles, @Param("roleIds") Collection<Long> roleIds,
                                 @Param("hasDefault") boolean hasDefault,
                                 @Param("defaultTypes") Collection<DocumentType> defaultTypes,
+                                @Param("hasCheck") boolean hasCheck,
+                                @Param("checkTypes") Collection<DocumentType> checkTypes,
                                 Pageable pageable);
 
     /**

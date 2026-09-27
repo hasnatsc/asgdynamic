@@ -50,10 +50,10 @@ public class ApprovalMatrixService {
 
     public record LevelRequest(Long roleId, Long userId, BigDecimal minAmount, BigDecimal maxAmount) { }
 
-    /** The document types a matrix can govern: those with a screen to submit them from. */
+    /** The document types a matrix can govern: those with a screen whose grants sign them. */
     public static List<DocumentType> approvableTypes() {
         return Arrays.stream(DocumentType.values())
-            .filter(t -> ApprovalLabels.screenPath(t) != null)
+            .filter(ApprovalLabels::hasScreen)
             .toList();
     }
 

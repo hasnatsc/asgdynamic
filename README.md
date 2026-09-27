@@ -233,6 +233,17 @@ over real differences rather than removing actual duplication.
 - a full audit trail in `apr_document_history` — who, when, what transition, remarks —
   which the legacy status-change handlers left no server-side record of at all
 
+**Commercial approvals** (V31) — proforma invoices, letters of credit and commercial invoices keep
+the legacy maker → checker → approver triad (`ROLE_PI_MAKER`/`_CHECKER`/`_APPROVAL`, and the same
+for LC and CI). A `CHECK` verb sits beside `APPROVE`, meaningful only on the new `PI`, `LC` and `CI`
+screens (export, import and back-to-back instruments share their family's screen, as they shared its
+roles) and refused anywhere else by `ck_fab_grant_check_commercial`. With no approval matrix these
+types need two signatures, not one: anyone with Check, then anyone with Approve. A matrix still
+replaces that routing. Every signature before the last is recorded as `CHECKED`, and whoever checked
+a request can sign no later level of it, so maker, checker and approver are three different people.
+V31 gives V11's nine empty role shells exactly those grants. Debit and credit notes stay single-stage.
+Verified by `CommercialApprovalDatabaseIT` (opt-in, real PostgreSQL through V31).
+
 Two dev accounts (`admin`/`approver`) are seeded, not one, specifically so four-eyes is
 exercisable locally without weakening it — a single account could submit but could never
 legally approve its own document.
@@ -420,10 +431,9 @@ every other secret in this project.
   asgdynamic's intent the way every other type here was grounded in its capture.
 - Each new type needs one line added to `DocumentType`'s `roleRoot` (see its javadoc)
   before its controller can call `ApprovalService`.
-- **The maker/checker/approver triad** for the Commercial family (PI/LC/CI) — today every
-  document type uses the single-stage `ROLE_APPROVAL` path; the three-stage version is a
-  documented extension point on `DocumentType.approverRole()`, deliberately not built until
-  a Commercial document type exists to test it against.
+- **Commercial screens** (PI issuing, LC receiving/issuing, CI). Their approval is built — see
+  **Commercial approvals** — but no page raises a proforma invoice, LC or commercial invoice yet,
+  so the `PI`/`LC`/`CI` screens have no path and stay out of the menu until one does.
 - **Party data.** The legacy capture has no customer records - enter them on **Setup → Parties**
   or load them. It does have 49 bank names (`buyerBank`), without codes.
 - **Validate the V15 foreign keys** once legacy rows are clean. They are `NOT VALID`: enforced on

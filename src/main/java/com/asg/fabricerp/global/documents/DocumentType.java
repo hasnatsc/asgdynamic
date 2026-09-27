@@ -68,15 +68,19 @@ public enum DocumentType implements NumberSeries {
      * Taken from SpindleERP wholesale, including the back-to-back instruments asgdynamic
      * never had. A fabric exporter needs EBLC/IBLC more than a spinner does: the export LC
      * collateralises the import LC for yarn and dyes.
+     *
+     * The role root is the legacy triad's (ROLE_PI_*, ROLE_LC_*, ROLE_CI_*), not the prefix: an
+     * import PI is checked by the same PI checkers as an export one, and a back-to-back LC by the
+     * LC checkers.
      */
-    EXPORT_PROFORMA_INVOICE("EPI", "Export Proforma Invoice", Family.COMMERCIAL, null),
-    IMPORT_PROFORMA_INVOICE("IPI", "Import Proforma Invoice", Family.COMMERCIAL, null),
-    EXPORT_LETTER_OF_CREDIT("ELC", "Export Letter Of Credit", Family.COMMERCIAL, null),
-    IMPORT_LETTER_OF_CREDIT("ILC", "Import Letter Of Credit", Family.COMMERCIAL, null),
-    EXPORT_BACK_TO_BACK_LC("EBLC", "Export Back-to-Back LC", Family.COMMERCIAL, null),
-    IMPORT_BACK_TO_BACK_LC("IBLC", "Import Back-to-Back LC", Family.COMMERCIAL, null),
-    EXPORT_COMMERCIAL_INVOICE("ECI", "Export Commercial Invoice", Family.COMMERCIAL, null),
-    IMPORT_COMMERCIAL_INVOICE("ICI", "Import Commercial Invoice", Family.COMMERCIAL, null),
+    EXPORT_PROFORMA_INVOICE("EPI", "Export Proforma Invoice", Family.COMMERCIAL, "PI"),
+    IMPORT_PROFORMA_INVOICE("IPI", "Import Proforma Invoice", Family.COMMERCIAL, "PI"),
+    EXPORT_LETTER_OF_CREDIT("ELC", "Export Letter Of Credit", Family.COMMERCIAL, "LC"),
+    IMPORT_LETTER_OF_CREDIT("ILC", "Import Letter Of Credit", Family.COMMERCIAL, "LC"),
+    EXPORT_BACK_TO_BACK_LC("EBLC", "Export Back-to-Back LC", Family.COMMERCIAL, "LC"),
+    IMPORT_BACK_TO_BACK_LC("IBLC", "Import Back-to-Back LC", Family.COMMERCIAL, "LC"),
+    EXPORT_COMMERCIAL_INVOICE("ECI", "Export Commercial Invoice", Family.COMMERCIAL, "CI"),
+    IMPORT_COMMERCIAL_INVOICE("ICI", "Import Commercial Invoice", Family.COMMERCIAL, "CI"),
     DEBIT_NOTE("DN", "Debit Note", Family.COMMERCIAL, null),
     CREDIT_NOTE("CN", "Credit Note", Family.COMMERCIAL, null);
 
@@ -107,7 +111,7 @@ public enum DocumentType implements NumberSeries {
      * prefix ("BPO") happens to read the same as its role root, but Booking's prefix
      * ("BKG") does not, and mechanically deriving one from the other would have silently
      * produced {@code SCREEN_BKG_CREATE}, contradicting the literal string already checked by
-     * {@code BookingController}. Null until a type has a controller: {@link #createAuthority()}
+     * {@code BookingController}. Null until a type has a screen: {@link #createAuthority()}
      * fails loudly rather than inventing a name nobody has committed to yet.
      */
     public String roleRoot() {
@@ -136,16 +140,32 @@ public enum DocumentType implements NumberSeries {
 
     /**
      * The approve/reject authority for this type — genuinely per-screen now, where the old
-     * model had one global {@code ROLE_APPROVAL} covering every document type. No Commercial
-     * document type has a controller yet, so the three-stage maker/checker/approval path the
-     * legacy requestmap carried for that family
-     * ({@code ROLE_PI_MAKER}/{@code ROLE_LC_CHECKER}/{@code ROLE_CI_APPROVAL}) is still not
-     * implemented here — only single-stage approve/reject exists in {@code ApprovalService}.
-     * Build the checker stage when a Commercial type needs it rather than half-wiring an
-     * untestable one now.
+     * model had one global {@code ROLE_APPROVAL} covering every document type. For a type with a
+     * {@linkplain #hasCheckerStage() checker stage} this is the final signature, after the check.
      */
     public String approveAuthority() {
         return "SCREEN_" + roleRoot() + "_APPROVE";
+    }
+
+    /**
+     * The authority that signs the checker stage, e.g. {@code SCREEN_PI_CHECK} - the legacy
+     * {@code ROLE_PI_CHECKER}. Only a type with {@link #hasCheckerStage()} has one.
+     */
+    public String checkAuthority() {
+        if (!hasCheckerStage()) {
+            throw new UnsupportedOperationException(label + " has no checker stage");
+        }
+        return "SCREEN_" + roleRoot() + "_CHECK";
+    }
+
+    /**
+     * Whether this type is signed maker → checker → approver rather than maker → approver: the
+     * legacy system's segregation of duties for proforma invoices, letters of credit and
+     * commercial invoices (its {@code ROLE_*_MAKER}/{@code _CHECKER}/{@code _APPROVAL} triads).
+     * Debit and credit notes had no triad and have none here.
+     */
+    public boolean hasCheckerStage() {
+        return family == Family.COMMERCIAL && roleRoot != null;
     }
 
     /** Documents that move fabric through weaving/dyeing rather than moving stock. */

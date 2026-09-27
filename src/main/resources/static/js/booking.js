@@ -136,6 +136,7 @@
         // ------------------------------------------------------------------ approval
 
         const DECISION = {
+            CHECKED: ['Checked', 'text-emerald-700 dark:text-emerald-400', 'check'],
             APPROVED: ['Approved', 'text-emerald-700 dark:text-emerald-400', 'check'],
             RETURNED: ['Returned', 'text-amber-700 dark:text-amber-400', 'arrow-right'],
             REJECTED: ['Rejected', 'text-red-700 dark:text-red-400', 'x'],

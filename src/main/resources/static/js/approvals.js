@@ -60,7 +60,7 @@
                 r => App.rowActions(openLink(r),
                     App.rowButton('Reject', 'x', `data-decide="REJECTED" data-id="${r.documentId}"`, 'text-red-700'),
                     App.rowButton('Return', 'arrow-right', `data-decide="RETURNED" data-id="${r.documentId}"`),
-                    `<button type="button" class="btn-primary btn-sm" data-decide="APPROVED" data-id="${r.documentId}">${App.icon('check')}Approve</button>`)
+                    `<button type="button" class="btn-primary btn-sm" data-decide="APPROVED" data-id="${r.documentId}">${App.icon('check')}${r.checkStage ? 'Check' : 'Approve'}</button>`)
             ]
         });
 
@@ -104,10 +104,12 @@
             const one = rows.length === 1 ? rows[0] : null;
             const label = one ? (one.documentNo || 'this document') : `${rows.length} documents`;
             const last = one && one.level >= one.totalLevels;
+            const check = one && one.checkStage;
             return App.form({
-                title: { APPROVED: `Approve ${label}?`, REJECTED: `Reject ${label}?`, RETURNED: `Return ${label} to the maker?` }[decision],
+                title: { APPROVED: `${check ? 'Check' : 'Approve'} ${label}?`, REJECTED: `Reject ${label}?`, RETURNED: `Return ${label} to the maker?` }[decision],
                 message: {
-                    APPROVED: one ? (last ? 'It is locked for editing once approved.'
+                    APPROVED: one ? (check ? 'This signs it as checked; it then goes to the approver, who must be someone else.'
+                                   : last ? 'It is locked for editing once approved.'
                                           : `This signs level ${one.level} of ${one.totalLevels}; it then goes to the next approver.`)
                                   : 'Each is signed at its current level: a final level approves it, any other sends it to the next approver.',
                     REJECTED: 'Refused. The maker sees your reason, and may correct it and submit it again.',
@@ -115,7 +117,7 @@
                 }[decision],
                 fields: [{ name: 'remarks', label: approve ? 'Remarks (optional)' : 'Reason', type: 'textarea',
                            required: !approve, maxlength: 1000 }],
-                confirmText: { APPROVED: 'Approve', REJECTED: 'Reject', RETURNED: 'Return' }[decision],
+                confirmText: { APPROVED: check ? 'Check' : 'Approve', REJECTED: 'Reject', RETURNED: 'Return' }[decision],
                 danger: decision === 'REJECTED'
             });
         }
@@ -131,7 +133,8 @@
             if (!values) return;
             try {
                 await App.api(`/api/documents/${row.documentId}/${VERB[decision]}`, { method: 'POST', query: { remarks: values.remarks } });
-                App.toast({ APPROVED: row.level >= row.totalLevels ? 'Approved.' : 'Signed - sent to the next level.',
+                App.toast({ APPROVED: row.checkStage ? 'Checked - sent to the approver.'
+                                    : row.level >= row.totalLevels ? 'Approved.' : 'Signed - sent to the next level.',
                             REJECTED: 'Rejected.', RETURNED: 'Returned to the maker.' }[decision], 'success');
                 selected.delete(row.documentId);
             } catch (error) { App.fail(error); }

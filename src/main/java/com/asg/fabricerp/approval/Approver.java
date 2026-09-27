@@ -9,9 +9,10 @@ import java.util.Set;
  * <ul>
  *   <li>{@link Kind#ROLE} - anyone holding the role;</li>
  *   <li>{@link Kind#USER} - that one person;</li>
- *   <li>{@link Kind#AUTHORITY} - anyone holding the screen's {@code APPROVE} verb. Used only when a
- *       document type has no matrix at all, so an unconfigured type keeps working exactly as it
- *       did rather than being blocked, and is never auto-approved either.</li>
+ *   <li>{@link Kind#AUTHORITY} - anyone holding the screen's {@code APPROVE} verb (or, at the checker
+ *       stage of a proforma invoice, LC or commercial invoice, its {@code CHECK} verb). Used only
+ *       when a document type has no matrix at all, so an unconfigured type keeps working exactly as
+ *       it did rather than being blocked, and is never auto-approved either.</li>
  * </ul>
  */
 public record Approver(Kind kind, Long roleId, Long userId, String authority) {

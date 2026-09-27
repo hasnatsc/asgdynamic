@@ -37,6 +37,14 @@ import java.util.stream.Collectors;
  * one level, anyone holding the screen's {@code APPROVE} verb - so configuring matrices narrows who
  * approves without ever stopping a type that nobody has configured yet.
  *
+ * <h2>The checker stage</h2>
+ * Proforma invoices, letters of credit and commercial invoices ({@link DocumentType#hasCheckerStage()})
+ * keep the legacy system's maker → checker → approver triad. With no matrix their default rule is two
+ * levels, not one: first anyone holding the screen's {@code CHECK} verb, then anyone holding its
+ * {@code APPROVE} verb. A matrix replaces that routing as it does for any type. Either way every
+ * signature before the last is recorded as {@link ApprovalAction#CHECKED}, and whoever checked a
+ * request may sign no later level of it - maker, checker and approver are three different people.
+ *
  * <p>The matrix and the number of levels are fixed on the {@link ApprovalRequest} at submission and
  * never re-resolved. Whenever the request moves, who its current level waits for is copied onto it
  * ({@link ApprovalRequest#routeTo}), so the inbox is one indexed query rather than a matrix lookup
@@ -173,6 +181,10 @@ public class ApprovalService {
             throw new AccessDeniedException("Segregation of duties: %s submitted %s and cannot decide it"
                 .formatted(actor.username(), doc.getDocumentNo()));
         }
+        if (checkedBy(request, actor)) {
+            throw new AccessDeniedException("Segregation of duties: %s checked %s and cannot also sign a later level"
+                .formatted(actor.username(), doc.getDocumentNo()));
+        }
         if (!mayAct(required, actor, doc)) {
             throw new AccessDeniedException("Level %d of %d on %s is for %s"
                 .formatted(request.getCurrentLevel(), request.getTotalLevels(), doc.getDocumentNo(),
@@ -203,7 +215,7 @@ public class ApprovalService {
             case REJECTED -> doc.transitionTo(BusinessDocumentStatus.REJECTED);
         }
         ApprovalAction action = switch (decision) {
-            case APPROVED -> ApprovalAction.APPROVED;
+            case APPROVED -> !last && doc.getDocumentType().hasCheckerStage() ? ApprovalAction.CHECKED : ApprovalAction.APPROVED;
             case RETURNED -> ApprovalAction.RETURNED;
             case REJECTED -> ApprovalAction.REJECTED;
         };
@@ -249,6 +261,9 @@ public class ApprovalService {
         List<DocumentType> defaultTypes = ApprovalMatrixService.approvableTypes().stream()
             .filter(t -> actor.authorities().contains(t.approveAuthority()))
             .toList();
+        List<DocumentType> checkTypes = ApprovalMatrixService.approvableTypes().stream()
+            .filter(t -> t.hasCheckerStage() && actor.authorities().contains(t.checkAuthority()))
+            .toList();
         InboxFilter f = filter == null ? InboxFilter.NONE : filter;
         Page<ApprovalRequest> page = requests.inbox(
             context.requireOrganizationId(), context.requireBusinessUnitId(),
@@ -256,6 +271,7 @@ public class ApprovalService {
             allTeams, scope.idsForQuery(ScopeDimension.MARKETING_TEAM),
             !actor.roleIds().isEmpty(), actor.roleIds().isEmpty() ? NO_IDS : actor.roleIds(),
             !defaultTypes.isEmpty(), defaultTypes.isEmpty() ? List.of(DocumentType.BOOKING) : defaultTypes,
+            !checkTypes.isEmpty(), checkTypes.isEmpty() ? List.of(DocumentType.BOOKING) : checkTypes,
             withDefaultSort(pageable, Sort.by(Sort.Direction.ASC, "createdAt", "id")));
         return rows(page);
     }
@@ -292,7 +308,7 @@ public class ApprovalService {
     public boolean canReview(BusinessDocument doc) {
         Approver.Actor actor = actors.current();
         Optional<ApprovalRequest> pending = requests.findByDocumentIdAndPendingTrue(doc.getId());
-        if (pending.isPresent() && !pending.get().wasRaisedBy(actor)
+        if (pending.isPresent() && !pending.get().wasRaisedBy(actor) && !checkedBy(pending.get(), actor)
                 && requiredApprover(pending.get()).map(a -> mayAct(a, actor, doc)).orElse(false)) {
             return true;
         }
@@ -307,7 +323,7 @@ public class ApprovalService {
         Long unitId = doc.getBusinessUnit() == null ? context.requireBusinessUnitId() : doc.getBusinessUnit().getId();
         BigDecimal amount = doc.getSubtotalAmount();
         Optional<ApprovalMatrix> matrix = resolve(doc.getDocumentType(), unitId, teamId);
-        int levels = 1;
+        int levels = doc.getDocumentType().hasCheckerStage() ? 2 : 1;
         if (matrix.isPresent()) {
             levels = matrix.get().levelsFor(amount).size();
             if (levels == 0) {
@@ -345,11 +361,29 @@ public class ApprovalService {
     /** Who must decide the request's current level, under the matrix it was submitted with. */
     Optional<Approver> requiredApprover(ApprovalRequest request) {
         if (request.getMatrixId() == null) {
-            return Optional.of(Approver.authority(request.getDocumentType().approveAuthority()));
+            return Optional.of(defaultApprover(request));
         }
         return matrices.findScoped(request.getMatrixId(), request.getOrganizationId())
             .flatMap(m -> m.levelFor(request.getAmount(), request.getCurrentLevel()))
             .map(ApprovalLevel::approver);
+    }
+
+    /**
+     * The default rule, for a request with no matrix: the screen's Approve verb - preceded, on a type
+     * with a checker stage, by its Check verb at every level before the last.
+     */
+    static Approver defaultApprover(ApprovalRequest request) {
+        DocumentType type = request.getDocumentType();
+        return type.hasCheckerStage() && !request.isFinalLevel()
+            ? Approver.authority(type.checkAuthority())
+            : Approver.authority(type.approveAuthority());
+    }
+
+    /** Whether the actor signed an earlier level of this request as its checker - who may then sign no later one. */
+    private boolean checkedBy(ApprovalRequest request, Approver.Actor actor) {
+        return request.getDocumentType().hasCheckerStage() && request.getId() != null && actor.username() != null
+            && historyRepository.existsByRequestIdAndActionAndCreatedByIgnoreCase(
+                request.getId(), ApprovalAction.CHECKED, actor.username());
     }
 
     /**
@@ -368,9 +402,11 @@ public class ApprovalService {
 
     private ApprovalStateView state(BusinessDocument doc, ApprovalRequest request, Approver.Actor actor) {
         Optional<Approver> required = requiredApprover(request);
-        boolean canAct = required.isPresent() && mayAct(required.get(), actor, doc) && !request.wasRaisedBy(actor);
+        boolean checked = checkedBy(request, actor);
+        boolean canAct = required.isPresent() && mayAct(required.get(), actor, doc) && !request.wasRaisedBy(actor) && !checked;
         String why = required.isEmpty() ? "The matrix no longer defines this level"
             : request.wasRaisedBy(actor) ? "You submitted it, so another person must decide it"
+            : checked ? "You checked it, so another person must sign the next level"
             : !canAct ? "Waiting for " + labels.approver(required.get(), doc.getDocumentType())
             : null;
         return new ApprovalStateView(request.getId(), true, request.getCurrentLevel(), request.getTotalLevels(),
@@ -394,7 +430,7 @@ public class ApprovalService {
             BusinessDocument doc = docs.get(request.getDocumentId());
             if (doc == null) continue;   // deleted since
             Approver required = !request.isPending() ? null
-                : request.getMatrixId() == null ? Approver.authority(request.getDocumentType().approveAuthority())
+                : request.getMatrixId() == null ? defaultApprover(request)
                 : matrixCache.computeIfAbsent(request.getMatrixId(),
                         id -> matrices.findScoped(id, request.getOrganizationId()))
                     .flatMap(m -> m.levelFor(request.getAmount(), request.getCurrentLevel()))

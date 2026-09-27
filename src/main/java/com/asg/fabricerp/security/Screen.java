@@ -29,6 +29,15 @@ public enum Screen {
     DELIVERY_BOARD("Ready to deliver", Section.STORES, "/production/delivery-board"),
     DO("Delivery order", Section.STORES, "/delivery-order"),
     FD("Fabrics delivery", Section.STORES, "/fabrics-delivery"),
+    /*
+     * The Commercial family, one screen per legacy role triad (ROLE_PI_*, ROLE_LC_*, ROLE_CI_*):
+     * export, import and back-to-back instruments share their family's screen, as they shared its
+     * roles. No page yet - the grants and the maker/checker/approver approval come first - so they
+     * have no path and stay out of the menu until one is built.
+     */
+    PI("Proforma invoice", Section.COMMERCIAL, null),
+    LC("Letter of credit", Section.COMMERCIAL, null),
+    CI("Commercial invoice", Section.COMMERCIAL, null),
     ITEM("Items", Section.INVENTORY, "/inventory/items"),
     ITEM_SETUP("Item setup", Section.INVENTORY, "/inventory/categories"),
     PARTY("Parties", Section.SETUP, "/setup/parties"),
@@ -66,6 +75,8 @@ public enum Screen {
         PRODUCTION("Production"),
         /** Greige and finished stores: receipts, issues, stock and deliveries. */
         STORES("Stores"),
+        /** Proforma invoices, letters of credit and commercial invoices. */
+        COMMERCIAL("Commercial"),
         ACCOUNTS("Accounts"),
         ADMINISTRATION("Administration");
 
@@ -88,7 +99,19 @@ public enum Screen {
 
     public String label()     { return label; }
     public Section section()  { return section; }
+    /** The landing page; null for a screen whose page is not built yet. */
     public String path()      { return path; }
+
+    /** Whether the screen has a page to open - the menu lists only those. */
+    public boolean isBuilt()  { return path != null; }
+
+    /**
+     * Whether a grant of this verb means anything here. Every verb applies everywhere except
+     * {@link Verb#CHECK}: only the Commercial screens have a checker stage.
+     */
+    public boolean supports(Verb verb) {
+        return verb != Verb.CHECK || section == Section.COMMERCIAL;
+    }
 
     /** The authority {@link FabricUserPrincipal} derives for one verb here, e.g. {@code SCREEN_BPO_VIEW}. */
     public String authority(Verb verb) {

@@ -44,6 +44,10 @@ class ApprovalServiceTest {
 
     /** The saved request, as the fake repository holds it. */
     private ApprovalRequest live;
+    /** Every history row written, with who wrote it - the audit stamp the real listener would add. */
+    private record Signature(Long requestId, ApprovalAction action, String username) { }
+    private final List<Signature> signed = new java.util.ArrayList<>();
+
     /** The actor's row scope: unrestricted unless a test narrows it. */
     private RowScope scope = RowScope.unrestrictedScope();
 
@@ -57,7 +61,15 @@ class ApprovalServiceTest {
         ApprovalLabels labels = mock(ApprovalLabels.class);
         when(labels.approver(any(), any())).thenAnswer(i -> String.valueOf(i.getArgument(0, Approver.class).kind()));
 
-        when(history.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(history.save(any())).thenAnswer(i -> {
+            ApprovalHistory h = i.getArgument(0);
+            Approver.Actor by = actors.current();
+            if (by != null) signed.add(new Signature(h.getRequestId(), h.getAction(), by.username()));
+            return h;
+        });
+        when(history.existsByRequestIdAndActionAndCreatedByIgnoreCase(any(), any(), any())).thenAnswer(i ->
+            signed.stream().anyMatch(sig -> sig.requestId() != null && sig.requestId().equals(i.getArgument(0))
+                && sig.action() == i.getArgument(1) && sig.username().equalsIgnoreCase(i.getArgument(2))));
         when(repository.save(any(BusinessDocument.class))).thenAnswer(i -> i.getArgument(0));
         when(requests.save(any())).thenAnswer(i -> {
             live = i.getArgument(0);
@@ -416,10 +428,7 @@ class ApprovalServiceTest {
         BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "250000", 3L);
         matrix(30L, 3L, true, role(MANAGER_ROLE, null, null), user(DIRECTOR));
         submitAs("maker");
-        when(requests.inbox(any(), any(), any(), any(), any(), any(), anyBoolean(), any(), anyBoolean(), any(),
-                anyBoolean(), any(), any()))
-            .thenAnswer(i -> new org.springframework.data.domain.PageImpl<>(List.of(live)));
-        when(repository.findScopedWithParty(any(), eq(ORG))).thenReturn(List.of(doc));
+        stubInbox(doc);
 
         actingAs(2L, "manager", Set.of(MANAGER_ROLE));
         var page = service.inbox(ApprovalService.InboxFilter.NONE, org.springframework.data.domain.PageRequest.of(0, 25));
@@ -428,7 +437,14 @@ class ApprovalServiceTest {
         assertThat(page.getContent().get(0).documentId()).isEqualTo(DOC_ID);
         // the manager's roles and user id went into the query; an unrestricted user sees every team
         verify(requests).inbox(eq(ORG), eq(UNIT), eq(2L), eq("manager"), isNull(), isNull(),
-            eq(true), any(), eq(true), eq(Set.of(MANAGER_ROLE)), eq(false), any(), any());
+            eq(true), any(), eq(true), eq(Set.of(MANAGER_ROLE)), eq(false), any(), eq(false), any(), any());
+    }
+
+    private void stubInbox(BusinessDocument doc) {
+        when(requests.inbox(any(), any(), any(), any(), any(), any(), anyBoolean(), any(), anyBoolean(), any(),
+                anyBoolean(), any(), anyBoolean(), any(), any()))
+            .thenAnswer(i -> new org.springframework.data.domain.PageImpl<>(List.of(live)));
+        when(repository.findScopedWithParty(any(), eq(ORG))).thenReturn(List.of(doc));
     }
 
     // ------------------------------------------------------------------ routing index (centralised inbox)
@@ -537,5 +553,139 @@ class ApprovalServiceTest {
 
         assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
         assertThat(live.isPending()).isTrue();
+    }
+
+    // ------------------------------------------------------------------ commercial: maker → checker → approver
+
+    /** A draft proforma invoice (or LC, or CI) - the booking fixture, retyped. */
+    private BusinessDocument commercial(DocumentType type, String creator) {
+        BusinessDocument doc = booking(creator, BusinessDocumentStatus.DRAFT, "5000", null);
+        doc.setDocumentType(type);
+        doc.setDocumentNo(type.prefix() + "AF000001");
+        return doc;
+    }
+
+    private void submitCommercialAs(String maker, DocumentType type) {
+        actingAs(1L, maker, Set.of(), "SCREEN_" + type.roleRoot() + "_CREATE");
+        service.submit(DOC_ID);
+    }
+
+    @Test
+    void aProformaInvoiceIsCheckedThenApprovedByTwoOtherPeople() {
+        BusinessDocument doc = commercial(DocumentType.EXPORT_PROFORMA_INVOICE, "maker");
+        submitCommercialAs("maker", DocumentType.EXPORT_PROFORMA_INVOICE);
+        assertThat(live.getMatrixId()).isNull();
+        assertThat(live.getTotalLevels()).isEqualTo(2);
+
+        actingAs(2L, "checker", Set.of(), "SCREEN_PI_CHECK");
+        service.approve(DOC_ID, "terms match the booking");
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+        assertThat(live.getCurrentLevel()).isEqualTo(2);
+        assertThat(signed).extracting(Signature::action).containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.CHECKED);
+
+        actingAs(3L, "approver", Set.of(), "SCREEN_PI_APPROVE");
+        service.approve(DOC_ID, null);
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+        assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.APPROVED);
+        assertThat(signed).extracting(Signature::action)
+            .containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.CHECKED, ApprovalAction.APPROVED);
+    }
+
+    @Test
+    void theApproverCannotSkipTheCheck() {
+        commercial(DocumentType.EXPORT_PROFORMA_INVOICE, "maker");
+        submitCommercialAs("maker", DocumentType.EXPORT_PROFORMA_INVOICE);
+        actingAs(3L, "approver", Set.of(), "SCREEN_PI_APPROVE");
+
+        assertThatThrownBy(() -> service.approve(DOC_ID, null)).isInstanceOf(AccessDeniedException.class);
+        assertThat(live.getCurrentLevel()).isEqualTo(1);
+    }
+
+    @Test
+    void aCheckerCannotGiveTheFinalApproval() {
+        commercial(DocumentType.IMPORT_COMMERCIAL_INVOICE, "maker");
+        submitCommercialAs("maker", DocumentType.IMPORT_COMMERCIAL_INVOICE);
+        actingAs(2L, "checker", Set.of(), "SCREEN_CI_CHECK");
+        service.approve(DOC_ID, null);
+
+        assertThatThrownBy(() -> service.approve(DOC_ID, null)).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void whoeverCheckedItCannotAlsoApproveItEvenHoldingBothVerbs() {
+        BusinessDocument doc = commercial(DocumentType.EXPORT_LETTER_OF_CREDIT, "maker");
+        submitCommercialAs("maker", DocumentType.EXPORT_LETTER_OF_CREDIT);
+        actingAs(2L, "senior", Set.of(), "SCREEN_LC_CHECK", "SCREEN_LC_APPROVE");
+        service.approve(DOC_ID, null);
+
+        assertThatThrownBy(() -> service.approve(DOC_ID, null))
+            .isInstanceOf(AccessDeniedException.class).hasMessageContaining("Segregation of duties");
+        when(requests.findFirstByDocumentIdOrderByIdDesc(DOC_ID)).thenAnswer(i -> Optional.of(live));
+        assertThat(service.stateOf(DOC_ID).canAct()).isFalse();
+        assertThat(service.stateOf(DOC_ID).waitingReason()).contains("You checked it");
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+    }
+
+    @Test
+    void theCheckerCanReturnItToTheMaker() {
+        BusinessDocument doc = commercial(DocumentType.IMPORT_BACK_TO_BACK_LC, "maker");
+        submitCommercialAs("maker", DocumentType.IMPORT_BACK_TO_BACK_LC);
+        actingAs(2L, "checker", Set.of(), "SCREEN_LC_CHECK");
+
+        service.returnToMaker(DOC_ID, "wrong issuing bank");
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
+        assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.RETURNED);
+    }
+
+    @Test
+    void aMatrixStillReplacesTheDefaultCheckerRouting() {
+        BusinessDocument doc = commercial(DocumentType.EXPORT_PROFORMA_INVOICE, "maker");
+        ApprovalMatrix m = new ApprovalMatrix(ORG, UNIT, null, DocumentType.EXPORT_PROFORMA_INVOICE, "PI");
+        m.setId(40L);
+        m.setActive(true);
+        m.replaceLevels(List.of(role(MANAGER_ROLE, null, null), user(DIRECTOR)));
+        when(matrices.findScoped(40L, ORG)).thenReturn(Optional.of(m));
+        when(matrices.findUnitWide(ORG, UNIT, DocumentType.EXPORT_PROFORMA_INVOICE)).thenReturn(Optional.of(m));
+        submitCommercialAs("maker", DocumentType.EXPORT_PROFORMA_INVOICE);
+
+        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
+        service.approve(DOC_ID, null);
+        actingAs(DIRECTOR, "director", Set.of());
+        service.approve(DOC_ID, null);
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+        assertThat(signed).extracting(Signature::action)
+            .containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.CHECKED, ApprovalAction.APPROVED);
+    }
+
+    @Test
+    void theInboxAsksForTheCheckerStagesTheCallerMaySign() {
+        BusinessDocument doc = commercial(DocumentType.EXPORT_PROFORMA_INVOICE, "maker");
+        submitCommercialAs("maker", DocumentType.EXPORT_PROFORMA_INVOICE);
+        stubInbox(doc);
+
+        actingAs(2L, "checker", Set.of(), "SCREEN_PI_CHECK");
+        var page = service.inbox(ApprovalService.InboxFilter.NONE, org.springframework.data.domain.PageRequest.of(0, 25));
+
+        assertThat(page.getContent()).singleElement().satisfies(row -> assertThat(row.checkStage()).isTrue());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.Collection<DocumentType>> checkTypes = ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(requests).inbox(eq(ORG), eq(UNIT), eq(2L), eq("checker"), isNull(), isNull(),
+            eq(true), any(), eq(false), any(), eq(false), any(), eq(true), checkTypes.capture(), any());
+        assertThat(checkTypes.getValue()).containsExactlyInAnyOrder(
+            DocumentType.EXPORT_PROFORMA_INVOICE, DocumentType.IMPORT_PROFORMA_INVOICE);
+    }
+
+    @Test
+    void onlyProformaInvoicesLettersOfCreditAndCommercialInvoicesHaveACheckerStage() {
+        assertThat(DocumentType.EXPORT_PROFORMA_INVOICE.checkAuthority()).isEqualTo("SCREEN_PI_CHECK");
+        assertThat(DocumentType.IMPORT_BACK_TO_BACK_LC.checkAuthority()).isEqualTo("SCREEN_LC_CHECK");
+        assertThat(DocumentType.EXPORT_COMMERCIAL_INVOICE.approveAuthority()).isEqualTo("SCREEN_CI_APPROVE");
+        assertThat(DocumentType.DEBIT_NOTE.hasCheckerStage()).isFalse();
+        assertThat(DocumentType.BOOKING.hasCheckerStage()).isFalse();
+        assertThatThrownBy(DocumentType.BOOKING::checkAuthority).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(ApprovalMatrixService.approvableTypes()).contains(DocumentType.IMPORT_LETTER_OF_CREDIT)
+            .doesNotContain(DocumentType.DEBIT_NOTE);
     }
 }

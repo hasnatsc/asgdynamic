@@ -106,7 +106,7 @@
                                         <span class="block font-mono text-[11px] text-gray-400" th:text="${screen.name()}">CODE</span>
                                     </td>
                                     <td th:each="verb : ${verbs}" class="text-center">
-                                        <input type="checkbox" class="checkbox grant"
+                                        <input type="checkbox" class="checkbox grant" th:if="${screen.supports(verb)}"
                                                th:attr="data-screen=${screen.name()},data-verb=${verb},aria-label=${screen.label()} + ' ' + ${verb}">
                                     </td>
                                     <td class="text-center">

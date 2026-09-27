@@ -16,7 +16,7 @@ import java.util.Set;
 
 /**
  * What one {@link Role} may do on one {@link Screen} — ported from asfl-erp's admin module's
- * {@code RolePermission}. Five booleans rather than five rows: the permission check is the
+ * {@code RolePermission}. One boolean per verb rather than a row per verb: the permission check is the
  * hottest question in the system and this keeps it one row, and a screen's grant is edited as a
  * unit (an admin ticking boxes states the whole answer for that screen at once).
  *
@@ -49,6 +49,9 @@ public class RoleScreenGrant extends AuditableEntity {
     @Column(name = "can_delete", nullable = false)
     private boolean canDelete;
 
+    @Column(name = "can_check", nullable = false)
+    private boolean canCheck;
+
     @Column(name = "can_approve", nullable = false)
     private boolean canApprove;
 
@@ -62,13 +65,19 @@ public class RoleScreenGrant extends AuditableEntity {
 
     /**
      * Replaces the granted verbs. Any verb implies VIEW — granting APPROVE without VIEW would
-     * produce a user who may approve a document they cannot open.
+     * produce a user who may approve a document they cannot open. A verb the screen does not
+     * support ({@link Screen#supports}) is dropped rather than stored, so "tick every box" on a
+     * screen with no checker stage cannot leave a meaningless CHECK grant behind.
      */
     final void setVerbs(Verb... verbs) {
-        Set<Verb> granted = verbs.length == 0 ? EnumSet.noneOf(Verb.class) : EnumSet.copyOf(Set.of(verbs));
+        Set<Verb> granted = EnumSet.noneOf(Verb.class);
+        for (Verb verb : verbs) {
+            if (screen.supports(verb)) granted.add(verb);
+        }
         this.canCreate = granted.contains(Verb.CREATE);
         this.canAmend = granted.contains(Verb.AMEND);
         this.canDelete = granted.contains(Verb.DELETE);
+        this.canCheck = granted.contains(Verb.CHECK);
         this.canApprove = granted.contains(Verb.APPROVE);
         this.canView = granted.contains(Verb.VIEW) || !granted.isEmpty();
     }
@@ -79,6 +88,7 @@ public class RoleScreenGrant extends AuditableEntity {
             case CREATE -> canCreate;
             case AMEND -> canAmend;
             case DELETE -> canDelete;
+            case CHECK -> canCheck;
             case APPROVE -> canApprove;
         };
     }
@@ -99,5 +109,6 @@ public class RoleScreenGrant extends AuditableEntity {
     public boolean isCanCreate()   { return canCreate; }
     public boolean isCanAmend()    { return canAmend; }
     public boolean isCanDelete()   { return canDelete; }
+    public boolean isCanCheck()    { return canCheck; }
     public boolean isCanApprove()  { return canApprove; }
 }

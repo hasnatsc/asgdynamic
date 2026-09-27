@@ -9,4 +9,7 @@ public interface ApprovalHistoryRepository extends JpaRepository<ApprovalHistory
 
     /** Whether this person has recorded anything on the document - an approver who signed a level may still read it. */
     boolean existsByDocumentIdAndCreatedByIgnoreCase(Long documentId, String createdBy);
+
+    /** Whether this person recorded this action on one request - who checked it may not sign it again. */
+    boolean existsByRequestIdAndActionAndCreatedByIgnoreCase(Long requestId, ApprovalAction action, String createdBy);
 }
