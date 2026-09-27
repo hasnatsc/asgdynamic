@@ -358,7 +358,8 @@
   .modal-review[open] { @apply flex flex-col; }
   .modal-review .modal-body { @apply max-h-none min-h-0 flex-1; }
   /* The fabric-line editor, stacked over the booking editor. */
-  .modal-line { @apply max-h-[92vh] w-[96vw] max-w-[88rem]; }
+  .modal-line { @apply max-h-[96vh] w-[96vw] max-w-[88rem]; }
+  .modal-line > .modal-head { @apply py-3; }
   .modal-line[open] { @apply flex flex-col; }
   .drawer     { @apply m-0 ml-auto h-full max-h-full w-full max-w-2xl rounded-none border-0 p-0 shadow-float; }
   .drawer[open] { @apply flex animate-drawer-in flex-col; }
@@ -480,6 +481,19 @@
   /* "Item detail": the whole specification, read-only, as label/value columns, not boxes. */
   .spec-panel  { @apply border-t border-gray-200 px-4 py-4 dark:border-gray-800; }
   .spec-group  { @apply mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400; }
+
+  /* The fabric-line editor: each section a box like the line cards, fields 30px and gaps tight, so
+     a whole line - costing, construction, order keys, colours - reads at one glance. */
+  .spec-editor   { @apply space-y-2.5 bg-gray-50 px-5 py-3 dark:bg-gray-950/40; }
+  .spec-box      { @apply rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900; }
+  .spec-box-head { @apply flex items-baseline gap-2 rounded-t-xl border-b border-gray-200 bg-gray-50 px-3.5 py-1.5 text-[13px]
+                          font-semibold text-gray-900 dark:border-gray-800 dark:bg-gray-800/60 dark:text-white; }
+  .spec-box-head > span { @apply text-xs font-normal text-gray-500 dark:text-gray-400; }
+  .spec-box-body { @apply gap-x-3 gap-y-3 px-3.5 pb-2.5 pt-3; }
+  .spec-editor .field { @apply py-1 text-[13px] leading-5; }
+  .spec-editor .line-colours thead th { @apply border-t-0; }
+  .spec-editor .line-colours tfoot td { @apply py-1.5; }
+  .spec-editor .line-colours-edit tbody td:first-child { @apply pl-3; }
   .spec-dl     { @apply grid content-start gap-x-4 text-[13px]; grid-template-columns: minmax(7.5rem, auto) 1fr; }
   .spec-dl > .spec-group { grid-column: 1 / -1; }
   .spec-dl dt, .spec-dl dd { @apply border-b border-dashed border-gray-200 py-1.5 dark:border-gray-700; }
