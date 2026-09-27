@@ -20,12 +20,13 @@
     <meta name="_csrf" th:content="${_csrf?.token}">
     <meta name="_csrf_header" th:content="${_csrf?.headerName}">
 
-    <!-- Theme and sidebar rail applied before first paint, so neither flashes on navigation. -->
+    <!-- Theme, sidebar rail and menu position applied before first paint, so none flashes on navigation. -->
     <script>
         (function (d) {
             var t = localStorage.getItem('theme');
             if (t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches) d.classList.add('dark');
             if (localStorage.getItem('sidebar') === 'rail') d.classList.add('sidebar-rail');
+            if (localStorage.getItem('navLayout') === 'top') d.classList.add('nav-top');
         })(document.documentElement);
     </script>
     <link rel="stylesheet" th:href="@{/css/app.css}">
@@ -101,7 +102,11 @@
         </div>
     </nav>
 
-    <div class="hidden shrink-0 border-t border-gray-200 p-3 lg:block dark:border-gray-800">
+    <div class="hidden shrink-0 space-y-0.5 border-t border-gray-200 p-3 lg:block dark:border-gray-800">
+        <button type="button" class="nav-link w-full" data-nav-layout-toggle title="Move menu to the top" aria-label="Move menu to the top">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#panel-top}"/></svg>
+            <span class="nav-label rail-hide text-left">Menu on top</span>
+        </button>
         <button type="button" class="nav-link w-full" data-rail-toggle title="Collapse sidebar" aria-label="Collapse sidebar">
             <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#panel-left}"/></svg>
             <span class="nav-label rail-hide text-left">Collapse sidebar</span>
@@ -112,13 +117,17 @@
 <!-- ============================== Main column ============================== -->
 <div id="shell" class="flex min-h-full flex-col transition-[padding] duration-200 lg:pl-[264px]">
     <header id="topbar"
-            class="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-gray-200 bg-white/90 px-4 backdrop-blur
-                   sm:gap-3 sm:px-6 dark:border-gray-800 dark:bg-gray-900/90">
+            class="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur dark:border-gray-800 dark:bg-gray-900/90">
+    <div class="flex h-16 items-center gap-2 px-4 sm:gap-3 sm:px-6">
         <button type="button" class="btn-icon -ml-1 lg:hidden" data-sidebar-toggle aria-label="Open menu">
             <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#menu}"/></svg>
         </button>
         <a th:href="@{/}" class="shrink-0 lg:hidden" aria-label="Dashboard">
             <img th:src="@{/images/logo-mark.png}" alt="" class="h-8 w-8">
+        </a>
+        <!-- With the menu on top there is no sidebar to carry the logo. -->
+        <a th:href="@{/}" class="topbar-brand" aria-label="FABRICS LTD. ERP - dashboard">
+            <img th:src="@{/images/logo.png}" alt="FABRICS LTD." class="h-8 w-auto" width="645" height="175">
         </a>
 
         <!-- Where am I: module / screen / page, from the same nav model as the sidebar. -->
@@ -138,7 +147,7 @@
                            transition-colors hover:border-gray-300 hover:bg-white sm:flex xl:w-80
                            dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-800/70">
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
-                <span class="flex-1 text-left">Search screens…</span>
+                <span class="min-w-0 flex-1 truncate text-left">Search screens…</span>
                 <span class="kbd">Ctrl</span><span class="kbd">K</span>
             </button>
             <button type="button" class="btn-icon sm:hidden" data-cmd-trigger aria-label="Search screens">
@@ -180,6 +189,13 @@
                 </button>
             </th:block>
 
+            <!-- Menu on the left (sidebar) or along the top, which gives pages the full width. -->
+            <button type="button" class="btn-icon hidden lg:inline-flex" data-nav-layout-toggle
+                    title="Move menu to the top" aria-label="Move menu to the top">
+                <svg class="icon icon-lg nav-top-hide" aria-hidden="true"><use th:href="@{/images/icons.svg#panel-top}"/></svg>
+                <svg class="icon icon-lg nav-top-show" aria-hidden="true"><use th:href="@{/images/icons.svg#panel-left}"/></svg>
+            </button>
+
             <button type="button" class="btn-icon" data-theme-toggle title="Switch theme" aria-label="Toggle dark mode">
                 <svg class="icon icon-lg dark:hidden" aria-hidden="true"><use th:href="@{/images/icons.svg#moon}"/></svg>
                 <svg class="icon icon-lg hidden dark:block" aria-hidden="true"><use th:href="@{/images/icons.svg#sun}"/></svg>
@@ -210,6 +226,45 @@
                 </div>
             </details>
         </div>
+    </div>
+
+    <!--
+      The same modules as the sidebar, one dropdown each, shown instead of it on desktop when the
+      menu is on top. Links carry no data-nav: the command palette reads the (hidden) sidebar.
+    -->
+    <nav id="topnav" class="topnav" aria-label="Modules">
+        <a th:href="@{/}" class="topnav-link" th:classappend="${currentPath == '/'} ? 'is-active'"
+           th:attr="aria-current=${currentPath == '/'} ? 'page' : null">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#dashboard}"/></svg>
+            <span>Dashboard</span>
+        </a>
+        <details th:each="section : ${nav}" class="topnav-menu" data-menu data-topnav-menu>
+            <summary class="topnav-link" th:classappend="${section.active()} ? 'is-active'">
+                <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${section.icon}}"/></svg>
+                <span th:text="${section.label}">Section</span>
+                <svg class="icon topnav-caret" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-down}"/></svg>
+            </summary>
+            <div class="topnav-panel" th:attr="data-cols=${section.menuColumns()}">
+                <th:block th:each="item : ${section.items}">
+                    <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}"
+                       class="topnav-item" th:classappend="${item.active} ? 'is-active'"
+                       th:attr="aria-current=${item.active} ? 'page' : null">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                        <span th:text="${item.label}">Item</span>
+                    </a>
+                    <div th:if="${item.hasChildren()}" class="topnav-group">
+                        <p class="topnav-group-label" th:classappend="${item.active} ? 'is-current'">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                            <span th:text="${item.label}">Group</span>
+                        </p>
+                        <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
+                           class="topnav-subitem" th:classappend="${child.active} ? 'is-active'"
+                           th:attr="aria-current=${child.active} ? 'page' : null">Child</a>
+                    </div>
+                </th:block>
+            </div>
+        </details>
+    </nav>
     </header>
 
     <main id="main" class="mx-auto w-full max-w-[1600px] flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">

@@ -40,6 +40,12 @@ public final class Navigation {
     public record Section(String key, String label, String icon, List<Item> items) {
 
         public boolean active() { return items.stream().anyMatch(Item::active); }
+
+        /** Columns of this section's dropdown in the top menu, so a large module stays short enough to scan. */
+        public int menuColumns() {
+            int rows = items.stream().mapToInt(item -> item.hasChildren() ? item.children().size() + 1 : 1).sum();
+            return rows <= 10 ? 1 : rows <= 22 ? 2 : 3;
+        }
     }
 
     private Navigation() { }

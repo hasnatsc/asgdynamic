@@ -1820,6 +1820,47 @@
             () => document.querySelector('[data-rail-toggle]')?.click()));
         sidebar?.querySelector('.nav-link.is-active, .nav-sublink.is-active')?.scrollIntoView({ block: 'nearest' });
 
+        // Menu on the left or along the top; on top, pages get the full width. Applied before
+        // paint by the <head> script, like the rail.
+        const isTop = () => root.classList.contains('nav-top');
+        const layoutButtons = [...document.querySelectorAll('[data-nav-layout-toggle]')];
+        const topMenus = [...document.querySelectorAll('details[data-topnav-menu]')];
+        const labelLayout = () => layoutButtons.forEach(btn => {
+            const text = isTop() ? 'Move menu to the left' : 'Move menu to the top';
+            btn.title = text;
+            btn.setAttribute('aria-label', text);
+            const label = btn.querySelector('.nav-label, [data-nav-layout-label]');
+            if (label) label.textContent = isTop() ? 'Menu on left' : 'Menu on top';
+        });
+        labelLayout();
+        layoutButtons.forEach(btn => btn.addEventListener('click', () => {
+            root.classList.toggle('nav-top');
+            localStorage.setItem('navLayout', isTop() ? 'top' : 'left');
+            topMenus.forEach(menu => menu.removeAttribute('open'));
+            labelLayout();
+        }));
+        topMenus.forEach(menu => {
+            menu.addEventListener('toggle', () => {
+                if (!menu.open) return;
+                topMenus.forEach(other => other !== menu && other.removeAttribute('open'));
+                // A wide panel under a menu near the right edge moves left until it fits.
+                const panel = menu.querySelector('.topnav-panel');
+                panel.style.left = '';
+                const overhang = panel.getBoundingClientRect().right - (window.innerWidth - 16);
+                if (overhang > 0) panel.style.left = `-${overhang}px`;
+            });
+            // As in a desktop menu bar: while one menu is open, pointing at another opens that one.
+            menu.querySelector('summary').addEventListener('mouseenter', () => {
+                if (!menu.open && topMenus.some(other => other.open)) menu.open = true;
+            });
+        });
+        document.addEventListener('keydown', event => {
+            const open = event.key === 'Escape' && topMenus.find(menu => menu.open);
+            if (!open) return;
+            open.removeAttribute('open');
+            open.querySelector('summary').focus();
+        });
+
         // Greeting by the user's own clock, not the server's.
         document.querySelectorAll('[data-greeting]').forEach(el => {
             const h = new Date().getHours();

@@ -279,6 +279,47 @@
   .sidebar-rail #sidebar .brand-mark     { @apply lg:block; }
   .sidebar-rail #shell                   { @apply lg:pl-[72px]; }
 
+  /* ---- Menu on top (desktop) -----------------------------------------------------------------
+     .nav-top on <html> swaps the sidebar for a row of module dropdowns under the header and lets
+     pages use the full width - for large forms. Below lg the sidebar drawer serves both layouts.
+     Placed after the rail rules so it wins when both are stored. */
+  .nav-top-show                          { @apply hidden; }
+  .nav-top .nav-top-show                 { @apply block; }
+  .nav-top .nav-top-hide                 { @apply hidden; }
+  .topbar-brand                          { @apply hidden shrink-0; }
+  .nav-top .topbar-brand                 { @apply lg:block; }
+  .nav-top #sidebar                      { @apply lg:hidden; }
+  .nav-top #shell                        { @apply lg:pl-0; }
+  .nav-top #main, .nav-top #shell > footer { @apply lg:max-w-none; }
+
+  .topnav        { @apply hidden flex-wrap items-center gap-0.5 border-t border-gray-100 px-4 py-1 sm:px-6; }
+  .nav-top .topnav { @apply lg:flex; }
+  .topnav-menu   { @apply relative; }
+  .topnav-link   { @apply flex h-9 cursor-pointer list-none select-none items-center gap-2 whitespace-nowrap rounded-lg px-2.5
+                          text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900; }
+  .topnav-link::-webkit-details-marker { display: none; }
+  .topnav-link > .icon { @apply h-4 w-4 text-gray-400; }
+  .topnav-link.is-active { @apply bg-brand-50 text-brand-700; }
+  .topnav-link.is-active > .icon { @apply text-brand-600; }
+  .topnav-menu[open] > .topnav-link { @apply bg-gray-100 text-gray-900; }
+  .topnav-caret  { @apply -ml-0.5 h-3.5 w-3.5 transition-transform; }
+  .topnav-menu[open] .topnav-caret { @apply rotate-180; }
+  .topnav-panel  { @apply absolute left-0 top-full z-30 mt-1.5 w-64 max-w-[calc(100vw-2rem)] gap-x-2 rounded-xl border
+                          border-gray-200 bg-white p-2 shadow-float; }
+  .topnav-panel[data-cols="2"] { @apply w-[34rem] columns-2; }
+  .topnav-panel[data-cols="3"] { @apply w-[50rem] columns-3; }
+  .topnav-item   { @apply flex break-inside-avoid items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-gray-700
+                          transition-colors hover:bg-gray-100 hover:text-gray-900; }
+  .topnav-item > .icon { @apply h-4 w-4 shrink-0 text-gray-400; }
+  .topnav-item.is-active, .topnav-subitem.is-active { @apply bg-brand-50 font-medium text-brand-700; }
+  .topnav-item.is-active > .icon { @apply text-brand-600; }
+  .topnav-group  { @apply break-inside-avoid pb-1.5 pt-1; }
+  .topnav-group-label { @apply flex items-center gap-2.5 px-2.5 py-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-gray-400; }
+  .topnav-group-label > .icon { @apply h-4 w-4 shrink-0; }
+  .topnav-group-label.is-current { @apply text-brand-700; }
+  .topnav-subitem { @apply ml-[17px] block truncate rounded-md border-l border-gray-200 py-1.5 pl-4 pr-2.5 text-[13px] text-gray-600
+                           transition-colors hover:bg-gray-100 hover:text-gray-900; }
+
   /* ---- Tabs ------------------------------------------------------------------------------ */
   .tabs       { @apply flex gap-1 overflow-x-auto border-b border-gray-200 px-5 scroll-thin; }
   .tab        { @apply -mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2.5
@@ -729,6 +770,15 @@
   .dark .nav-sublink        { @apply text-gray-500 hover:bg-gray-800 hover:text-gray-100; }
   .dark .nav-sublink.is-active { @apply bg-brand-500/10 text-brand-300; }
   .dark .nav-section        { @apply text-gray-500; }
+  .dark .topnav             { @apply border-gray-800; }
+  .dark .topnav-link        { @apply text-gray-400 hover:bg-gray-800 hover:text-gray-100; }
+  .dark .topnav-menu[open] > .topnav-link { @apply bg-gray-800 text-gray-100; }
+  .dark .topnav-link.is-active, .dark .topnav-item.is-active, .dark .topnav-subitem.is-active
+                            { @apply bg-brand-500/10 text-brand-300; }
+  .dark .topnav-panel       { @apply border-gray-800 bg-gray-900; }
+  .dark .topnav-item        { @apply text-gray-300 hover:bg-gray-800 hover:text-white; }
+  .dark .topnav-subitem     { @apply border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-white; }
+  .dark .topnav-group-label.is-current { @apply text-brand-300; }
   .dark .modal, .dark .cmd-palette, .dark .drawer, .dark .menu { @apply bg-gray-900 text-gray-200; }
   .dark .modal-foot, .dark .form-actions { @apply border-gray-800 bg-gray-900; }
   .dark .tab                { @apply text-gray-400 hover:text-gray-200; }
