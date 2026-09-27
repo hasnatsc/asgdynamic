@@ -23,8 +23,9 @@ import java.util.Set;
  * <p>Before this, the principal was built once at login and carried in the session: a role
  * revoked, an account locked or deleted, a scope narrowed — none of it reached a session that
  * was already open, for as long as that session (or a 14-day remember-me cookie) lasted. Now
- * the stored principal is only a name to look up; roles, lock state and row scope are read
- * fresh each time.
+ * the stored principal is only a name to look up; roles, lock state, row scope and workspace are
+ * read fresh each time. The session keeps only the user's workspace <em>choice</em>
+ * ({@link WorkspaceSelection}), re-checked here like everything else.
  *
  * <p>Two outcomes beyond the refresh:
  * <ul>
@@ -74,7 +75,10 @@ public class SessionPrincipalRefreshFilter extends OncePerRequestFilter {
             return;
         }
 
-        Optional<FabricUserPrincipal> fresh = users.reload(stale.getUsername());
+        HttpSession session = request.getSession(false);
+        WorkspaceSelection chosen = session == null ? null
+            : (WorkspaceSelection) session.getAttribute(WorkspaceSelection.SESSION_ATTRIBUTE);
+        Optional<FabricUserPrincipal> fresh = users.reload(stale.getUsername(), chosen);
         String endReason = reasonToEnd(fresh);
         if (endReason != null) {
             accessLog.record(stale.getUserId(), stale.getUsername(), Event.SESSION_ENDED,

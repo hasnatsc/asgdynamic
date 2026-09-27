@@ -2,6 +2,8 @@ package com.asg.fabricerp.accounts;
 
 import com.asg.fabricerp.accounts.AccountFlags.Side;
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.RowScope;
+import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.global.numbering.BusinessNumberService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,16 +33,19 @@ public class GeneralLedgerService {
     private final AccountingPeriodRepository periods;
     private final GlEntryRepository entries;
     private final BusinessNumberService numbers;
+    private final CostCentreRepository costCentres;
     private final OrgContext context;
 
     public GeneralLedgerService(PostingRuleRepository rules, AccountRepository accounts,
                                 AccountingPeriodRepository periods, GlEntryRepository entries,
-                                BusinessNumberService numbers, OrgContext context) {
+                                BusinessNumberService numbers, CostCentreRepository costCentres,
+                                OrgContext context) {
         this.rules = rules;
         this.accounts = accounts;
         this.periods = periods;
         this.entries = entries;
         this.numbers = numbers;
+        this.costCentres = costCentres;
         this.context = context;
     }
 
@@ -101,10 +106,12 @@ public class GeneralLedgerService {
         AccountingPeriod period = openPeriodFor(orgId, postingDate);
         GlEntry entry = newEntry(orgId, voucher, GlEntry.MANUAL, null, PostingEvent.MANUAL_JOURNAL, postingDate, period,
             "BDT", BigDecimal.ONE, narration);
+        RowScope scope = context.rowScope();
         for (JournalLine line : lines) {
             if (line.amount() == null || line.amount().signum() <= 0) {
                 throw new IllegalArgumentException("Every journal line needs a positive amount.");
             }
+            requireGrantedCentre(orgId, scope, line.costCentreCode());
             addLine(orgId, entry, line.accountCode(), line.side(), line.amount(), null, line.costCentreCode(),
                 line.narration() == null || line.narration().isBlank() ? narration : line.narration(), true);
         }
@@ -182,6 +189,23 @@ public class GeneralLedgerService {
         }
         entry.addLine(accountCode, side, amount, account.isControl() ? partyId : null,
             costCentreCode == null || costCentreCode.isBlank() ? null : costCentreCode.trim(), narration);
+    }
+
+    /**
+     * A hand-entered line may name only a cost centre the poster is granted
+     * ({@link ScopeDimension#COST_CENTRE}). Rule postings are not checked: their centre comes from
+     * the document being posted, not from whoever pressed the button.
+     */
+    private void requireGrantedCentre(Long orgId, RowScope scope, String code) {
+        if (code == null || code.isBlank() || scope == null || !scope.restricts(ScopeDimension.COST_CENTRE)) {
+            return;
+        }
+        boolean granted = costCentres.findByCode(orgId, code.trim())
+            .map(centre -> scope.permits(ScopeDimension.COST_CENTRE, centre.getId()))
+            .orElse(false);
+        if (!granted) {
+            throw new IllegalArgumentException("You are not granted cost centre " + code.trim() + ".");
+        }
     }
 
     private AccountingPeriod openPeriodFor(Long orgId, LocalDate on) {

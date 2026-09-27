@@ -1,10 +1,13 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.accounts.CostCentreRepository;
 import com.asg.fabricerp.common.BusinessUnit;
 import com.asg.fabricerp.common.BusinessUnitRepository;
 import com.asg.fabricerp.common.MarketingTeam;
 import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.Organization;
+import com.asg.fabricerp.common.OrganizationRepository;
 import com.asg.fabricerp.common.RowScope;
 import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.common.Warehouse;
@@ -40,10 +43,14 @@ class UserAdminServiceTest {
     private static final Long TEAM_LONDON = 3L;
     private static final Long TEAM_TOKYO = 7L;
     private static final Long STORE_WEAVING = 20L;
+    /** A second organization the administrator also works in. */
+    private static final Long OTHER_ORG = 2L;
+    private static final Long UNIT_IN_OTHER_ORG = 30L;
 
     private FabricUserRepository users;
     private DataScopeRepository scopes;
     private MarketingTeamRepository teams;
+    private OrganizationRepository organizations;
     private AccessLogService accessLog;
     private UserAdminService service;
     private FabricUser admin;
@@ -78,14 +85,19 @@ class UserAdminServiceTest {
             @Override public Long warehouseId()        { return null; }
             @Override public String username()         { return "admin"; }
             @Override public RowScope rowScope()         { return RowScope.unrestrictedScope(); }
+            @Override public Set<Long> organizationIds() { return Set.of(ORG, OTHER_ORG); }
         };
 
         BusinessUnitRepository units = mock(BusinessUnitRepository.class);
         when(units.lookup(ORG)).thenReturn(List.of(unit(10L, "AF"), unit(11L, "AX")));
+        when(units.lookup(OTHER_ORG)).thenReturn(List.of(unit(UNIT_IN_OTHER_ORG, "BX")));
+        organizations = mock(OrganizationRepository.class);
+        when(organizations.findById(OTHER_ORG)).thenReturn(Optional.of(new Organization("OTH", "Other Mills")));
         WarehouseRepository stores = mock(WarehouseRepository.class);
         when(stores.lookup(ORG)).thenReturn(List.of(store(STORE_WEAVING)));
 
         service = new UserAdminService(users, roles, scopes, units, stores, teams,
+            organizations, mock(CostCentreRepository.class),
             NoOpPasswordEncoder.getInstance(), accessLog, context);
 
         signInAs(admin);
@@ -279,5 +291,39 @@ class UserAdminServiceTest {
     void aScopeValueMustExist() {
         assertThatThrownBy(() -> service.grantScope(OTHER_ID, ScopeDimension.MARKETING_TEAM, 999L, null, null))
             .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // --- Organizations -------------------------------------------------------------------------
+
+    @Test
+    void aUnitInAnotherOrganizationNeedsThatOrganizationGrantedFirst() {
+        assertThatThrownBy(() -> service.grantScope(OTHER_ID, ScopeDimension.BUSINESS_UNIT, UNIT_IN_OTHER_ORG, null, null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("grant that organization first");
+
+        service.grantScope(OTHER_ID, ScopeDimension.ORGANIZATION, OTHER_ORG, null, null);
+        DataScope unit = service.grantScope(OTHER_ID, ScopeDimension.BUSINESS_UNIT, UNIT_IN_OTHER_ORG, null, null);
+
+        assertThat(unit.getScopeValueId()).isEqualTo(UNIT_IN_OTHER_ORG);
+    }
+
+    @Test
+    void nobodyHandsOutAnOrganizationTheyCannotEnterThemselves() {
+        assertThatThrownBy(() -> service.grantScope(OTHER_ID, ScopeDimension.ORGANIZATION, 99L, null, null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("that you work in");
+    }
+
+    @Test
+    void aUsersOwnOrganizationIsNotGrantedAgain() {
+        assertThatThrownBy(() -> service.grantScope(OTHER_ID, ScopeDimension.ORGANIZATION, ORG, null, null))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("already belongs");
+    }
+
+    @Test
+    void anAdministratorCannotGrantThemselvesAnotherOrganization() {
+        assertThatThrownBy(() -> service.grantScope(ADMIN_ID, ScopeDimension.ORGANIZATION, OTHER_ORG, null, null))
+            .isInstanceOf(SelfGrantException.class);
     }
 }

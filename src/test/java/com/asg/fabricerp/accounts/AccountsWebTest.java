@@ -28,6 +28,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -67,8 +68,8 @@ class AccountsWebTest {
         accountant = user(1L, "accountant", role(Verb.values(), Screen.ACC_CHART, Screen.ACC_JOURNAL, Screen.ACC_REPORTS,
             Screen.ACC_CREDIT, Screen.ACC_SETUP));
         clerk = user(2L, "clerk", role(new Verb[] {Verb.VIEW}, Screen.ACC_JOURNAL));
-        when(userDetailsService.reload("accountant")).thenAnswer(i -> Optional.of(new FabricUserPrincipal(accountant)));
-        when(userDetailsService.reload("clerk")).thenAnswer(i -> Optional.of(new FabricUserPrincipal(clerk)));
+        when(userDetailsService.reload(eq("accountant"), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(accountant)));
+        when(userDetailsService.reload(eq("clerk"), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(clerk)));
         when(orgContext.requireOrganizationId()).thenReturn(1L);
         when(setup.fiscalStartMonth()).thenReturn(7);
         when(setup.chart()).thenReturn(List.of());

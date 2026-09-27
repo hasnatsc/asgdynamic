@@ -33,12 +33,12 @@ import java.util.Set;
  * they do not change how a route is protected, only how a user comes to hold the authority a
  * route already checks.
  *
- * <h2>Business unit / warehouse</h2>
- * These are the user's <b>default</b> operating scope, read by {@link SecurityOrgContext}.
- * The legacy asgdynamic UI allowed switching unit/store mid-session — at the cost of a
- * forced re-login, which the FabricERP migration spec flagged as worth fixing. Runtime
- * override is not implemented yet; every user currently operates in their default scope
- * for the whole session. Revisit when a user needs more than one.
+ * <h2>Organization / business unit / warehouse</h2>
+ * These are the user's <b>home</b>, set by an administrator. They are where the user works
+ * until they pick a workspace of their own in the header - for the session, or saved as their
+ * default ({@link UserWorkspace}) - among what their scope grants permit; see
+ * {@link WorkspaceResolver}. The legacy asgdynamic UI allowed switching unit/store only at the
+ * cost of a forced re-login; here the switch takes effect on the next request.
  */
 @Entity
 @Table(

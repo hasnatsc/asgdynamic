@@ -1,7 +1,9 @@
 package com.asg.fabricerp.common;
 
 /**
- * The caller's operating scope: tenant, business unit, warehouse, user.
+ * The caller's operating scope: tenant, business unit, warehouse, cost centre, user - the
+ * workspace they have chosen among what they are granted (see the security package's
+ * {@code WorkspaceResolver}).
  *
  * <h2>Why this is an interface and not a static holder</h2>
  * SpindleERP exposes the same information through {@code ContextProvider} — a class of
@@ -30,6 +32,20 @@ public interface OrgContext {
     String businessUnitCode();
 
     Long warehouseId();
+
+    /** The cost centre new entries default to. Optional, like the warehouse. */
+    default Long costCentreId() {
+        return null;
+    }
+
+    /**
+     * Every organization the caller may switch into: their own plus any granted
+     * ({@link ScopeDimension#ORGANIZATION}). {@link #organizationId()} is always one of them.
+     */
+    default java.util.Set<Long> organizationIds() {
+        Long current = organizationId();
+        return current == null ? java.util.Set.of() : java.util.Set.of(current);
+    }
 
     String username();
 

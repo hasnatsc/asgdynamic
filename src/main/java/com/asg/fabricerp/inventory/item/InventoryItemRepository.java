@@ -14,6 +14,9 @@ import java.util.Optional;
 
 public interface InventoryItemRepository extends JpaRepository<InventoryItem, Long> {
 
+    /** Dashboard KPI: one organization's items. */
+    long countByOrganizationIdAndDeletedFalse(Long organizationId);
+
     @Query("""
            select i from InventoryItem i
              join fetch i.category join fetch i.baseUnit

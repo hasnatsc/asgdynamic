@@ -46,7 +46,8 @@ class GeneralLedgerServiceTest {
 
     @BeforeEach
     void setUp() {
-        ledger = new GeneralLedgerService(rules, accounts, periods, entries, numbers, context);
+        ledger = new GeneralLedgerService(rules, accounts, periods, entries, numbers,
+            org.mockito.Mockito.mock(CostCentreRepository.class), context);
         when(context.requireOrganizationId()).thenReturn(ORG);
         when(context.businessUnitId()).thenReturn(10L);
         // Each voucher series numbers with its own prefix, so the entry number shows which series was used.

@@ -2,6 +2,8 @@ package com.asg.fabricerp.accounts;
 
 import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.RowScope;
+import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.party.Party;
 import com.asg.fabricerp.party.PartyRepository;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
@@ -368,6 +370,10 @@ public class AccountsController {
     @ResponseBody
     @PreAuthorize("hasAnyAuthority('SCREEN_ACC_SETUP_VIEW', 'SCREEN_ACC_JOURNAL_VIEW')")
     public List<Map<String, Object>> costCentres() {
+        // The journal offers only the centres the user may post to, and starts new lines on the
+        // workspace's; the setup screen shows every centre regardless.
+        RowScope scope = context.rowScope();
+        Long workspaceCentre = context.costCentreId();
         return setup.costCentres().stream().map(c -> {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", c.getId());
@@ -380,6 +386,8 @@ public class AccountsController {
             row.put("sectionCode", c.getSectionCode());
             row.put("remarks", c.getRemarks());
             row.put("active", c.getActive());
+            row.put("granted", scope == null || scope.permits(ScopeDimension.COST_CENTRE, c.getId()));
+            row.put("workspaceDefault", c.getId().equals(workspaceCentre));
             return row;
         }).toList();
     }

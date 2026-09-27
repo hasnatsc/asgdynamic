@@ -44,6 +44,16 @@ public class SecurityOrgContext implements OrgContext {
     }
 
     @Override
+    public Long costCentreId() {
+        return principal().map(FabricUserPrincipal::getCostCentreId).orElse(null);
+    }
+
+    @Override
+    public java.util.Set<Long> organizationIds() {
+        return principal().map(FabricUserPrincipal::getOrganizationIds).orElse(java.util.Set.of());
+    }
+
+    @Override
     public String username() {
         return principal().map(FabricUserPrincipal::getUsername).orElse(null);
     }

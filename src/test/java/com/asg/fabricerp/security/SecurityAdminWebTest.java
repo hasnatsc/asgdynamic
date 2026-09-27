@@ -1,9 +1,11 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.accounts.CostCentreRepository;
 import com.asg.fabricerp.common.BusinessUnit;
 import com.asg.fabricerp.common.BusinessUnitRepository;
 import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.OrganizationRepository;
 import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.security.AccessLogEntry.Event;
 import com.asg.fabricerp.security.SecurityOverviewService.Overview;
@@ -65,6 +67,8 @@ class SecurityAdminWebTest {
     @MockitoBean private BusinessUnitRepository businessUnits;
     @MockitoBean private WarehouseRepository warehouses;
     @MockitoBean private MarketingTeamRepository marketingTeams;
+    @MockitoBean private OrganizationRepository organizations;
+    @MockitoBean private CostCentreRepository costCentres;
     @MockitoBean private OrgContext orgContext;
     @MockitoBean private DashboardService dashboardService;
 
@@ -76,8 +80,8 @@ class SecurityAdminWebTest {
         admin = user(1L, "admin", "Asha Admin", role("Security Admin", Screen.SECURITY_ADMIN, Verb.values()));
         clerk = user(2L, "clerk", null, role("Booking Clerk", Screen.BOOKING, Verb.VIEW, Verb.CREATE));
         // SessionPrincipalRefreshFilter reloads the principal on every request.
-        when(userDetailsService.reload("admin")).thenAnswer(i -> Optional.of(new FabricUserPrincipal(admin)));
-        when(userDetailsService.reload("clerk")).thenAnswer(i -> Optional.of(new FabricUserPrincipal(clerk)));
+        when(userDetailsService.reload(eq("admin"), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(admin)));
+        when(userDetailsService.reload(eq("clerk"), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(clerk)));
         when(orgContext.requireOrganizationId()).thenReturn(ORG);
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
         when(dashboardService.stats()).thenReturn(new DashboardStats(0, 0, 0, 0, 0, 0, 2, 0));

@@ -267,7 +267,9 @@
                 `<option value="${esc(a.code)}">${esc(a.code)} · ${esc(a.name)}</option>`).join('');
         }
         function centreOptions() {
-            return '<option value="">-</option>' + centres.map(c => `<option value="${esc(c.code)}">${esc(c.code)} · ${esc(c.name)}</option>`).join('');
+            // New lines start on the workspace's cost centre (the header's switcher sets it).
+            return '<option value="">-</option>' + centres.map(c =>
+                `<option value="${esc(c.code)}"${c.workspaceDefault ? ' selected' : ''}>${esc(c.code)} · ${esc(c.name)}</option>`).join('');
         }
         function addLine() {
             const tr = document.createElement('tr');
@@ -314,7 +316,7 @@
             try {
                 const [chart, cc] = await Promise.all([api('/api/accounts/chart'), api('/api/accounts/cost-centres').catch(() => [])]);
                 postable = chart.filter(a => a.postable && a.usage !== 'CONTROL');
-                centres = cc.filter(c => c.active);
+                centres = cc.filter(c => c.active && c.granted !== false);
             } catch (e) { return fail(e); }
             if (!postable.length) {
                 return toast('The chart has no posting accounts yet. Set it up under Chart of accounts first.', 'warn');

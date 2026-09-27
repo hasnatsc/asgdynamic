@@ -131,7 +131,7 @@
             </th:block>
         </nav>
 
-        <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <div class="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
             <!-- Command palette: every screen the user may open, by name. -->
             <button type="button" data-cmd-trigger
                     class="hidden h-9 w-64 items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-400
@@ -146,19 +146,39 @@
             </button>
 
             <!--
-              Operating context: the unit that stamps new document numbers, and the default store.
-              Read-only for now - FabricUser's javadoc records that switching mid-session is not built.
+              Workspace: the organization every list shows and every new record is stamped with, the
+              unit that numbers new documents, and the default store and cost centre. Switched in
+              #workspaceDialog among what an administrator granted (Users → Data scope).
             -->
-            <div th:if="${operatingContext != null}"
-                 class="hidden h-9 items-center gap-2 rounded-lg border border-gray-200 px-3 text-sm lg:flex dark:border-gray-700"
-                 title="Your operating unit and store. New documents are numbered under this unit.">
-                <svg class="icon text-gray-400" aria-hidden="true"><use th:href="@{/images/icons.svg#building}"/></svg>
-                <span class="font-semibold text-brand-700 dark:text-brand-300" th:text="${operatingContext.businessUnitCode}">AF</span>
-                <span th:if="${operatingContext.businessUnitName}" class="max-w-[10rem] truncate text-gray-700 dark:text-gray-300"
-                      th:text="${operatingContext.businessUnitName}">Unit</span>
-                <span class="h-4 w-px bg-gray-200 dark:bg-gray-700" aria-hidden="true"></span>
-                <span class="max-w-[9rem] truncate text-gray-500" th:text="${operatingContext.storeName} ?: 'No default store'">Store</span>
-            </div>
+            <th:block th:if="${operatingContext != null}">
+                <!-- Codes only at lg; unit name and store from xl; cost centre from 2xl. The title says it all. -->
+                <button type="button" data-workspace-open
+                        class="hidden h-9 min-w-0 items-center gap-2 overflow-hidden rounded-lg border border-gray-200 px-3 text-sm transition-colors
+                               hover:border-gray-300 hover:bg-gray-50 lg:flex dark:border-gray-700 dark:hover:bg-gray-800"
+                        th:title="|Working in ${operatingContext.organizationName ?: ''} · ${operatingContext.businessUnitCode} ${operatingContext.businessUnitName ?: ''} · ${operatingContext.storeName ?: 'no default store'}${operatingContext.costCentreCode != null ? ' · cost centre ' + operatingContext.costCentreCode : ''}. Click to switch.|">
+                    <svg class="icon shrink-0 text-gray-400" aria-hidden="true"><use th:href="@{/images/icons.svg#building}"/></svg>
+                    <th:block th:if="${operatingContext.organizationCode}">
+                        <span class="max-w-[6rem] shrink-0 truncate font-semibold text-gray-800 dark:text-gray-100"
+                              th:text="${operatingContext.organizationCode}">ASG</span>
+                        <span class="h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700" aria-hidden="true"></span>
+                    </th:block>
+                    <span class="shrink-0 font-semibold text-brand-700 dark:text-brand-300" th:text="${operatingContext.businessUnitCode}">AF</span>
+                    <span th:if="${operatingContext.businessUnitName}" class="hidden max-w-[8rem] truncate text-gray-700 xl:inline dark:text-gray-300"
+                          th:text="${operatingContext.businessUnitName}">Unit</span>
+                    <span class="hidden h-4 w-px shrink-0 bg-gray-200 xl:inline dark:bg-gray-700" aria-hidden="true"></span>
+                    <span class="hidden max-w-[7rem] truncate text-gray-500 xl:inline" th:text="${operatingContext.storeName} ?: 'No default store'">Store</span>
+                    <th:block th:if="${operatingContext.costCentreCode}">
+                        <span class="hidden h-4 w-px shrink-0 bg-gray-200 2xl:inline dark:bg-gray-700" aria-hidden="true"></span>
+                        <span class="hidden max-w-[6rem] truncate font-mono text-xs text-gray-500 2xl:inline"
+                              th:text="${operatingContext.costCentreCode}">CC</span>
+                    </th:block>
+                    <svg class="icon shrink-0 text-gray-400" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-down}"/></svg>
+                </button>
+                <button type="button" class="btn-icon lg:hidden" data-workspace-open aria-label="Switch workspace"
+                        th:title="|Working in ${operatingContext.organizationCode ?: ''} ${operatingContext.businessUnitCode}|">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#building}"/></svg>
+                </button>
+            </th:block>
 
             <button type="button" class="btn-icon" data-theme-toggle title="Switch theme" aria-label="Toggle dark mode">
                 <svg class="icon icon-lg dark:hidden" aria-hidden="true"><use th:href="@{/images/icons.svg#moon}"/></svg>
@@ -203,6 +223,56 @@
         <span>Every action is checked against your roles and recorded.</span>
     </footer>
 </div>
+
+<!-- Workspace switcher, opened from the header. workspace.js fills it from /api/workspace. -->
+<dialog id="workspaceDialog" class="modal" th:if="${operatingContext != null}" aria-labelledby="workspaceTitle">
+    <form novalidate>
+        <div class="modal-head">
+            <div>
+                <h2 id="workspaceTitle" class="modal-title">Workspace</h2>
+                <p class="mt-1 text-sm text-gray-500">Lists show the organization you pick, and new documents are
+                    stamped with it and numbered under the unit.</p>
+            </div>
+            <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+            </button>
+        </div>
+        <div class="modal-body space-y-4">
+            <div>
+                <label class="label" for="wsOrganization">Organization</label>
+                <select id="wsOrganization" class="field" required></select>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="label" for="wsUnit">Business unit</label>
+                    <select id="wsUnit" class="field" required></select>
+                </div>
+                <div>
+                    <label class="label" for="wsStore">Inventory store</label>
+                    <select id="wsStore" class="field"></select>
+                </div>
+            </div>
+            <div>
+                <label class="label" for="wsCentre">Cost centre</label>
+                <select id="wsCentre" class="field"></select>
+                <p class="hint">New journal lines start with it.</p>
+            </div>
+            <label class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                <input type="checkbox" id="wsDefault" class="checkbox mt-0.5">
+                <span class="text-sm">
+                    <span class="font-medium text-gray-800 dark:text-gray-100">Make this my default</span>
+                    <span class="block text-gray-500">Every sign-in starts here. Otherwise the switch lasts until you sign out.</span>
+                </span>
+            </label>
+            <p id="wsSaved" class="hint"></p>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn-ghost" data-close>Cancel</button>
+            <button type="submit" class="btn-primary">Switch</button>
+        </div>
+    </form>
+</dialog>
+<script th:if="${operatingContext != null}" th:src="@{/js/workspace.js}" defer></script>
 
 </body>
 </html>

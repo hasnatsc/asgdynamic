@@ -6,6 +6,7 @@ import com.asg.fabricerp.common.Warehouse;
 import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.security.CurrentUser;
 import com.asg.fabricerp.security.FabricUserPrincipal;
+import com.asg.fabricerp.security.Workspace;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.GrantedAuthority;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
 
 /**
  * Supplies what {@code layout/main.html} renders around every page: the sidebar, the operating
- * context (unit / store) and the signed-in user.
+ * context (the workspace: organization / unit / store / cost centre) and the signed-in user.
  *
  * <p>An interceptor rather than a {@code @ModelAttribute} advice on purpose: advice methods run
  * before <em>every</em> handler, including each JSON grid call, and would look up the unit and
@@ -32,8 +33,13 @@ public class LayoutModelInterceptor implements HandlerInterceptor {
 
     static final String LAYOUT_VIEW = "layout/main";
 
-    /** Unit and store as shown in the header. Names are null when the id resolves to nothing. */
-    public record OperatingContext(String businessUnitCode, String businessUnitName, String storeName) { }
+    /**
+     * The workspace as shown in the header. Names are null when the id resolves to nothing, or -
+     * for the organization and cost centre - when the workspace was never resolved.
+     */
+    public record OperatingContext(String organizationCode, String organizationName,
+                                   String businessUnitCode, String businessUnitName, String storeName,
+                                   String costCentreCode, String costCentreName) { }
 
     private final BusinessUnitRepository businessUnits;
     private final WarehouseRepository warehouses;
@@ -69,6 +75,9 @@ public class LayoutModelInterceptor implements HandlerInterceptor {
             : businessUnits.findById(principal.getBusinessUnitId()).map(BusinessUnit::getName).orElse(null);
         String storeName = principal.getWarehouseId() == null ? null
             : warehouses.findById(principal.getWarehouseId()).map(Warehouse::getName).orElse(null);
-        return new OperatingContext(principal.getBusinessUnitCode(), unitName, storeName);
+        Workspace workspace = principal.getWorkspace();
+        return new OperatingContext(workspace.organizationCode(), workspace.organizationName(),
+            principal.getBusinessUnitCode(), unitName, storeName,
+            workspace.costCentreCode(), workspace.costCentreName());
     }
 }

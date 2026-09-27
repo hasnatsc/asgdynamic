@@ -1,8 +1,11 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.accounts.CostCentreRepository;
 import com.asg.fabricerp.common.BusinessUnitRepository;
 import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.Organization;
+import com.asg.fabricerp.common.OrganizationRepository;
 import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.security.UserAdminService.StatusFilter;
@@ -43,11 +46,16 @@ public class UserAdminController {
     private final BusinessUnitRepository businessUnits;
     private final WarehouseRepository warehouses;
     private final MarketingTeamRepository marketingTeams;
+    private final OrganizationRepository organizations;
+    private final CostCentreRepository costCentres;
     private final OrgContext context;
 
     public UserAdminController(UserAdminService service, RoleRepository roleRepository,
                                BusinessUnitRepository businessUnits, WarehouseRepository warehouses,
-                               MarketingTeamRepository marketingTeams, OrgContext context) {
+                               MarketingTeamRepository marketingTeams, OrganizationRepository organizations,
+                               CostCentreRepository costCentres, OrgContext context) {
+        this.organizations = organizations;
+        this.costCentres = costCentres;
         this.service = service;
         this.roleRepository = roleRepository;
         this.businessUnits = businessUnits;
@@ -77,12 +85,7 @@ public class UserAdminController {
             .toList());
         model.addAttribute("businessUnits", unitOptions);
         model.addAttribute("warehouses", warehouseOptions);
-        // Scope-grant pickers: one list per ScopeDimension, keyed by the enum name the JS posts.
-        model.addAttribute("scopeOptions", Map.of(
-            ScopeDimension.BUSINESS_UNIT.name(), unitOptions,
-            ScopeDimension.WAREHOUSE.name(), warehouseOptions,
-            ScopeDimension.MARKETING_TEAM.name(), marketingTeams.lookup(orgId).stream()
-                .map(t -> option(t.getId(), t.getName())).toList()));
+        model.addAttribute("scopeOptions", scopeOptions());
         model.addAttribute("currentUserId", CurrentUser.id());
         model.addAttribute("minPasswordLength", PasswordPolicy.MIN_LENGTH);
         model.addAttribute("content", "setup/users :: content");
@@ -238,6 +241,40 @@ public class UserAdminController {
         row.put("remarks", s.getRemarks());
         row.put("heldToday", s.isHeldOn(LocalDate.now()));
         return row;
+    }
+
+    /**
+     * Scope-grant pickers: one list per {@link ScopeDimension}, keyed by the enum name the JS posts.
+     * Values come from every organization the administrator works in - what they may hand out -
+     * each labelled with its organization's code once there is more than one to tell apart.
+     * {@link UserAdminService} still refuses a value outside the grantee's organizations.
+     */
+    private Map<String, List<Map<String, Object>>> scopeOptions() {
+        Set<Long> orgIds = context.organizationIds();
+        List<Organization> orgs = organizations.findAllById(orgIds).stream()
+            .filter(o -> Boolean.TRUE.equals(o.getActive()))
+            .sorted(java.util.Comparator.comparing(Organization::getCode))
+            .toList();
+        boolean several = orgs.size() > 1;
+
+        Map<String, List<Map<String, Object>>> options = new LinkedHashMap<>();
+        for (ScopeDimension dimension : ScopeDimension.values()) {
+            options.put(dimension.name(), new java.util.ArrayList<>());
+        }
+        for (Organization org : orgs) {
+            String prefix = several ? org.getCode() + " · " : "";
+            options.get(ScopeDimension.ORGANIZATION.name()).add(option(org.getId(), org.getCode() + " - " + org.getName()));
+            businessUnits.lookup(org.getId()).forEach(b -> options.get(ScopeDimension.BUSINESS_UNIT.name())
+                .add(option(b.getId(), prefix + b.getCode() + " - " + b.getName())));
+            warehouses.lookup(org.getId()).forEach(w -> options.get(ScopeDimension.WAREHOUSE.name())
+                .add(option(w.getId(), prefix + w.getCode() + " - " + w.getName())));
+            costCentres.all(org.getId()).stream().filter(c -> Boolean.TRUE.equals(c.getActive()))
+                .forEach(c -> options.get(ScopeDimension.COST_CENTRE.name())
+                    .add(option(c.getId(), prefix + c.getCode() + " - " + c.getName())));
+            marketingTeams.lookup(org.getId()).forEach(t -> options.get(ScopeDimension.MARKETING_TEAM.name())
+                .add(option(t.getId(), prefix + t.getName())));
+        }
+        return options;
     }
 
     private static Map<String, Object> option(Long id, String label) {

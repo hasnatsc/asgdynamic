@@ -64,7 +64,7 @@ class PartyWebTest {
         viewer = user(2L, "viewer", role(Screen.PARTY, Verb.VIEW));
         clerk = user(3L, "clerk", role(Screen.BOOKING, Verb.VIEW));
         for (FabricUser u : List.of(maintainer, viewer, clerk)) {
-            when(userDetailsService.reload(u.getUsername())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
+            when(userDetailsService.reload(eq(u.getUsername()), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
         }
         when(orgContext.requireOrganizationId()).thenReturn(ORG);
         BusinessUnit unit = new BusinessUnit("AF", "Weaving Unit");

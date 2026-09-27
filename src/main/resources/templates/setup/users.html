@@ -112,7 +112,8 @@
                                 <option value="">Select a unit…</option>
                                 <option th:each="u : ${businessUnits}" th:value="${u.id}" th:text="${u.label}">AF - Unit</option>
                             </select>
-                            <p class="hint">Its code is stamped into every document number this user raises.</p>
+                            <p class="hint">Their home unit: where they start until they choose a default of their own in the header.
+                                Its code is stamped into every document number they raise there.</p>
                         </div>
                         <div>
                             <label class="label" for="userWarehouse">Default store</label>
@@ -160,9 +161,11 @@
                         <div class="sm:col-span-3">
                             <label class="label text-xs" for="scopeDimension">Dimension</label>
                             <select id="scopeDimension" class="field">
+                                <option value="ORGANIZATION">Organization</option>
                                 <option value="MARKETING_TEAM">Marketing team</option>
                                 <option value="WAREHOUSE">Warehouse</option>
                                 <option value="BUSINESS_UNIT">Business unit</option>
+                                <option value="COST_CENTRE">Cost centre</option>
                             </select>
                         </div>
                         <div class="sm:col-span-4">
@@ -182,7 +185,9 @@
                         </div>
                     </div>
                     <p class="hint">Each dimension narrows independently; one with no grant does not narrow. At most one open
-                        marketing team. Grants are closed from a date, never deleted, so past visibility stays answerable.</p>
+                        marketing team. <b>Organization</b> grants add organizations the user can switch into from the header, beside
+                        their own - grant the organization first, then its units, stores and cost centres. Grants are closed from a
+                        date, never deleted, so past visibility stays answerable.</p>
                 </div>
 
                 <!-- ---------- Sign-in & security ---------- -->
@@ -223,7 +228,8 @@
             amend:  /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_AMEND'')')}]]*/ false,
             del:    /*[[${#authorization.expression('hasAuthority(''SCREEN_SECURITY_ADMIN_DELETE'')')}]]*/ false
         };
-        const DIMENSIONS = { BUSINESS_UNIT: 'Business unit', WAREHOUSE: 'Warehouse', MARKETING_TEAM: 'Marketing team' };
+        const DIMENSIONS = { ORGANIZATION: 'Organization', BUSINESS_UNIT: 'Business unit', WAREHOUSE: 'Warehouse',
+                             COST_CENTRE: 'Cost centre', MARKETING_TEAM: 'Marketing team' };
 
         const $ = sel => document.querySelector(sel);
         const dialog = $('#userDialog');
@@ -400,10 +406,11 @@
         scopeDimension?.addEventListener('change', fillScopeValues);
 
         function renderScopeBanner(rows) {
-            const held = rows.some(s => s.heldToday);
+            // An organization grant opens a tenant but narrows nothing, so on its own it does not let a scoped user in.
+            const held = rows.some(s => s.heldToday && s.dimension !== 'ORGANIZATION');
             let html = '';
             if (current.unrestricted) {
-                html = '<p class="alert-info">This user sees every row, so scope grants are recorded but not applied.</p>';
+                html = '<p class="alert-info">This user sees every row, so row grants are recorded but not applied. Organization grants still decide which organizations they can switch into.</p>';
             } else if (!held) {
                 html = '<p class="alert-warn"><b>Cannot sign in yet.</b>&nbsp;Scoped access with no grant held today - add one below.</p>';
             }

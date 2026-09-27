@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -54,7 +55,7 @@ class BookingAnalyticsWebTest {
         analyst = user(1L, "analyst", role(10L, Screen.BOOKING_ANALYTICS));
         clerk = user(2L, "clerk", role(11L, Screen.BOOKING));
         for (FabricUser u : List.of(analyst, clerk)) {
-            when(userDetailsService.reload(u.getUsername())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
+            when(userDetailsService.reload(eq(u.getUsername()), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
         }
         when(orgContext.requireOrganizationId()).thenReturn(ORG);
         BusinessUnit unit = new BusinessUnit("AF", "Weaving Unit");

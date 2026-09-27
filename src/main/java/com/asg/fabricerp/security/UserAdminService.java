@@ -1,9 +1,11 @@
 package com.asg.fabricerp.security;
 
+import com.asg.fabricerp.accounts.CostCentreRepository;
 import com.asg.fabricerp.common.BusinessUnit;
 import com.asg.fabricerp.common.BusinessUnitRepository;
 import com.asg.fabricerp.common.MarketingTeamRepository;
 import com.asg.fabricerp.common.OrgContext;
+import com.asg.fabricerp.common.OrganizationRepository;
 import com.asg.fabricerp.common.ScopeDimension;
 import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.security.AccessLogEntry.Event;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -45,6 +48,8 @@ public class UserAdminService {
     private final BusinessUnitRepository businessUnits;
     private final WarehouseRepository warehouses;
     private final MarketingTeamRepository marketingTeams;
+    private final OrganizationRepository organizations;
+    private final CostCentreRepository costCentres;
     private final PasswordEncoder passwordEncoder;
     private final AccessLogService accessLog;
     private final OrgContext context;
@@ -52,8 +57,11 @@ public class UserAdminService {
     public UserAdminService(FabricUserRepository repository, RoleRepository roleRepository,
                             DataScopeRepository scopes, BusinessUnitRepository businessUnits,
                             WarehouseRepository warehouses, MarketingTeamRepository marketingTeams,
+                            OrganizationRepository organizations, CostCentreRepository costCentres,
                             PasswordEncoder passwordEncoder, AccessLogService accessLog,
                             OrgContext context) {
+        this.organizations = organizations;
+        this.costCentres = costCentres;
         this.repository = repository;
         this.roleRepository = roleRepository;
         this.scopes = scopes;
@@ -224,9 +232,9 @@ public class UserAdminService {
                                 LocalDate from, String remarks) {
         refuseSelf(userId, "data scope");
         FabricUser user = get(userId);
-        requireScopeValueExists(dimension, scopeValueId);
-
         List<DataScope> existing = scopes.findByUserIdOrderByGrantedFromDesc(userId);
+        requireScopeValueExists(user, existing, dimension, scopeValueId);
+
         boolean duplicate = existing.stream().anyMatch(scope -> scope.isOpen()
             && scope.getDimension() == dimension && scope.getScopeValueId().equals(scopeValueId));
         if (duplicate) {
@@ -290,19 +298,57 @@ public class UserAdminService {
         }
     }
 
-    private void requireScopeValueExists(ScopeDimension dimension, Long valueId) {
+    /**
+     * The value must be real, active, and inside an organization both sides can reach: one the
+     * administrator works in (nobody hands out a tenant they cannot enter themselves), and - below
+     * organization level - one the user works in, so a grant never sits unusable waiting for an
+     * organization grant nobody made.
+     */
+    private void requireScopeValueExists(FabricUser user, List<DataScope> existing,
+                                         ScopeDimension dimension, Long valueId) {
         if (dimension == null || valueId == null) {
             throw new IllegalArgumentException("A scope grant needs a dimension and a value");
         }
-        Long orgId = context.requireOrganizationId();
-        boolean found = switch (dimension) {
-            case BUSINESS_UNIT -> businessUnits.lookup(orgId).stream().anyMatch(b -> b.getId().equals(valueId));
-            case WAREHOUSE -> warehouses.lookup(orgId).stream().anyMatch(w -> w.getId().equals(valueId));
-            case MARKETING_TEAM -> marketingTeams.lookup(orgId).stream().anyMatch(t -> t.getId().equals(valueId));
-        };
-        if (!found) {
-            throw new IllegalArgumentException("No active %s with id %d".formatted(label(dimension), valueId));
+        Set<Long> administrators = context.organizationIds();
+
+        if (dimension == ScopeDimension.ORGANIZATION) {
+            if (valueId.equals(user.getOrganizationId())) {
+                throw new IllegalStateException(
+                    "%s already belongs to that organization".formatted(user.getUsername()));
+            }
+            boolean found = administrators.contains(valueId)
+                && organizations.findById(valueId).filter(o -> Boolean.TRUE.equals(o.getActive())).isPresent();
+            if (!found) {
+                throw new IllegalArgumentException("No active organization with id %d that you work in".formatted(valueId));
+            }
+            return;
         }
+
+        Set<Long> users = new LinkedHashSet<>();
+        users.add(user.getOrganizationId());
+        existing.stream()
+            .filter(scope -> scope.isOpen() && scope.getDimension() == ScopeDimension.ORGANIZATION)
+            .forEach(scope -> users.add(scope.getScopeValueId()));
+
+        for (Long orgId : users) {
+            if (!administrators.contains(orgId)) {
+                continue;
+            }
+            boolean found = switch (dimension) {
+                case BUSINESS_UNIT -> businessUnits.lookup(orgId).stream().anyMatch(b -> b.getId().equals(valueId));
+                case WAREHOUSE -> warehouses.lookup(orgId).stream().anyMatch(w -> w.getId().equals(valueId));
+                case COST_CENTRE -> costCentres.all(orgId).stream()
+                    .anyMatch(c -> c.getId().equals(valueId) && Boolean.TRUE.equals(c.getActive()));
+                case MARKETING_TEAM -> marketingTeams.lookup(orgId).stream().anyMatch(t -> t.getId().equals(valueId));
+                case ORGANIZATION -> false;   // answered above
+            };
+            if (found) {
+                return;
+            }
+        }
+        throw new IllegalArgumentException(("No active %s with id %d in an organization %s works in. "
+            + "To grant one from another organization, grant that organization first.")
+            .formatted(label(dimension), valueId, user.getUsername()));
     }
 
     private static String label(ScopeDimension dimension) {

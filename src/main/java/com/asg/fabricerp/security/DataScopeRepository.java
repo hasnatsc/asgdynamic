@@ -18,11 +18,14 @@ public interface DataScopeRepository extends JpaRepository<DataScope, Long> {
     /**
      * Which of these users hold at least one grant on {@code on} — the user grid marks the rest
      * of the restricted ones as unable to sign in. One query per page of users, not one per row.
+     * Organization grants do not count: they narrow no rows, so they configure nothing - the same
+     * rule {@link FabricUserPrincipal} applies at sign-in.
      */
     @Query("""
            select distinct s.userId from DataScope s
            where s.userId in :userIds and s.grantedFrom <= :on
              and (s.revokedFrom is null or s.revokedFrom > :on)
+             and s.dimension <> com.asg.fabricerp.common.ScopeDimension.ORGANIZATION
            """)
     Set<Long> findUserIdsHoldingScopeOn(@Param("userIds") Collection<Long> userIds, @Param("on") LocalDate on);
 

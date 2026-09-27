@@ -61,7 +61,7 @@ class NumberingSetupWebTest {
         auditor = user(2L, "auditor", role(Screen.NUMBERING, Verb.VIEW));
         clerk = user(3L, "clerk", role(Screen.BOOKING, Verb.VIEW));
         for (FabricUser u : List.of(admin, auditor, clerk)) {
-            when(userDetailsService.reload(u.getUsername())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
+            when(userDetailsService.reload(eq(u.getUsername()), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
         }
         when(orgContext.requireOrganizationId()).thenReturn(ORG);
         BusinessUnit unit = new BusinessUnit("AF", "Weaving Unit");

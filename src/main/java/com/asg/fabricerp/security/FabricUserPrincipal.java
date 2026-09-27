@@ -8,8 +8,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,6 +29,12 @@ import java.util.stream.Collectors;
  * principal instead means {@link SecurityOrgContext} reads them for free from
  * {@code SecurityContextHolder} on every call, no extra query.
  *
+ * <h2>Organization is the workspace's, not the login's</h2>
+ * {@link #getOrganizationId()} and the unit, store and cost centre beside it answer where the user
+ * is <em>working</em> - a {@link Workspace} {@link WorkspaceResolver} has checked against their
+ * grants - which is the organization their login belongs to only until they switch. Everything
+ * that reads {@code OrgContext} follows the switch: lists, lookups, and the stamping of new rows.
+ *
  * <h2>Rebuilt on every request</h2>
  * {@link SessionPrincipalRefreshFilter} replaces this object at the start of each request
  * rather than trusting the one stored in the session at login. A role revoked this morning
@@ -39,10 +47,9 @@ public class FabricUserPrincipal implements UserDetails {
     private final String username;
     private final String fullName;
     private final String passwordHash;
-    private final Long organizationId;
-    private final Long businessUnitId;
-    private final String businessUnitCode;
-    private final Long warehouseId;
+    private final Long homeOrganizationId;
+    private final Set<Long> organizationIds;
+    private final Workspace workspace;
     private final boolean locked;
     private final boolean enabled;
     private final Set<GrantedAuthority> authorities;
@@ -54,18 +61,24 @@ public class FabricUserPrincipal implements UserDetails {
         this(user, List.of(), LocalDate.now());
     }
 
-    /**
-     * @param scopes every scope grant the user has ever held; only those held {@code on} count
-     */
+    /** Working in the user's administrator-set home. */
     public FabricUserPrincipal(FabricUser user, List<DataScope> scopes, LocalDate on) {
+        this(user, scopes, on, null);
+    }
+
+    /**
+     * @param scopes    every scope grant the user has ever held; only those held {@code on} count
+     * @param workspace where the user is working, already checked by {@link WorkspaceResolver};
+     *                  null for their home
+     */
+    public FabricUserPrincipal(FabricUser user, List<DataScope> scopes, LocalDate on, Workspace workspace) {
         this.userId = user.getId();
         this.username = user.getUsername();
         this.fullName = user.getFullName();
         this.passwordHash = user.getPasswordHash();
-        this.organizationId = user.getOrganizationId();
-        this.businessUnitId = user.getBusinessUnitId();
-        this.businessUnitCode = user.getBusinessUnitCode();
-        this.warehouseId = user.getWarehouseId();
+        this.homeOrganizationId = user.getOrganizationId();
+        this.organizationIds = organizationsOf(user, scopes, on);
+        this.workspace = workspace == null ? Workspace.home(user) : workspace;
         this.locked = Boolean.TRUE.equals(user.getAccountLocked());
         this.enabled = Boolean.TRUE.equals(user.getActive());
         this.authorities = user.getRoles().stream()
@@ -80,14 +93,18 @@ public class FabricUserPrincipal implements UserDetails {
         this.mustChangePassword = user.isMustChangePassword();
     }
 
-    /** ADM-3, ADM-4: unrestricted is a flag, not an absence of rows — see {@link RowScope}. */
-    private static RowScope resolveScope(FabricUser user, List<DataScope> scopes, LocalDate on) {
+    /**
+     * ADM-3, ADM-4: unrestricted is a flag, not an absence of rows — see {@link RowScope}.
+     * Organization grants are left out: they open a tenant, they do not narrow one, so a restricted
+     * user holding nothing else is still unconfigured.
+     */
+    static RowScope resolveScope(FabricUser user, List<DataScope> scopes, LocalDate on) {
         if (user.isUnrestricted()) {
             return RowScope.unrestrictedScope();
         }
         Map<ScopeDimension, Set<Long>> values = new EnumMap<>(ScopeDimension.class);
         for (DataScope scope : scopes) {
-            if (scope.isHeldOn(on)) {
+            if (scope.isHeldOn(on) && scope.getDimension().narrowsRows()) {
                 values.computeIfAbsent(scope.getDimension(), key -> new HashSet<>())
                     .add(scope.getScopeValueId());
             }
@@ -95,13 +112,37 @@ public class FabricUserPrincipal implements UserDetails {
         return new RowScope(false, values);
     }
 
+    /**
+     * The login's own organization, then every one granted and held {@code on}. Explicit for
+     * unrestricted users too — see {@link ScopeDimension#ORGANIZATION}.
+     */
+    static Set<Long> organizationsOf(FabricUser user, List<DataScope> scopes, LocalDate on) {
+        Set<Long> ids = new LinkedHashSet<>();
+        if (user.getOrganizationId() != null) {
+            ids.add(user.getOrganizationId());
+        }
+        for (DataScope scope : scopes) {
+            if (scope.isHeldOn(on) && scope.getDimension() == ScopeDimension.ORGANIZATION) {
+                ids.add(scope.getScopeValueId());
+            }
+        }
+        return Collections.unmodifiableSet(ids);
+    }
+
     public Long getUserId()           { return userId; }
     /** Falls back to the username, so the layout never shows a blank. */
     public String getDisplayName()    { return fullName == null || fullName.isBlank() ? username : fullName; }
-    public Long getOrganizationId()   { return organizationId; }
-    public Long getBusinessUnitId()   { return businessUnitId; }
-    public String getBusinessUnitCode() { return businessUnitCode; }
-    public Long getWarehouseId()      { return warehouseId; }
+    /** The organization being worked in - see the class comment. */
+    public Long getOrganizationId()   { return workspace.organizationId(); }
+    /** The organization the login itself belongs to, whichever one is being worked in. */
+    public Long getHomeOrganizationId() { return homeOrganizationId; }
+    /** Every organization this user may switch into, their home first. */
+    public Set<Long> getOrganizationIds() { return organizationIds; }
+    public Long getBusinessUnitId()   { return workspace.businessUnitId(); }
+    public String getBusinessUnitCode() { return workspace.businessUnitCode(); }
+    public Long getWarehouseId()      { return workspace.warehouseId(); }
+    public Long getCostCentreId()     { return workspace.costCentreId(); }
+    public Workspace getWorkspace()   { return workspace; }
     public RowScope getRowScope()     { return rowScope; }
     public boolean isMustChangePassword() { return mustChangePassword; }
 

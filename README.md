@@ -384,6 +384,17 @@ controller method with no `@PreAuthorize` is unreachable, not ungoverned.
   log has no organization column, so reads narrow through the user it names; failed logins for
   usernames that exist nowhere are therefore not shown to any tenant (they stay in the table).
 
+**Workspaces** (V30) — which organization, business unit, inventory store and cost centre a user
+works in. An administrator grants them on *Users → Data scope*: `ORGANIZATION` grants add
+organizations beside the login's own (explicit even for "sees every row" users), then units, stores
+and cost centres inside them (`COST_CENTRE` is a new dimension; it narrows the journal's picker and is
+checked on manual postings). The user picks among those from the header chip — for the session, or
+saved as their default (`sec_fabric_user_workspaces`). `WorkspaceResolver` re-checks the choice on
+every request (session choice → saved default → administrator-set home), so a revoked grant moves the
+user out on their next click. Every list, lookup and new document follows the chosen organization and
+unit through `OrgContext`; new journal lines start on the chosen cost centre; switches are logged as
+`WORKSPACE_CHANGED`.
+
 The sidebar is derived from the signed-in user's `VIEW` authorities (`web/Navigation`), so the
 menu cannot list a screen the user would be refused. `/api/**` answers `401`/`403`/`400`/`409`
 with a JSON `message` (`common/ApiExceptionHandler`); pages get `templates/error.html`. Shared
@@ -413,8 +424,6 @@ every other secret in this project.
   document type uses the single-stage `ROLE_APPROVAL` path; the three-stage version is a
   documented extension point on `DocumentType.approverRole()`, deliberately not built until
   a Commercial document type exists to test it against.
-- **Switching operating unit/store mid-session** — the header shows it read-only; see
-  `FabricUser`'s javadoc.
 - **Party data.** The legacy capture has no customer records - enter them on **Setup → Parties**
   or load them. It does have 49 bank names (`buyerBank`), without codes.
 - **Validate the V15 foreign keys** once legacy rows are clean. They are `NOT VALID`: enforced on

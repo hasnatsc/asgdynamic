@@ -29,6 +29,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -94,7 +96,7 @@ class FabricScreensWebTest {
         store.grant(Screen.GR, Verb.CREATE);
         storeKeeper = user(2L, "store", store);
         for (FabricUser u : java.util.List.of(planner, storeKeeper)) {
-            when(userDetailsService.reload(u.getUsername())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
+            when(userDetailsService.reload(eq(u.getUsername()), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));
         }
         when(orgContext.requireOrganizationId()).thenReturn(1L);
     }

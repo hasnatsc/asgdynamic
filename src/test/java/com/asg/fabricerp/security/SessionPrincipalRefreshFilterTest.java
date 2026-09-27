@@ -14,6 +14,7 @@ import org.springframework.security.web.authentication.RememberMeServices;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -65,9 +66,22 @@ class SessionPrincipalRefreshFilterTest {
     }
 
     @Test
+    void theWorkspaceChosenThisSessionIsHandedToTheReload() throws Exception {
+        WorkspaceSelection chosen = new WorkspaceSelection(2L, 30L, null, null);
+        when(users.reload(eq("merch"), eq(chosen))).thenReturn(Optional.of(new FabricUserPrincipal(user)));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/");
+        request.setServletPath("/");
+        request.getSession(true).setAttribute(WorkspaceSelection.SESSION_ATTRIBUTE, chosen);
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        verify(users).reload("merch", chosen);
+    }
+
+    @Test
     void aRoleRevokedSinceLoginStopsGrantingOnTheNextRequest() throws Exception {
         user.setRoles(java.util.Set.of());
-        when(users.reload("merch")).thenReturn(Optional.of(new FabricUserPrincipal(user)));
+        when(users.reload(eq("merch"), any())).thenReturn(Optional.of(new FabricUserPrincipal(user)));
 
         MockFilterChain chain = new MockFilterChain();
         run("/fabric/booking", chain);
@@ -81,7 +95,7 @@ class SessionPrincipalRefreshFilterTest {
     @Test
     void aLockSinceLoginEndsTheSession() throws Exception {
         user.lock("Suspected shared credential", LocalDateTime.now());
-        when(users.reload("merch")).thenReturn(Optional.of(new FabricUserPrincipal(user)));
+        when(users.reload(eq("merch"), any())).thenReturn(Optional.of(new FabricUserPrincipal(user)));
 
         run("/fabric/booking", new MockFilterChain());
 
@@ -92,7 +106,7 @@ class SessionPrincipalRefreshFilterTest {
 
     @Test
     void aDeletionSinceLoginEndsTheSession() throws Exception {
-        when(users.reload("merch")).thenReturn(Optional.empty());
+        when(users.reload(eq("merch"), any())).thenReturn(Optional.empty());
 
         run("/fabric/booking", new MockFilterChain());
 
@@ -102,7 +116,7 @@ class SessionPrincipalRefreshFilterTest {
     @Test
     void aRestrictedUserWhoseLastScopeWasRevokedIsSignedOut() throws Exception {
         user.setUnrestricted(false);   // and no scope grants at all
-        when(users.reload("merch")).thenReturn(Optional.of(new FabricUserPrincipal(user)));
+        when(users.reload(eq("merch"), any())).thenReturn(Optional.of(new FabricUserPrincipal(user)));
 
         run("/fabric/booking", new MockFilterChain());
 
@@ -112,7 +126,7 @@ class SessionPrincipalRefreshFilterTest {
     @Test
     void aTemporaryPasswordOnlyReachesTheChangePasswordPage() throws Exception {
         user.setPassword("hash", true, LocalDateTime.now());
-        when(users.reload("merch")).thenReturn(Optional.of(new FabricUserPrincipal(user)));
+        when(users.reload(eq("merch"), any())).thenReturn(Optional.of(new FabricUserPrincipal(user)));
 
         MockFilterChain blocked = new MockFilterChain();
         MockHttpServletResponse page = run("/fabric/booking", blocked);

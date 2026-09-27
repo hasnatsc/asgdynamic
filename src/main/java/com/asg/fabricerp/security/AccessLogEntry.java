@@ -34,7 +34,9 @@ public class AccessLogEntry {
         ACCESS_DENIED,
         /** A live session ended because the account was locked, deleted or unscoped since. */
         SESSION_ENDED,
-        PASSWORD_CHANGED
+        PASSWORD_CHANGED,
+        /** Switched organization, unit, store or cost centre in the header, or saved a default. */
+        WORKSPACE_CHANGED
     }
 
     @Id

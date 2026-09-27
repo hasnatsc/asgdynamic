@@ -13,6 +13,9 @@ import java.util.Optional;
 
 public interface PartyRepository extends JpaRepository<Party, Long> {
 
+    /** Dashboard KPI: one organization's parties. */
+    long countByOrganizationIdAndDeletedFalse(Long organizationId);
+
     /** Roles fetched with the party: every caller that loads one is about to check a role. */
     @EntityGraph(attributePaths = "roles")
     @Query("""
