@@ -67,11 +67,8 @@ class CommercialScreensWebTest {
         viewer = user(1L, "viewer", role);
         Role export = new Role("Export desk", null);
         export.setId(101L);
-        for (Screen s : List.of(Screen.EPI, Screen.ELC)) {
-            export.grant(s, Verb.VIEW);
-            export.grant(s, Verb.CREATE);
-            export.grant(s, Verb.AMEND);
-        }
+        // One grant per screen carries all its verbs; a second grant replaces the first.
+        for (Screen s : List.of(Screen.EPI, Screen.ELC)) export.grant(s, Verb.VIEW, Verb.CREATE, Verb.AMEND);
         exporter = user(2L, "export", export);
         for (FabricUser u : List.of(viewer, exporter)) {
             when(userDetailsService.reload(eq(u.getUsername()), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(u)));

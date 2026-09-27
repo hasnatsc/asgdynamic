@@ -347,6 +347,62 @@ database): requisition → order → two MRRs → return → issue → cancel, w
 empty store, a transfer and its undoing, an adjustment refused and then written on approval, a
 closed month, a fabric lot moved and moved back, and the GRN ledger entry and its reversal.
 
+## Commercial (`commercial` package, V32)
+
+The legacy Commercial menu - PI issuing and revision, LC receiving and revision, CI issuing, the
+import PI, PO, LC and GRN, the PI/LC/CI reports and the commercial dashboard - taken from the
+captured screens (`docs/index.app.html`). `CommercialStep` is the table:
+
+```
+Export   Delivery schedule ─► Export PI ─► Export LC ─► Export CI ─► realization
+Import   Purchase requisition (or items) ─► Import PI ─┬─► Import LC (bill of entry, costs)
+                                                       └─► Purchase order ─► MRR at landed cost
+```
+
+- **All `BusinessDocument`s**: numbering, approval matrix, inbox, four-eyes, history. PIs and LCs
+  are **amended** by revision; an approved amendment takes over its predecessor's draws, re-points
+  what was raised against it (LCs on a PI, CIs on an LC, import LCs backed by an export LC) and
+  supersedes it - refused if it cuts a line below what is already drawn on it.
+- **Draw ceilings** on `gbl_line_draws`: a PI cannot offer more than the schedule, an LC cannot open
+  more than its PIs, a CI cannot invoice more than its LC - **nor a delivery challan twice** (a
+  regular CI line draws both its LC line and its challan line). An import PI shares a requisition's
+  "ordered" balance with local POs, so a requisition line is never bought twice.
+- **Inherited, never retyped**: buyer, brand, garments, team, currency, fabric and price come from
+  the parent; a CI takes its LC's number, banks, tenure and terms.
+- **Commercial facts** (`com_document_details`): banks and accounts (the company's own accounts
+  are party bank accounts on its self party, code `SELF`, created by V32; each account is checked
+  against its owner and bank), LC numbers and dates, tenure/payment/INCO terms, HS code, bond
+  licence, port, C&F, SRO, BTMA, bill of entry, cash incentive.
+- **Recorded after raising** (`com_document_events`): UD and UP (UPs may not exceed UDs),
+  back-to-back raw material LCs, sales contracts, required documents, costs by cost head, an import
+  PI's checklist (CED, C&F, bond, PI corrected, LC drafted → corrected), and a CI's **realization**
+  - document submission → party acceptance → bank submission → bank acceptance → (purchase) →
+  bank maturity → final payment, in order and in date order, latest-first undo. Maturity is worked
+  out from the payment terms' start date plus tenure.
+- **Weights and words**: the PI's net/gross fabric weight is the legacy `computeFabricWeights`
+  formula, on the server (a count entered without a ratio now weighs as ratio 1 - the legacy script
+  printed "Infinity"); amounts in words in dollars, or crore/lakh for taka.
+- **Accounts**: an approved CI posts `INVOICE`, its final payment `RECEIPT` (buyer on the control
+  line, CI currency and rate); cancelling or undoing reverses. Posted only where a single-amount
+  rule and an open period exist; the history says why not otherwise.
+- **Landed cost**: a PO raised from an import PI is an Import PO at the PI's price and rate; its MRR
+  takes customs and supplementary duty per line plus its share (by value) of the costs recorded on
+  the PI and its LCs, and posts to stock at that landed cost. The GRN ledger entry stays at invoice
+  value - duties and costs are accounted where they are paid.
+- **Screens**: one page and script for the five documents (`commercial/documents`,
+  `commercial-docs.js`), printable papers (PI; LC sheet; the CI's commercial invoice, packing list,
+  delivery challan, truck receipt, bill of exchange, bank forwarding, certificates of origin,
+  beneficiary, azo-free and twenty-yard), the **Commercial register** (tiles, and PI/LC/CI and
+  import registers with value covered, invoiced, realized, UD/UP/BTB, expiry and maturity) and
+  **Commercial setup** (document names, cost heads).
+
+Not built: debit and credit notes, bank loan (EDF/UPAS) repayment tracking, separate
+EBLC/IBLC document types (an import LC links to the export LC it is backed by instead).
+
+Verified by `CommercialDatabaseIT` (opt-in): schedule → PI → LC → CI → realization and undo, UD/UP
+rules, the amendment takeover and its refusal; requisition → import PI → LC with costs → import PO
+→ MRR valued at exactly 31,750 BDT landed; and an account refused as not the company's own.
+
 ## Verified against a real PostgreSQL database
 
 - V1–V6 apply cleanly in order, **0 unindexed foreign keys** throughout — including after
