@@ -2,6 +2,8 @@ package com.asg.fabricerp.global.documents;
 
 import com.asg.fabricerp.common.BaseOrgLineEntity;
 import com.asg.fabricerp.inventory.item.InventoryItem;
+import com.asg.fabricerp.inventory.item.ItemBrand;
+import com.asg.fabricerp.inventory.item.ItemModel;
 import com.asg.fabricerp.inventory.item.UnitOfMeasure;
 import jakarta.persistence.*;
 import jakarta.validation.Valid;
@@ -47,6 +49,22 @@ public class BusinessDocumentLineGroup extends BaseOrgLineEntity {
     @JoinColumn(name = "uom_id", foreignKey = @ForeignKey(name = "fk_gbdlg_uom"))
     private UnitOfMeasure uom;
 
+    /** Purchase and store lines: the brand and model asked for or received, which may differ from the item's own. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_brand_id", foreignKey = @ForeignKey(name = "fk_gbdlg_item_brand"))
+    private ItemBrand itemBrand;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "item_model_id", foreignKey = @ForeignKey(name = "fk_gbdlg_item_model"))
+    private ItemModel itemModel;
+
+    @Column(name = "item_specification", length = 500)
+    private String itemSpecification;
+
+    /** MRR: the country the goods came from. */
+    @Column(name = "origin_country", length = 60)
+    private String originCountry;
+
     @Embedded
     private FabricSpec fabric = new FabricSpec();
 
@@ -70,7 +88,16 @@ public class BusinessDocumentLineGroup extends BaseOrgLineEntity {
     public void setItem(InventoryItem v)               { this.item = v; }
     public UnitOfMeasure getUom()                      { return uom; }
     public void setUom(UnitOfMeasure v)                { this.uom = v; }
-    public FabricSpec getFabric()                      { return fabric; }
+    public ItemBrand getItemBrand()                    { return itemBrand; }
+    public void setItemBrand(ItemBrand v)              { this.itemBrand = v; }
+    public ItemModel getItemModel()                    { return itemModel; }
+    public void setItemModel(ItemModel v)              { this.itemModel = v; }
+    public String getItemSpecification()               { return itemSpecification; }
+    public void setItemSpecification(String v)         { this.itemSpecification = v; }
+    public String getOriginCountry()                   { return originCountry; }
+    public void setOriginCountry(String v)             { this.originCountry = v; }
+    /** Never null: Hibernate loads an embedded spec whose columns are all empty (an item line's) as null. */
+    public FabricSpec getFabric()                      { return fabric == null ? (fabric = new FabricSpec()) : fabric; }
     public void setFabric(FabricSpec v)                { this.fabric = v == null ? new FabricSpec() : v; }
     public List<BusinessDocumentColorLine> getColorLines() { return colorLines; }
     /** Never null: Hibernate hands back null for an embeddable whose columns are all empty. */

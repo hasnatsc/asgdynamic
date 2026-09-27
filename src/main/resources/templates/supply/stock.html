@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Item stock: what each store holds of each item at weighted-average cost, each item's ledger
+  with its running balance, and the monthly stock report (opening, received, issued, closing).
+  Balances and moves are kept by ItemStockService alone; fabric is on Fabric stock.
+-->
+<head><title>Item stock</title></head>
+<body>
+<div th:fragment="content" data-stock-page="items">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Item stock</h1>
+            <p class="page-sub">Yarn, dyes and chemicals, spares and general items on hand in each store, valued at weighted-average cost.</p>
+        </div>
+        <div class="page-actions">
+            <a th:if="${canReceive}" class="btn-ghost" href="/direct-receive?new=1">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#receive}"/></svg>Direct receive</a>
+            <a th:if="${canAdjust}" class="btn-ghost" href="/stock-adjustment?new=1">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#calculator}"/></svg>Stock adjustment</a>
+            <a class="btn-ghost" href="/stock/fabric">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#inventory}"/></svg>Fabric stock</a>
+        </div>
+    </div>
+
+    <div data-tabs-root>
+        <div class="tabs mb-5 !px-0" role="tablist">
+            <button type="button" class="tab" role="tab" data-tab="balances" aria-selected="true">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#inventory}"/></svg>Balances</button>
+            <button type="button" class="tab" role="tab" data-tab="monthly" aria-selected="false">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#calendar}"/></svg>Monthly stock report</button>
+        </div>
+
+        <div data-panel="balances">
+            <div class="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4" data-kpis></div>
+            <div class="card overflow-hidden">
+                <div class="toolbar">
+                    <div class="input-icon w-full sm:w-72">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                        <input type="search" class="field" placeholder="Item code, name or category" aria-label="Search" data-q autocomplete="off">
+                    </div>
+                    <select class="field w-auto" aria-label="Store" data-store>
+                        <option value="">All stores</option>
+                        <option th:each="s : ${stores}" th:value="${s.id}" th:text="${s.name}">Store</option>
+                    </select>
+                    <select class="field w-auto" aria-label="Item type" data-type>
+                        <option value="">All item types</option>
+                        <option th:each="t : ${itemTypes}" th:value="${t.value}" th:text="${t.label}">Type</option>
+                    </select>
+                    <label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" class="checkbox" data-low> At or below reorder level</label>
+                    <label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" class="checkbox" data-zero> Show empty</label>
+                    <button type="button" class="btn-subtle toolbar-spacer" data-csv>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>Export CSV</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid whitespace-nowrap" data-rows>
+                        <thead>
+                        <tr>
+                            <th>Store</th><th>Item</th><th>Type</th><th class="text-right">On hand</th>
+                            <th class="text-right">Average cost</th><th class="text-right">Value (BDT)</th>
+                            <th class="text-right">Reorder level</th><th>Last moved</th><th class="w-px"></th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pager" data-pager></div>
+            </div>
+        </div>
+
+        <div data-panel="monthly" hidden>
+            <div class="card overflow-hidden">
+                <div class="toolbar">
+                    <input type="month" class="field w-auto" aria-label="Month" data-month th:value="${month}">
+                    <select class="field w-auto" aria-label="Store" data-m-store>
+                        <option value="">All stores</option>
+                        <option th:each="s : ${stores}" th:value="${s.id}" th:text="${s.name}">Store</option>
+                    </select>
+                    <select class="field w-auto" aria-label="Item type" data-m-type>
+                        <option value="">All item types</option>
+                        <option th:each="t : ${itemTypes}" th:value="${t.value}" th:text="${t.label}">Type</option>
+                    </select>
+                    <button type="button" class="btn-subtle toolbar-spacer" data-m-csv>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>Export CSV</button>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid whitespace-nowrap" data-monthly>
+                        <thead>
+                        <tr>
+                            <th rowspan="2">Store</th><th rowspan="2">Item</th>
+                            <th colspan="2" class="text-center">Opening</th><th colspan="2" class="text-center">Received</th>
+                            <th colspan="2" class="text-center">Issued</th><th colspan="2" class="text-center">Closing</th>
+                        </tr>
+                        <tr>
+                            <th class="text-right">Qty</th><th class="text-right">Value</th><th class="text-right">Qty</th><th class="text-right">Value</th>
+                            <th class="text-right">Qty</th><th class="text-right">Value</th><th class="text-right">Qty</th><th class="text-right">Value</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <dialog class="drawer" data-ledger aria-labelledby="ledgerTitle">
+        <div class="modal-head">
+            <div><h2 id="ledgerTitle" class="modal-title">Item ledger</h2><p class="mt-0.5 text-sm text-gray-500" data-ledger-sub></p></div>
+            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 px-6 py-3 dark:border-gray-800">
+            <input type="date" class="field field-sm w-auto" aria-label="From" data-ledger-from>
+            <span class="text-gray-400">–</span>
+            <input type="date" class="field field-sm w-auto" aria-label="To" data-ledger-to>
+        </div>
+        <div class="modal-body" data-ledger-body></div>
+    </dialog>
+    <script th:src="@{/js/supply-stock.js}" defer></script>
+</div>
+</body>
+</html>

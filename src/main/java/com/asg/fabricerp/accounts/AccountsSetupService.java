@@ -330,6 +330,7 @@ public class AccountsSetupService {
             {PostingEvent.GRN, "1140", "2102"},
             {PostingEvent.SUPPLIER_BILL, "2102", "2101"},
             {PostingEvent.SUPPLIER_PAYMENT, "2101", "1102"},
+            {PostingEvent.PURCHASE_RETURN, "2102", "1140"},
             {PostingEvent.YARN_ISSUE_TO_WEAVING, "1143", "1140"},
             {PostingEvent.GREIGE_RECEIVED_FROM_WEAVING, "1142", "1143"},
             {PostingEvent.GREIGE_ISSUE_TO_BATCH, "1143", "1142"},

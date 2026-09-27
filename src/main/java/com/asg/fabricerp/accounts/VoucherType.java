@@ -37,7 +37,7 @@ public enum VoucherType {
             case PostingEvent.SUPPLIER_PAYMENT -> PAYMENT;
             case PostingEvent.RECEIPT, PostingEvent.RECEIPT_DEEMED_EXPORT, PostingEvent.RECEIPT_LOCAL,
                  PostingEvent.RECEIPT_WASTAGE -> RECEIPT;
-            case PostingEvent.GRN, PostingEvent.SUPPLIER_BILL -> PURCHASE;
+            case PostingEvent.GRN, PostingEvent.SUPPLIER_BILL, PostingEvent.PURCHASE_RETURN -> PURCHASE;
             case PostingEvent.DELIVERY, PostingEvent.INVOICE, PostingEvent.INVOICE_DEEMED_EXPORT,
                  PostingEvent.INVOICE_LOCAL, PostingEvent.INVOICE_WASTAGE -> SALES;
             case PostingEvent.YARN_ISSUE_TO_WEAVING, PostingEvent.GREIGE_RECEIVED_FROM_WEAVING,

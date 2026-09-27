@@ -19,6 +19,8 @@ public final class PostingEvent {
     public static final String GRN = "GRN";
     public static final String SUPPLIER_BILL = "SUPPLIER_BILL";
     public static final String SUPPLIER_PAYMENT = "SUPPLIER_PAYMENT";
+    /** Goods sent back to a supplier against an MRR: the goods-received liability, reversed. */
+    public static final String PURCHASE_RETURN = "PURCHASE_RETURN";
 
     // --- Production ----------------------------------------------------------------------------
     public static final String YARN_ISSUE_TO_WEAVING = "YARN_ISSUE_TO_WEAVING";
@@ -56,6 +58,7 @@ public final class PostingEvent {
         events.put(GRN, "Goods received from a supplier (before the bill)");
         events.put(SUPPLIER_BILL, "Supplier bill matched to received goods");
         events.put(SUPPLIER_PAYMENT, "Payment made to a supplier");
+        events.put(PURCHASE_RETURN, "Goods returned to a supplier (before the bill)");
         events.put(YARN_ISSUE_TO_WEAVING, "Yarn issued from store to weaving");
         events.put(GREIGE_RECEIVED_FROM_WEAVING, "Greige fabric received from weaving");
         events.put(GREIGE_ISSUE_TO_BATCH, "Greige fabric issued to a dyeing batch");

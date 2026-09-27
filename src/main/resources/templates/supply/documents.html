@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  One page for the purchase and store documents (com.asg.fabricerp.supply.SupplyStep): store and
+  purchase requisitions, purchase orders, MRRs and purchase returns, material issues, direct
+  receives, transfer requests, issues and receives, stock adjustments and fabric transfers. The
+  list is App.DocumentScreen; the viewer and the editor are supply-docs.js, driven by the step's
+  config below.
+
+  A line raised against a parent line draws that line's own balance, so the editor offers exactly
+  what is still open and the server refuses anything over it.
+-->
+<head>
+    <title th:text="${title}">Purchase</title>
+</head>
+<body>
+<div th:fragment="content" data-supply-page>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title" th:text="${step.plural()}">Purchase orders</h1>
+            <p class="page-sub" th:switch="${step.name()}">
+                <span th:case="'SR'">A department asks its store for items. Approved, it is issued from stock or bought through a purchase requisition.</span>
+                <span th:case="'SPR'">What the store needs bought - from a store requisition, or raised directly. Approved, purchase orders are placed against it.</span>
+                <span th:case="'PO'">Items ordered from a supplier at an agreed price - Direct, Spot or Import. Approved, the store receives against it with an MRR.</span>
+                <span th:case="'MRR'">Goods received from a supplier against a purchase order, into a store, at the order's price. Posted by the store.</span>
+                <span th:case="'PRT'">Goods sent back to the supplier against an MRR, out of the store they were received into. Posted by the store.</span>
+                <span th:case="'MI'">Items handed out of a store against a store requisition, or directly. Valued at the store's average cost. Posted by the store.</span>
+                <span th:case="'MR'">Items into a store without a purchase order - opening stock, returns from the floor. Posted by the store.</span>
+                <span th:case="'ST'">One store asks another for items. Approved, the sending store issues against it.</span>
+                <span th:case="'TI'">Items out of one store on their way to another. They are in transit until the receiving store receives them.</span>
+                <span th:case="'TRC'">The receiving store takes in what a transfer issue sent, at the cost it left at.</span>
+                <span th:case="'SA'">A physical count's differences: stock added or taken away, with a reason. Written to stock when approved.</span>
+                <span th:case="'FTI'">Fabric lots out of one store on their way to another - greige to the processing store, finished fabric to the delivering store.</span>
+                <span th:case="'FTR'">The receiving store takes in the fabric a transfer issue sent, lot for lot.</span>
+            </p>
+        </div>
+        <div class="page-actions">
+            <a th:if="${step.name() == 'MI' or step.name() == 'MR' or step.name() == 'SA' or step.name() == 'TI' or step.name() == 'TRC'}"
+               class="btn-ghost" href="/stock/items">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#inventory}"/></svg>Item stock</a>
+            <a th:if="${step.name() == 'FTI' or step.name() == 'FTR'}" class="btn-ghost" href="/stock/fabric">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#inventory}"/></svg>Fabric stock</a>
+            <button type="button" class="btn-primary" data-supply-new th:if="${config.canCreate}">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg><span th:text="|New ${step.label().toLowerCase()}|">New</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden" data-doc-screen>
+        <div class="toolbar">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input type="search" class="field pr-8" placeholder="Search number or reference" aria-label="Search"
+                       data-filter="search" data-search autocomplete="off">
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <select class="field w-auto" aria-label="Status" data-filter="status">
+                <option value="">All statuses</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.label()}">Draft</option>
+            </select>
+            <div class="flex items-center gap-2">
+                <input type="date" class="field w-auto" aria-label="From date" data-filter="from">
+                <span class="text-gray-400">–</span>
+                <input type="date" class="field w-auto" aria-label="To date" data-filter="to">
+            </div>
+            <button type="button" class="btn-subtle toolbar-spacer" data-filter-reset>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset
+            </button>
+        </div>
+        <div class="table-wrap">
+            <table id="supplyTable" class="table-grid table-stack">
+                <thead>
+                <tr>
+                    <th data-col="documentNo" data-format="doc" data-sort="documentNo" th:text="|${step.label()} No|">No</th>
+                    <th data-col="documentDate" data-format="date" data-sort="documentDate">Date</th>
+                    <th th:if="${step.hasParent()}" data-col="parentNo" th:text="${config.parentLabel}">Parent</th>
+                    <th th:if="${step.namesSupplier()}" data-col="partyName">Supplier</th>
+                    <th th:if="${step.name() == 'PO'}" data-col="purchaseTypeLabel">Type</th>
+                    <th th:if="${step.name() == 'SR'}" data-col="department">Department</th>
+                    <th th:if="${step.needsStore() or step.name() == 'SPR'}" data-col="warehouseName" th:text="${step.isTransfer() ? 'From store' : 'Store'}">Store</th>
+                    <th th:if="${step.isTransfer()}" data-col="toWarehouseName">To store</th>
+                    <th th:if="${step.name() == 'SR' or step.name() == 'SPR' or step.name() == 'PO' or step.name() == 'ST'}"
+                        data-col="requiredDate" data-format="date" data-sort="requiredDate">Required</th>
+                    <th data-col="totalQuantity" data-format="num" data-sort="totalQuantity" class="text-right">Quantity</th>
+                    <th th:if="${step.isPriced()}" data-col="subtotalAmount" data-format="num" data-sort="subtotalAmount" class="text-right">Amount</th>
+                    <th data-col="status" data-format="status" data-sort="status">Status</th>
+                    <th class="w-px" data-format="actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="pager" data-pager></div>
+    </div>
+
+    <!-- The viewer: a document, where each line stands downstream, and what may be done now. -->
+    <dialog id="supplyViewer" class="modal modal-editor" aria-labelledby="supplyViewerTitle">
+        <div class="flex max-h-[94vh] min-h-0 flex-col">
+            <div class="modal-head items-center">
+                <div class="min-w-0">
+                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500" th:text="${step.label()}">Document</p>
+                    <h2 id="supplyViewerTitle" class="modal-title mt-0.5 flex flex-wrap items-center gap-2" data-view-title></h2>
+                </div>
+                <button type="button" class="btn-icon -mr-2 ml-auto" data-close aria-label="Close">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin" data-view-body></div>
+            <div class="modal-foot justify-between" data-view-foot></div>
+        </div>
+    </dialog>
+
+    <!-- The editor: header, then the parent's open lines - or items added directly. -->
+    <dialog id="supplyEditor" class="modal modal-editor" data-sticky aria-labelledby="supplyEditorTitle">
+        <form class="flex max-h-[94vh] min-h-0 flex-col" novalidate autocomplete="off" data-editor-form>
+            <div class="modal-head items-center">
+                <div class="min-w-0">
+                    <h2 id="supplyEditorTitle" class="modal-title" data-editor-title th:text="|New ${step.label().toLowerCase()}|">New</h2>
+                    <p class="mt-0.5 text-sm text-gray-500" th:text="${step.isPosting()
+                        ? 'Saved as a draft; Post writes it to stock.'
+                        : 'Saved as a draft; submit it for approval from the document once it is complete.'}">Saved as a draft.</p>
+                </div>
+                <button type="button" class="btn-icon -mr-2 ml-auto" data-editor-close aria-label="Close editor">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+                </button>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin">
+                <section class="form-section">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-editor-header></div>
+                </section>
+                <section class="form-section">
+                    <div class="form-section-head">
+                        <div>
+                            <h3 class="form-section-title">Lines</h3>
+                            <p class="form-section-sub" data-lines-sub></p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-2 text-sm text-gray-600" data-select-all-wrap hidden>
+                                <input type="checkbox" class="checkbox" data-select-all> All open lines</label>
+                            <div class="w-80" data-add-wrap hidden>
+                                <select class="field" data-add-line aria-label="Add a line"></select>
+                            </div>
+                        </div>
+                    </div>
+                    <div data-editor-lines>
+                        <p class="text-sm text-gray-500">Nothing chosen yet.</p>
+                    </div>
+                </section>
+            </div>
+            <div class="modal-foot justify-between">
+                <p class="text-sm text-gray-600">Total <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-editor-total>0</span>
+                    <span th:if="${step.isPriced()}"> · Amount <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-editor-amount>0</span></span></p>
+                <div class="flex gap-2">
+                    <button type="button" class="btn-ghost" data-editor-close>Cancel</button>
+                    <button type="submit" class="btn-primary" data-editor-save>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
+                </div>
+            </div>
+        </form>
+    </dialog>
+
+    <script th:inline="javascript">
+        window.SUPPLY = /*[[${config}]]*/ {};
+    </script>
+    <script th:src="@{/js/supply-docs.js}" defer></script>
+</div>
+</body>
+</html>

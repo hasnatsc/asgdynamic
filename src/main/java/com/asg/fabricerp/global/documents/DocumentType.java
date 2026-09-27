@@ -35,20 +35,28 @@ public enum DocumentType implements NumberSeries {
 
     /* ------------------------------------------------------------- PURCHASE
      * No RFQ / Comparative Statement: fabric inputs (yarn, dyes) are bought on contract,
-     * not competitively tendered the way a spinner buys cotton.
+     * not competitively tendered the way a spinner buys cotton. The purchase and store
+     * documents are run by com.asg.fabricerp.supply (SupplyStep is the whole table).
      */
-    PURCHASE_REQUISITION("SPR", "Store Purchase Requisition", Family.PURCHASE, null),
+    PURCHASE_REQUISITION("SPR", "Store Purchase Requisition", Family.PURCHASE, "SPR"),
     CONSUMPTION_SPR("CSPR", "Consumption SPR", Family.PURCHASE, null),
-    PURCHASE_ORDER("PO", "Purchase Order", Family.PURCHASE, null),
-    GOODS_RECEIPT_NOTE("MRR", "Material Receive Report", Family.PURCHASE, null),
-    PURCHASE_RETURN("PRT", "Purchase Return", Family.PURCHASE, null),
+    PURCHASE_ORDER("PO", "Purchase Order", Family.PURCHASE, "PO"),
+    GOODS_RECEIPT_NOTE("MRR", "Material Receive Report", Family.PURCHASE, "MRR"),
+    PURCHASE_RETURN("PRT", "Purchase Return", Family.PURCHASE, "PRT"),
 
     /* ---------------------------------------------------------------- STORE */
-    STORE_REQUISITION("SR", "Store Requisition", Family.STORE, null),
-    MATERIAL_ISSUE("MI", "Material Issue", Family.STORE, null),
-    MATERIAL_RECEIVE("MR", "Material Receive", Family.STORE, null),
-    STOCK_TRANSFER("ST", "Stock Transfer", Family.STORE, null),
-    STOCK_ADJUSTMENT("SA", "Stock Adjustment", Family.STORE, null),
+    STORE_REQUISITION("SR", "Store Requisition", Family.STORE, "SR"),
+    MATERIAL_ISSUE("MI", "Material Issue", Family.STORE, "MI"),
+    // "DR": the legacy Direct Receive's own numbers (DRAF000058).
+    MATERIAL_RECEIVE("DR", "Direct Receive", Family.STORE, "MR"),
+    /** The transfer request; the stock moves on the transfer issue and receive. */
+    STOCK_TRANSFER("ST", "Transfer Request", Family.STORE, "ST"),
+    TRANSFER_ISSUE("TI", "Transfer Issue", Family.STORE, "TI"),
+    TRANSFER_RECEIVE("TR", "Transfer Receive", Family.STORE, "TRC"),
+    STOCK_ADJUSTMENT("SA", "Stock Adjustment", Family.STORE, "SA"),
+    /** Fabric lots out of one store and into another - the legacy Fabrics Transfer. */
+    FABRIC_TRANSFER_ISSUE("FTI", "Fabric Transfer Issue", Family.STORE, "FTI"),
+    FABRIC_TRANSFER_RECEIVE("FTR", "Fabric Transfer Receive", Family.STORE, "FTR"),
 
     /* ----------------------------------------------------------- PRODUCTION
      * Routing, not recipe. The Production-to-Delivery design (com.asg.fabricerp.production):
@@ -173,6 +181,31 @@ public enum DocumentType implements NumberSeries {
             case SALES, PRODUCTION -> PartyRoleType.CUSTOMER;
             case PURCHASE -> PartyRoleType.SUPPLIER;
             case STORE, COMMERCIAL -> null;
+        };
+    }
+
+    /**
+     * The one child type whose quantities fulfil a line of this type - what "fulfilled" means on
+     * it, and the stream each parent line's {@code fulfilled_quantity} mirrors: a Booking line is
+     * fulfilled by production orders, a purchase order line by MRRs, a transfer issue line by the
+     * transfer receive, and so on. Null when nothing fulfils it (an MRR is not "fulfilled" by the
+     * goods sent back against it).
+     */
+    public DocumentType fulfilledBy() {
+        return switch (this) {
+            case BOOKING -> BULK_PRODUCTION_ORDER;
+            case BULK_PRODUCTION_ORDER -> REQUEST_FOR_PI;
+            case WEAVING_WORK_ORDER -> GREIGE_RECEIVE;
+            case PROCESSING_WORK_ORDER -> FINISHED_FABRICS_RECEIVE;
+            case REQUEST_FOR_PI -> DELIVERY_ORDER;
+            case DELIVERY_ORDER -> FABRICS_DELIVERY;
+            case STORE_REQUISITION -> MATERIAL_ISSUE;
+            case PURCHASE_REQUISITION -> PURCHASE_ORDER;
+            case PURCHASE_ORDER -> GOODS_RECEIPT_NOTE;
+            case STOCK_TRANSFER -> TRANSFER_ISSUE;
+            case TRANSFER_ISSUE -> TRANSFER_RECEIVE;
+            case FABRIC_TRANSFER_ISSUE -> FABRIC_TRANSFER_RECEIVE;
+            default -> null;
         };
     }
 

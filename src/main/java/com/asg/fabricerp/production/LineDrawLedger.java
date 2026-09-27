@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -21,7 +22,8 @@ import java.util.function.Supplier;
  * draw throws, and the caller's transaction rolls the counter back with everything else.
  *
  * <p>Each parent line's {@code fulfilled_quantity} mirrors its principal stream
- * ({@link ChainStep#principalChildOf}), capped at the line's quantity.
+ * ({@link DocumentType#fulfilledBy}), capped at the line's quantity - for the production chain
+ * and the purchase and store documents alike.
  */
 @Component
 public class LineDrawLedger {
@@ -101,8 +103,8 @@ public class LineDrawLedger {
     }
 
     private void mirror(SourceKind kind, Long sourceId, String stream, DocumentType parentType) {
-        if (kind != SourceKind.COLOUR || parentType == null) return;
-        ChainStep.principalChildOf(parentType).filter(c -> c.stream().equals(stream)).ifPresent(c ->
+        if (kind != SourceKind.COLOUR || parentType == null || parentType.fulfilledBy() == null) return;
+        Optional.of(parentType.fulfilledBy()).filter(c -> c.name().equals(stream)).ifPresent(c ->
             jdbc.update("""
                 UPDATE gbl_business_document_color_lines cl
                 SET fulfilled_quantity = LEAST(COALESCE((SELECT d.drawn_quantity FROM gbl_line_draws d

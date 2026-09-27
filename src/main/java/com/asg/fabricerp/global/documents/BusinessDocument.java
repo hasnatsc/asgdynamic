@@ -211,6 +211,31 @@ public class BusinessDocument extends BaseOrgEntity {
     @Column(name = "batch_closed", nullable = false)
     private Boolean batchClosed = Boolean.FALSE;
 
+    /** Transfers: the store the stock goes to; {@link #warehouse} is the one it leaves. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "to_warehouse_id", foreignKey = @ForeignKey(name = "fk_gbd_to_warehouse"))
+    private Warehouse toWarehouse;
+
+    /** Purchase order: Direct, Spot or Import. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purchase_type", length = 10)
+    private PurchaseType purchaseType;
+
+    /** Store requisition: who the goods are for. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "requisition_type", length = 15)
+    private RequisitionType requisitionType;
+
+    @Column(name = "department", length = 100)
+    private String department;
+
+    /** MRR: the supplier's invoice; the challan is {@link #referenceNo}. */
+    @Column(name = "invoice_no", length = 60)
+    private String invoiceNo;
+
+    @Column(name = "lead_time_days")
+    private Integer leadTimeDays;
+
     @Transient
     private Long marketingPersonId;
 
@@ -300,6 +325,18 @@ public class BusinessDocument extends BaseOrgEntity {
     public void setDriverName(String v)         { this.driverName = v; }
     public boolean isBatchClosed()              { return Boolean.TRUE.equals(batchClosed); }
     public void closeBatch()                    { this.batchClosed = Boolean.TRUE; }
+    public Warehouse getToWarehouse()           { return toWarehouse; }
+    public void setToWarehouse(Warehouse v)     { this.toWarehouse = v; }
+    public PurchaseType getPurchaseType()       { return purchaseType; }
+    public void setPurchaseType(PurchaseType v) { this.purchaseType = v; }
+    public RequisitionType getRequisitionType() { return requisitionType; }
+    public void setRequisitionType(RequisitionType v) { this.requisitionType = v; }
+    public String getDepartment()               { return department; }
+    public void setDepartment(String v)         { this.department = v; }
+    public String getInvoiceNo()                { return invoiceNo; }
+    public void setInvoiceNo(String v)          { this.invoiceNo = v; }
+    public Integer getLeadTimeDays()            { return leadTimeDays; }
+    public void setLeadTimeDays(Integer v)      { this.leadTimeDays = v; }
     public boolean isTermsSubmitted()           { return termsSubmitted; }
 
     public void setTerms(List<BusinessDocumentTerm> incoming) {
@@ -336,10 +373,14 @@ public class BusinessDocument extends BaseOrgEntity {
      * clerk opening the BPO their receipt is raised against. A document with no marketing team
      * gets no such allowance — it predates team stamping, and ADM-4's whole point is that a
      * team-restricted user sees their own team's work and nothing else.
+     *
+     * <p>A transfer belongs to both its stores: the keeper at the receiving end must see the
+     * transfer coming to them as well as the one sending it.
      */
     public boolean isVisibleTo(RowScope scope) {
         return scope.permits(ScopeDimension.BUSINESS_UNIT, idOf(businessUnit))
-            && (warehouse == null || scope.permits(ScopeDimension.WAREHOUSE, idOf(warehouse)))
+            && (warehouse == null || scope.permits(ScopeDimension.WAREHOUSE, idOf(warehouse))
+                || (toWarehouse != null && scope.permits(ScopeDimension.WAREHOUSE, idOf(toWarehouse))))
             && scope.permits(ScopeDimension.MARKETING_TEAM, idOf(marketingTeam));
     }
 

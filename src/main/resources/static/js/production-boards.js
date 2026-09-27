@@ -192,8 +192,10 @@ document.addEventListener('DOMContentLoaded', () => {
         table.reload(true);
 
         const drawer = root.querySelector('[data-moves]');
-        const TYPES = { GREIGE_RECEIVE: 'Greige receive', GREIGE_ISSUE: 'Greige issue', FINISHED_RECEIVE: 'Finished receive', DELIVERY: 'Delivery', REVERSAL: 'Reversal' };
-        const SLUG = { GREIGE_RECEIVE: 'greige-receive', GREIGE_ISSUE: 'greige-issue', FINISHED_FABRICS_RECEIVE: 'finished-receive', FABRICS_DELIVERY: 'fabrics-delivery' };
+        const TYPES = { GREIGE_RECEIVE: 'Greige receive', GREIGE_ISSUE: 'Greige issue', FINISHED_RECEIVE: 'Finished receive', DELIVERY: 'Delivery',
+            TRANSFER_OUT: 'Transfer out', TRANSFER_IN: 'Transfer in', REVERSAL: 'Reversal' };
+        const SLUG = { GREIGE_RECEIVE: 'greige-receive', GREIGE_ISSUE: 'greige-issue', FINISHED_FABRICS_RECEIVE: 'finished-receive', FABRICS_DELIVERY: 'fabrics-delivery',
+            FABRIC_TRANSFER_ISSUE: 'fabric-transfer-issue', FABRIC_TRANSFER_RECEIVE: 'fabric-transfer-receive' };
         root.addEventListener('click', async e => {
             const b = e.target.closest('[data-lot]');
             if (!b) return;

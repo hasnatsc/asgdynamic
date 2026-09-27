@@ -29,8 +29,29 @@ public enum Screen {
     DELIVERY_BOARD("Ready to deliver", Section.STORES, "/production/delivery-board"),
     DO("Delivery order", Section.STORES, "/delivery-order"),
     FD("Fabrics delivery", Section.STORES, "/fabrics-delivery"),
+    /** Fabric lots out of one store and into another. */
+    FTI("Fabric transfer issue", Section.STORES, "/fabric-transfer-issue"),
+    FTR("Fabric transfer receive", Section.STORES, "/fabric-transfer-receive"),
     ITEM("Items", Section.INVENTORY, "/inventory/items"),
     ITEM_SETUP("Item setup", Section.INVENTORY, "/inventory/categories"),
+    /** Store balances by item, at weighted-average cost; the item ledger and the monthly stock report. */
+    ITEM_STOCK("Item stock", Section.INVENTORY, "/stock/items"),
+    /** A department asks the store for items: issued from stock, or bought through a purchase requisition. */
+    SR("Store requisition", Section.INVENTORY, "/store-requisition"),
+    MI("Material issue", Section.INVENTORY, "/material-issue"),
+    /** Items into a store without a purchase order: opening stock, returns from the floor. */
+    MR("Direct receive", Section.INVENTORY, "/direct-receive"),
+    ST("Transfer request", Section.INVENTORY, "/transfer-request"),
+    TI("Transfer issue", Section.INVENTORY, "/transfer-issue"),
+    TRC("Transfer receive", Section.INVENTORY, "/transfer-receive"),
+    SA("Stock adjustment", Section.INVENTORY, "/stock-adjustment"),
+    /** Closing a month's stock to further postings. */
+    INV_PERIOD("Inventory periods", Section.INVENTORY, "/stock/periods"),
+    SPR("Purchase requisition", Section.PURCHASE, "/purchase-requisition"),
+    PO("Purchase order", Section.PURCHASE, "/purchase-order"),
+    /** The legacy MRR: goods received against a purchase order, into a store. */
+    MRR("Material receive (MRR)", Section.PURCHASE, "/mrr"),
+    PRT("Purchase return", Section.PURCHASE, "/purchase-return"),
     PARTY("Parties", Section.SETUP, "/setup/parties"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
     TERMS("Terms & conditions", Section.SETUP, "/setup/terms"),
@@ -62,6 +83,8 @@ public enum Screen {
         ANALYTICS("Analytics & reports"),
         SETUP("Master data"),
         SALES("Sales"),
+        /** Requisitions, purchase orders, receipts from suppliers and returns to them. */
+        PURCHASE("Purchase"),
         INVENTORY("Inventory"),
         PRODUCTION("Production"),
         /** Greige and finished stores: receipts, issues, stock and deliveries. */

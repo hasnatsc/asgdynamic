@@ -139,6 +139,18 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
     @Column(length = 500)
     private String remarks;
 
+    /** Stock adjustment: IN adds the quantity to the store, OUT takes it away. */
+    @Column(name = "stock_direction", length = 3)
+    private String stockDirection;
+
+    /** MRR: the condition the goods arrived in. */
+    @Column(name = "condition_note", length = 300)
+    private String conditionNote;
+
+    public String getStockDirection()                    { return stockDirection; }
+    public void setStockDirection(String v)              { this.stockDirection = blankToNull(v); }
+    public String getConditionNote()                     { return conditionNote; }
+    public void setConditionNote(String v)               { this.conditionNote = blankToNull(v); }
     public BusinessDocumentLineGroup getLineGroup()      { return lineGroup; }
     public void setLineGroup(BusinessDocumentLineGroup v){ this.lineGroup = v; }
     public Integer getColorLineNo()                      { return colorLineNo; }

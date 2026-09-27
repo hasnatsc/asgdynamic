@@ -286,9 +286,66 @@ Verified by `ProductionChainDatabaseIT` (opt-in, real PostgreSQL built by Flyway
 `ddl-auto=validate`): a piece-dyed order from Booking to delivery and back (cancel), independent
 streams on one line, short-close and top-up, revision takeover, and batch close with loss.
 
-Not built yet (design phase 4–5): roll-by-roll tracking, stock transfer and adjustment, sales
-return, yarn-dyeing work orders, accounting postings from receipts and deliveries, production
-analytics.
+Not built yet (design phase 4–5): roll-by-roll tracking, fabric stock adjustment, sales return,
+yarn-dyeing work orders, accounting postings from fabric receipts and deliveries, production
+analytics. (Fabric lots now move between stores - see **Purchase and stores**, below.)
+
+## Purchase and stores (`supply` package, V31)
+
+The legacy Inventory and Purchase menus - SR, SPR, PO, MRR, issue against SR, direct issue and
+receive, transfer request/issue/receive, fabrics transfer, period, stock and ledger reports - on
+the same document model and engines, taken from the captured legacy screens (`docs/index.app.html`).
+`SupplyStep` is the whole table, as `ChainStep` is for production:
+
+```
+Store requisition ─┬─► Purchase requisition ─► Purchase order ─► MRR ─► Purchase return
+                   └─► Material issue
+Direct receive · Stock adjustment
+Transfer request ─► Transfer issue ─► Transfer receive           (items)
+Fabric transfer issue ─► Fabric transfer receive                 (fabric lots)
+```
+
+- **Every document is a `BusinessDocument`**, so numbering, the approval matrix and inbox,
+  four-eyes and history come for free. Requisitions, orders, transfer requests and adjustments are
+  approved; what moves stock (MRR, return, issue, direct receive, transfer issue/receive, fabric
+  transfers) is **posted** by the store and undone only by cancelling, with exact reversing rows.
+  Submitting a posted type for approval is refused.
+- **Draw ceilings** on `gbl_line_draws` (the chain's ledger): an SPR cannot exceed its SR line, a
+  PO its SPR line, an MRR its PO line, a return its MRR line, an issue its SR line, a transfer
+  receive what was issued. The legacy screens showed "SR Qty / PRV Qty / Issue Qty" but checked
+  nothing on the server. Lines may also be raised directly (direct SPR, PO, issue), except an MRR,
+  which is always against a purchase order.
+- **Item stock** (`inv_item_moves`, `inv_item_balances`, `ItemStockService`): an append-only
+  ledger and locked running balances per store and item, valued at **moving weighted average**. An
+  MRR comes in at the order's price × its rate to taka, a transfer receive at exactly what the
+  issue took out, and anything going out at the store's average; the last unit out takes whatever
+  value is left. Balances can never go below zero, and a cancellation that would need stock that
+  has already gone on is refused.
+- **Fabric transfers** move an order's lot between stores unchanged (`TRANSFER_OUT`/`TRANSFER_IN` on
+  `inv_fabric_moves`), only from the free balance (not what a delivery order holds), and only into
+  a store whose role takes that stage.
+- **Progress** by committed quantities, not drafts: a PO is Partial at its first posted MRR and
+  Completed when every line is received or short-closed; the same for SR (by issues), SPR (by
+  orders), transfer request and transfer issue. Approved lines can be short-closed.
+- **Inventory periods** (`inv_periods`): a closed month refuses every store posting and reversal
+  dated in it; closing is refused while unposted drafts are dated in it; reopening needs the
+  APPROVE verb and a reason. A month with no row is open.
+- **Accounts**: a posted MRR posts the seeded `GRN` rule (Dr raw materials / Cr payable clearing,
+  supplier on the line) and a return the new `PURCHASE_RETURN` rule, at the purchase price in
+  taka; cancelling reverses the entry. Posted only where a rule and an open accounting period
+  exist - otherwise the document's history says it was not posted to accounts.
+- **Screens**: one page and script for all thirteen documents (`supply/documents`,
+  `supply-docs.js`), **Item stock** (balances with value and reorder flags, each item's ledger with
+  a running balance, the monthly stock report, CSV export) and **Inventory periods**. V31 grants the
+  new screens to `ROLE_FABRIC_OPERATION` (full) and `ROLE_DOCUMENT_APPROVER` (view, approve).
+
+Not built: Consumption SPR against a BPO's consumption (there is no consumption budget to draw
+on yet), import PO revisions and landed cost (the commercial module), sales return.
+
+Verified by `SupplyDatabaseIT` (opt-in, like `ProductionChainDatabaseIT`, on a throwaway
+database): requisition → order → two MRRs → return → issue → cancel, weighted average down to an
+empty store, a transfer and its undoing, an adjustment refused and then written on approval, a
+closed month, a fabric lot moved and moved back, and the GRN ledger entry and its reversal.
 
 ## Verified against a real PostgreSQL database
 

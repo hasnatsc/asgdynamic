@@ -111,6 +111,21 @@ public final class Navigation {
             case FABRIC_STOCK   -> "inventory";
             case DELIVERY_BOARD -> "clock";
             case PROCESS_ROUTE  -> "workflow";
+            case ITEM_STOCK     -> "inventory";
+            case SR             -> "clipboard-check";
+            case MI             -> "arrow-up-right";
+            case MR             -> "receive";
+            case ST             -> "document";
+            case TI             -> "transfer";
+            case TRC            -> "receive";
+            case SA             -> "calculator";
+            case INV_PERIOD     -> "calendar";
+            case SPR            -> "document";
+            case PO             -> "credit-card";
+            case MRR            -> "receive";
+            case PRT            -> "refresh";
+            case FTI            -> "transfer";
+            case FTR            -> "packing";
         };
     }
 
@@ -120,6 +135,7 @@ public final class Navigation {
             case ANALYTICS      -> "activity";
             case SETUP          -> "master-data";
             case SALES          -> "sales";
+            case PURCHASE       -> "credit-card";
             case INVENTORY      -> "inventory";
             case PRODUCTION     -> "production";
             case STORES         -> "package";

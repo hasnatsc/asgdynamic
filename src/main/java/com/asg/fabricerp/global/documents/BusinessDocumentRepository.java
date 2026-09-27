@@ -157,7 +157,8 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
                   or lower(d.documentNo) like lower(concat('%', cast(:q as string), '%'))
                   or lower(d.referenceNo) like lower(concat('%', cast(:q as string), '%')))
              and (:allUnits = true or d.businessUnit.id in :unitIds)
-             and (:allWarehouses = true or d.warehouse is null or d.warehouse.id in :warehouseIds)
+             and (:allWarehouses = true or d.warehouse is null or d.warehouse.id in :warehouseIds
+                  or d.toWarehouse.id in :warehouseIds)
              and (:allTeams = true or d.marketingTeam.id in :teamIds)
              and (:createdBy is null or d.createdBy = :createdBy)
            """)

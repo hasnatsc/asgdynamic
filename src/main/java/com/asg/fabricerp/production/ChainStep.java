@@ -125,14 +125,6 @@ public enum ChainStep {
      * line by its delivery schedules, a work order line by its receipts, and so on.
      */
     public static Optional<ChainStep> principalChildOf(DocumentType parent) {
-        return Optional.ofNullable(switch (parent) {
-            case BOOKING -> BPO;
-            case BULK_PRODUCTION_ORDER -> RPI;
-            case WEAVING_WORK_ORDER -> GR;
-            case PROCESSING_WORK_ORDER -> FFR;
-            case REQUEST_FOR_PI -> DO;
-            case DELIVERY_ORDER -> FD;
-            default -> null;
-        });
+        return parent.fulfilledBy() == null ? Optional.empty() : of(parent.fulfilledBy());
     }
 }

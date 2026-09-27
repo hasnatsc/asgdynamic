@@ -234,7 +234,7 @@ public class ProductionBoardService {
             .addValue("teams", teamIds(scope));
     }
 
-    static Map<String, Object> camel(Map<String, Object> row) {
+    public static Map<String, Object> camel(Map<String, Object> row) {
         Map<String, Object> out = new LinkedHashMap<>();
         row.forEach((k, v) -> {
             StringBuilder b = new StringBuilder();
