@@ -119,6 +119,7 @@ public class DocumentRevisionService {
         copy.setRolls(source.getRolls());
         copy.setColorCode(source.getColorCode());
         copy.setColorName(source.getColorName());
+        copy.setColorShade(source.getColorShade());
         copy.setFabricsStyle(source.getFabricsStyle());
         copy.setColorReference(source.getColorReference());
         copy.setStrikeOffReference(source.getStrikeOffReference());

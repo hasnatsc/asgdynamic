@@ -219,6 +219,32 @@ class BookingServiceSaveTest {
     }
 
     @Test
+    void aColourKeepsTheShadeItWasBookedIn() {
+        BusinessDocument doc = newBooking();
+        BusinessDocumentColorLine navy = colour("Navy", "1000", "2");
+        navy.setColorShade("Dark");
+        BusinessDocumentColorLine sky = colour("Sky", "500", "2");
+        sky.setColorShade(" ");
+        doc.addLineGroup(spec(null, navy, sky));
+
+        List<BusinessDocumentColorLine> saved = service.save(doc).getLineGroups().get(0).getColorLines();
+
+        assertThat(saved).extracting(BusinessDocumentColorLine::getColorShade).containsExactly("Dark", null);
+    }
+
+    @Test
+    void aShadeOutsideLightMediumAndDarkIsRefused() {
+        BusinessDocument doc = newBooking();
+        BusinessDocumentColorLine navy = colour("Navy", "1000", "2");
+        navy.setColorShade("Very dark");
+        doc.addLineGroup(spec(null, navy));
+
+        assertThatThrownBy(() -> service.save(doc))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Navy has shade \"Very dark\" - choose Light, Medium, Dark");
+    }
+
+    @Test
     void aSingleColourFabricTakesOneColourPerLineAndAMultiColourFabricTakesMany() {
         BusinessDocument doc = newBooking();
         BusinessDocumentLineGroup solid = spec(null, colour("Navy", "1000", "2"));

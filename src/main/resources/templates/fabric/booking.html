@@ -321,61 +321,68 @@
                 <!-- ============ Construction - how it is woven ============ -->
                 <section class="spec-box">
                     <h4 class="spec-box-head">Construction <span>yarns, density, weave and widths</span></h4>
-                    <div class="spec-box-body grid xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] xl:gap-x-6">
-                        <!-- Warp and weft counts as one small grid: a count and its ratio per column pair.
-                             The sr-only labels name each box for the "X is required" message. -->
+                    <div class="spec-box-body grid gap-y-4 xl:grid-cols-2 xl:gap-x-6">
+                        <!-- Yarns: one column per yarn, its count over its ratio, and each side's yarn name
+                             beside them. The sr-only labels name each box for the "X is required" message. -->
                         <div class="overflow-x-auto">
                             <table class="yarn-grid">
                                 <thead>
                                 <tr>
                                     <th></th>
-                                    <th>Count 1 <span class="req text-brand-600">*</span></th><th>Ratio 1 <span class="req text-brand-600">*</span></th>
-                                    <th>Count 2</th><th>Ratio 2</th>
-                                    <th>Count 3</th><th>Ratio 3</th>
+                                    <th>Yarn 1 <span class="req text-brand-600">*</span></th>
+                                    <th>Yarn 2</th>
+                                    <th>Yarn 3</th>
+                                    <th class="w-[32%]">Yarn name</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 <tr>
-                                    <th scope="row">Warp</th>
+                                    <th scope="row">Warp <span>count</span></th>
                                     <td><label class="sr-only" for="spWarp1">Warp count 1</label>
-                                        <input id="spWarp1" class="field field-sm" data-spec="warpCount1" maxlength="20" required data-construction></td>
-                                    <td><label class="sr-only" for="spWarpR1">Warp ratio 1</label>
-                                        <input id="spWarpR1" type="number" step="any" min="0" class="field field-sm" data-spec="warpCountRatio1" required></td>
+                                        <input id="spWarp1" class="field" data-spec="warpCount1" maxlength="20" required data-construction></td>
                                     <td><label class="sr-only" for="spWarp2">Warp count 2</label>
-                                        <input id="spWarp2" class="field field-sm" data-spec="warpCount2" maxlength="20"></td>
-                                    <td><label class="sr-only" for="spWarpR2">Warp ratio 2</label>
-                                        <input id="spWarpR2" type="number" step="any" min="0" class="field field-sm" data-spec="warpCountRatio2"></td>
+                                        <input id="spWarp2" class="field" data-spec="warpCount2" maxlength="20"></td>
                                     <td><label class="sr-only" for="spWarp3">Warp count 3</label>
-                                        <input id="spWarp3" class="field field-sm" data-spec="warpCount3" maxlength="20"></td>
-                                    <td><label class="sr-only" for="spWarpR3">Warp ratio 3</label>
-                                        <input id="spWarpR3" type="number" step="any" min="0" class="field field-sm" data-spec="warpCountRatio3"></td>
+                                        <input id="spWarp3" class="field" data-spec="warpCount3" maxlength="20"></td>
+                                    <td rowspan="2"><label class="sr-only" for="spWarpYarn">Warp yarn name</label>
+                                        <input id="spWarpYarn" class="field" data-spec="warpYarnName" maxlength="120" placeholder="Warp yarn name"></td>
                                 </tr>
                                 <tr>
-                                    <th scope="row">Weft</th>
+                                    <th scope="row">Warp <span>ratio</span></th>
+                                    <td><label class="sr-only" for="spWarpR1">Warp ratio 1</label>
+                                        <input id="spWarpR1" type="number" step="any" min="0" class="field" data-spec="warpCountRatio1" required></td>
+                                    <td><label class="sr-only" for="spWarpR2">Warp ratio 2</label>
+                                        <input id="spWarpR2" type="number" step="any" min="0" class="field" data-spec="warpCountRatio2"></td>
+                                    <td><label class="sr-only" for="spWarpR3">Warp ratio 3</label>
+                                        <input id="spWarpR3" type="number" step="any" min="0" class="field" data-spec="warpCountRatio3"></td>
+                                </tr>
+                                <tr class="yarn-side">
+                                    <th scope="row">Weft <span>count</span></th>
                                     <td><label class="sr-only" for="spWeft1">Weft count 1</label>
-                                        <input id="spWeft1" class="field field-sm" data-spec="weftCount1" maxlength="20" required data-construction></td>
-                                    <td><label class="sr-only" for="spWeftR1">Weft ratio 1</label>
-                                        <input id="spWeftR1" type="number" step="any" min="0" class="field field-sm" data-spec="weftCountRatio1" required></td>
+                                        <input id="spWeft1" class="field" data-spec="weftCount1" maxlength="20" required data-construction></td>
                                     <td><label class="sr-only" for="spWeft2">Weft count 2</label>
-                                        <input id="spWeft2" class="field field-sm" data-spec="weftCount2" maxlength="20"></td>
-                                    <td><label class="sr-only" for="spWeftR2">Weft ratio 2</label>
-                                        <input id="spWeftR2" type="number" step="any" min="0" class="field field-sm" data-spec="weftCountRatio2"></td>
+                                        <input id="spWeft2" class="field" data-spec="weftCount2" maxlength="20"></td>
                                     <td><label class="sr-only" for="spWeft3">Weft count 3</label>
-                                        <input id="spWeft3" class="field field-sm" data-spec="weftCount3" maxlength="20"></td>
+                                        <input id="spWeft3" class="field" data-spec="weftCount3" maxlength="20"></td>
+                                    <td rowspan="2"><label class="sr-only" for="spWeftYarn">Weft yarn name</label>
+                                        <input id="spWeftYarn" class="field" data-spec="weftYarnName" maxlength="120" placeholder="Weft yarn name"></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Weft <span>ratio</span></th>
+                                    <td><label class="sr-only" for="spWeftR1">Weft ratio 1</label>
+                                        <input id="spWeftR1" type="number" step="any" min="0" class="field" data-spec="weftCountRatio1" required></td>
+                                    <td><label class="sr-only" for="spWeftR2">Weft ratio 2</label>
+                                        <input id="spWeftR2" type="number" step="any" min="0" class="field" data-spec="weftCountRatio2"></td>
                                     <td><label class="sr-only" for="spWeftR3">Weft ratio 3</label>
-                                        <input id="spWeftR3" type="number" step="any" min="0" class="field field-sm" data-spec="weftCountRatio3"></td>
+                                        <input id="spWeftR3" type="number" step="any" min="0" class="field" data-spec="weftCountRatio3"></td>
                                 </tr>
                                 </tbody>
                             </table>
-                            <div class="mt-3 grid grid-cols-2 gap-x-3">
-                                <div><label class="label" for="spWarpYarn">Warp yarn name</label>
-                                    <input id="spWarpYarn" class="field" data-spec="warpYarnName" maxlength="120"></div>
-                                <div><label class="label" for="spWeftYarn">Weft yarn name</label>
-                                    <input id="spWeftYarn" class="field" data-spec="weftYarnName" maxlength="120"></div>
-                            </div>
                         </div>
 
-                        <div class="grid grid-cols-2 content-start gap-x-3 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+                        <!-- Density to construction, then composition and weave, the PI's declared
+                             values, and the widths - four rows, level with the yarn grid. -->
+                        <div class="grid grid-cols-2 content-start gap-x-3 gap-y-3 pt-2 sm:grid-cols-4">
                             <div><label class="label" for="spEpi">EPI <span class="req">*</span></label>
                                 <input id="spEpi" type="number" step="any" min="0" class="field" data-spec="epi" required data-construction></div>
                             <div><label class="label" for="spPpi">PPI <span class="req">*</span></label>
@@ -383,23 +390,24 @@
                             <div class="col-span-2"><label class="label" for="spConstruction">Construction <span class="req">*</span></label>
                                 <input id="spConstruction" class="field font-mono" data-spec="construction" readonly tabindex="-1"
                                        placeholder="Warp X Weft / EPI X PPI"></div>
+
+                            <div class="col-span-2"><label class="label" for="spComposition">Composition <span class="req">*</span></label>
+                                <input id="spComposition" class="field" data-spec="composition" maxlength="120" required></div>
                             <div><label class="label" for="spWeaveType">Weave type <span class="req">*</span></label>
                                 <select id="spWeaveType" class="field" data-spec="weaveType" data-options="weave-type" required></select></div>
                             <div><label class="label" for="spWeaveStyle">Weave style</label>
                                 <select id="spWeaveStyle" class="field" data-spec="weaveStyle" data-options="weave-style"></select></div>
 
-                            <div class="col-span-2"><label class="label" for="spComposition">Composition <span class="req">*</span></label>
-                                <input id="spComposition" class="field" data-spec="composition" maxlength="120" required></div>
                             <div class="col-span-2"><label class="label" for="spPiConstruction">PI construction</label>
                                 <input id="spPiConstruction" class="field font-mono" data-spec="declaredConstruction" maxlength="60"></div>
                             <div class="col-span-2"><label class="label" for="spPiComposition">PI composition</label>
                                 <input id="spPiComposition" class="field" data-spec="declaredComposition" maxlength="120"></div>
 
-                            <div class="col-span-2"><label class="label" for="spFinishWidth">Finished width <span class="req">*</span></label>
-                                <div class="relative"><input id="spFinishWidth" type="number" step="any" min="0" class="field pr-9" data-spec="finishWidth" required>
+                            <div><label class="label" for="spFinishWidth">Finished width <span class="req">*</span></label>
+                                <div class="relative"><input id="spFinishWidth" type="number" step="any" min="0" class="field pr-8" data-spec="finishWidth" required>
                                     <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">in</span></div></div>
-                            <div class="col-span-2"><label class="label" for="spCuttable">Cuttable width <span class="req">*</span></label>
-                                <div class="relative"><input id="spCuttable" type="number" step="any" min="0" class="field pr-9" data-spec="cuttableWidth" required>
+                            <div><label class="label" for="spCuttable">Cuttable width <span class="req">*</span></label>
+                                <div class="relative"><input id="spCuttable" type="number" step="any" min="0" class="field pr-8" data-spec="cuttableWidth" required>
                                     <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">in</span></div></div>
                             <div class="col-span-2"><label class="label" for="spGsm">Calculated GSM</label>
                                 <input id="spGsm" type="number" step="any" min="0" class="field" data-spec="gsm"
@@ -485,11 +493,13 @@
                 <section class="spec-box">
                     <h4 class="spec-box-head">Colour breakdown</h4>
                     <div class="table-wrap">
-                        <table class="line-colours line-colours-edit min-w-[1240px]" id="colorTable">
+                        <table class="line-colours line-colours-edit min-w-[1300px]" id="colorTable"
+                               th:data-shades="${#strings.listJoin(colorShades, '|')}">
                             <thead>
                             <tr>
                                 <th class="w-28 !pl-3">Color code</th>
-                                <th class="min-w-[11rem]">Color name</th>
+                                <th class="min-w-[10rem]">Color name</th>
+                                <th class="w-28 min-w-[7rem]">Color shade</th>
                                 <th class="min-w-[8rem]">Fabrics style</th>
                                 <th class="w-28">Color ref.</th>
                                 <th class="w-28">Strike off ref.</th>
@@ -506,7 +516,7 @@
                             <tbody></tbody>
                             <tfoot>
                             <tr>
-                                <td colspan="7" class="!pl-3">
+                                <td colspan="8" class="!pl-3">
                                     <button type="button" class="btn-subtle btn-sm -ml-2.5 text-brand-700 dark:text-brand-300" data-action="color-add">
                                         <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add colour</button>
                                     <span class="ml-2" data-color-empty>No colours yet — fetch a costing, or add them one by one.</span>

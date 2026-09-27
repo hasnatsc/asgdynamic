@@ -6,6 +6,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 /**
  * One colour drawn against a {@link BusinessDocumentLineGroup} — asgdynamic's {@code dtlLine}.
@@ -24,6 +25,9 @@ import java.math.RoundingMode;
         @Index(name = "ix_gbdcl_org",        columnList = "organization_id")
     })
 public class BusinessDocumentColorLine extends BaseOrgLineEntity {
+
+    /** A colour's depth, as the booking's colour breakdown offers it (V33's check constraint). */
+    public static final List<String> COLOR_SHADES = List.of("Light", "Medium", "Dark");
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "line_group_id", nullable = false,
@@ -89,6 +93,13 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
 
     @Column(name = "color_name", length = 120)
     private String colorName;
+
+    /**
+     * The colour's depth as booked: one of {@link #COLOR_SHADES}. Not {@link #shade}, which is the
+     * shade a dyed lot came out as.
+     */
+    @Column(name = "color_shade", length = 10)
+    private String colorShade;
 
     /** The buyer-facing style code — confirmed per-colour, not per fabric spec. */
     @Column(name = "fabrics_style", length = 80)
@@ -221,6 +232,8 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
     public void setColorCode(String v)                   { this.colorCode = v; }
     public String getColorName()                         { return colorName; }
     public void setColorName(String v)                   { this.colorName = v; }
+    public String getColorShade()                        { return colorShade; }
+    public void setColorShade(String v)                  { this.colorShade = blankToNull(v); }
     public String getFabricsStyle()                      { return fabricsStyle; }
     public void setFabricsStyle(String v)                { this.fabricsStyle = v; }
     public String getColorReference()                    { return colorReference; }

@@ -294,6 +294,7 @@ public class ChainViews {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("colorName", l.getColorName());
         m.put("colorCode", l.getColorCode());
+        m.put("colorShade", l.getColorShade());
         m.put("fabricsStyle", l.getFabricsStyle());
         m.put("colorReference", l.getColorReference());
         m.put("strikeOffReference", l.getStrikeOffReference());

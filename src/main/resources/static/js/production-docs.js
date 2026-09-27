@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /** A colour's references under its name: colour ref, lab dip, strike-off, loom, style, specification. */
     function colourDetail(l, construction) {
         const refs = [
+            filled(l.colorShade) && ['Colour shade', l.colorShade],
             filled(l.colorReference) && ['Colour ref.', l.colorReference],
             filled(l.labDip) && ['Lab dip', l.labDip],
             filled(l.strikeOffReference) && ['Strike-off', l.strikeOffReference],

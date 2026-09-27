@@ -20,8 +20,8 @@
     const today = () => new Date().toISOString().slice(0, 10);
     const round = (v, dp) => v == null ? null : Math.round(v * 10 ** dp) / 10 ** dp;
 
-    /** Colour-line inputs, in column order. */
-    const COLOR_TEXT = ['colorCode', 'colorName', 'fabricsStyle', 'colorReference', 'strikeOffReference',
+    /** Colour-line inputs, in column order. colorShade is a choice (Light, Medium, Dark); the rest are typed. */
+    const COLOR_TEXT = ['colorCode', 'colorName', 'colorShade', 'fabricsStyle', 'colorReference', 'strikeOffReference',
                         'labDipReference', 'loomReference'];
 
     /** Fabric types are compared as ColourStructure.key does on the server: lower case, letters and digits only. */
@@ -37,6 +37,7 @@
 
         const specEditor = document.getElementById('specEditor');
         const colorBody = document.querySelector('#colorTable tbody');
+        const colorShades = (document.getElementById('colorTable').dataset.shades || '').split('|').filter(Boolean);
         const specLines = document.getElementById('specLines');
         const termsBody = document.querySelector('#termsTable tbody');
         const canAmend = !!document.getElementById('canAmendBooking');
@@ -694,7 +695,10 @@
 
         function colorRow(line) {
             const meter = priceInMeter();
-            const text = key => `<td><input class="field" data-col="${key}" value="${esc(line[key] ?? '')}" maxlength="120"></td>`;
+            const text = key => key === 'colorShade'
+                ? `<td><select class="field" data-col="colorShade"><option value="">—</option>${colorShades.map(s =>
+                    `<option${s === line.colorShade ? ' selected' : ''}>${esc(s)}</option>`).join('')}</select></td>`
+                : `<td><input class="field" data-col="${key}" value="${esc(line[key] ?? '')}" maxlength="120"></td>`;
             return `<tr>
                 ${COLOR_TEXT.map(text).join('')}
                 <td><input type="number" step="any" min="0" class="field text-right tabular-nums" data-col="quantity" value="${esc(line.quantity ?? '')}"></td>
@@ -881,7 +885,8 @@
                             <th class="num w-40">Amount <span class="unit">${esc(cur)}</span></th>
                         </tr></thead>
                         <tbody>${g.colorLines.map(l => `<tr>
-                            <td class="font-medium">${esc(joined(l.colorCode, l.colorName) || '—')}</td>
+                            <td class="font-medium">${esc(joined(l.colorCode, l.colorName) || '—')}${l.colorShade
+                                ? ` <span class="badge-gray ml-1 align-middle" title="Colour shade">${esc(l.colorShade)}</span>` : ''}</td>
                             <td class="text-gray-600 dark:text-gray-400">${esc(l.fabricsStyle || '—')}</td>
                             <td class="text-xs text-gray-500 dark:text-gray-400" title="${esc(l.remarks || '')}">${esc(joined(
                                 l.colorReference && `Colour ${l.colorReference}`, l.labDipReference && `Lab dip ${l.labDipReference}`,

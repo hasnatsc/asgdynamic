@@ -73,7 +73,7 @@
      any <div> holding a .label and its control becomes the anchor. */
   .form-float div:has(> .label) { @apply relative; }
   .form-float .label { @apply pointer-events-none absolute left-2.5 top-0 z-[2] m-0 -translate-y-1/2 truncate
-                              bg-white px-1 text-[11px] font-semibold leading-none text-gray-600;
+                              bg-white px-1 text-[11px] font-semibold leading-[14px] text-gray-600;
                        max-width: calc(100% - 1.25rem); }
   .form-float .label .req { @apply ml-0.5; }
   /* A read-only field is filled: the caption's lower half takes the fill so it does not sit in a white notch. */
@@ -360,6 +360,7 @@
   /* The fabric-line editor, stacked over the booking editor. */
   .modal-line { @apply max-h-[96vh] w-[96vw] max-w-[88rem]; }
   .modal-line > .modal-head { @apply py-3; }
+  .modal-line > .modal-foot { @apply py-2; }
   .modal-line[open] { @apply flex flex-col; }
   .drawer     { @apply m-0 ml-auto h-full max-h-full w-full max-w-2xl rounded-none border-0 p-0 shadow-float; }
   .drawer[open] { @apply flex animate-drawer-in flex-col; }
@@ -509,10 +510,13 @@
   /* Warp and weft counts as a 2 x 3 grid of count/ratio pairs rather than twelve labelled boxes. */
   .yarn-grid   { @apply w-full table-fixed text-sm; }
   .yarn-grid th { @apply px-1.5 pb-1.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400; }
-  .yarn-grid th[scope="row"] { @apply pl-0 text-[13px] font-medium text-gray-700 dark:text-gray-300; }
-  .yarn-grid thead th:first-child { @apply w-14; }
-  .yarn-grid td { @apply px-1.5 py-1; }
-  .yarn-grid td:nth-child(odd) { @apply pr-3; }
+  .yarn-grid th[scope="row"] { @apply whitespace-nowrap pl-0 text-[13px] font-medium text-gray-700 dark:text-gray-300; }
+  .yarn-grid th[scope="row"] > span { @apply font-normal text-gray-500 dark:text-gray-400; }
+  .yarn-grid thead th:first-child { @apply w-24; }
+  .yarn-grid td { @apply px-1 py-0.5; }
+  .yarn-grid td:last-child { @apply pl-3; }
+  /* Weft sits a little apart from warp. */
+  .yarn-grid tr.yarn-side > * { @apply pt-2.5; }
   .totals dd  { @apply font-semibold tabular-nums text-gray-900; }
   /* Pinned to the viewport bottom while a long `.card p-5` form is on screen; the negative
      margins bleed it to the card's edges. Forms built from .form-section use .form-actions. */

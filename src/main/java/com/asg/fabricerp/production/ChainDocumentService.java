@@ -326,6 +326,7 @@ public class ChainDocumentService {
             line.setSourceColorLine(src);
             line.setColorCode(src.getColorCode());
             line.setColorName(src.getColorName());
+            line.setColorShade(src.getColorShade());
             line.setFabricsStyle(src.getFabricsStyle());
             line.setColorReference(src.getColorReference());
             line.setStrikeOffReference(src.getStrikeOffReference());

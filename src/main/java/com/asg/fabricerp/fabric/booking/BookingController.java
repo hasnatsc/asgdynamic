@@ -4,6 +4,7 @@ import com.asg.fabricerp.common.LookupPage;
 import com.asg.fabricerp.costing.CostingCatalog;
 import com.asg.fabricerp.global.documents.BookingType;
 import com.asg.fabricerp.global.documents.BusinessDocument;
+import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
 import com.asg.fabricerp.global.documents.OrderType;
 import com.asg.fabricerp.security.AuthorityChecks;
@@ -80,6 +81,7 @@ public class BookingController {
         model.addAttribute("singleColourFabricTypes", ColourStructure.SINGLE_COLOUR_TYPES);
         model.addAttribute("lightSourceTypes", LIGHT_SOURCE_TYPES);
         model.addAttribute("baseMaterials", BASE_MATERIALS);
+        model.addAttribute("colorShades", BusinessDocumentColorLine.COLOR_SHADES);
         model.addAttribute("lcTenures", CostingCatalog.LC_TENURES);
         model.addAttribute("lcPaymentTypes", CostingCatalog.LC_PAYMENT_TYPES);
         // The Marketing team field is always the signed-in user's own team; no team, no new booking.

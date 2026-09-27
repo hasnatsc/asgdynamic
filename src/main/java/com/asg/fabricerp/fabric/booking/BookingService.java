@@ -454,6 +454,10 @@ public class BookingService {
                 if (line.getRate().signum() <= 0) {
                     throw new IllegalArgumentException("%s: %s needs a price.".formatted(name, colour));
                 }
+                if (line.getColorShade() != null && !BusinessDocumentColorLine.COLOR_SHADES.contains(line.getColorShade())) {
+                    throw new IllegalArgumentException("%s: %s has shade \"%s\" - choose %s.".formatted(name, colour,
+                        line.getColorShade(), String.join(", ", BusinessDocumentColorLine.COLOR_SHADES)));
+                }
             }
         }
     }

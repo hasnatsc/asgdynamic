@@ -1415,7 +1415,7 @@
         endUse: 'End use'
     };
     const LINE_COLUMNS = [
-        ['colorCode', 'Code'], ['colorName', 'Colour'], ['fabricsStyle', 'Style'], ['colorReference', 'Colour ref.'],
+        ['colorCode', 'Code'], ['colorName', 'Colour'], ['colorShade', 'Colour shade'], ['fabricsStyle', 'Style'], ['colorReference', 'Colour ref.'],
         ['strikeOffReference', 'Strike-off'], ['labDipReference', 'Lab dip'], ['loomReference', 'Loom'],
         ['quantity', 'Quantity', true], ['rate', 'Rate', true], ['priceInMeter', 'Price / m', true],
         ['lineAmount', 'Amount', true], ['fulfilled', 'Fulfilled', true], ['outstanding', 'Outstanding', true]

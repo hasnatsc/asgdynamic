@@ -151,6 +151,7 @@ final class BookingView {
         row.put("colorLineNo", l.getColorLineNo());
         row.put("colorCode", l.getColorCode());
         row.put("colorName", l.getColorName());
+        row.put("colorShade", l.getColorShade());
         row.put("fabricsStyle", l.getFabricsStyle());
         row.put("colorReference", l.getColorReference());
         row.put("strikeOffReference", l.getStrikeOffReference());
