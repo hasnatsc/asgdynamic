@@ -395,7 +395,7 @@
             })));
         dialog._viewObserver.observe(dialog, { childList: true, subtree: true });
 
-        const title = dialog.querySelector('.modal-head h2, .modal-head .modal-title');
+        const title = dialog.querySelector('[data-view-title], .modal-head h2, .modal-head .modal-title');
         title?.insertAdjacentHTML('beforeend',
             ' <span class="badge-gray ml-1 align-middle" data-view-badge>' + icon('eye', 'h-3 w-3') + 'View only</span>');
 

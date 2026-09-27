@@ -166,6 +166,12 @@
   .card-link  { @apply inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:text-brand-800; }
 
   .page-header{ @apply mb-6 flex flex-wrap items-end justify-between gap-4; }
+
+  /* A document editor that is the page itself (booking): a heading with the way back, the form
+     in one card, and its totals-and-save bar held at the bottom of the window as the page scrolls. */
+  .doc-page-head  { @apply mb-4 flex flex-wrap items-center gap-x-4 gap-y-2; }
+  .doc-page-title { @apply text-[22px] font-semibold leading-tight tracking-tight text-gray-900; }
+  .doc-page-foot  { @apply sticky bottom-0 z-10 flex-wrap rounded-b-xl; }
   .page-title { @apply text-[22px] font-semibold leading-tight tracking-tight text-gray-900; }
   .page-sub   { @apply mt-1 max-w-3xl text-sm text-gray-500; }
   .page-actions { @apply flex flex-wrap items-center gap-2; }
@@ -731,7 +737,7 @@
   .dark .card, .dark .kpi   { @apply border-gray-800 bg-gray-900; }
   .dark .card-header, .dark .card-footer, .dark .toolbar, .dark .pager,
   .dark .form-section, .dark .tabs, .dark .modal-head { @apply border-gray-800; }
-  .dark .card-title, .dark .page-title, .dark .kpi-value, .dark .form-section-title,
+  .dark .card-title, .dark .page-title, .dark .doc-page-title, .dark .kpi-value, .dark .form-section-title,
   .dark .modal-title, .dark .flow-title, .dark .empty-title { @apply text-white; }
   .dark .page-sub, .dark .kpi-label, .dark .card-sub  { @apply text-gray-400; }
   .dark .table-grid thead th{ @apply border-gray-800 bg-gray-900 text-gray-300; }
