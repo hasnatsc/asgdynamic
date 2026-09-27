@@ -18,5 +18,11 @@ public enum ApprovalAction {
     /** A completed document closed by hand, or a dyeing batch closed with its loss measured. */
     CLOSED,
     /** A revision took over from this version once it was approved. */
-    SUPERSEDED
+    SUPERSEDED,
+    /** Posted to the ledger when approved - or why it was not (an export CI's invoice). */
+    ACCOUNTED,
+    /** An export CI's final payment received: it is realized. */
+    REALIZED,
+    /** A CI's final payment taken back, with a reason; its receipt is reversed. */
+    REALIZATION_UNDONE
 }

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Commercial setup: the document names an LC may require (and a CI is presented with) and the heads
+  PI, LC and CI costs are recorded under. The company's own bank accounts are kept on its own party
+  (code SELF) under Master data -> Parties; the terms of PIs, LCs and CIs under Terms & conditions.
+-->
+<head><title>Commercial setup</title></head>
+<body>
+<div th:fragment="content" data-commercial-screen="setup" th:attr="data-can-edit=${canEdit},data-can-delete=${canDelete}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Commercial setup</h1>
+            <p class="page-sub">Document names and cost heads. The company's own bank accounts are on its party <span class="font-mono">SELF</span>
+                (<a class="card-link" href="/setup/parties?q=SELF">Parties</a>); PI, LC and CI clauses under <a class="card-link" href="/setup/terms">Terms &amp; conditions</a>.</p>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-2">
+        <div class="card overflow-hidden">
+            <div class="card-header">
+                <div><h2 class="card-title">Document names</h2><p class="card-sub">What an LC requires and a CI is presented with.</p></div>
+                <button type="button" class="btn-primary btn-sm" data-add="document-names" th:if="${canEdit}">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add</button>
+            </div>
+            <div class="table-wrap"><table class="table-grid" data-names>
+                <thead><tr><th>Code</th><th>Name</th><th>For</th><th class="text-right">Order</th><th>Active</th><th class="w-px"></th></tr></thead>
+                <tbody></tbody></table></div>
+        </div>
+        <div class="card overflow-hidden">
+            <div class="card-header">
+                <div><h2 class="card-title">Cost heads</h2><p class="card-sub">Freight, insurance, bank and C&amp;F charges... - an import's costs become its landed cost.</p></div>
+                <button type="button" class="btn-primary btn-sm" data-add="cost-heads" th:if="${canEdit}">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add</button>
+            </div>
+            <div class="table-wrap"><table class="table-grid" data-heads>
+                <thead><tr><th>Code</th><th>Name</th><th>For</th><th>Account</th><th>Active</th><th class="w-px"></th></tr></thead>
+                <tbody></tbody></table></div>
+        </div>
+    </div>
+    <script th:src="@{/js/commercial-screens.js}" defer></script>
+</div>
+</body>
+</html>

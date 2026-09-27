@@ -145,7 +145,7 @@ public class SupplyDocumentService {
                     || !parent.isVisibleTo(context.requireRowScope())) {
                     throw new IllegalArgumentException("Parent line not found: " + l.sourceId());
                 }
-                if (parent.getDocumentType() != step.parentType()) {
+                if (!step.parentTypes().contains(parent.getDocumentType())) {
                     throw new IllegalArgumentException("%s is not a %s".formatted(parent.getDocumentNo(), step.parentType().label()));
                 }
                 if (!step.acceptsParentStatus(parent.getStatus())) {
@@ -234,6 +234,14 @@ public class SupplyDocumentService {
                 doc.setDepartment(blank(r.department()));
             }
             case PO -> {
+                if (parent != null && parent.getDocumentType() == DocumentType.IMPORT_PROFORMA_INVOICE) {
+                    // Ordered from the supplier's PI: its supplier, currency and rate, and an import.
+                    doc.setParty(parent.getParty());
+                    doc.setPurchaseType(PurchaseType.IMPORT);
+                    doc.setCurrencyCode(parent.getCurrencyCode());
+                    doc.setExchangeRate(parent.getExchangeRate());
+                    break;
+                }
                 doc.setParty(r.supplierId() == null ? null : parties.requireHolder(r.supplierId(), PartyRoleType.SUPPLIER));
                 doc.setPurchaseType(r.purchaseType() != null ? r.purchaseType() : PurchaseType.DIRECT);
                 String currency = r.currencyCode() == null || r.currencyCode().isBlank() ? "BDT" : r.currencyCode().strip().toUpperCase(Locale.ROOT);
@@ -304,8 +312,9 @@ public class SupplyDocumentService {
                 line.setColorName(parentLine.getColorName());
                 line.setColorCode(parentLine.getColorCode());
                 line.setFabricLotId(parentLine.getFabricLotId());
-                // What was bought is received and returned at the price it was bought at.
-                if (step == SupplyStep.MRR || step == SupplyStep.PRT) line.setRate(parentLine.getRate());
+                // What was bought is received and returned at the price it was bought at; an order
+                // placed from a supplier's PI is at the PI's price.
+                if (step == SupplyStep.MRR || step == SupplyStep.PRT || importOrder(step, parentLine)) line.setRate(parentLine.getRate());
             } else if (s.lot() != null) {
                 BusinessDocumentLineGroup lotGroup = em.find(BusinessDocumentLineGroup.class, s.lot().groupId());
                 g.setUom(lotGroup.getUom());
@@ -347,6 +356,9 @@ public class SupplyDocumentService {
                 if (step == SupplyStep.MRR) {
                     g.setOriginCountry(blank(r.originCountry()));
                     line.setConditionNote(r.conditionNote());
+                    // An import's duties at the port - part of what the goods cost to land.
+                    line.setCustomsDuty(nonNegative(r.customsDuty(), sourceName(s)));
+                    line.setSupplementaryDuty(nonNegative(r.supplementaryDuty(), sourceName(s)));
                 }
                 if (r.fabric() != null && s.item().getItemType() == ItemType.FABRICS
                     && (step == SupplyStep.SPR || step == SupplyStep.PO || step == SupplyStep.MRR || step == SupplyStep.MR)) {
@@ -354,7 +366,7 @@ public class SupplyDocumentService {
                 }
             }
             switch (step) {
-                case PO, MR -> line.setRate(nonNegative(r.rate(), sourceName(s)));
+                case PO, MR -> { if (!importOrder(step, parentLine)) line.setRate(nonNegative(r.rate(), sourceName(s))); }
                 case SA -> {
                     String direction = r.stockDirection() == null ? null : r.stockDirection().strip().toUpperCase(Locale.ROOT);
                     if (!"IN".equals(direction) && !"OUT".equals(direction)) {
@@ -451,7 +463,7 @@ public class SupplyDocumentService {
     public Map<String, Object> openLines(SupplyStep step, Long parentId, Long excludeId) {
         if (!step.hasParent()) throw new IllegalArgumentException(step.plural() + " are not raised against another document");
         BusinessDocument parent = repository.findScopedWithLines(parentId, context.requireOrganizationId())
-            .filter(d -> d.getDocumentType() == step.parentType())
+            .filter(d -> step.parentTypes().contains(d.getDocumentType()))
             .filter(d -> d.isVisibleTo(context.requireRowScope()))
             .orElseThrow(() -> new IllegalArgumentException(step.parentType().label() + " not found: " + parentId));
         Map<Long, BigDecimal> own = new HashMap<>();
@@ -510,6 +522,12 @@ public class SupplyDocumentService {
     private Warehouse ownStore() {
         Long own = context.warehouseId();
         return own == null ? null : warehouses.findScoped(own, context.requireOrganizationId()).orElse(null);
+    }
+
+    /** A purchase order line raised from an import PI line: priced by the PI. */
+    private static boolean importOrder(SupplyStep step, BusinessDocumentColorLine parentLine) {
+        return step == SupplyStep.PO && parentLine != null
+            && parentLine.getLineGroup().getDocument().getDocumentType() == DocumentType.IMPORT_PROFORMA_INVOICE;
     }
 
     private static BigDecimal nonNegative(BigDecimal v, String what) {

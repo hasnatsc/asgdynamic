@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  The printable papers of a commercial document: the proforma invoice, an LC sheet, and a CI's export
+  documents - commercial invoice, packing list, delivery challan, truck receipt, bill of exchange,
+  bank forwarding, certificate of origin, beneficiary / azo-free / twenty-yard certificates - the
+  legacy CI's print list. Standalone (no layout): it is printed, not browsed.
+-->
+<head>
+    <meta charset="utf-8">
+    <title th:text="|${paper.label} - ${d.documentNo}|">Paper</title>
+    <style>
+        body { font: 12.5px/1.45 system-ui, "Segoe UI", sans-serif; color: #111; margin: 28px 36px; }
+        h1 { font-size: 18px; margin: 0 0 2px; letter-spacing: .04em; text-transform: uppercase; }
+        .company { font-size: 16px; font-weight: 700; }
+        .muted { color: #555; font-size: 11px; }
+        .head { display: flex; justify-content: space-between; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 12px; }
+        dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; margin: 10px 0; }
+        dt { color: #555; font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; }
+        dd { margin: 0; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #888; padding: 5px 6px; text-align: left; vertical-align: top; }
+        th { background: #f2f2f2; font-size: 11px; }
+        .n { text-align: right; white-space: nowrap; }
+        .words { margin-top: 8px; font-weight: 600; }
+        .terms li { margin: 2px 0; }
+        .letter p { margin: 8px 0; }
+        .sign { display: flex; justify-content: space-between; margin-top: 70px; }
+        .sign div { border-top: 1px solid #333; width: 28%; padding-top: 4px; text-align: center; font-size: 11px; }
+        @media print { body { margin: 12mm; } .noprint { display: none; } }
+    </style>
+</head>
+<body th:with="det=${d.details}, cur=${d.currency}, lines=${d.lines}">
+
+<div class="head">
+    <div>
+        <div class="company" th:text="${company.legalName != null ? company.legalName : company.name}">Company</div>
+        <div class="muted" th:text="|${company.tin != null ? 'TIN ' + company.tin : ''} ${company.bin != null ? '· BIN ' + company.bin : ''} ${company.vatRegNo != null ? '· VAT ' + company.vatRegNo : ''}|"></div>
+    </div>
+    <div style="text-align:right">
+        <h1 th:text="${paper.code == 'PI' ? (step == 'IPI' ? 'Proforma invoice (import)' : 'Proforma invoice') : paper.label}">Paper</h1>
+        <div><b th:text="${d.documentNo}">No</b> · <span th:text="${#temporals.format(d.documentDate, 'dd MMM yyyy')}">date</span></div>
+    </div>
+</div>
+
+<!-- ============================================================ letters and certificates -->
+<th:block th:switch="${paper.code}">
+
+<div th:case="'BILL_OF_EXCHANGE'" class="letter">
+    <p><b>Exchange for</b> <span th:text="|${cur} ${#numbers.formatDecimal(d.subtotalAmount, 1, 'COMMA', 2, 'POINT')}|"></span></p>
+    <p>At <b th:text="${det.tenureLabel != null ? det.tenureLabel : 'sight'}">90 days</b>
+        <span th:text="${det.paymentTermsLabel != null ? 'from ' + #strings.toLowerCase(det.paymentTermsLabel) : ''}"></span>
+        of this FIRST of Exchange (SECOND of the same tenor and date being unpaid) pay to the order of
+        <b th:text="${det.bankName != null ? det.bankName : 'our bankers'}">bank</b> the sum of
+        <b th:text="${det.amountInWords}">amount in words</b>, for value received, drawn under L/C No.
+        <b th:text="${det.lcNo}">LC</b><span th:if="${det.issueDate != null}" th:text="| dated ${#temporals.format(det.issueDate, 'dd MMM yyyy')}|"></span>,
+        against our commercial invoice <b th:text="${d.documentNo}"></b>.</p>
+    <p>To: <b th:text="${det.counterBankName != null ? det.counterBankName : 'the issuing bank'}"></b>, for account of <b th:text="${d.partyName}"></b>.</p>
+</div>
+
+<div th:case="'BANK_FORWARDING'" class="letter">
+    <p>To: The Manager, <b th:text="${det.bankName}">bank</b></p>
+    <p><b th:text="|Sub: Submission of export documents under L/C No. ${det.lcNo}|">Sub</b></p>
+    <p>Dear Sir, we enclose the following documents against our commercial invoice <b th:text="${d.documentNo}"></b> for
+        <b th:text="|${cur} ${#numbers.formatDecimal(d.subtotalAmount, 1, 'COMMA', 2, 'POINT')}|"></b>, drawn on
+        <b th:text="${d.partyName}"></b>, for negotiation / collection and credit of the proceeds to our account
+        <b th:text="${det.bankAccount}"></b>:</p>
+    <ol><li>Bill of exchange</li><li>Commercial invoice</li><li>Packing list</li><li>Delivery challan</li><li>Truck receipt</li>
+        <li>Certificate of origin</li><li>Beneficiary certificate</li></ol>
+    <p>Yours faithfully,</p>
+</div>
+
+<div th:case="'CERTIFICATE_OF_ORIGIN'" class="letter">
+    <p>We hereby certify that the goods described in our commercial invoice <b th:text="${d.documentNo}"></b>, shipped against
+        L/C No. <b th:text="${det.lcNo}"></b> for account of <b th:text="${d.partyName}"></b>, were manufactured in
+        <b>Bangladesh</b> by us from materials as declared, and are of Bangladeshi origin.</p>
+</div>
+
+<div th:case="'BENEFICIARY_CERTIFICATE'" class="letter">
+    <p>We, the beneficiary, certify that the fabric covered by our commercial invoice <b th:text="${d.documentNo}"></b> under
+        L/C No. <b th:text="${det.lcNo}"></b> has been produced and delivered strictly as per the proforma invoice and the terms
+        of the credit, in the quality, construction, colours and quantity stated there, and that one full set of non-negotiable
+        documents has been handed to the applicant.</p>
+</div>
+
+<div th:case="'AZO_FREE_CERTIFICATE'" class="letter">
+    <p>We certify that the fabric covered by our commercial invoice <b th:text="${d.documentNo}"></b> under L/C No.
+        <b th:text="${det.lcNo}"></b> has been dyed and finished with dyestuffs and chemicals free of the banned aryl-amine
+        (azo) compounds, and is free of harmful chemicals.</p>
+</div>
+
+<div th:case="'TWENTY_YARD_CERTIFICATE'" class="letter">
+    <p>We certify that twenty (20) yards of each colour of the fabric covered by our commercial invoice
+        <b th:text="${d.documentNo}"></b> under L/C No. <b th:text="${det.lcNo}"></b> have been sent to
+        <b th:text="${d.partyName}"></b> as shipment samples before delivery.</p>
+</div>
+
+<div th:case="*">
+    <dl>
+        <div th:if="${d.parent != null}"><dt th:text="${d.parent.label}">Parent</dt><dd th:text="${d.parent.documentNo}"></dd></div>
+        <div><dt th:text="${step == 'IPI' or step == 'ILC' ? 'Supplier' : (step == 'EPI' ? 'Applicant' : 'Buyer / applicant')}">Party</dt><dd th:text="${d.partyName}"></dd></div>
+        <div th:if="${d.brandName != null}"><dt>Brand</dt><dd th:text="${d.brandName}"></dd></div>
+        <div th:if="${d.garmentsName != null}"><dt>Garments</dt><dd th:text="${d.garmentsName}"></dd></div>
+        <div th:if="${det.lcNo != null}"><dt>L/C No</dt><dd th:text="${det.lcNo}"></dd></div>
+        <div th:if="${det.masterLcNo != null}"><dt>Master L/C</dt><dd th:text="${det.masterLcNo}"></dd></div>
+        <div th:if="${det.issueDate != null}"><dt>L/C date</dt><dd th:text="${#temporals.format(det.issueDate, 'dd MMM yyyy')}"></dd></div>
+        <div th:if="${det.validityDate != null}"><dt th:text="${step == 'EPI' or step == 'IPI' ? 'Validity' : 'Expiry'}">Validity</dt><dd th:text="${#temporals.format(det.validityDate, 'dd MMM yyyy')}"></dd></div>
+        <div th:if="${det.shipmentDate != null}"><dt>Last shipment</dt><dd th:text="${#temporals.format(det.shipmentDate, 'dd MMM yyyy')}"></dd></div>
+        <div th:if="${det.tenureLabel != null}"><dt>Tenure</dt><dd th:text="${det.tenureLabel}"></dd></div>
+        <div th:if="${det.paymentTermsLabel != null}"><dt>Payment</dt><dd th:text="${det.paymentTermsLabel}"></dd></div>
+        <div th:if="${det.deliveryTermsLabel != null}"><dt>INCO terms</dt><dd th:text="${det.deliveryTermsLabel}"></dd></div>
+        <div th:if="${det.bankName != null}"><dt th:text="${step == 'EPI' ? 'Advising bank' : 'Bank'}">Bank</dt><dd th:text="|${det.bankName}${det.bankAccount != null ? ', A/C ' + det.bankAccount : ''}|"></dd></div>
+        <div th:if="${det.counterBankName != null}"><dt th:text="${step == 'ILC' ? 'Beneficiary bank' : 'Issuing bank'}">Bank</dt><dd th:text="${det.counterBankName}"></dd></div>
+        <div th:if="${det.hsCode != null}"><dt>H.S. code</dt><dd th:text="${det.hsCode}"></dd></div>
+        <div th:if="${det.port != null}"><dt>Port</dt><dd th:text="${det.port}"></dd></div>
+        <div th:if="${det.netWeight != null and (paper.code == 'PACKING_LIST' or paper.code == 'PI' or paper.code == 'COMMERCIAL_INVOICE')}"><dt>Net / gross weight</dt>
+            <dd th:text="|${#numbers.formatDecimal(det.netWeight, 1, 'COMMA', 2, 'POINT')} / ${#numbers.formatDecimal(det.grossWeight, 1, 'COMMA', 2, 'POINT')} kg|"></dd></div>
+        <div th:if="${det.ibcNo != null}"><dt>IBC No</dt><dd th:text="${det.ibcNo}"></dd></div>
+    </dl>
+
+    <table>
+        <thead><tr>
+            <th>#</th><th>Description</th>
+            <th th:if="${paper.code == 'DELIVERY_CHALLAN' or paper.code == 'TRUCK_RECEIPT'}">Challan</th>
+            <th class="n">Quantity</th>
+            <th class="n" th:if="${paper.code != 'PACKING_LIST' and paper.code != 'DELIVERY_CHALLAN' and paper.code != 'TRUCK_RECEIPT'}" th:text="|Unit price (${cur})|">Rate</th>
+            <th class="n" th:if="${paper.code != 'PACKING_LIST' and paper.code != 'DELIVERY_CHALLAN' and paper.code != 'TRUCK_RECEIPT'}" th:text="|Amount (${cur})|">Amount</th>
+        </tr></thead>
+        <tbody>
+        <tr th:each="l, s : ${lines}">
+            <td th:text="${s.count}">1</td>
+            <td>
+                <span th:if="${l.itemName != null}" th:text="${l.itemName}"></span>
+                <span th:if="${l.itemName == null}" th:text="|${l.construction != null ? l.construction : ''} ${l.composition != null ? '· ' + l.composition : ''}|"></span>
+                <span th:if="${l.colorName != null}" th:text="| · ${l.colorName}|"></span>
+                <div class="muted" th:if="${l.finishWidth != null or l.gsm != null}"
+                     th:text="|${l.finishWidth != null ? 'Width ' + l.finishWidth + '″' : ''} ${l.gsm != null ? '· ' + l.gsm + ' GSM' : ''}|"></div>
+            </td>
+            <td th:if="${paper.code == 'DELIVERY_CHALLAN' or paper.code == 'TRUCK_RECEIPT'}" th:text="${l.challanNo != null ? l.challanNo : '—'}"></td>
+            <td class="n" th:text="|${#numbers.formatDecimal(l.quantity, 1, 'COMMA', 2, 'POINT')} ${l.uom != null ? l.uom : ''}|"></td>
+            <td class="n" th:if="${paper.code != 'PACKING_LIST' and paper.code != 'DELIVERY_CHALLAN' and paper.code != 'TRUCK_RECEIPT'}" th:text="${#numbers.formatDecimal(l.rate, 1, 'COMMA', 4, 'POINT')}"></td>
+            <td class="n" th:if="${paper.code != 'PACKING_LIST' and paper.code != 'DELIVERY_CHALLAN' and paper.code != 'TRUCK_RECEIPT'}" th:text="${#numbers.formatDecimal(l.lineAmount, 1, 'COMMA', 2, 'POINT')}"></td>
+        </tr>
+        </tbody>
+        <tfoot><tr>
+            <th th:colspan="${paper.code == 'DELIVERY_CHALLAN' or paper.code == 'TRUCK_RECEIPT' ? 3 : 2}">Total</th>
+            <th class="n" th:text="${#numbers.formatDecimal(d.totalQuantity, 1, 'COMMA', 2, 'POINT')}"></th>
+            <th th:if="${paper.code != 'PACKING_LIST' and paper.code != 'DELIVERY_CHALLAN' and paper.code != 'TRUCK_RECEIPT'}"></th>
+            <th class="n" th:if="${paper.code != 'PACKING_LIST' and paper.code != 'DELIVERY_CHALLAN' and paper.code != 'TRUCK_RECEIPT'}" th:text="${#numbers.formatDecimal(d.subtotalAmount, 1, 'COMMA', 2, 'POINT')}"></th>
+        </tr></tfoot>
+    </table>
+    <p class="words" th:if="${det.amountInWords != null and paper.code != 'PACKING_LIST' and paper.code != 'DELIVERY_CHALLAN' and paper.code != 'TRUCK_RECEIPT'}" th:text="|In words: ${det.amountInWords}|"></p>
+
+    <th:block th:if="${paper.code == 'PI'}">
+        <h3 style="margin:14px 0 4px">Terms &amp; conditions</h3>
+        <ol class="terms">
+            <li th:each="t : ${d.keyTerms}"><b th:text="|${t.title}:|"></b> <span th:text="${t.text}"></span></li>
+            <li th:each="t : ${d.terms}" th:text="${t}"></li>
+        </ol>
+    </th:block>
+
+    <th:block th:if="${paper.code == 'LC'}">
+        <h3 style="margin:14px 0 4px">Recorded against it</h3>
+        <table th:if="${!#lists.isEmpty(d.events)}">
+            <thead><tr><th>What</th><th>No / head</th><th>Date</th><th class="n">Amount</th></tr></thead>
+            <tbody><tr th:each="e : ${d.events}">
+                <td th:text="${e.kind}"></td>
+                <td th:text="${e.refNo != null ? e.refNo : (e.costHead != null ? e.costHead : (e.documentName != null ? e.documentName : e.codeLabel))}"></td>
+                <td th:text="${e.date != null ? #temporals.format(e.date, 'dd MMM yyyy') : ''}"></td>
+                <td class="n" th:text="${e.amount != null ? #numbers.formatDecimal(e.amount, 1, 'COMMA', 2, 'POINT') : ''}"></td>
+            </tr></tbody>
+        </table>
+        <p class="muted" th:if="${#lists.isEmpty(d.events)}">Nothing recorded.</p>
+    </th:block>
+</div>
+</th:block>
+
+<div class="sign">
+    <div>Prepared by</div>
+    <div>Checked by</div>
+    <div th:text="${step == 'EPI' or step == 'ECI' ? 'For ' + (company.legalName != null ? company.legalName : company.name) : 'Authorised signature'}">Authorised</div>
+</div>
+<p class="noprint muted" style="margin-top:24px">Printed <span th:text="${#temporals.format(today, 'dd MMM yyyy')}"></span> · <a href="javascript:window.print()">Print</a></p>
+</body>
+</html>

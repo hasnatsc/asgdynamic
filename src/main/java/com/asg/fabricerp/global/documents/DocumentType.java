@@ -77,13 +77,13 @@ public enum DocumentType implements NumberSeries {
      * never had. A fabric exporter needs EBLC/IBLC more than a spinner does: the export LC
      * collateralises the import LC for yarn and dyes.
      */
-    EXPORT_PROFORMA_INVOICE("EPI", "Export Proforma Invoice", Family.COMMERCIAL, null),
-    IMPORT_PROFORMA_INVOICE("IPI", "Import Proforma Invoice", Family.COMMERCIAL, null),
-    EXPORT_LETTER_OF_CREDIT("ELC", "Export Letter Of Credit", Family.COMMERCIAL, null),
-    IMPORT_LETTER_OF_CREDIT("ILC", "Import Letter Of Credit", Family.COMMERCIAL, null),
+    EXPORT_PROFORMA_INVOICE("EPI", "Export Proforma Invoice", Family.COMMERCIAL, "EPI"),
+    IMPORT_PROFORMA_INVOICE("IPI", "Import Proforma Invoice", Family.COMMERCIAL, "IPI"),
+    EXPORT_LETTER_OF_CREDIT("ELC", "Export Letter Of Credit", Family.COMMERCIAL, "ELC"),
+    IMPORT_LETTER_OF_CREDIT("ILC", "Import Letter Of Credit", Family.COMMERCIAL, "ILC"),
     EXPORT_BACK_TO_BACK_LC("EBLC", "Export Back-to-Back LC", Family.COMMERCIAL, null),
     IMPORT_BACK_TO_BACK_LC("IBLC", "Import Back-to-Back LC", Family.COMMERCIAL, null),
-    EXPORT_COMMERCIAL_INVOICE("ECI", "Export Commercial Invoice", Family.COMMERCIAL, null),
+    EXPORT_COMMERCIAL_INVOICE("ECI", "Export Commercial Invoice", Family.COMMERCIAL, "ECI"),
     IMPORT_COMMERCIAL_INVOICE("ICI", "Import Commercial Invoice", Family.COMMERCIAL, null),
     DEBIT_NOTE("DN", "Debit Note", Family.COMMERCIAL, null),
     CREDIT_NOTE("CN", "Credit Note", Family.COMMERCIAL, null);
@@ -205,6 +205,10 @@ public enum DocumentType implements NumberSeries {
             case STOCK_TRANSFER -> TRANSFER_ISSUE;
             case TRANSFER_ISSUE -> TRANSFER_RECEIVE;
             case FABRIC_TRANSFER_ISSUE -> FABRIC_TRANSFER_RECEIVE;
+            case EXPORT_PROFORMA_INVOICE -> EXPORT_LETTER_OF_CREDIT;
+            case EXPORT_LETTER_OF_CREDIT -> EXPORT_COMMERCIAL_INVOICE;
+            // An import PI is ordered on a purchase order, as a purchase requisition is.
+            case IMPORT_PROFORMA_INVOICE -> PURCHASE_ORDER;
             default -> null;
         };
     }

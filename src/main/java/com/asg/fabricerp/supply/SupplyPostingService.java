@@ -165,7 +165,8 @@ public class SupplyPostingService {
         BigDecimal balance = line.getQuantity().subtract(done).max(BigDecimal.ZERO);
         line.shortClose(balance, reason.strip());
         if (balance.signum() > 0 && line.getSourceColorLine() != null) {
-            draws.ledger().release(SourceKind.COLOUR, line.getSourceColorLine().getId(), step.stream(), balance, step.parentType());
+            draws.ledger().release(SourceKind.COLOUR, line.getSourceColorLine().getId(), step.stream(), balance,
+                SupplyDraws.typeOf(line.getSourceColorLine()));
         }
         repository.save(doc);
         approvals.record(doc, ApprovalAction.SHORT_CLOSED, doc.getStatus(), "%s: %s".formatted(lineName(line), reason.strip()));

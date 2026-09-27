@@ -34,7 +34,8 @@ public class SupplyViews {
         DocumentType.PURCHASE_RETURN, "Returned",
         DocumentType.TRANSFER_ISSUE, "Issued",
         DocumentType.TRANSFER_RECEIVE, "Received",
-        DocumentType.FABRIC_TRANSFER_RECEIVE, "Received");
+        DocumentType.FABRIC_TRANSFER_RECEIVE, "Received",
+        DocumentType.IMPORT_PROFORMA_INVOICE, "On import PI");
 
     private final SupplyDocumentService documents;
     private final SupplyQueries queries;
@@ -138,6 +139,9 @@ public class SupplyViews {
         m.put("lineAmount", l.getLineAmount());
         m.put("stockDirection", l.getStockDirection());
         m.put("conditionNote", l.getConditionNote());
+        m.put("customsDuty", l.getCustomsDuty());
+        m.put("supplementaryDuty", l.getSupplementaryDuty());
+        m.put("allocatedCost", l.getAllocatedCost());
         m.put("remarks", l.getRemarks());
         m.put("shortClosed", l.isShortClosed());
         m.put("shortClosedQuantity", l.getShortClosedQuantity());
@@ -185,6 +189,8 @@ public class SupplyViews {
         for (SupplyStep child : SupplyStep.childrenOf(step.type())) {
             downstream.put(child.type(), queries.committed(child.type(), lineIds));
         }
+        if (step == SupplyStep.SPR) downstream.put(DocumentType.IMPORT_PROFORMA_INVOICE,
+            queries.committed(DocumentType.IMPORT_PROFORMA_INVOICE, lineIds));
         DocumentType principal = step.type().fulfilledBy();
         boolean moves = step.isPosting() || step == SupplyStep.SA;
         Map<Long, BigDecimal[]> posted = moves && step.lines() == SupplyStep.Lines.ITEM ? queries.postedByLine(d.getId()) : Map.of();
@@ -211,6 +217,9 @@ public class SupplyViews {
                 byLine.getOrDefault(l.getId(), BigDecimal.ZERO))));
             if (principal != null && s.isCommitted()) {
                 BigDecimal done = downstream.getOrDefault(principal, Map.of()).getOrDefault(l.getId(), BigDecimal.ZERO);
+                if (step == SupplyStep.SPR) {
+                    done = done.add(downstream.getOrDefault(DocumentType.IMPORT_PROFORMA_INVOICE, Map.of()).getOrDefault(l.getId(), BigDecimal.ZERO));
+                }
                 BigDecimal open = l.isShortClosed() ? BigDecimal.ZERO
                     : l.getQuantity().subtract(done).max(BigDecimal.ZERO);
                 figures.add(figure(step == SupplyStep.TI || step == SupplyStep.FTI ? "In transit" : "Open", open));

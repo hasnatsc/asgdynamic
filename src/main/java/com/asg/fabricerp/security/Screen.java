@@ -52,6 +52,18 @@ public enum Screen {
     /** The legacy MRR: goods received against a purchase order, into a store. */
     MRR("Material receive (MRR)", Section.PURCHASE, "/mrr"),
     PRT("Purchase return", Section.PURCHASE, "/purchase-return"),
+    /** Export PI: offered to the buyer from marketing's delivery schedules. */
+    EPI("Export PI", Section.COMMERCIAL, "/export-pi"),
+    /** Export LC: the buyer's (back-to-back) LC received against PIs, with its UD, UP and BTB LCs. */
+    ELC("Export LC", Section.COMMERCIAL, "/export-lc"),
+    /** Export CI: invoiced against an LC from delivery challans, then realized through the bank. */
+    ECI("Export CI", Section.COMMERCIAL, "/export-ci"),
+    IPI("Import PI", Section.COMMERCIAL, "/import-pi"),
+    ILC("Import LC", Section.COMMERCIAL, "/import-lc"),
+    /** Every PI, LC and CI and where it stands: the legacy PI, LC and CI reports and the commercial dashboard. */
+    COM_REGISTER("Commercial register", Section.COMMERCIAL, "/commercial/register"),
+    /** Document names and LC cost heads. */
+    COM_SETUP("Commercial setup", Section.COMMERCIAL, "/commercial/setup"),
     PARTY("Parties", Section.SETUP, "/setup/parties"),
     FABRIC_SETUP("Fabric setup", Section.SETUP, "/setup/fabric/weave-type"),
     TERMS("Terms & conditions", Section.SETUP, "/setup/terms"),
@@ -85,6 +97,8 @@ public enum Screen {
         SALES("Sales"),
         /** Requisitions, purchase orders, receipts from suppliers and returns to them. */
         PURCHASE("Purchase"),
+        /** Export and import PI, LC and CI. */
+        COMMERCIAL("Commercial"),
         INVENTORY("Inventory"),
         PRODUCTION("Production"),
         /** Greige and finished stores: receipts, issues, stock and deliveries. */

@@ -52,7 +52,12 @@ public class SupplyProgress {
         if (principal == null || !IN_FLIGHT.contains(doc.getStatus())) return;
         em.flush();   // the figures below are read with SQL, which sees only what has been written
         List<BusinessDocumentColorLine> lines = SupplyDraws.lines(doc);
-        Map<Long, BigDecimal> committed = queries.committed(principal, lines.stream().map(BusinessDocumentColorLine::getId).toList());
+        List<Long> ids = lines.stream().map(BusinessDocumentColorLine::getId).toList();
+        Map<Long, BigDecimal> committed = new HashMap<>(queries.committed(principal, ids));
+        // A requisition bought on an import PI is ordered as surely as one on a local order.
+        if (doc.getDocumentType() == DocumentType.PURCHASE_REQUISITION) {
+            queries.committed(DocumentType.IMPORT_PROFORMA_INVOICE, ids).forEach((k, v) -> committed.merge(k, v, BigDecimal::add));
+        }
         BusinessDocumentStatus next = byQuantities(lines, committed);
         if (next != doc.getStatus()) {
             doc.progressTo(next);
@@ -60,7 +65,7 @@ public class SupplyProgress {
         }
     }
 
-    static BusinessDocumentStatus byQuantities(List<BusinessDocumentColorLine> lines, Map<Long, BigDecimal> done) {
+    public static BusinessDocumentStatus byQuantities(List<BusinessDocumentColorLine> lines, Map<Long, BigDecimal> done) {
         boolean any = false, all = !lines.isEmpty();
         for (BusinessDocumentColorLine l : lines) {
             BigDecimal d = done.getOrDefault(l.getId(), BigDecimal.ZERO);

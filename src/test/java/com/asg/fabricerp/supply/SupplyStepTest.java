@@ -37,12 +37,16 @@ class SupplyStepTest {
         for (DocumentType type : DocumentType.values()) {
             DocumentType child = type.fulfilledBy();
             if (child == null) continue;
-            boolean supply = SupplyStep.of(child).map(s -> s.parentType() == type).orElse(false);
+            boolean supply = SupplyStep.of(child).map(s -> s.parentTypes().contains(type)).orElse(false);
             boolean chain = ChainStep.of(child).map(s -> s.parentType() == type).orElse(false);
-            assertThat(supply || chain).as("%s is fulfilled by %s, which is not raised against it", type, child).isTrue();
+            boolean commercial = com.asg.fabricerp.commercial.CommercialStep.of(child).map(s -> s.parentType() == type).orElse(false);
+            assertThat(supply || chain || commercial).as("%s is fulfilled by %s, which is not raised against it", type, child).isTrue();
         }
         assertThat(DocumentType.PURCHASE_ORDER.fulfilledBy()).isEqualTo(DocumentType.GOODS_RECEIPT_NOTE);
         assertThat(DocumentType.GOODS_RECEIPT_NOTE.fulfilledBy()).isNull();
+        // An import PI is ordered on a purchase order, as a requisition is.
+        assertThat(DocumentType.IMPORT_PROFORMA_INVOICE.fulfilledBy()).isEqualTo(DocumentType.PURCHASE_ORDER);
+        assertThat(SupplyStep.PO.parentTypes()).contains(DocumentType.IMPORT_PROFORMA_INVOICE);
         // The chain's own mapping is unchanged by the move into DocumentType.
         assertThat(ChainStep.principalChildOf(DocumentType.BOOKING)).contains(ChainStep.BPO);
         assertThat(ChainStep.principalChildOf(DocumentType.DELIVERY_ORDER)).contains(ChainStep.FD);

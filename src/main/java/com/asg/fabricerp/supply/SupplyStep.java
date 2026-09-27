@@ -101,6 +101,15 @@ public enum SupplyStep {
     public DocumentType type()       { return type; }
     /** The document its lines are raised against, or null when it is always raised directly. */
     public DocumentType parentType() { return parentType; }
+
+    /**
+     * Every document type its lines may be raised against: the parent type, and for a purchase
+     * order an approved import PI too - an import is ordered from the supplier's PI.
+     */
+    public Set<DocumentType> parentTypes() {
+        if (parentType == null) return Set.of();
+        return this == PO ? Set.of(DocumentType.PURCHASE_REQUISITION, DocumentType.IMPORT_PROFORMA_INVOICE) : Set.of(parentType);
+    }
     public String slug()             { return slug; }
     public Screen screen()           { return screen; }
     public String label()            { return label; }
@@ -163,6 +172,6 @@ public enum SupplyStep {
 
     /** The steps raised against {@code parent}, e.g. SPR and material issue against a store requisition. */
     public static java.util.List<SupplyStep> childrenOf(DocumentType parent) {
-        return Arrays.stream(values()).filter(s -> s.parentType == parent).toList();
+        return Arrays.stream(values()).filter(s -> s.parentTypes().contains(parent)).toList();
     }
 }

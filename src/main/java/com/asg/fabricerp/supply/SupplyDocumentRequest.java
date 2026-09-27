@@ -33,10 +33,13 @@ public record SupplyDocumentRequest(Long id, LocalDate documentDate, LocalDate r
      *                       the unit cost (blank for the store's current average)
      * @param stockDirection stock adjustment: IN or OUT
      * @param fabric         a fabric item's construction and finish, as bought or received
+     * @param customsDuty    an import MRR line: customs duty paid at the port (taka)
+     * @param supplementaryDuty an import MRR line: supplementary duty paid at the port (taka)
      */
     public record Line(Long sourceId, Long itemId, Long lotId, BigDecimal quantity, BigDecimal rate, Integer rolls,
                        Long brandId, Long modelId, String specification, String originCountry, String conditionNote,
-                       String stockDirection, String remarks, FabricDetail fabric) { }
+                       String stockDirection, String remarks, FabricDetail fabric, BigDecimal customsDuty,
+                       BigDecimal supplementaryDuty) { }
 
     /** The legacy MRR's fabric fields, kept on the line's fabric specification. */
     public record FabricDetail(String construction, String composition, String weaveType, String finishType,

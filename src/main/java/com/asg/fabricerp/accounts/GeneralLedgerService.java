@@ -157,6 +157,18 @@ public class GeneralLedgerService {
         return saved;
     }
 
+    /**
+     * The named amounts the rule for an event needs on a date ({@code amount}, or {@code net} and
+     * {@code vat}...) - so a caller with one figure can tell whether it can post it. Empty with no rule.
+     */
+    public java.util.Set<String> amountKeys(String eventType, LocalDate on) {
+        return findRule(context.requireOrganizationId(), eventType, on)
+            .map(rule -> rule.getLines().stream().map(PostingRuleLine::getAmountKey)
+                .collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new)))
+            .map(keys -> (java.util.Set<String>) keys)
+            .orElse(java.util.Set.of());
+    }
+
     /** Whether an event can currently be posted - for a caller that wants to check first. */
     public boolean canPost(String eventType, LocalDate on) {
         Long orgId = context.requireOrganizationId();

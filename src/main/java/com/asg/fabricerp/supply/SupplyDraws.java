@@ -55,7 +55,7 @@ public class SupplyDraws {
             BusinessDocumentColorLine source = line.getSourceColorLine();
             if (source == null) continue;
             ledger.draw(orgId, SourceKind.COLOUR, source.getId(), step.stream(), held(line), cap(source),
-                step.parentType(), () -> describe(source));
+                typeOf(source), () -> describe(source));
         }
     }
 
@@ -63,8 +63,13 @@ public class SupplyDraws {
         for (BusinessDocumentColorLine line : lines(doc)) {
             BusinessDocumentColorLine source = line.getSourceColorLine();
             if (source == null) continue;
-            ledger.release(SourceKind.COLOUR, source.getId(), step.stream(), held(line), step.parentType());
+            ledger.release(SourceKind.COLOUR, source.getId(), step.stream(), held(line), typeOf(source));
         }
+    }
+
+    /** The document type a parent line belongs to - what its fulfilled quantity mirrors. */
+    public static com.asg.fabricerp.global.documents.DocumentType typeOf(BusinessDocumentColorLine line) {
+        return line.getLineGroup().getDocument().getDocumentType();
     }
 
     /** Every stream drawn on each of a document's lines: line id -> child type -> total. */

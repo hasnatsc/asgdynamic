@@ -147,6 +147,30 @@ public class BusinessDocumentColorLine extends BaseOrgLineEntity {
     @Column(name = "condition_note", length = 300)
     private String conditionNote;
 
+    /** A regular export CI line: the delivery challan (Fabrics delivery) line it invoices. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "delivery_line_id", foreignKey = @ForeignKey(name = "fk_gbdcl_delivery_line"))
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private BusinessDocumentColorLine deliveryLine;
+
+    /** An import MRR line: duties paid at the port and its share of the LC's costs - its landed cost. */
+    @Column(name = "customs_duty", nullable = false, precision = 20, scale = 6)
+    private BigDecimal customsDuty = BigDecimal.ZERO;
+
+    @Column(name = "supplementary_duty", nullable = false, precision = 20, scale = 6)
+    private BigDecimal supplementaryDuty = BigDecimal.ZERO;
+
+    @Column(name = "allocated_cost", nullable = false, precision = 20, scale = 6)
+    private BigDecimal allocatedCost = BigDecimal.ZERO;
+
+    public BusinessDocumentColorLine getDeliveryLine()   { return deliveryLine; }
+    public void setDeliveryLine(BusinessDocumentColorLine v) { this.deliveryLine = v; }
+    public BigDecimal getCustomsDuty()                   { return customsDuty; }
+    public void setCustomsDuty(BigDecimal v)             { this.customsDuty = v == null ? BigDecimal.ZERO : v; }
+    public BigDecimal getSupplementaryDuty()             { return supplementaryDuty; }
+    public void setSupplementaryDuty(BigDecimal v)       { this.supplementaryDuty = v == null ? BigDecimal.ZERO : v; }
+    public BigDecimal getAllocatedCost()                 { return allocatedCost; }
+    public void setAllocatedCost(BigDecimal v)           { this.allocatedCost = v == null ? BigDecimal.ZERO : v; }
     public String getStockDirection()                    { return stockDirection; }
     public void setStockDirection(String v)              { this.stockDirection = blankToNull(v); }
     public String getConditionNote()                     { return conditionNote; }

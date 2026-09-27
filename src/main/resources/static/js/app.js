@@ -1404,7 +1404,8 @@
     };
     const HISTORY_VERBS = { SUBMITTED: 'submitted it', RESUBMITTED: 'submitted it again', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it',
                             POSTED: 'posted it to stock', CANCELLED: 'cancelled it', SHORT_CLOSED: 'short-closed a line', CLOSED: 'closed it',
-                            SUPERSEDED: 'replaced it with a revision' };
+                            SUPERSEDED: 'replaced it with a revision', ACCOUNTED: 'posted it to accounts', REALIZED: 'recorded its final payment',
+                            REALIZATION_UNDONE: 'took back its final payment' };
     const GROUP_FIELDS = {
         itemName: 'Item', costingCode: 'Costing no', fabricType: 'Fabric type', composition: 'Composition',
         declaredConstruction: 'PI construction', weaveType: 'Weave type', weaveStyle: 'Weave style',
@@ -1663,7 +1664,8 @@
                 <li class="flex gap-3">
                     <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">
                         ${icon({ REJECTED: 'x', RETURNED: 'arrow-right', APPROVED: 'check', POSTED: 'check-circle', CANCELLED: 'x-circle',
-                                SHORT_CLOSED: 'lock', CLOSED: 'lock', SUPERSEDED: 'refresh' }[h.action] || 'send', 'h-3 w-3')}</span>
+                                SHORT_CLOSED: 'lock', CLOSED: 'lock', SUPERSEDED: 'refresh',
+                                ACCOUNTED: 'ledger', REALIZED: 'check-circle', REALIZATION_UNDONE: 'x-circle' }[h.action] || 'send', 'h-3 w-3')}</span>
                     <div class="min-w-0 text-sm">
                         <p><span class="font-medium text-gray-900 dark:text-white">${esc(h.actor || 'System')}</span>
                            <span class="text-gray-500">${esc(HISTORY_VERBS[h.action] || 'moved it to')}${h.level ? ' level ' + esc(h.level) : ''}</span>

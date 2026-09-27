@@ -43,7 +43,7 @@ public class SupplyQueries {
         return em.createQuery("""
                 select d from BusinessDocument d left join fetch d.party p left join fetch d.warehouse w
                   left join fetch d.toWarehouse tw
-                where d.organizationId = :org and d.businessUnit.id = :unit and d.documentType = :type
+                where d.organizationId = :org and d.businessUnit.id = :unit and d.documentType in :types
                   and d.deleted = false and d.status in :statuses
                   and (lower(d.documentNo) like :q or lower(coalesce(d.referenceNo, '')) like :q
                        or lower(coalesce(p.name, '')) like :q)
@@ -52,7 +52,7 @@ public class SupplyQueries {
                 """, BusinessDocument.class)
             .setParameter("org", context.requireOrganizationId())
             .setParameter("unit", context.requireBusinessUnitId())
-            .setParameter("type", step.parentType())
+            .setParameter("types", step.parentTypes())
             .setParameter("statuses", EnumSet.of(BusinessDocumentStatus.APPROVED, BusinessDocumentStatus.PROCESSING,
                 BusinessDocumentStatus.PARTIAL))
             .setParameter("q", like)

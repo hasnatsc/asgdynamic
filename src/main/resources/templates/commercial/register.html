@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  The commercial register: the legacy PI, LC and CI reports and the commercial dashboard. Tiles for
+  what is open, then one tab per register - export PIs, LCs and CIs; import PIs and LCs.
+-->
+<head><title>Commercial register</title></head>
+<body>
+<div th:fragment="content" data-commercial-screen="register">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Commercial register</h1>
+            <p class="page-sub">Every PI, LC and CI and where it stands: what each LC covers, invoices and realizes; which bills are due; which imports are waiting.</p>
+        </div>
+    </div>
+
+    <div class="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7" data-kpis></div>
+
+    <div data-tabs-root>
+        <div class="tabs mb-5 !px-0" role="tablist">
+            <button type="button" class="tab" role="tab" data-tab="export-lc" aria-selected="true">Export LCs</button>
+            <button type="button" class="tab" role="tab" data-tab="export-ci" aria-selected="false">Export CIs</button>
+            <button type="button" class="tab" role="tab" data-tab="export-pi" aria-selected="false">Export PIs</button>
+            <button type="button" class="tab" role="tab" data-tab="import-pi" aria-selected="false">Import PIs</button>
+            <button type="button" class="tab" role="tab" data-tab="import-lc" aria-selected="false">Import LCs</button>
+        </div>
+        <div class="card overflow-hidden">
+            <div class="toolbar">
+                <div class="input-icon w-full sm:w-72">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                    <input type="search" class="field" placeholder="Number, LC no or party" aria-label="Search" data-q autocomplete="off">
+                </div>
+                <input type="date" class="field w-auto" aria-label="From" data-from>
+                <span class="text-gray-400">–</span>
+                <input type="date" class="field w-auto" aria-label="To" data-to>
+                <button type="button" class="btn-subtle toolbar-spacer" data-csv>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>Export CSV</button>
+            </div>
+            <div class="table-wrap"><table class="table-grid whitespace-nowrap" data-register><thead></thead><tbody></tbody></table></div>
+            <div data-panel="export-lc"></div><div data-panel="export-ci" hidden></div><div data-panel="export-pi" hidden></div>
+            <div data-panel="import-pi" hidden></div><div data-panel="import-lc" hidden></div>
+        </div>
+    </div>
+    <script th:src="@{/js/commercial-screens.js}" defer></script>
+</div>
+</body>
+</html>

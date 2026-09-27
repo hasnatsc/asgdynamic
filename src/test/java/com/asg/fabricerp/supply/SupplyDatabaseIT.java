@@ -483,13 +483,13 @@ class SupplyDatabaseIT {
 
         Builder item(long itemId, String qty, String rate) {
             lines.add(new SupplyDocumentRequest.Line(null, itemId, null, new BigDecimal(qty), rate == null ? null : new BigDecimal(rate),
-                null, null, null, null, null, null, null, null, null));
+                null, null, null, null, null, null, null, null, null, null, null));
             return this;
         }
 
         Builder adjust(long itemId, String direction, String qty, String rate) {
             lines.add(new SupplyDocumentRequest.Line(null, itemId, null, new BigDecimal(qty), rate == null ? null : new BigDecimal(rate),
-                null, null, null, null, null, null, direction, null, null));
+                null, null, null, null, null, null, direction, null, null, null, null));
             return this;
         }
 
@@ -497,13 +497,13 @@ class SupplyDatabaseIT {
 
         Builder from(long sourceId, String qty, String rate) {
             lines.add(new SupplyDocumentRequest.Line(sourceId, null, null, new BigDecimal(qty), rate == null ? null : new BigDecimal(rate),
-                null, null, null, null, null, null, null, null, null));
+                null, null, null, null, null, null, null, null, null, null, null));
             return this;
         }
 
         Builder lot(long lotId, String qty) {
             lines.add(new SupplyDocumentRequest.Line(null, null, lotId, new BigDecimal(qty), null, 12,
-                null, null, null, null, null, null, null, null));
+                null, null, null, null, null, null, null, null, null, null));
             return this;
         }
 

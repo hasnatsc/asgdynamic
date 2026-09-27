@@ -6,6 +6,7 @@ import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentLineGroup;
 import com.asg.fabricerp.inventory.item.InventoryItem;
 import com.asg.fabricerp.production.FabricStockService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -17,7 +18,8 @@ import static com.asg.fabricerp.supply.SupplyDraws.lineName;
  * Turns a purchase or store document's lines into stock moves - the one place that decides which
  * ledger each step writes and what it is valued at:
  * <ul>
- *   <li>MRR: in, at the order's price times its rate to taka;</li>
+ *   <li>MRR: in, at the order's price times its rate to taka - for an import, plus its duties and its
+ *       share of the PI's and LC's costs (its landed cost);</li>
  *   <li>direct receive and an adjustment that adds: in, at the price given, else the store's
  *       average, else the item's cost price;</li>
  *   <li>issue, purchase return, transfer issue and an adjustment that takes away: out, at the
@@ -35,12 +37,15 @@ public class SupplyStockWriter {
     private final FabricStockService fabric;
     private final InventoryPeriodService periods;
     private final OrgContext context;
+    private final ObjectProvider<LandedCostProvider> landedCosts;
 
-    public SupplyStockWriter(ItemStockService stock, FabricStockService fabric, InventoryPeriodService periods, OrgContext context) {
+    public SupplyStockWriter(ItemStockService stock, FabricStockService fabric, InventoryPeriodService periods, OrgContext context,
+                             ObjectProvider<LandedCostProvider> landedCosts) {
         this.stock = stock;
         this.fabric = fabric;
         this.periods = periods;
         this.context = context;
+        this.landedCosts = landedCosts;
     }
 
     public void write(SupplyStep step, BusinessDocument doc) {
@@ -59,7 +64,7 @@ public class SupplyStockWriter {
                 InventoryItem item = g.getItem();
                 switch (step) {
                     case MRR -> stock.receive(orgId, move(store, item, qty, "RECEIPT", doc, line, date, what),
-                        line.getRate().multiply(fx(doc)), user);
+                        landedUnitCost(doc, line), user);
                     case MR -> stock.receive(orgId, move(store, item, qty, "DIRECT_RECEIVE", doc, line, date, what),
                         costIn(store, item, line.getRate()), user);
                     case PRT -> stock.issue(orgId, move(store, item, qty, "PURCHASE_RETURN", doc, line, date, what), user);
@@ -97,6 +102,19 @@ public class SupplyStockWriter {
         if (line.getFabricLotId() == null) throw new IllegalStateException("A fabric transfer line names no lot");
         return new FabricStockService.Move(store, line.getFabricLotId(), line.getQuantity(),
             line.getRolls() == null ? 0 : line.getRolls(), g.getUom() == null ? null : g.getUom().getId(), type, doc.getId(), line.getId());
+    }
+
+    /**
+     * What a received unit cost to land: the order's price in taka, plus - for an import - the
+     * line's duties and its share of the PI's and LC's costs, spread over the quantity. The share
+     * is fixed on the line when it is posted, so the MRR shows what it was valued at.
+     */
+    private BigDecimal landedUnitCost(BusinessDocument doc, BusinessDocumentColorLine line) {
+        LandedCostProvider provider = landedCosts.getIfAvailable();
+        line.setAllocatedCost(provider == null ? BigDecimal.ZERO : provider.allocatedCost(line).setScale(6, java.math.RoundingMode.HALF_UP));
+        BigDecimal extras = line.getCustomsDuty().add(line.getSupplementaryDuty()).add(line.getAllocatedCost());
+        return line.getRate().multiply(fx(doc))
+            .add(extras.divide(line.getQuantity(), ItemStockService.COST_SCALE, java.math.RoundingMode.HALF_UP));
     }
 
     /** The cost stock comes in at without a purchase: the price given, else the store's average, else the item's cost price. */

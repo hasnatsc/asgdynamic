@@ -126,6 +126,13 @@ public final class Navigation {
             case PRT            -> "refresh";
             case FTI            -> "transfer";
             case FTR            -> "packing";
+            case EPI            -> "document";
+            case ELC            -> "credit-card";
+            case ECI            -> "clipboard-check";
+            case IPI            -> "download";
+            case ILC            -> "globe";
+            case COM_REGISTER   -> "chart-bar";
+            case COM_SETUP      -> "tag";
         };
     }
 
@@ -136,6 +143,7 @@ public final class Navigation {
             case SETUP          -> "master-data";
             case SALES          -> "sales";
             case PURCHASE       -> "credit-card";
+            case COMMERCIAL     -> "globe";
             case INVENTORY      -> "inventory";
             case PRODUCTION     -> "production";
             case STORES         -> "package";

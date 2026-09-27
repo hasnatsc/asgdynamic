@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const showPosted = lines.some(l => l.postedValue != null);
         const showRolls = lines.some(l => l.rolls != null);
         const showDirection = STEP === 'SA';
+        const showLanded = STEP === 'MRR' && lines.some(l => Number(l.customsDuty) + Number(l.supplementaryDuty) + Number(l.allocatedCost) > 0);
         const shortClose = doc.shortClosable;
         const closedCol = shortClose || lines.some(l => l.shortClosed);
         return `<div class="table-wrap"><table class="table-grid">
@@ -132,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${showRolls ? '<th class="text-right">Rolls</th>' : ''}<th class="text-right">Quantity</th>
                 ${showRate ? `<th class="text-right">${STEP === 'SA' ? 'Unit cost' : 'Rate'}</th>` : ''}
                 ${showRate && STEP !== 'SA' ? '<th class="text-right">Amount</th>' : ''}
+                ${showLanded ? '<th class="text-right">Duties</th><th class="text-right">Allocated costs</th>' : ''}
                 ${showPosted ? '<th class="text-right">Posted at</th><th class="text-right">Stock value</th>' : ''}
                 ${figureLabels.map(f => `<th class="text-right">${esc(f)}</th>`).join('')}${closedCol ? '<th></th>' : ''}</tr></thead>
             <tbody>${lines.map(l => {
@@ -148,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="text-right tabular-nums font-medium">${qtyUnit(l.quantity, l.uom)}</td>
                     ${showRate ? `<td class="text-right tabular-nums">${STEP === 'SA' && l.stockDirection !== 'IN' ? '—' : money(l.rate)}</td>` : ''}
                     ${showRate && STEP !== 'SA' ? `<td class="text-right tabular-nums">${money(l.lineAmount)}</td>` : ''}
+                    ${showLanded ? `<td class="text-right tabular-nums">${money(Number(l.customsDuty) + Number(l.supplementaryDuty))}</td><td class="text-right tabular-nums">${money(l.allocatedCost)}</td>` : ''}
                     ${showPosted ? `<td class="text-right tabular-nums">${money(l.postedUnitCost)}</td><td class="text-right tabular-nums">${money(l.postedValue)}</td>` : ''}
                     ${figureLabels.map(f => `<td class="text-right tabular-nums">${num(figs[f])}</td>`).join('')}
                     ${closedCol ? `<td class="text-right">${closed}</td>` : ''}
@@ -280,7 +283,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const l of doc.lines || []) {
                     if (l.sourceId != null) {
                         this.picked.set(l.sourceId, { quantity: l.quantity, rate: l.rate, originCountry: l.originCountry,
-                            conditionNote: l.conditionNote, rolls: l.rolls, remarks: l.remarks });
+                            conditionNote: l.conditionNote, rolls: l.rolls, remarks: l.remarks, customsDuty: l.customsDuty,
+                            supplementaryDuty: l.supplementaryDuty });
                     } else {
                         this.direct.push(directFromLine(l));
                     }
@@ -431,10 +435,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const rows = [...this.rows.values()];
             const showStock = rows.some(r => r.stock != null);
             const extraHead = { PO: '<th class="num">Rate</th>', MRR: '<th>Origin</th><th>Condition</th>', FTR: '<th class="num">Rolls</th>' }[STEP] || '';
+            const dutyHead = importReceipt() ? '<th class="num">Customs duty (BDT)</th><th class="num">Suppl. duty (BDT)</th>' : '';
             return `<div class="table-wrap"><table class="line-colours line-colours-edit">
                 <thead><tr><th class="w-8"></th><th>Item</th><th class="num">${esc(this.parent ? 'On ' + this.parent.documentNo : 'Ordered')}</th>
                     <th class="num">Taken</th><th class="num">Open</th>${showStock ? '<th class="num">In store</th>' : ''}
-                    ${CFG.priced && STEP !== 'PO' ? '<th class="num">Rate</th>' : ''}<th class="num">Quantity</th>${extraHead}</tr></thead>
+                    ${CFG.priced && STEP !== 'PO' ? '<th class="num">Rate</th>' : ''}<th class="num">Quantity</th>${extraHead}${dutyHead}</tr></thead>
                 <tbody>${rows.map(r => {
                     const p = this.picked.get(r.sourceId);
                     const on = !!p;
@@ -442,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const input = (f, type, attrs, value, cls) => `<input type="${type}" class="field field-sm ${cls || (type === 'number' ? 'w-24 text-right' : 'w-32')}" data-f="${f}" ${attrs || ''}
                         value="${esc(value ?? '')}"${on ? '' : ' disabled'}>`;
                     const extra = {
-                        PO: `<td class="num">${input('rate', 'number', 'min="0" step="0.0001"', p ? p.rate : '')}</td>`,
+                        PO: fromImportPi() ? `<td class="num">${money(r.rate)}</td>` : `<td class="num">${input('rate', 'number', 'min="0" step="0.0001"', p ? p.rate : '')}</td>`,
                         MRR: `<td>${input('originCountry', 'text', 'maxlength="60"', p ? p.originCountry : r.originCountry)}</td><td>${input('conditionNote', 'text', 'maxlength="300"', p ? p.conditionNote : '', 'w-40')}</td>`,
                         FTR: `<td class="num">${input('rolls', 'number', 'min="0" step="1"', p ? p.rolls : r.rolls)}</td>`
                     }[STEP] || '';
@@ -457,6 +462,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td class="num"><input type="number" min="0" step="0.0001" class="field field-sm w-28 text-right" data-f="quantity"
                             value="${esc(p ? p.quantity : '')}"${on ? '' : ' disabled'} ${open > 0 ? `max="${esc(r.available)}"` : ''}></td>
                         ${extra}
+                        ${importReceipt() ? `<td class="num">${input('customsDuty', 'number', 'min="0" step="0.01"', p ? p.customsDuty : '')}</td>
+                            <td class="num">${input('supplementaryDuty', 'number', 'min="0" step="0.01"', p ? p.supplementaryDuty : '')}</td>` : ''}
                     </tr>`;
                 }).join('')}</tbody></table></div>`;
         },
@@ -520,6 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         finishWidth: n(e.fabric.finishWidth), gsm: n(e.fabric.gsm) } : null }))
                 : [...this.picked.entries()].filter(([id]) => this.rows.has(id)).map(([id, p]) => ({
                     sourceId: Number(id), quantity: n(p.quantity), rate: STEP === 'PO' ? n(p.rate) : null, rolls: n(p.rolls),
+                    customsDuty: n(p.customsDuty), supplementaryDuty: n(p.supplementaryDuty),
                     originCountry: p.originCountry || null, conditionNote: p.conditionNote || null, remarks: p.remarks || null }));
             return {
                 id: this.doc ? this.doc.id : null,
@@ -532,6 +540,11 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
     };
+
+    /** A purchase order raised from a supplier's import PI: priced by the PI, not typed. */
+    const fromImportPi = () => editor.parent && editor.parent.documentType === 'IMPORT_PROFORMA_INVOICE';
+    /** An MRR against an import order carries the duties paid at the port. */
+    const importReceipt = () => STEP === 'MRR' && editor.parent && editor.parent.purchaseType === 'IMPORT';
 
     /** A saved direct line, back in the editor. */
     function directFromLine(l) {
@@ -588,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const defaultQty = Math.max(0, Math.min(Number(r.available) || 0,
                         TAKES_OUT.includes(STEP) && r.stock != null ? Number(r.stock) : Infinity));
                     editor.picked.set(id, { quantity: defaultQty > 0 ? Math.round(defaultQty * 10000) / 10000 : '',
-                        rate: STEP === 'PO' ? '' : r.rate, originCountry: r.originCountry, rolls: r.rolls });
+                        rate: STEP === 'PO' && !fromImportPi() ? '' : r.rate, originCountry: r.originCountry, rolls: r.rolls });
                 } else {
                     editor.picked.delete(id);
                 }
@@ -627,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const [id, r] of editor.rows) {
             if (event.target.checked && !editor.picked.has(id) && Number(r.available) > 0) {
                 const qty = Math.min(Number(r.available), TAKES_OUT.includes(STEP) && r.stock != null ? Number(r.stock) : Infinity);
-                editor.picked.set(id, { quantity: qty > 0 ? qty : '', rate: STEP === 'PO' ? '' : r.rate, originCountry: r.originCountry, rolls: r.rolls });
+                editor.picked.set(id, { quantity: qty > 0 ? qty : '', rate: STEP === 'PO' && !fromImportPi() ? '' : r.rate, originCountry: r.originCountry, rolls: r.rolls });
             } else if (!event.target.checked) {
                 editor.picked.delete(id);
             }
