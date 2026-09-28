@@ -290,6 +290,10 @@ class ProductionChainDatabaseIT {
         approve(bpo);
         BusinessDocument revision = documents.revise(ChainStep.BPO, bpo.getId(), "IT revision");
         assertThat(count(revision)).isEqualTo(2);
+        // The draft revision does not count until approved: the order is counted once, as its original.
+        List<Map<String, Object>> current = dashboard.linesForBookings(List.of(booking.getId()));
+        assertThat(current).extracting(l -> l.get("bpoId")).containsOnly(bpo.getId());
+        assertThat(ProductionDashboardService.sum(current).get("quantity")).isEqualByComparingTo("18650");
     }
 
     @Test
@@ -335,6 +339,12 @@ class ProductionChainDatabaseIT {
         assertThat(dashboard.documents(one, ChainStep.GR, "")).singleElement()
             .satisfies(doc -> assertThat(doc.get("documentNo")).isEqualTo(load(gr.getId()).getDocumentNo()));
         assertThat(dashboard.bookingDocuments(one)).extracting(b -> b.get("id")).containsExactly(booking.getId());
+
+        // Booking analytics follows a booking to its orders' lines through the same query.
+        List<Map<String, Object>> bookingLines = dashboard.linesForBookings(List.of(booking.getId()));
+        assertThat(bookingLines).hasSize(2).allSatisfy(l -> assertThat(l.get("bookingId")).isEqualTo(booking.getId()));
+        assertThat(ProductionDashboardService.sum(bookingLines).get("greigeReceived")).isEqualByComparingTo("1600");
+        assertThat(dashboard.linesForBookings(List.of())).isEmpty();
 
         // Past its required date with a balance: overdue, and an alert that opens the order.
         jdbc.update("UPDATE gbl_business_documents SET required_date = CURRENT_DATE - 5 WHERE id = ?", bpo.getId());
@@ -457,6 +467,8 @@ class ProductionChainDatabaseIT {
             """, BigDecimal.class, newLine)).isEqualByComparingTo("1000");
         // The Booking is drawn once, by the revision.
         assertThat(fulfilled(booking)).containsExactly(bd("1000"));
+        // ...and the boards count the order once, as its revision.
+        assertThat(dashboard.linesForBookings(List.of(booking.getId()))).extracting(l -> l.get("bpoId")).containsOnly(cut.getId());
     }
 
     @Test

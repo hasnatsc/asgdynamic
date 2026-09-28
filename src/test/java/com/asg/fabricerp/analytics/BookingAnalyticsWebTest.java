@@ -46,6 +46,7 @@ class BookingAnalyticsWebTest {
     @MockitoBean private OrgContext orgContext;
 
     @MockitoBean private BookingAnalyticsService service;
+    @MockitoBean private BookingDeliveryService delivery;
 
     private FabricUser analyst;   // may open the analytics
     private FabricUser clerk;     // works with bookings, but was not granted the analytics
@@ -72,7 +73,20 @@ class BookingAnalyticsWebTest {
             .andExpect(content().string(containsString("/js/booking-analytics.js")))
             .andExpect(content().string(containsString("href=\"/analytics/booking\"")))
             .andExpect(content().string(containsString("Booking analytics")))
-            .andExpect(content().string(containsString("Pending approvals")));
+            .andExpect(content().string(containsString("Pending approvals")))
+            .andExpect(content().string(containsString("data-tab=\"delivery\"")))
+            .andExpect(content().string(containsString("/js/booking-delivery.js")));
+    }
+
+    @Test
+    void bookingToDeliveryTakesThePagesFilters() throws Exception {
+        when(delivery.delivery(any())).thenReturn(Map.of("bookings", java.util.List.of()));
+        mvc.perform(get("/api/analytics/booking/delivery").with(signedIn(analyst))
+                .param("from", "2026-01-01").param("to", "2026-03-31").param("view", "MINE").param("buyerId", "9").param("status", "CONFIRMED"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.bookings").isArray());
+        verify(delivery).delivery(new BookingAnalyticsService.Request(java.time.LocalDate.of(2026, 1, 1),
+            java.time.LocalDate.of(2026, 3, 31), AnalyticsView.MINE, null, null, 9L, null, "CONFIRMED", null, null));
     }
 
     @Test
@@ -97,7 +111,8 @@ class BookingAnalyticsWebTest {
         mvc.perform(get("/analytics/booking").with(signedIn(clerk))).andExpect(status().isForbidden());
         mvc.perform(get("/api/analytics/booking/overview").with(signedIn(clerk))).andExpect(status().isForbidden());
         mvc.perform(get("/api/analytics/booking/register.csv").with(signedIn(clerk))).andExpect(status().isForbidden());
-        verifyNoInteractions(service);
+        mvc.perform(get("/api/analytics/booking/delivery").with(signedIn(clerk))).andExpect(status().isForbidden());
+        verifyNoInteractions(service, delivery);
     }
 
     private static Role role(Long id, Screen screen) {

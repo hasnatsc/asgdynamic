@@ -437,6 +437,43 @@ public final class BookingAnalyticsSql {
         return new Query(sql, p);
     }
 
+    /**
+     * Booking to delivery: the bookings in scope (cancelled left out), newest first, with the root
+     * of each one's revision family - the production orders of a revised booking may hang from any
+     * of its versions.
+     */
+    public static Query deliveryBookings(Criteria c, int limit) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("limit", limit);
+        String sql = base(c, true, p) + """
+            SELECT b.id, b.document_no, b.reference_no, b.document_date, b.required_date, b.status, b.grp AS status_group,
+                   b.currency_code, b.qty AS quantity, b.amount AS value,
+                   COALESCE(pt.name, '') AS buyer, COALESCE(t.name, '') AS team,
+                   COALESCE(NULLIF(u.full_name, ''), u.username, '') AS person
+            FROM b
+            LEFT JOIN pty_parties pt ON pt.id = b.party_id
+            LEFT JOIN org_marketing_teams t ON t.id = b.marketing_team_id
+            LEFT JOIN sec_fabric_users u ON u.id = b.marketing_person_id
+            WHERE b.grp <> 'CANCELLED'
+            ORDER BY b.document_date DESC, b.id DESC
+            LIMIT :limit
+            """;
+        return new Query(sql, p);
+    }
+
+    /** Every version of these bookings, and the booking (current version) each belongs to. */
+    public static Query bookingVersions(List<Long> bookingIds) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("ids", bookingIds.isEmpty() ? List.of(-1L) : bookingIds);
+        return new Query("""
+            SELECT v.id AS version_id, cur.id AS booking_id
+            FROM gbl_business_documents cur
+            JOIN gbl_business_documents v ON COALESCE(v.revision_of_id, v.id) = COALESCE(cur.revision_of_id, cur.id)
+                                          AND v.document_type = 'BOOKING'
+            WHERE cur.id IN (:ids)
+            """, p);
+    }
+
     public static Query registerCount(Criteria c) {
         Map<String, Object> p = new LinkedHashMap<>();
         return new Query(base(c, true, p) + "SELECT count(*) AS total FROM b\n", p);

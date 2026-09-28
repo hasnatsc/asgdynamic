@@ -345,6 +345,39 @@ the `analytics-charts.js` kit and its validated colour roles. The planned → de
 the one-hue ordinal ramp because they are ordered, and red is kept for overdue. Every chart
 has a table view.
 
+**Counting orders:** the boards and the dashboard count each production order once, as its
+current version, just as Booking analytics counts bookings. A revision still in draft or awaiting
+approval leaves its original standing. An original superseded by an approved revision gives way
+to that revision.
+
+### Booking analytics → Booking to delivery
+
+The **Booking to delivery** tab on `/analytics/booking` follows every booking in the page's
+filters down the chain. It uses the same period, view (my bookings / my teams / all teams),
+team, person, buyer, currency, status and booking type, and the same `AnalyticsScope`, so each
+viewer sees only the bookings they may analyse.
+
+`BookingDeliveryService` takes the page's bookings (`BookingAnalyticsSql.deliveryBookings`) and
+reads their production orders' lines through the Production board's query
+(`ProductionDashboardService.linesForBookings`). Production orders raised on any version of a
+revised booking count towards it. A booking's figures therefore add up to its orders' figures
+on the boards.
+
+- **KPIs:** confirmed bookings, booked quantity, on production orders, produced, delivered,
+  balance, overdue, and at risk / not ordered.
+- **Charts:** a booked → ordered → woven → finished → scheduled → on delivery orders → delivered
+  funnel; bookings by stage; booked, ordered, produced and delivered by booking month.
+- **Booking progress table:** ordered, produced and delivered bars against the booked quantity,
+  plus in stock and stage. It can be searched, filtered and exported, and each row lists its
+  production orders.
+- **Timeline and alerts:** a timeline of open bookings, and alerts for bookings past their
+  delivery date, bookings due within 7 days and not ready, and bookings confirmed more than
+  3 days ago but not yet on production orders.
+
+Every tile, funnel stage and chart bar opens the bookings behind it, and every booking opens its
+document or its production orders. The progress bar and timeline are `chain-widgets.js`, which
+is shared with the Production dashboard.
+
 ## Purchase and stores (`supply` package, V31)
 
 The legacy Inventory and Purchase menus - SR, SPR, PO, MRR, issue against SR, direct issue and

@@ -44,7 +44,7 @@ public class ProductionBoardService {
     static final String BOARD = """
         WITH l AS (
             SELECT d.id AS bpo_id, d.document_no AS bpo_no, d.status, d.required_date, d.document_date,
-                   d.party_id AS buyer_id, p.name AS buyer, t.name AS team, g.id AS group_id, g.group_no, g.construction, g.fabric_type,
+                   d.parent_document_id AS booking_id, d.party_id AS buyer_id, p.name AS buyer, t.name AS team, g.id AS group_id, g.group_no, g.construction, g.fabric_type,
                    g.route_code, g.greige_key, g.deliver_stage, COALESCE(g.needs_processing, false) AS needs_processing,
                    COALESCE(g.greige_allowance_pct, 0) AS allowance, COALESCE(g.delivery_tolerance_pct, 0) AS tolerance,
                    COALESCE(NULLIF(u.symbol, ''), u.name) AS uom, cl.id AS line_id, cl.color_name, cl.color_code, cl.quantity,
@@ -66,6 +66,14 @@ public class ProductionBoardService {
               AND (CAST(:fabricType AS VARCHAR) IS NULL OR lower(g.fabric_type) = lower(CAST(:fabricType AS VARCHAR)))
               AND (CAST(:dueBy AS DATE) IS NULL OR d.required_date <= :dueBy)
               AND (CAST(:bpoId AS BIGINT) IS NULL OR d.id = :bpoId)
+              AND (:allBookings OR d.parent_document_id IN (:bookingIds))
+              -- The current version of each order only, as for bookings: a revision still being drafted
+              -- or approved leaves its original standing, and an original superseded by an approved
+              -- revision (cancelled, or closed when it could not be) gives way to it.
+              AND NOT (d.revision_of_id IS NOT NULL AND d.status IN ('DRAFT', 'SUBMITTED', 'REJECTED'))
+              AND NOT EXISTS (SELECT 1 FROM gbl_business_documents n
+                              WHERE n.revision_of_id = COALESCE(d.revision_of_id, d.id) AND n.revision_no > d.revision_no
+                                AND n.deleted = false AND n.status IN ('APPROVED', 'PARTIAL', 'PROCESSING', 'COMPLETED', 'CLOSED'))
               AND (CAST(:color AS VARCHAR) IS NULL OR lower(COALESCE(cl.color_name, '')) = lower(CAST(:color AS VARCHAR)))
               AND (CAST(:fromDate AS DATE) IS NULL OR d.document_date >= :fromDate)
               AND (CAST(:toDate AS DATE) IS NULL OR d.document_date <= :toDate)
@@ -145,6 +153,7 @@ public class ProductionBoardService {
             .addValue("fabricType", blank(filter.fabricType())).addValue("dueBy", filter.dueBy())
             .addValue("q", like(filter.q())).addValue("lateBy", LocalDate.now().plusDays(LATE_WITHIN_DAYS))
             .addValue("bpoId", null).addValue("color", null).addValue("fromDate", null).addValue("toDate", null)
+            .addValue("allBookings", true).addValue("bookingIds", List.of(-1L))
             .addValue("limit", size).addValue("offset", Math.max(0, page) * size);
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM (" + BOARD + ") b "
             + "ORDER BY b.late DESC, b.required_date NULLS LAST, b.bpo_no, b.group_no, b.line_id LIMIT :limit OFFSET :offset", p);

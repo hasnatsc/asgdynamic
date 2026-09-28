@@ -29,6 +29,7 @@ import java.util.Map;
  *   GET /api/analytics/booking/register             the booking register, paged (DataTables)
  *   GET /api/analytics/booking/register.csv         the booking register, every row, as CSV
  *   GET /api/analytics/booking/persons              marketing-person filter feed (LookupPage)
+ *   GET /api/analytics/booking/delivery             booking to delivery: each booking followed down the chain
  * </pre>
  *
  * Every endpoint takes the same filters - {@code from, to, view, teamId, personId, buyerId,
@@ -42,9 +43,11 @@ import java.util.Map;
 public class BookingAnalyticsController {
 
     private final BookingAnalyticsService service;
+    private final BookingDeliveryService delivery;
 
-    public BookingAnalyticsController(BookingAnalyticsService service) {
+    public BookingAnalyticsController(BookingAnalyticsService service, BookingDeliveryService delivery) {
         this.service = service;
+        this.delivery = delivery;
     }
 
     @GetMapping("/analytics/booking")
@@ -61,6 +64,13 @@ public class BookingAnalyticsController {
     @ResponseBody
     public Map<String, Object> overview(@ModelAttribute Filters f) {
         return service.overview(f.request());
+    }
+
+    /** Booking to delivery: the bookings in scope, each followed through its production orders to the buyer's gate. */
+    @GetMapping("/api/analytics/booking/delivery")
+    @ResponseBody
+    public Map<String, Object> delivery(@ModelAttribute Filters f) {
+        return delivery.delivery(f.request());
     }
 
     @GetMapping("/api/analytics/booking/reports/{report}")

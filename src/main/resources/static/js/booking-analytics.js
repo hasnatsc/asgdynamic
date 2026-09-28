@@ -78,6 +78,7 @@
                 if (v && !(k !== 'period' && f('period').value !== 'custom' && (k === 'from' || k === 'to'))) qs.set(k, v);
             }
             if (report !== 'REGISTER') qs.set('report', report);
+            if (!root.querySelector('[data-panel="delivery"]')?.hidden) qs.set('tab', 'delivery');
             history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : '') + location.hash);
         }
 
@@ -93,6 +94,7 @@
             }
             if (qs.has('report')) report = qs.get('report');
             if (qs.get('tab') === 'reports' || qs.has('report')) tabs.select('reports');
+            else if (qs.get('tab') === 'delivery') tabs.select('delivery');
         }
 
         // ------------------------------------------------------------------ person picker (scoped)
@@ -108,7 +110,13 @@
 
         const tabs = App.tabs(root.querySelector('[data-tabs-root]'), name => {
             if (name === 'reports') loadReport();
+            saveToUrl();
+            // Other tabs (booking-delivery.js) load themselves when shown.
+            root.dispatchEvent(new CustomEvent('analytics:tab', { detail: { name } }));
         });
+
+        // The filters, for the tabs drawn by other scripts on this page.
+        root.analyticsParams = extra => params(extra);
 
         // ------------------------------------------------------------------ overview
 
@@ -517,6 +525,7 @@
             saveToUrl();
             loadOverview();
             if (!root.querySelector('[data-panel="reports"]').hidden) loadReport();
+            root.dispatchEvent(new CustomEvent('analytics:filters'));
         }
 
         form.addEventListener('change', event => {

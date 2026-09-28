@@ -112,6 +112,9 @@
         <div class="tabs mb-5 !px-0" role="tablist">
             <button type="button" class="tab" role="tab" data-tab="overview" aria-selected="true">
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chart-bar}"/></svg>Overview</button>
+            <button type="button" class="tab" role="tab" data-tab="delivery">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#truck}"/></svg>Booking to delivery
+                <span class="badge-gray ml-1" data-bd-alert-count hidden>0</span></button>
             <button type="button" class="tab" role="tab" data-tab="reports">
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#document}"/></svg>Reports</button>
         </div>
@@ -227,6 +230,129 @@
             </p>
         </div>
 
+        <!-- ============================== booking to delivery ============================== -->
+        <!--
+          Every booking in the filters' scope followed down the chain: on production orders, woven,
+          finished, scheduled, delivered (booking-delivery.js, from /api/analytics/booking/delivery).
+          The figures are the Production board's, summed per booking.
+        -->
+        <div data-panel="delivery" hidden data-bd-root>
+            <p class="mb-3 text-xs text-gray-500" data-bd-note></p>
+            <div class="an-kpis !grid-cols-2 md:!grid-cols-4" data-bd-kpis></div>
+
+            <div class="an-grid mb-5">
+                <section class="an-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Booking to delivery</h2>
+                            <p class="card-sub">Of the confirmed quantity, how much has reached each stage. Select a stage for its bookings.</p>
+                        </div>
+                    </div>
+                    <div class="pd-flowbars" data-bd-funnel></div>
+                </section>
+                <section class="an-card" data-bd-chart="stages">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Where the bookings are</h2>
+                            <p class="card-sub">Bookings by stage: their own approval first, then the furthest their production orders have got. Select a stage for its bookings.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-bd-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart !min-h-0" data-host></div>
+                </section>
+                <section class="an-card an-card-wide" data-bd-chart="months">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Booked, ordered, produced and delivered</h2>
+                            <p class="card-sub">Confirmed bookings by the month booked. Produced is what reached the store it delivers from. Select a month for its bookings.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-bd-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+            </div>
+
+            <section class="an-card mb-5">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Booking progress</h2>
+                        <p class="card-sub">Ordered: on production orders, of the booked quantity. Produced: reached the store it delivers from. Delivered: went out on approved fabric deliveries.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2" data-no-print>
+                        <div class="input-icon w-56">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                            <input type="search" class="field field-sm" placeholder="Booking, buyer, reference" aria-label="Search bookings" data-bd-search>
+                        </div>
+                        <select class="field field-sm w-auto" aria-label="Show" data-bd-show>
+                            <option value="">All bookings</option>
+                            <option value="open">Open (not fully delivered)</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="atRisk">At risk</option>
+                            <option value="notOrdered">Not fully ordered</option>
+                            <option value="delivered">Fully delivered</option>
+                        </select>
+                        <button type="button" class="btn-ghost btn-sm" data-bd-export>
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>Export</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid" data-bd-table>
+                        <thead><tr>
+                            <th class="w-10">SL</th>
+                            <th data-sort="documentNo">Booking no</th>
+                            <th data-sort="buyer">Buyer / team</th>
+                            <th data-sort="requiredDate">Delivery</th>
+                            <th>Ordered</th>
+                            <th>Produced</th>
+                            <th>Delivered</th>
+                            <th class="text-right" data-sort="ready">In stock</th>
+                            <th data-sort="stage">Stage</th>
+                            <th class="w-px">Actions</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pager" data-bd-pager></div>
+            </section>
+
+            <div class="an-grid">
+                <section class="an-card an-card-wide">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Timeline</h2>
+                            <p class="card-sub">Open bookings from booking date to delivery date; the fill is what has been delivered. The red line is today,
+                                a red outline is overdue.</p>
+                        </div>
+                    </div>
+                    <div class="pd-gantt" data-bd-timeline></div>
+                </section>
+                <section class="an-card an-card-wide">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Needs attention</h2>
+                            <p class="card-sub">Bookings past their delivery date, due within 7 days and not ready, or confirmed but not yet on production orders.</p>
+                        </div>
+                        <div class="segmented" role="group" aria-label="Severity" data-bd-alert-filter>
+                            <button type="button" data-severity="" aria-pressed="true">All</button>
+                            <button type="button" data-severity="critical" aria-pressed="false">Critical</button>
+                            <button type="button" data-severity="warning" aria-pressed="false">Warning</button>
+                        </div>
+                    </div>
+                    <div data-bd-alerts></div>
+                </section>
+            </div>
+
+            <dialog class="drawer" data-bd-drill aria-labelledby="bdDrillTitle">
+                <div class="modal-head">
+                    <div><h2 id="bdDrillTitle" class="modal-title" data-bd-drill-title>Bookings</h2>
+                        <p class="mt-0.5 text-sm text-gray-500" data-bd-drill-sub></p></div>
+                    <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                        <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+                </div>
+                <div class="modal-body" data-bd-drill-body></div>
+            </dialog>
+        </div>
+
         <!-- ============================== reports ============================== -->
         <div data-panel="reports" hidden>
             <div class="an-reports">
@@ -284,7 +410,9 @@
     </div>
 
     <script th:src="@{/js/analytics-charts.js}" defer></script>
+    <script th:src="@{/js/chain-widgets.js}" defer></script>
     <script th:src="@{/js/booking-analytics.js}" defer></script>
+    <script th:src="@{/js/booking-delivery.js}" defer></script>
 </div>
 </body>
 </html>

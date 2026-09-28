@@ -102,6 +102,7 @@ public class ProductionDashboardService {
             .addValue("fabricType", blank(f.fabricType())).addValue("dueBy", null).addValue("q", "%")
             .addValue("bpoId", f.bpoId()).addValue("color", blank(f.color()))
             .addValue("fromDate", f.from()).addValue("toDate", f.to())
+            .addValue("allBookings", true).addValue("bookingIds", List.of(-1L))
             .addValue("lateBy", LocalDate.now().plusDays(ProductionBoardService.LATE_WITHIN_DAYS))
             .addValue("limit", MAX_LINES + 1);
         return jdbc.queryForList("SELECT * FROM (" + ProductionBoardService.BOARD + ") b "
@@ -109,10 +110,28 @@ public class ProductionDashboardService {
             .stream().map(ProductionBoardService::camel).toList();
     }
 
+    /**
+     * The production order lines raised on these bookings (any version of them), as the Production
+     * board reads them. The bookings are already the caller's scope - Booking analytics decides whose
+     * bookings a viewer sees - so the team filter is not applied again here.
+     */
+    public List<Map<String, Object>> linesForBookings(Collection<Long> bookingIds) {
+        if (bookingIds.isEmpty()) return List.of();
+        MapSqlParameterSource p = boards.scopeParams().addValue("allTeams", true)
+            .addValue("statuses", ACTIVE)
+            .addValue("teamId", null).addValue("buyerId", null).addValue("fabricType", null).addValue("dueBy", null).addValue("q", "%")
+            .addValue("bpoId", null).addValue("color", null).addValue("fromDate", null).addValue("toDate", null)
+            .addValue("allBookings", false).addValue("bookingIds", List.copyOf(bookingIds))
+            .addValue("lateBy", LocalDate.now().plusDays(ProductionBoardService.LATE_WITHIN_DAYS));
+        return jdbc.queryForList("SELECT * FROM (" + ProductionBoardService.BOARD + ") b "
+                + "ORDER BY b.required_date NULLS LAST, b.bpo_no, b.group_no, b.line_id", p)
+            .stream().map(ProductionBoardService::camel).toList();
+    }
+
     // ------------------------------------------------------------------------------ orders
 
     /** One row per production order: its lines summed, how far along it is, and whether it is late. */
-    static List<Map<String, Object>> orders(List<Map<String, Object>> lines, LocalDate today) {
+    public static List<Map<String, Object>> orders(List<Map<String, Object>> lines, LocalDate today) {
         Map<Long, List<Map<String, Object>>> byOrder = lines.stream()
             .collect(Collectors.groupingBy(l -> (Long) l.get("bpoId"), LinkedHashMap::new, Collectors.toList()));
         List<Map<String, Object>> out = new ArrayList<>();
@@ -162,7 +181,7 @@ public class ProductionDashboardService {
     }
 
     /** The furthest the order has got - what a planner would say it is "at". */
-    static String stage(Map<String, BigDecimal> s, boolean dyed) {
+    public static String stage(Map<String, BigDecimal> s, boolean dyed) {
         if (s.get("delivered").signum() > 0) return s.get("balance").signum() == 0 ? "Delivered" : "Delivering";
         if (s.get("scheduled").signum() > 0) return "Scheduled";
         if (dyed && s.get("finished").signum() > 0) return "Finishing";
@@ -177,7 +196,7 @@ public class ProductionDashboardService {
         "onDeliveryOrders", "delivered", "balance", "ready");
 
     /** The measures, summed over lines; finished = A + B. */
-    static Map<String, BigDecimal> sum(List<Map<String, Object>> lines) {
+    public static Map<String, BigDecimal> sum(List<Map<String, Object>> lines) {
         Map<String, BigDecimal> s = new LinkedHashMap<>();
         for (String m : MEASURES) s.put(m, BigDecimal.ZERO);
         for (Map<String, Object> l : lines) {
@@ -800,12 +819,12 @@ public class ProductionDashboardService {
         return rows.stream().map(r -> dec(r.get(key))).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    static BigDecimal pct(BigDecimal part, BigDecimal whole) {
+    public static BigDecimal pct(BigDecimal part, BigDecimal whole) {
         if (whole == null || whole.signum() <= 0) return null;
         return part.multiply(BigDecimal.valueOf(100)).divide(whole, 1, RoundingMode.HALF_UP);
     }
 
-    static BigDecimal dec(Object v) {
+    public static BigDecimal dec(Object v) {
         if (v == null) return BigDecimal.ZERO;
         if (v instanceof BigDecimal b) return b;
         if (v instanceof Number n) return new BigDecimal(n.toString());
@@ -816,7 +835,7 @@ public class ProductionDashboardService {
         return v.max(BigDecimal.ZERO);
     }
 
-    static LocalDate date(Object v) {
+    public static LocalDate date(Object v) {
         if (v == null) return null;
         if (v instanceof LocalDate d) return d;
         if (v instanceof java.sql.Date d) return d.toLocalDate();

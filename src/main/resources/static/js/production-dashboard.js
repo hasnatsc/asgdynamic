@@ -354,15 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const PAGE = 15;
 
-    function progress(done, of, { left = true, tone } = {}) {
-        if (!(n(of) > 0)) return '<span class="text-gray-400">—</span>';
-        const p = Math.min(100, n(done) * 100 / n(of));
-        const rest = Math.max(0, n(of) - n(done));
-        return `<div class="pd-progress" title="${num(done)} of ${num(of)}">
-            <div class="pd-progress-top"><span class="pd-meter" data-tone="${tone || (p >= 100 ? 'good' : '')}"><span style="width:${p}%"></span></span>
-                <span class="pd-progress-pct">${Math.floor(p)}%</span></div>
-            <div class="pd-progress-sub"><span>${num(done)} / ${num(of)}</span>${left ? `<span>(${num(rest)} left)</span>` : ''}</div></div>`;
-    }
+    const progress = ChainWidgets.progress;
 
     function filteredOrders() {
         const q = ($('[data-pd-order-search]').value || '').trim().toLowerCase();
@@ -436,68 +428,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // =========================================================================== timeline (Gantt)
 
-    const GANTT_ROWS = 30;
-    const DAY = 86400000;
-
+    /** Open orders from order date to required date, filled by what has been delivered; diamonds are planned pre-deliveries. */
     function renderGantt(orders, today) {
-        const host = $('[data-pd-gantt]');
         const open = orders.filter(o => ['APPROVED', 'PARTIAL', 'PROCESSING', 'SUBMITTED', 'DRAFT'].includes(o.status) && o.documentDate)
             .sort((a, b) => (iso(a.requiredDate) || '9999').localeCompare(iso(b.requiredDate) || '9999'));
-        if (!open.length) { host.innerHTML = '<div class="an-empty">No open production orders match these filters.</div>'; return; }
-        const rows = open.slice(0, GANTT_ROWS);
-        const t = s => new Date(iso(s) + 'T00:00:00').getTime();
-        const now = t(today);
-        let start = Math.min(...rows.map(o => t(o.documentDate)), now);
-        let end = Math.max(...rows.map(o => t(o.requiredDate || o.documentDate)), ...rows.flatMap(o => (o.plans || []).map(p => t(p.deliveryDate))), now + 7 * DAY);
-        start -= 2 * DAY; end += 2 * DAY;
-        const span = end - start;
-        const x = ms => ((ms - start) / span * 100).toFixed(2);
-        // Axis: month starts, or weeks when the span is short.
-        const ticks = [];
-        const weekly = span < 75 * DAY;
-        const cursor = new Date(start);
-        cursor.setHours(0, 0, 0, 0);
-        if (weekly) cursor.setDate(cursor.getDate() + ((8 - cursor.getDay()) % 7)); else { cursor.setDate(1); cursor.setMonth(cursor.getMonth() + 1); }
-        while (cursor.getTime() < end) {
-            ticks.push(cursor.getTime());
-            if (weekly) cursor.setDate(cursor.getDate() + 7); else cursor.setMonth(cursor.getMonth() + 1);
-        }
-        const label = ms => new Date(ms).toLocaleDateString(undefined, weekly ? { day: 'numeric', month: 'short' } : { month: 'short', year: '2-digit' });
-        const axis = `<div class="pd-axis mb-1"><span></span><div class="relative h-4">${ticks.map(ms =>
-            `<span class="absolute -translate-x-1/2 whitespace-nowrap" style="left:${x(ms)}%">${esc(label(ms))}</span>`).join('')}</div></div>`;
-        const body = rows.map(o => {
-            const s = t(o.documentDate), e = t(o.requiredDate || o.documentDate);
-            const done = ratio(o.delivered, o.quantity) || 0;
-            const plans = (o.plans || []).map(p => `<span class="pd-plan" style="left:${x(t(p.deliveryDate))}%"
-                title="${esc(p.deliveryType)} · ${esc(p.colorName || '')} · ${num(p.quantity)} on ${esc(day(p.deliveryDate))}"></span>`).join('');
-            return `<div class="pd-gantt-row">
-                <div class="pd-gantt-label"><a class="font-medium text-brand-700 hover:underline" href="${docUrl('bpo', o.id)}">${esc(o.documentNo)}</a>
-                    <div class="truncate text-[11px] text-gray-500">${esc(o.buyer || '')}</div></div>
-                <div class="pd-track">
-                    <a class="pd-span" href="${docUrl('bpo', o.id)}" data-tone="${o.overdue ? 'critical' : ''}" style="left:${x(s)}%;width:${Math.max(0.6, x(e) - x(s))}%"
-                       aria-label="${esc(o.documentNo)}: ordered ${esc(day(o.documentDate))}, due ${esc(day(o.requiredDate))}, ${Math.floor(done)}% delivered"
-                       data-tip="${esc(o.documentNo)}|${esc(day(o.documentDate))}|${esc(day(o.requiredDate))}|${num(o.delivered)} / ${num(o.quantity)} ${esc(o.uom || '')}|${esc(o.stage)}"><span style="width:${Math.min(100, done)}%"></span></a>
-                    ${plans}
-                </div></div>`;
-        }).join('');
-        const todayLine = `<div class="pd-axis pointer-events-none absolute inset-x-4 bottom-4 top-8"><span></span><div class="relative"><span class="pd-today" style="left:${x(now)}%"></span></div></div>`;
-        host.innerHTML = axis + body + todayLine
-            + (open.length > GANTT_ROWS ? `<p class="mt-2 text-xs text-gray-500">The ${GANTT_ROWS} due soonest of ${open.length} - filter to see others.</p>` : '');
+        ChainWidgets.timeline($('[data-pd-gantt]'), open.map(o => ({
+            href: docUrl('bpo', o.id), label: o.documentNo, sub: o.buyer, start: o.documentDate, end: o.requiredDate || o.documentDate,
+            done: ratio(o.delivered, o.quantity) || 0, overdue: o.overdue,
+            tip: { title: o.documentNo, rows: [{ label: 'Ordered', value: day(o.documentDate) }, { label: 'Required', value: day(o.requiredDate) },
+                { label: 'Delivered', value: `${num(o.delivered)} / ${num(o.quantity)} ${o.uom || ''}` }, { label: 'Stage', value: o.stage }] },
+            marks: (o.plans || []).map(p => ({ date: p.deliveryDate,
+                title: `${p.deliveryType} · ${p.colorName || ''} · ${num(p.quantity)} on ${day(p.deliveryDate)}` }))
+        })), today, { limit: 30, noun: 'open orders', emptyText: 'No open production orders match these filters.' });
     }
-
-    // Timeline bars share the kit's tooltip, on hover and keyboard focus alike.
-    function spanTip(e) {
-        const a = e.target.closest('[data-tip]');
-        if (!a) return C.tooltip.hide();
-        const [no, from, due, delivered, stage] = a.dataset.tip.split('|');
-        const r = a.getBoundingClientRect();
-        C.tooltip.show(e.clientX || r.left + r.width / 2, e.clientY || r.top, no, [
-            { label: 'Ordered', value: from }, { label: 'Required', value: due }, { label: 'Delivered', value: delivered }, { label: 'Stage', value: stage }]);
-    }
-    $('[data-pd-gantt]').addEventListener('pointermove', spanTip);
-    $('[data-pd-gantt]').addEventListener('pointerleave', () => C.tooltip.hide());
-    $('[data-pd-gantt]').addEventListener('focusin', spanTip);
-    $('[data-pd-gantt]').addEventListener('focusout', () => C.tooltip.hide());
 
     // =========================================================================== weaving & dyeing
 
@@ -610,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = $('[data-chart="moves"]');
         $('[data-sub]', card).textContent = `In and out of the fabric stores, by ${moves.bucket}, ${day(moves.from)} – ${day(moves.to)}.`;
         const label = p => new Date(iso(p) + 'T00:00:00').toLocaleDateString(undefined,
-            moves.bucket === 'month' ? { month: 'short', year: '2-digit' } : { day: 'numeric', month: 'short' });
+            moves.bucket === 'month' ? { month: 'short', year: 'numeric' } : { day: 'numeric', month: 'short' });
         chartCard('moves', host => C.columns(host, {
             title: 'Stock movement', grouped: true, height: 240,
             categories: moves.series.map(s => label(s.period)),
