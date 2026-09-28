@@ -3,7 +3,6 @@ package com.asg.fabricerp.web;
 import com.asg.fabricerp.security.CurrentUser;
 import com.asg.fabricerp.security.FabricUserRepository;
 import com.asg.fabricerp.security.Role;
-import com.asg.fabricerp.web.DashboardService;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -14,19 +13,20 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * The landing page after sign-in ({@code SecurityConfig}'s {@code defaultSuccessUrl("/")}):
- * every screen the user may open, and their own account's state. Before this there was no
- * {@code /} route at all, so a successful login landed on a 404.
+ * The landing page after sign-in ({@code SecurityConfig}'s {@code defaultSuccessUrl("/")}): what
+ * needs the user (their approvals, and their documents returned, rejected or left in draft), the
+ * apps their roles open - each leading to its own dashboard ({@link ModuleController}) - and their
+ * account. Before this there was no {@code /} route at all, so a successful login landed on a 404.
  */
 @Controller
 public class HomeController {
 
     private final FabricUserRepository users;
-    private final DashboardService dashboard;
+    private final ModuleDashboardService modules;
 
-    public HomeController(FabricUserRepository users, DashboardService dashboard) {
+    public HomeController(FabricUserRepository users, ModuleDashboardService modules) {
         this.users = users;
-        this.dashboard = dashboard;
+        this.modules = modules;
     }
 
     /**
@@ -53,7 +53,8 @@ public class HomeController {
             .flatMap(principal -> principal.getAuthorities().stream())
             .map(GrantedAuthority::getAuthority)
             .collect(Collectors.toSet());
-        model.addAttribute("stats", dashboard.stats());
+        model.addAttribute("home", modules.home(authorities));
+        model.addAttribute("canOpenInbox", authorities.contains("SCREEN_APPROVALS_VIEW"));
         model.addAttribute("flow", ManufacturingFlow.build(authorities));
         model.addAttribute("content", "home :: content");
         return "layout/main";

@@ -3,8 +3,9 @@
 <head><title>Dashboard</title></head>
 <body>
 <!--
-  The dashboard. Every link on it is permission-filtered: KPI tiles by sec:authorize, the flow by
-  ManufacturingFlow, the module list by the same ${nav} that draws the sidebar.
+  The dashboard. What needs the user, then the apps their roles open - each leading to its own
+  dashboard (module.html) - both from ModuleDashboardService; the flow by ManufacturingFlow.
+  Every app is permission-filtered by the same rule that draws the sidebar.
 -->
 <div th:fragment="content">
 
@@ -45,57 +46,65 @@
         </div>
     </section>
 
-    <!-- ============================== KPI tiles ==============================
-         Each tile shows only when the user may VIEW the screen it links to. -->
-    <div th:if="${stats != null}" class="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-        <a th:href="@{/booking}" sec:authorize="hasAuthority('SCREEN_BOOKING_VIEW')" class="kpi group">
-            <div class="flex items-start justify-between">
-                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#booking}"/></svg></span>
-                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
-            </div>
-            <span class="kpi-label">Bookings</span>
-            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.bookings, 1, 'COMMA')}">0</span>
-            <span class="kpi-meta"><span th:text="${stats.draftBookings}">0</span> in draft</span>
-        </a>
-        <a th:href="@{/bpo}" sec:authorize="hasAuthority('SCREEN_BPO_VIEW')" class="kpi group">
-            <div class="flex items-start justify-between">
-                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#planning}"/></svg></span>
-                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
-            </div>
-            <span class="kpi-label">Production orders</span>
-            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.productionOrders, 1, 'COMMA')}">0</span>
-            <span class="kpi-meta"><span th:text="${stats.activeProductionOrders}">0</span> active</span>
-        </a>
-        <a th:href="@{/inventory/items}" sec:authorize="hasAuthority('SCREEN_ITEM_VIEW')" class="kpi group">
-            <div class="flex items-start justify-between">
-                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#package}"/></svg></span>
-                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
-            </div>
-            <span class="kpi-label">Inventory items</span>
-            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.inventoryItems, 1, 'COMMA')}">0</span>
-            <span class="kpi-meta">In the item master</span>
-        </a>
-        <a th:href="@{/setup/parties}" sec:authorize="hasAuthority('SCREEN_PARTY_VIEW')" class="kpi group">
-            <div class="flex items-start justify-between">
-                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#users}"/></svg></span>
-                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
-            </div>
-            <span class="kpi-label">Parties</span>
-            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.parties, 1, 'COMMA')}">0</span>
-            <span class="kpi-meta">Customers and suppliers</span>
-        </a>
-        <a th:href="@{/setup/security}" sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')" class="kpi group">
-            <div class="flex items-start justify-between">
-                <span class="kpi-icon"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#shield}"/></svg></span>
-                <svg class="icon text-gray-300 transition-colors group-hover:text-brand-600" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-up-right}"/></svg>
-            </div>
-            <span class="kpi-label">Users</span>
-            <span class="kpi-value" th:text="${#numbers.formatInteger(stats.users, 1, 'COMMA')}">0</span>
-            <span class="kpi-meta" th:classappend="${stats.lockedUsers > 0} ? 'font-medium text-amber-700'">
-                <span th:text="${stats.lockedUsers}">0</span> locked
-            </span>
-        </a>
-    </div>
+    <!-- ============================== Needs your attention ============================== -->
+    <section class="mb-8" th:with="a=${home.attention}" aria-labelledby="attentionTitle">
+        <h2 id="attentionTitle" class="app-section-title">Needs your attention</h2>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <a th:if="${canOpenInbox}" th:href="@{/approvals}" class="attn-card">
+                <span class="attn-count" th:classappend="${a.awaitingYou > 0} ? 'is-hot'" th:text="${a.awaitingYou}">0</span>
+                <span class="attn-body"><span class="attn-title">Pending your approval</span>
+                    <span class="attn-sub">Documents waiting for your signature</span></span>
+                <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+            </a>
+            <button th:unless="${canOpenInbox}" type="button" class="attn-card" data-my-work="approval">
+                <span class="attn-count" th:classappend="${a.awaitingYou > 0} ? 'is-hot'" th:text="${a.awaitingYou}">0</span>
+                <span class="attn-body"><span class="attn-title">Pending your approval</span>
+                    <span class="attn-sub">Documents waiting for your signature</span></span>
+                <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+            </button>
+            <button type="button" class="attn-card" data-my-work="returned">
+                <span class="attn-count" th:classappend="${a.returned > 0} ? 'is-hot'" th:text="${a.returned}">0</span>
+                <span class="attn-body"><span class="attn-title">Returned to you</span>
+                    <span class="attn-sub">Sent back by an approver to correct</span></span>
+                <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+            </button>
+            <button type="button" class="attn-card" data-my-work="rejected">
+                <span class="attn-count" th:classappend="${a.rejected > 0} ? 'is-hot'" th:text="${a.rejected}">0</span>
+                <span class="attn-body"><span class="attn-title">Rejected</span>
+                    <span class="attn-sub">Refused - revise and resubmit, or cancel</span></span>
+                <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+            </button>
+            <button type="button" class="attn-card" data-my-work="draft">
+                <span class="attn-count" th:text="${a.drafts}">0</span>
+                <span class="attn-body"><span class="attn-title">Drafts</span>
+                    <span class="attn-sub">Started but not submitted</span></span>
+                <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+            </button>
+        </div>
+    </section>
+
+    <!-- ============================== All apps ============================== -->
+    <section class="mb-8" aria-labelledby="appsTitle">
+        <h2 id="appsTitle" class="app-section-title">All apps</h2>
+        <div th:unless="${#lists.isEmpty(home.apps)}" class="app-grid">
+            <a th:each="app : ${home.apps}" th:href="@{'/module/' + ${app.key}}" class="app-tile"
+               th:attr="aria-label=${app.label} + ' - ' + ${app.description}">
+                <span class="app-icon">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${app.icon}}"/></svg>
+                    <span th:if="${app.awaitingYou > 0}" class="app-badge" th:text="${app.awaitingYou}"
+                          th:title="|${app.awaitingYou} waiting for your approval|">1</span>
+                </span>
+                <span class="app-label" th:text="${app.label}">App</span>
+                <span class="app-desc" th:text="${app.description}">What it is for</span>
+                <span th:if="${app.yours > 0}" class="app-meta" th:text="|${app.yours} of yours to act on|">2 of yours</span>
+            </a>
+        </div>
+        <div th:if="${#lists.isEmpty(home.apps)}" class="card empty">
+            <span class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#lock}"/></svg></span>
+            <p class="empty-title">No apps yet</p>
+            <p class="empty-text">Your account has no role granting access to any screen. An administrator can assign one on the Users screen.</p>
+        </div>
+    </section>
 
     <div class="grid gap-6 xl:grid-cols-3">
         <div class="min-w-0 space-y-6 xl:col-span-2">
@@ -134,58 +143,6 @@
                 </div>
             </section>
 
-            <!-- ============================== Modules ============================== -->
-            <section class="card">
-                <div class="card-header">
-                    <div>
-                        <h2 class="card-title">Your modules</h2>
-                        <p class="card-sub">Everything your roles open, also in the menu and under <span class="kbd">Ctrl</span> <span class="kbd">K</span>.</p>
-                    </div>
-                </div>
-                <div class="divide-y divide-gray-100 dark:divide-gray-800">
-                    <div th:each="section : ${nav}" class="grid gap-3 px-5 py-4 md:grid-cols-[10rem_1fr]">
-                        <div class="flex items-center gap-2 text-sm font-semibold text-gray-900 md:items-start md:pt-2 dark:text-white">
-                            <svg class="icon text-gray-400" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${section.icon}}"/></svg>
-                            <span th:text="${section.label}">Section</span>
-                        </div>
-                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            <th:block th:each="item : ${section.items}">
-                                <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}"
-                                   class="group flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 transition-colors
-                                          hover:border-brand-200 hover:bg-brand-50/50 dark:border-gray-800 dark:hover:bg-gray-800">
-                                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500
-                                                 group-hover:bg-white group-hover:text-brand-600 dark:bg-gray-800">
-                                        <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
-                                    </span>
-                                    <span class="min-w-0">
-                                        <span class="block truncate text-sm font-medium text-gray-800 group-hover:text-brand-700 dark:text-gray-100" th:text="${item.label}">Item</span>
-                                        <span class="block truncate text-xs text-gray-400" th:text="${item.path}">/path</span>
-                                    </span>
-                                </a>
-                                <div th:if="${item.hasChildren()}" class="rounded-lg border border-gray-200 px-3 py-2.5 dark:border-gray-800">
-                                    <div class="flex items-center gap-3">
-                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-800">
-                                            <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
-                                        </span>
-                                        <span class="text-sm font-medium text-gray-800 dark:text-gray-100" th:text="${item.label}">Group</span>
-                                    </div>
-                                    <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 pl-11">
-                                        <a th:each="child : ${item.children}" th:href="@{${child.path}}" th:text="${child.label}"
-                                           class="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">Child</a>
-                                    </div>
-                                </div>
-                            </th:block>
-                        </div>
-                    </div>
-
-                    <div th:if="${#lists.isEmpty(nav)}" class="empty">
-                        <span class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#lock}"/></svg></span>
-                        <p class="empty-title">No screens yet</p>
-                        <p class="empty-text">Your account has no role granting access to any screen.
-                            An administrator can assign one on the Users screen.</p>
-                    </div>
-                </div>
-            </section>
         </div>
 
         <!-- ============================== Side column ============================== -->
@@ -257,6 +214,17 @@
             </section>
         </div>
     </div>
+
+    <dialog class="drawer" data-my-work-drawer aria-labelledby="myWorkTitle">
+        <div class="modal-head">
+            <div><h2 id="myWorkTitle" class="modal-title" data-my-work-title>Your work</h2>
+                <p class="mt-0.5 text-sm text-gray-500" data-my-work-sub></p></div>
+            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+        </div>
+        <div class="modal-body" data-my-work-body></div>
+    </dialog>
+    <script th:src="@{/js/apps.js}" defer></script>
 </div>
 </body>
 </html>

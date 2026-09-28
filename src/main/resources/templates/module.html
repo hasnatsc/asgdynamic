@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  One app's page (ModuleController, /module/{key}): its own menu - the screens of this module the
+  user's roles open, the same items the sidebar shows for it - beside its dashboard: what needs the
+  user in this app, its documents by status, recent activity, and its boards, reports and setup.
+  Every figure comes from ModuleDashboardService; every link opens a screen or document.
+-->
+<head><title>App</title></head>
+<body>
+<div th:fragment="content" class="viz" data-module-page th:attr="data-module=${module.key}" th:with="m=${module}">
+
+    <nav class="mb-3 flex items-center gap-1.5 text-sm text-gray-500" aria-label="Breadcrumb">
+        <a th:href="@{/}" class="hover:text-gray-900 dark:hover:text-white">All apps</a>
+        <svg class="icon h-3.5 w-3.5" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-right}"/></svg>
+        <span class="font-medium text-gray-800 dark:text-gray-100" th:text="${m.label}">App</span>
+    </nav>
+
+    <div class="page-header">
+        <div class="flex items-center gap-4">
+            <span class="app-icon !mb-0 shrink-0"><svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${m.icon}}"/></svg></span>
+            <div>
+                <h1 class="page-title" th:text="${m.label}">App</h1>
+                <p class="page-sub" th:text="${m.description}">What it is for</p>
+            </div>
+        </div>
+        <div class="page-actions">
+            <button type="button" class="btn-ghost" data-cmd-trigger>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>Go to a screen
+                <span class="kbd ml-1">Ctrl K</span></button>
+        </div>
+    </div>
+
+    <div class="mod-layout">
+        <!-- ============================== the app's menu ============================== -->
+        <nav class="mod-menu" th:attr="aria-label=${m.label} + ' menu'">
+            <a th:href="@{'/module/' + ${m.key}}" class="mod-menu-item is-active" aria-current="page">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#dashboard}"/></svg>Dashboard</a>
+            <p class="mod-menu-head">Screens</p>
+            <th:block th:each="item : ${moduleNav.items}">
+                <a th:unless="${item.hasChildren()}" th:href="@{${item.path}}" class="mod-menu-item">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                    <span class="truncate" th:text="${item.label}">Screen</span></a>
+                <details th:if="${item.hasChildren()}" class="mod-menu-group">
+                    <summary class="mod-menu-item">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${item.icon}}"/></svg>
+                        <span class="truncate" th:text="${item.label}">Group</span>
+                        <svg class="icon ml-auto h-3.5 w-3.5 text-gray-400" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-down}"/></svg>
+                    </summary>
+                    <a th:each="child : ${item.children}" th:href="@{${child.path}}" class="mod-menu-item mod-menu-child" th:text="${child.label}">Child</a>
+                </details>
+            </th:block>
+            <th:block th:unless="${#lists.isEmpty(m.related)}">
+                <p class="mod-menu-head">Related</p>
+                <a th:each="r : ${m.related}" th:href="@{${r.path}}" class="mod-menu-item">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${r.icon}}"/></svg>
+                    <span class="truncate" th:text="${r.label}">Report</span></a>
+            </th:block>
+        </nav>
+
+        <!-- ============================== the app's dashboard ============================== -->
+        <div class="min-w-0 space-y-6">
+
+            <section th:unless="${#lists.isEmpty(m.documents)}" th:with="a=${m.attention}" aria-labelledby="modAttention">
+                <h2 id="modAttention" class="app-section-title">Needs your attention here</h2>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <button type="button" class="attn-card" data-my-work="approval">
+                        <span class="attn-count" th:classappend="${a.awaitingYou > 0} ? 'is-hot'" th:text="${a.awaitingYou}">0</span>
+                        <span class="attn-body"><span class="attn-title">Pending your approval</span>
+                            <span class="attn-sub">In this app</span></span>
+                        <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+                    </button>
+                    <button type="button" class="attn-card" data-my-work="returned">
+                        <span class="attn-count" th:classappend="${a.returned > 0} ? 'is-hot'" th:text="${a.returned}">0</span>
+                        <span class="attn-body"><span class="attn-title">Returned to you</span>
+                            <span class="attn-sub">Sent back to correct</span></span>
+                        <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+                    </button>
+                    <button type="button" class="attn-card" data-my-work="rejected">
+                        <span class="attn-count" th:classappend="${a.rejected > 0} ? 'is-hot'" th:text="${a.rejected}">0</span>
+                        <span class="attn-body"><span class="attn-title">Rejected</span>
+                            <span class="attn-sub">Revise and resubmit, or cancel</span></span>
+                        <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+                    </button>
+                    <button type="button" class="attn-card" data-my-work="draft">
+                        <span class="attn-count" th:text="${a.drafts}">0</span>
+                        <span class="attn-body"><span class="attn-title">Your drafts</span>
+                            <span class="attn-sub">Started but not submitted</span></span>
+                        <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+                    </button>
+                </div>
+            </section>
+
+            <section th:unless="${#lists.isEmpty(m.documents)}" class="card overflow-hidden" aria-labelledby="modDocuments">
+                <div class="card-header">
+                    <div>
+                        <h2 id="modDocuments" class="card-title">Documents</h2>
+                        <p class="card-sub">In this business unit, as far as your data access reaches. Open (approved or in progress) and completed include closed.</p>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid">
+                        <thead><tr>
+                            <th>Document</th>
+                            <th class="text-right">Draft</th>
+                            <th class="text-right">Awaiting approval</th>
+                            <th class="text-right">Open</th>
+                            <th class="text-right">Completed</th>
+                            <th class="text-right">Rejected</th>
+                            <th class="text-right">This month</th>
+                            <th class="text-right">Total</th>
+                            <th class="w-px"></th>
+                        </tr></thead>
+                        <tbody>
+                        <tr th:each="d : ${m.documents}">
+                            <td><a th:href="@{${d.path}}" class="flex items-center gap-2.5 font-medium text-gray-900 hover:text-brand-700 dark:text-gray-100">
+                                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-800">
+                                    <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${d.icon}}"/></svg></span>
+                                <span th:text="${d.label}">Screen</span></a></td>
+                            <td class="text-right tabular-nums" th:text="${d.draft}">0</td>
+                            <td class="text-right tabular-nums"><span th:classappend="${d.submitted > 0} ? 'badge-amber' : 'text-gray-500'" th:text="${d.submitted}">0</span></td>
+                            <td class="text-right tabular-nums font-medium" th:text="${d.open}">0</td>
+                            <td class="text-right tabular-nums" th:text="${d.done}">0</td>
+                            <td class="text-right tabular-nums"><span th:classappend="${d.rejected > 0} ? 'badge-red' : 'text-gray-500'" th:text="${d.rejected}">0</span></td>
+                            <td class="text-right tabular-nums" th:text="${d.thisMonth}">0</td>
+                            <td class="text-right tabular-nums text-gray-500" th:text="${d.total}">0</td>
+                            <td class="whitespace-nowrap text-right">
+                                <a th:if="${d.newPath != null}" th:href="@{${d.newPath}}" class="btn-ghost btn-sm">
+                                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New</a>
+                                <a th:href="@{${d.path}}" class="btn-subtle btn-sm">Open list</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div th:unless="${#lists.isEmpty(m.documents)}" class="an-grid">
+                <section class="an-card" data-mod-chart="activity">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Activity</h2>
+                            <p class="card-sub">Documents raised each week, the last twelve weeks.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-mod-table-toggle>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+                <section class="an-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Recently changed</h2>
+                            <p class="card-sub">The documents most recently worked on in this app.</p>
+                        </div>
+                    </div>
+                    <ul class="divide-y divide-gray-100 dark:divide-gray-800">
+                        <li th:each="r : ${m.recent}">
+                            <a th:href="@{${r.path}}" class="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-medium text-gray-900 dark:text-gray-100" th:text="${r.documentNo}">No</span>
+                                    <span class="block truncate text-xs text-gray-500" th:text="${r.typeLabel} + (${r.party} != null ? ' · ' + ${r.party} : '')">Type</span>
+                                </span>
+                                <span class="shrink-0 text-right">
+                                    <span class="badge-gray" th:attr="data-status-badge=${r.status}" th:text="${r.status}">DRAFT</span>
+                                    <span class="block text-[11px] text-gray-400" th:text="${r.updatedAt != null ? #temporals.format(r.updatedAt, 'dd MMM, HH:mm') : ''}">date</span>
+                                </span>
+                            </a>
+                        </li>
+                        <li th:if="${#lists.isEmpty(m.recent)}" class="px-5 py-8 text-center text-sm text-gray-500">Nothing yet.</li>
+                    </ul>
+                </section>
+            </div>
+
+            <section th:unless="${#lists.isEmpty(m.tools)}" aria-labelledby="modTools">
+                <h2 id="modTools" class="app-section-title" th:text="${#lists.isEmpty(m.documents) ? 'Screens' : 'Boards, reports and setup'}">Boards, reports and setup</h2>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <a th:each="t : ${m.tools}" th:href="@{${t.path}}" class="attn-card !py-3">
+                        <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-300">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{'/images/icons.svg#' + ${t.icon}}"/></svg></span>
+                        <span class="attn-body"><span class="attn-title" th:text="${t.label}">Board</span></span>
+                        <svg class="icon attn-go" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg>
+                    </a>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <dialog class="drawer" data-my-work-drawer aria-labelledby="myWorkTitle">
+        <div class="modal-head">
+            <div><h2 id="myWorkTitle" class="modal-title" data-my-work-title>Your work</h2>
+                <p class="mt-0.5 text-sm text-gray-500" data-my-work-sub></p></div>
+            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+        </div>
+        <div class="modal-body" data-my-work-body></div>
+    </dialog>
+
+    <script th:inline="javascript">window.MODULE_ACTIVITY = /*[[${m.activity}]]*/ [];</script>
+    <script th:src="@{/js/analytics-charts.js}" defer></script>
+    <script th:src="@{/js/apps.js}" defer></script>
+</div>
+</body>
+</html>

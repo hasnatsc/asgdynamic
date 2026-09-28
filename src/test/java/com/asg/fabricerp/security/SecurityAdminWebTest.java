@@ -10,8 +10,7 @@ import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.security.AccessLogEntry.Event;
 import com.asg.fabricerp.security.SecurityOverviewService.Overview;
 import com.asg.fabricerp.security.SecurityOverviewService.RoleCounts;
-import com.asg.fabricerp.web.DashboardService;
-import com.asg.fabricerp.web.DashboardService.DashboardStats;
+import com.asg.fabricerp.web.ModuleDashboardService;
 import com.asg.fabricerp.web.HomeController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -70,7 +69,7 @@ class SecurityAdminWebTest {
     @MockitoBean private OrganizationRepository organizations;
     @MockitoBean private CostCentreRepository costCentres;
     @MockitoBean private OrgContext orgContext;
-    @MockitoBean private DashboardService dashboardService;
+    @MockitoBean private ModuleDashboardService modules;
 
     private FabricUser admin;
     private FabricUser clerk;
@@ -84,7 +83,9 @@ class SecurityAdminWebTest {
         when(userDetailsService.reload(eq("clerk"), any())).thenAnswer(i -> Optional.of(new FabricUserPrincipal(clerk)));
         when(orgContext.requireOrganizationId()).thenReturn(ORG);
         when(userRepository.findById(1L)).thenReturn(Optional.of(admin));
-        when(dashboardService.stats()).thenReturn(new DashboardStats(0, 0, 0, 0, 0, 0, 2, 0));
+        when(modules.home(any())).thenReturn(Map.of(
+            "attention", Map.of("awaitingYou", 0L, "returned", 0L, "rejected", 0L, "drafts", 0L),
+            "apps", List.of()));
 
         BusinessUnit unit = new BusinessUnit("AF", "Weaving Unit");
         unit.setId(10L);

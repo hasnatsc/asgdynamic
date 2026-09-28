@@ -53,6 +53,7 @@ class ProductionChainDatabaseIT {
     @Autowired private ChainViews views;
     @Autowired private DeliveryTypeService deliveryTypes;
     @Autowired private ProductionDashboardService dashboard;
+    @Autowired private com.asg.fabricerp.web.ModuleDashboardService modules;
     @Autowired private ProductionBoardService boards;
     @Autowired private FabricStockQueries stockQueries;
     @Autowired private BusinessDocumentRepository repository;
@@ -362,6 +363,46 @@ class ProductionChainDatabaseIT {
         // A colour filter narrows the order to its lines.
         Map<String, Object> red = dashboard.dashboard(new ProductionDashboardService.Filter(null, null, null, "red", null, bpo.getId(), null), null);
         assertThat((BigDecimal) ((List<Map<String, Object>>) red.get("orders")).get(0).get("quantity")).isEqualByComparingTo("500");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void anAppsDashboardCountsItsDocumentsByStatus_andTheUsersOwnDraftsAndReturns() {
+        BusinessDocument booking = approvedBooking("Solid Dyed", "Navy", "1000");
+        BusinessDocument bpo = documents.save(ChainStep.BPO, request(null, line("COLOUR", lineOf(booking, 0), "1000")));   // a draft, raised by "it"
+        java.util.Set<String> authorities = java.util.Set.of(
+            com.asg.fabricerp.security.Screen.BPO.authority(com.asg.fabricerp.security.Verb.VIEW),
+            com.asg.fabricerp.security.Screen.BPO.authority(com.asg.fabricerp.security.Verb.CREATE),
+            com.asg.fabricerp.security.Screen.WWO.authority(com.asg.fabricerp.security.Verb.VIEW),
+            com.asg.fabricerp.security.Screen.PROD_BOARD.authority(com.asg.fabricerp.security.Verb.VIEW));
+
+        Map<String, Object> app = modules.module(com.asg.fabricerp.security.Screen.Section.PRODUCTION, authorities);
+
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) app.get("documents");
+        assertThat(rows).extracting(r -> r.get("key")).containsExactly("BPO", "WWO");
+        Map<String, Object> bpoRow = rows.get(0);
+        long drafts = jdbc.queryForObject("""
+            SELECT count(*) FROM gbl_business_documents WHERE organization_id = ? AND business_unit_id = ?
+              AND document_type = 'BULK_PRODUCTION_ORDER' AND status = 'DRAFT' AND deleted = false
+            """, Long.class, orgId, unitId);
+        assertThat(bpoRow.get("draft")).isEqualTo(drafts);
+        assertThat(bpoRow.get("newPath")).isEqualTo("/bpo?new=1");
+        assertThat(rows.get(1).get("newPath")).isNull();                        // no CREATE on weaving WOs
+        assertThat((List<Map<String, Object>>) app.get("tools")).extracting(t -> t.get("key")).containsExactly("PROD_BOARD");
+        assertThat((List<Map<String, Object>>) app.get("recent")).extracting(r -> r.get("path")).contains("/bpo?open=" + bpo.getId());
+        assertThat((List<Map<String, Object>>) app.get("activity")).hasSize(12);
+
+        // The user's own draft is theirs to act on; returned when an approver sends it back.
+        assertThat(modules.myWork(authorities, "production", "draft")).extracting(m -> m.get("id")).contains(bpo.getId());
+        jdbc.update("""
+            INSERT INTO apr_document_history (document_id, document_type, action, from_status, to_status, remarks, version, created_by, created_at)
+            VALUES (?, 'BULK_PRODUCTION_ORDER', 'RETURNED', 'SUBMITTED', 'DRAFT', 'Fix the colour', 0, 'approver', now())
+            """, bpo.getId());
+        assertThat(modules.myWork(authorities, "production", "returned")).singleElement().satisfies(m -> {
+            assertThat(m.get("id")).isEqualTo(bpo.getId());
+            assertThat(m.get("lastRemarks")).isEqualTo("Fix the colour");
+        });
+        assertThat(modules.myWork(authorities, "production", "draft")).extracting(m -> m.get("id")).doesNotContain(bpo.getId());
     }
 
     @Test
