@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  My profile (com.asg.fabricerp.profile.ProfileController): rendered complete on the server, so the
+  page needs no request of its own to show; profile.js only handles the photo and the details form,
+  and redraws what they change from the JSON the save returns.
+-->
+<head>
+    <title>My profile</title>
+</head>
+<body>
+<div th:fragment="content" data-profile-page th:with="p=${profile}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">My profile</h1>
+            <p class="page-sub">How colleagues see you across the system, and what your account holds.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn-ghost" th:href="@{/account/password}">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#key}"/></svg>Change password</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+        <!-- ------------------------------------------------------------------ photo & summary -->
+        <div class="space-y-6">
+            <section class="card p-6" aria-labelledby="profileName">
+                <div class="flex flex-col items-center text-center">
+                    <div class="profile-photo" data-photo-frame>
+                        <img th:if="${p.photoUrl != null}" th:src="${p.photoUrl}" width="128" height="128" alt="Your profile photo"
+                             decoding="async" fetchpriority="high" data-photo-img>
+                        <span th:unless="${p.photoUrl != null}" class="profile-initials" th:text="${currentUser.initials}" data-photo-initials>A</span>
+                        <div class="profile-busy" hidden data-photo-busy>Uploading…</div>
+                    </div>
+                    <h2 id="profileName" class="mt-4 text-lg font-semibold text-gray-900 dark:text-white" th:text="${p.fullName ?: p.username}" data-show="fullName">Name</h2>
+                    <p class="text-sm text-gray-500" data-show="headline" th:text="${p.headline}">Designation · Department</p>
+                    <p class="mt-1 text-xs text-gray-400" th:text="|@${p.username}|">@user</p>
+                </div>
+
+                <div class="mt-5">
+                    <div class="mb-1 flex justify-between text-xs text-gray-500">
+                        <span>Profile complete</span><span class="font-medium tabular-nums" data-show="completenessText" th:text="|${p.completeness}%|">0%</span>
+                    </div>
+                    <div class="profile-meter" role="progressbar" aria-label="Profile complete" aria-valuemin="0" aria-valuemax="100"
+                         th:attr="aria-valuenow=${p.completeness}" data-meter>
+                        <span th:style="|width: ${p.completeness}%|"></span>
+                    </div>
+                </div>
+
+                <label class="profile-drop mt-5" data-photo-drop>
+                    <svg class="icon icon-lg text-gray-400" aria-hidden="true"><use th:href="@{/images/icons.svg#camera}"/></svg>
+                    <span class="font-medium text-gray-700 dark:text-gray-200" data-drop-title
+                          th:text="${p.photoUrl != null ? 'Change photo' : 'Add a photo'}">Add a photo</span>
+                    <span class="text-xs">Drop a picture here, or click to choose. JPEG or PNG, up to <span th:text="${maxUploadMb}">5</span> MB.</span>
+                    <input type="file" class="sr-only" accept="image/jpeg,image/png,image/gif,image/bmp,image/webp" data-photo-input>
+                </label>
+                <div class="mt-3 flex items-center justify-between gap-2">
+                    <p class="text-xs text-gray-400" data-photo-facts>
+                        <th:block th:if="${p.photo != null}"
+                                  th:text="|${p.photo.width} × ${p.photo.height} px · ${p.photo.storedBytes / 1024} KB stored|">512 × 512</th:block>
+                    </p>
+                    <button type="button" class="btn-subtle btn-sm text-red-700" data-photo-remove th:hidden="${p.photoUrl == null}">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#trash}"/></svg>Remove</button>
+                </div>
+            </section>
+
+            <section class="card" aria-labelledby="accountTitle">
+                <div class="card-header"><h2 id="accountTitle" class="card-title">Account</h2></div>
+                <dl class="divide-y divide-gray-100 py-1 dark:divide-gray-800">
+                    <div class="dl-row"><dt>Username</dt><dd th:text="${p.username}">user</dd></div>
+                    <div class="dl-row"><dt>Organization</dt><dd th:text="${p.home.organization ?: '—'}">Org</dd></div>
+                    <div class="dl-row"><dt>Business unit</dt><dd th:text="${p.home.businessUnit ?: '—'}">Unit</dd></div>
+                    <div class="dl-row"><dt>Store</dt><dd th:text="${p.home.store ?: '—'}">Store</dd></div>
+                    <div class="dl-row"><dt>Member since</dt>
+                        <dd th:text="${p.memberSince != null ? #temporals.format(p.memberSince, 'dd MMM yyyy') : '—'}">date</dd></div>
+                    <div class="dl-row"><dt>Last sign-in</dt>
+                        <dd th:text="${p.lastLoginAt != null ? #temporals.format(p.lastLoginAt, 'dd MMM yyyy, HH:mm') : '—'}">date</dd></div>
+                    <div class="dl-row"><dt>Password changed</dt>
+                        <dd th:text="${p.passwordChangedAt != null ? #temporals.format(p.passwordChangedAt, 'dd MMM yyyy') : 'Never'}">date</dd></div>
+                </dl>
+                <div class="border-t border-gray-100 px-5 py-4 dark:border-gray-800">
+                    <p class="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Roles</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <span th:if="${p.unrestricted}" class="badge-violet">All data</span>
+                        <span th:each="r : ${p.roles}" class="badge-brand" th:text="${r}">Role</span>
+                        <span th:if="${#lists.isEmpty(p.roles)}" class="text-sm text-gray-500">No roles yet — ask an administrator.</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ------------------------------------------------------------------------ details -->
+        <div class="space-y-6 lg:col-span-2">
+            <form class="card" novalidate autocomplete="on" data-profile-form aria-labelledby="detailsTitle">
+                <div class="card-header">
+                    <div>
+                        <h2 id="detailsTitle" class="card-title">Details</h2>
+                        <p class="text-xs text-gray-500">Your name and photo appear in the header, and colleagues in your organization can see them.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-x-4 gap-y-5 p-5 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="label" for="pfFullName">Full name <span class="req">*</span></label>
+                        <input id="pfFullName" name="fullName" class="field" maxlength="150" required autocomplete="name" th:value="${p.fullName}">
+                    </div>
+                    <div>
+                        <label class="label" for="pfEmail">Email</label>
+                        <input id="pfEmail" name="email" type="email" class="field" maxlength="150" autocomplete="email" th:value="${p.email}">
+                    </div>
+                    <div>
+                        <label class="label" for="pfPhone">Phone</label>
+                        <input id="pfPhone" name="phone" type="tel" class="field" maxlength="40" autocomplete="tel" th:value="${p.phone}">
+                    </div>
+                    <div>
+                        <label class="label" for="pfDesignation">Designation</label>
+                        <input id="pfDesignation" name="designation" class="field" maxlength="100" autocomplete="organization-title" th:value="${p.designation}">
+                    </div>
+                    <div>
+                        <label class="label" for="pfDepartment">Department</label>
+                        <input id="pfDepartment" name="department" class="field" maxlength="100" th:value="${p.department}">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="label" for="pfBio">About you</label>
+                        <textarea id="pfBio" name="bio" class="field min-h-[6rem]" maxlength="500" th:text="${p.bio}"></textarea>
+                        <p class="hint text-right tabular-nums" data-bio-count>0 / 500</p>
+                    </div>
+                </div>
+                <div class="card-footer flex items-center justify-between gap-3 border-t border-gray-200 px-5 py-3 dark:border-gray-800">
+                    <p class="text-xs text-gray-500" data-form-state></p>
+                    <div class="flex gap-2">
+                        <button type="reset" class="btn-ghost" data-form-reset disabled>Discard</button>
+                        <button type="submit" class="btn-primary" data-form-save disabled>
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save changes</button>
+                    </div>
+                </div>
+            </form>
+
+            <section class="card overflow-hidden" aria-labelledby="signInsTitle">
+                <div class="card-header">
+                    <div>
+                        <h2 id="signInsTitle" class="card-title">Recent activity</h2>
+                        <p class="text-xs text-gray-500">Sign-ins and password changes on your account. Anything you don't recognise — change your password.</p>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid">
+                        <thead><tr><th>When</th><th>What</th><th>From</th></tr></thead>
+                        <tbody>
+                        <tr th:each="e : ${p.recentSignIns}">
+                            <td class="whitespace-nowrap tabular-nums" th:text="${#temporals.format(e.occurredAt.toLocalDateTime(), 'dd MMM yyyy, HH:mm')}">date</td>
+                            <td th:switch="${e.event}">
+                                <span th:case="'LOGIN_SUCCEEDED'" class="badge-green badge-dot">Signed in</span>
+                                <span th:case="'LOGIN_FAILED'" class="badge-red badge-dot">Wrong password</span>
+                                <span th:case="'PASSWORD_CHANGED'" class="badge-blue badge-dot">Password changed</span>
+                                <span th:case="*" class="badge-gray badge-dot">Session ended</span>
+                            </td>
+                            <td class="font-mono text-xs text-gray-500" th:text="${e.sourceAddress ?: '—'}">127.0.0.1</td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(p.recentSignIns)}">
+                            <td colspan="3" class="py-8 text-center text-sm text-gray-500">Nothing recorded yet.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script th:src="@{/js/profile.js}" defer></script>
+</div>
+</body>
+</html>

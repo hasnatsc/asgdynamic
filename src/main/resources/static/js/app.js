@@ -129,17 +129,19 @@
     /**
      * JSON in, JSON out, CSRF header attached. Rejects with an Error whose message is the
      * server's sentence (see ApiExceptionHandler) and whose .status is the HTTP status.
+     * A FormData body (a file upload) is sent as it is - the browser sets its multipart type.
      */
     async function api(url, options) {
         options = options || {};
         const headers = { 'Accept': 'application/json' };
-        if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+        const multipart = options.body instanceof FormData;
+        if (options.body !== undefined && !multipart) headers['Content-Type'] = 'application/json';
         if (csrfHeader && csrfToken) headers[csrfHeader] = csrfToken;
 
         const response = await fetch(url + queryString(options.query), {
             method: options.method || 'GET',
             headers,
-            body: options.body === undefined ? undefined : JSON.stringify(options.body),
+            body: options.body === undefined ? undefined : multipart ? options.body : JSON.stringify(options.body),
             credentials: 'same-origin'
         });
 

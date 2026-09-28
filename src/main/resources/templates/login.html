@@ -2,9 +2,8 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="en" class="h-full bg-black">
 <!--
   Sign in · ASG DYNAMIC · FABRICS LTD. ERP
-  Left: Large, immersive machinery video showcase.
-  Right: Login container converted to the existing Brand Red (#ed1c24 / brand-600) structure,
-         weave texture, reverse branding, and security highlights.
+  Left: the mill as amanatshahfabrics.com presents it - its hero film, promise, capacity and units.
+  Right: the sign-in panel in brand red (#ed1c24 / brand-600) with the weave texture.
 -->
 <head>
     <meta charset="utf-8">
@@ -18,67 +17,110 @@
 
 <div class="relative flex min-h-screen w-full overflow-hidden bg-black">
 
-    <!-- ==================== Left Side: Large Immersive Video ==================== -->
+    <!-- ==================== Left: the mill, as amanatshahfabrics.com opens ==================== -->
     <div class="relative hidden flex-1 flex-col justify-between overflow-hidden bg-black lg:flex">
-        <!-- Dynamic machinery video background -->
-        <video autoplay muted loop playsinline preload="auto"
-               class="absolute inset-0 h-full w-full object-cover opacity-75">
-            <source th:src="@{/media/dynamics.mp4}" type="video/mp4">
-            <source src="https://asgdynamic.com/assets/dynamics-61c24dec81e4bc5620efba668ee5c652.mp4" type="video/mp4">
-            Your browser does not support the video tag.
+        <!-- ASFL's own hero film. The script below gives it a source only when this panel shows,
+             so a phone never downloads the 16 MB desktop cut. Local copy first, the site's as fallback. -->
+        <video class="absolute inset-0 h-full w-full object-cover" autoplay muted loop playsinline preload="none"
+               data-login-video="(min-width: 1024px)" aria-hidden="true">
+            <source th:attr="data-src=@{/media/asfl_desktop.mp4}" type="video/mp4">
+            <source data-src="https://amanatshahfabrics.com/video/asfl_desktop.mp4" type="video/mp4">
         </video>
 
-        <!-- Cinematic depth overlays -->
-        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/65"></div>
-        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/40"></div>
+        <!-- Depth: dark at the foot for the copy, a touch at the head for the pill. -->
+        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/60"></div>
+        <div class="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/30"></div>
 
-        <!-- Top Status Pill -->
-        <div class="relative z-10 p-8 sm:p-12">
-            <div class="inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-black/60 px-4 py-1.5 text-xs font-medium tracking-wide text-white backdrop-blur-md shadow-lg shadow-black/50">
+        <!-- Head: who the mill is -->
+        <div class="relative z-10 flex items-center justify-between gap-4 p-8 xl:p-12">
+            <div class="inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-black/50 px-4 py-1.5 text-xs font-medium tracking-wide text-white shadow-lg shadow-black/40 backdrop-blur-md">
                 <span class="relative flex h-2 w-2">
                     <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-500 opacity-80"></span>
                     <span class="relative inline-flex h-2 w-2 rounded-full bg-brand-500"></span>
                 </span>
-                <span>Amanat Shah Group Dynamic ERP</span>
+                <span>Amanat Shah Fabrics Ltd. · since 2017</span>
             </div>
+            <a href="https://amanatshahfabrics.com/" target="_blank" rel="noopener"
+               class="text-xs font-medium text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline">amanatshahfabrics.com &nearr;</a>
         </div>
 
-        <!-- Bottom News Caption -->
-        <div class="relative z-10 p-8 sm:p-12">
-            <div class="max-w-2xl">
-                <div class="mb-3 inline-block rounded-md border border-white/20 bg-black/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-brand-200 backdrop-blur-sm">
-                    Integrated Textile Operations
-                </div>
-                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl drop-shadow-xl">
-                    <b class="font-black text-white">ASG</b> <span class="text-brand-300">DYNAMIC</span>
+        <!-- Foot: the promise, what the units deliver, and the units themselves -->
+        <div class="relative z-10 p-8 xl:p-12">
+            <div class="max-w-3xl">
+                <p class="flex items-center gap-3 text-sm font-semibold tracking-[0.12em] text-white">
+                    <span class="h-0.5 w-8 rounded-full bg-brand-500" aria-hidden="true"></span>
+                    Innovative <span class="text-white/40" aria-hidden="true">|</span> Trendy <span class="text-white/40" aria-hidden="true">|</span> Elegant
+                    <span class="h-0.5 w-8 rounded-full bg-brand-500" aria-hidden="true"></span>
+                </p>
+                <h1 class="mt-4 text-4xl font-extrabold leading-[1.1] tracking-tight text-white drop-shadow-xl xl:text-5xl">
+                    Leading fabric manufacturer <span class="text-brand-400">in Bangladesh</span>
                 </h1>
-                <p class="mt-4 text-base font-normal leading-relaxed text-gray-200 drop-shadow">
-                    Unified spinning, weaving, dyeing, finishing, and order management — engineered for precision across every production stage.
+                <p class="mt-4 max-w-2xl text-base leading-relaxed text-gray-200 drop-shadow">
+                    A 100% export-oriented, compliant woven-fabric mill: spinning to finishing under one roof, on more than
+                    400,000 sq ft of production floor, for brands and fashion houses worldwide.
                 </p>
 
-                <!-- Capability badges -->
-                <div class="mt-6 flex flex-wrap items-center gap-2.5 text-xs font-medium text-white/90">
-                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Spinning & Yarn</span>
-                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Weaving Orders</span>
-                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Processing & Dyeing</span>
-                    <span class="rounded-lg border border-white/15 bg-black/50 px-3 py-1.5 backdrop-blur-md">Quality Control</span>
+                <!-- The three promises, as the site states them -->
+                <ul class="mt-6 grid gap-3 xl:grid-cols-3">
+                    <li class="rounded-xl border border-white/15 bg-black/45 p-4 backdrop-blur-md">
+                        <p class="text-sm font-semibold text-white">We design, print &amp; dye</p>
+                        <p class="mt-1 text-xs leading-relaxed text-gray-300">Pick a woven base, make it yours, and we dye and print only what you need.</p>
+                    </li>
+                    <li class="rounded-xl border border-white/15 bg-black/45 p-4 backdrop-blur-md">
+                        <p class="text-sm font-semibold text-white">We make it for your brand</p>
+                        <p class="mt-1 text-xs leading-relaxed text-gray-300">Choose the design; our units manufacture it to your standard.</p>
+                    </li>
+                    <li class="rounded-xl border border-white/15 bg-black/45 p-4 backdrop-blur-md">
+                        <p class="text-sm font-semibold text-white">You order, we deliver</p>
+                        <p class="mt-1 text-xs leading-relaxed text-gray-300">An in-house shipping and logistics team takes it to your door.</p>
+                    </li>
+                </ul>
+
+                <!-- Capacity : competency -->
+                <dl class="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/15 bg-white/15 xl:grid-cols-4">
+                    <div class="bg-black/55 px-4 py-3 backdrop-blur-md">
+                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-brand-300">Yarn</dt>
+                        <dd class="mt-0.5 text-lg font-bold text-white">2,200 <span class="text-xs font-medium text-gray-300">ton / month</span></dd>
+                    </div>
+                    <div class="bg-black/55 px-4 py-3 backdrop-blur-md">
+                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-brand-300">Weaving</dt>
+                        <dd class="mt-0.5 text-lg font-bold text-white">1.6 M <span class="text-xs font-medium text-gray-300">yard / month</span></dd>
+                    </div>
+                    <div class="bg-black/55 px-4 py-3 backdrop-blur-md">
+                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-brand-300">Dyeing, printing &amp; finishing</dt>
+                        <dd class="mt-0.5 text-lg font-bold text-white">3.2 M <span class="text-xs font-medium text-gray-300">yard / month</span></dd>
+                    </div>
+                    <div class="bg-black/55 px-4 py-3 backdrop-blur-md">
+                        <dt class="text-[11px] font-semibold uppercase tracking-wider text-brand-300">People</dt>
+                        <dd class="mt-0.5 text-lg font-bold text-white">1,200+ <span class="text-xs font-medium text-gray-300">skilled employees</span></dd>
+                    </div>
+                </dl>
+
+                <!-- Business units -->
+                <div class="mt-5 flex flex-wrap items-center gap-2 text-xs font-medium text-white/90">
+                    <span class="rounded-lg border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur-md">Spinning</span>
+                    <span class="rounded-lg border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur-md">Weaving</span>
+                    <span class="rounded-lg border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur-md">Yarn dyeing</span>
+                    <span class="rounded-lg border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur-md">Solid dyeing</span>
+                    <span class="rounded-lg border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur-md">Printing</span>
+                    <span class="rounded-lg border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur-md">Finishing</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Mobile video backdrop overlay (small screens) -->
+    <!-- Small screens: the site's mobile cut, dimmed behind the sign-in panel -->
     <div class="absolute inset-0 z-0 lg:hidden">
-        <video autoplay muted loop playsinline preload="metadata"
-               class="h-full w-full object-cover opacity-25">
-            <source th:src="@{/media/dynamics.mp4}" type="video/mp4">
-            <source src="https://asgdynamic.com/assets/dynamics-61c24dec81e4bc5620efba668ee5c652.mp4" type="video/mp4">
+        <video class="h-full w-full object-cover" autoplay muted loop playsinline preload="none"
+               data-login-video="(max-width: 1023.98px)" aria-hidden="true">
+            <source th:attr="data-src=@{/media/asfl_mobile.mp4}" type="video/mp4">
+            <source data-src="https://amanatshahfabrics.com/video/asfl_mobile.mp4" type="video/mp4">
         </video>
-        <div class="absolute inset-0 bg-brand-950/80"></div>
+        <div class="absolute inset-0 bg-black/30"></div>
     </div>
 
-    <!-- ==================== Right Side: Converted Existing Left Structure & Brand Red Color ==================== -->
-    <div class="weave relative z-10 flex w-full flex-col justify-between overflow-y-auto bg-brand-600 p-8 sm:p-12 text-white shadow-2xl lg:w-[480px] lg:flex-none xl:w-[520px]">
+    <!-- ==================== Right: sign in ==================== -->
+    <div class="weave relative z-10 flex w-full flex-col justify-between overflow-y-auto bg-brand-600/75 p-8 sm:p-12 text-white shadow-2xl lg:w-[480px] lg:flex-none lg:bg-brand-600 xl:w-[520px]">
         
         <!-- Top header: White reverse logo -->
         <div class="relative z-10">
@@ -95,9 +137,9 @@
         <!-- Center: Sign In Form with Existing Left Typography & Highlights -->
         <div class="relative z-10 my-auto py-8">
             <div class="w-full max-w-[390px] mx-auto">
-                <p class="text-xs font-bold uppercase tracking-[0.18em] text-brand-100">Enterprise resource planning</p>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-brand-100">Amanat Shah Fabrics · ERP</p>
                 <h2 class="mt-1 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">Sign in</h2>
-                <p class="mt-1 text-xs text-brand-100">Welcome back. Enter your credentials to access the ERP.</p>
+                <p class="mt-1 text-xs text-brand-100">From booking to delivered roll - orders, production, stores and accounts in one place.</p>
 
                 <!-- Spring Security Alerts -->
                 <div class="space-y-3.5 my-6">
@@ -273,10 +315,15 @@
             });
         }
 
-        // Pause video if user prefers reduced motion
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            document.querySelectorAll('video').forEach(v => v.pause());
-        }
+        // The hero film: only the one for this screen size is loaded (a phone never fetches the
+        // 16 MB desktop cut), and none when the user prefers reduced motion.
+        const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        document.querySelectorAll('video[data-login-video]').forEach(video => {
+            if (still || !window.matchMedia(video.dataset.loginVideo).matches) return;
+            video.querySelectorAll('source[data-src]').forEach(source => { source.src = source.dataset.src; });
+            video.load();
+            video.play().catch(() => { /* autoplay refused: the dark overlay stands in */ });
+        });
     });
 </script>
 

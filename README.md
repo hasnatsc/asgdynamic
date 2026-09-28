@@ -403,6 +403,29 @@ Verified by `CommercialDatabaseIT` (opt-in): schedule → PI → LC → CI → r
 rules, the amendment takeover and its refusal; requisition → import PI → LC with costs → import PO
 → MRR valued at exactly 31,750 BDT landed; and an account refused as not the company's own.
 
+## My profile (`profile` package, V34)
+
+`/account/profile` (the header menu's **My profile**) lets the signed-in user edit their own name,
+email, phone, designation, department and a short "about", upload or remove a photo, and see their
+roles, home unit and store, and recent sign-ins. Every write is to the caller's own account; no
+route takes a user id to change.
+
+The photo is **optimized, never stored as uploaded**:
+- **In the browser**, `profile.js` crops the picture to a centred square of at most 1024 px and sends
+  it as JPEG, so a phone photo of several MB goes up as roughly 100–200 KB.
+- **On the server**, `ProfilePhotoProcessor` does the rest:
+  - identifies the file by its bytes, and refuses a "decompression bomb" from its header alone;
+  - turns the picture upright from the EXIF orientation, and puts any transparency on white;
+  - scales in halving steps to 512 px, plus a 96 px header thumbnail;
+  - re-encodes both as JPEG, which also drops the camera metadata, location included.
+
+  In the preview, a 1.6 MB picture was stored as 34 KB, and the header thumbnail as 2 KB.
+
+Both images live in `sec_user_photos`. The URL carries `photo_version`, so it is served
+`Cache-Control: max-age=1 year, immutable` with an ETag (a repeat request gets a 304). A new photo
+gets a new URL and is fetched once. Colleagues in the same organization can see each other's photos;
+nobody outside it can. The header shows the photo, or the user's initials without one.
+
 ## Verified against a real PostgreSQL database
 
 - V1–V6 apply cleanly in order, **0 unindexed foreign keys** throughout — including after

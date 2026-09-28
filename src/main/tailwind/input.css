@@ -561,6 +561,7 @@
   /* ---- Misc ------------------------------------------------------------------------------ */
   .avatar     { @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-600
                        text-xs font-semibold text-white; }
+  .avatar-photo { @apply bg-gray-200 object-cover; }
   .skeleton   { @apply animate-pulse rounded bg-gray-200; }
   .kbd        { @apply inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded border border-gray-200 bg-white
                        px-1 font-sans text-[11px] font-medium text-gray-500 shadow-xs; }
@@ -568,6 +569,19 @@
   .dl-row     { @apply flex justify-between gap-4 px-5 py-2.5 text-sm; }
   .dl-row dt  { @apply text-gray-500; }
   .dl-row dd  { @apply text-right font-medium text-gray-900; }
+
+  /* ---- My profile ------------------------------------------------------------------------ */
+  .profile-photo      { @apply relative h-32 w-32 shrink-0 overflow-hidden rounded-full bg-brand-600 ring-4 ring-white
+                               shadow-card; }
+  .profile-photo img  { @apply h-full w-full object-cover; }
+  .profile-initials   { @apply flex h-full w-full items-center justify-center text-4xl font-semibold text-white; }
+  .profile-drop       { @apply flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed
+                               border-gray-300 px-4 py-5 text-center text-sm text-gray-500 transition-colors
+                               hover:border-brand-400 hover:bg-brand-50/40; }
+  .profile-drop.is-over { @apply border-brand-500 bg-brand-50; }
+  .profile-busy       { @apply absolute inset-0 flex items-center justify-center bg-black/45 text-xs font-semibold text-white; }
+  .profile-meter      { @apply h-1.5 w-full overflow-hidden rounded-full bg-gray-100; }
+  .profile-meter > span { @apply block h-full rounded-full bg-brand-600 transition-all; }
 
   /* ---- Menus (details[data-menu]) -------------------------------------------------------- */
   .menu       { @apply absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white py-1
@@ -757,6 +771,9 @@
   .dark .an-delta[data-tone="bad"]  { @apply text-red-400; }
   .dark .an-legend          { @apply text-gray-300; }
   .dark .card, .dark .kpi   { @apply border-gray-800 bg-gray-900; }
+  .dark .profile-photo      { @apply ring-gray-900; }
+  .dark .profile-drop       { @apply border-gray-700 text-gray-400 hover:bg-gray-800; }
+  .dark .profile-meter      { @apply bg-gray-800; }
   .dark .card-header, .dark .card-footer, .dark .toolbar, .dark .pager,
   .dark .form-section, .dark .tabs, .dark .modal-head { @apply border-gray-800; }
   .dark .card-title, .dark .page-title, .dark .doc-page-title, .dark .kpi-value, .dark .form-section-title,

@@ -60,6 +60,26 @@ public class FabricUser extends BaseOrgEntity {
     @Column(name = "full_name", length = 150)
     private String fullName;
 
+    /** Contact details the user keeps on their own profile. */
+    @Column(length = 150)
+    private String email;
+
+    @Column(length = 40)
+    private String phone;
+
+    @Column(length = 100)
+    private String designation;
+
+    @Column(length = 100)
+    private String department;
+
+    @Column(length = 500)
+    private String bio;
+
+    /** Changes with every new photo (epoch ms); null without one. Part of the photo's URL, so it caches. */
+    @Column(name = "photo_version")
+    private Long photoVersion;
+
     @Column(name = "business_unit_id", nullable = false)
     private Long businessUnitId;
 
@@ -141,6 +161,18 @@ public class FabricUser extends BaseOrgEntity {
     public String getPasswordHash()            { return passwordHash; }
     public String getFullName()                { return fullName; }
     public void setFullName(String v)          { this.fullName = v; }
+    public String getEmail()                   { return email; }
+    public void setEmail(String v)             { this.email = v; }
+    public String getPhone()                   { return phone; }
+    public void setPhone(String v)             { this.phone = v; }
+    public String getDesignation()             { return designation; }
+    public void setDesignation(String v)       { this.designation = v; }
+    public String getDepartment()              { return department; }
+    public void setDepartment(String v)        { this.department = v; }
+    public String getBio()                     { return bio; }
+    public void setBio(String v)               { this.bio = v; }
+    public Long getPhotoVersion()              { return photoVersion; }
+    public void setPhotoVersion(Long v)        { this.photoVersion = v; }
     public Long getBusinessUnitId()            { return businessUnitId; }
     public void setBusinessUnitId(Long v)      { this.businessUnitId = v; }
     public String getBusinessUnitCode()        { return businessUnitCode; }

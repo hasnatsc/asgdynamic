@@ -55,6 +55,7 @@ public class FabricUserPrincipal implements UserDetails {
     private final Set<GrantedAuthority> authorities;
     private final RowScope rowScope;
     private final boolean mustChangePassword;
+    private final Long photoVersion;
 
     /** A principal with no scope grants — enough for an unrestricted user, and for tests. */
     public FabricUserPrincipal(FabricUser user) {
@@ -91,6 +92,7 @@ public class FabricUserPrincipal implements UserDetails {
             .collect(Collectors.toUnmodifiableSet());
         this.rowScope = resolveScope(user, scopes, on);
         this.mustChangePassword = user.isMustChangePassword();
+        this.photoVersion = user.getPhotoVersion();
     }
 
     /**
@@ -132,6 +134,19 @@ public class FabricUserPrincipal implements UserDetails {
     public Long getUserId()           { return userId; }
     /** Falls back to the username, so the layout never shows a blank. */
     public String getDisplayName()    { return fullName == null || fullName.isBlank() ? username : fullName; }
+
+    /** The header's photo, versioned so a new one is fetched and an unchanged one comes from cache; null without one. */
+    public String getPhotoUrl() {
+        return photoVersion == null ? null : "/account/photo/" + userId + "?size=thumb&v=" + photoVersion;
+    }
+
+    /** Up to two initials, for the avatar when there is no photo: "Abul Hasnat" -> "AH". */
+    public String getInitials() {
+        String[] parts = getDisplayName().strip().split("\\s+");
+        String first = parts[0].isEmpty() ? "?" : parts[0].substring(0, 1);
+        String last = parts.length > 1 && !parts[parts.length - 1].isEmpty() ? parts[parts.length - 1].substring(0, 1) : "";
+        return (first + last).toUpperCase(java.util.Locale.ROOT);
+    }
     /** The organization being worked in - see the class comment. */
     public Long getOrganizationId()   { return workspace.organizationId(); }
     /** The organization the login itself belongs to, whichever one is being worked in. */
