@@ -8,6 +8,8 @@
  *     allows (post, submit, approve, cancel, short-close, close batch, raise the next step);
  *   - the editor lists the parent's open lines with what each still allows. The server decides:
  *     every quantity is checked against its parent line's own stream and refused over the cap.
+ * The viewer and the editor are pages, not modals (App.PageEditor): ?open=12 shows a document,
+ * ?new=1&parent=12 raises one against its parent.
  */
 document.addEventListener('DOMContentLoaded', () => {
     'use strict';
@@ -93,6 +95,18 @@ document.addEventListener('DOMContentLoaded', () => {
         kind: CFG.label, api: CFG.api, table: 'chainTable', revise: CFG.revisable,
         canEdit: CFG.canCreate || CFG.canAmend, onEdit: doc => editor.open(doc), onView: view
     });
+    // After the screen, which has read ?open= already; the page's address then becomes the list's.
+    // Unsaved means lines picked in the editor - the viewer has nothing to lose.
+    const page = new App.PageEditor({
+        list: $('[data-list-view]'),
+        isDirty: () => page.current === editorDialog && editor.picked.size > 0,
+        onReopen: params => {
+            const id = Number(params.get('open'));
+            if (id) return void screen.open(id);
+            if (params.has('new') && CFG.canCreate) return void editor.open(null, Number(params.get('parent')) || null);
+            return false;
+        }
+    });
 
     // =========================================================================================
     // Viewer
@@ -157,9 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (STEP === 'DO' && OPEN.includes(doc.status)) own.push(`<button type="button" class="btn-ghost" data-chain-action="print">${icon('document')}Print</button>`);
         const next = OPEN.includes(doc.status) ? (NEXT[STEP] || []).filter(([, , , when]) => !when || when(doc))
             .map(([slug, label, ic]) => `<a class="btn-secondary" href="/${slug}?new=1&parent=${doc.id}">${icon(ic)}${esc(label)}</a>`) : [];
-        $('[data-view-foot]', viewer).innerHTML = `<button type="button" class="btn-ghost" data-close>Close</button>
+        $('[data-view-foot]', viewer).innerHTML = `<button type="button" class="btn-ghost" data-page-back>Close</button>
             <div class="flex flex-wrap justify-end gap-2">${next.join('')}${own.join('')}${screen.actionButtons(doc)}</div>`;
-        if (!viewer.open) viewer.showModal();
+        page.show(viewer, `?open=${doc.id}`);
     }
 
     function groupCard(doc, g) {
@@ -220,11 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     viewer.addEventListener('click', async event => {
+        if (event.target.closest('[data-page-back]')) return page.close();
         const docAction = event.target.closest('[data-doc-action]')?.dataset.docAction;
-        if (docAction) {
-            if (docAction === 'edit') viewer.close();
-            return screen.act(docAction);
-        }
+        if (docAction) return screen.act(docAction);
         const doc = screen.current;
         if (!doc) return;
         const shortClose = event.target.closest('[data-short-close]');
@@ -252,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await api(`${CFG.api}/${doc.id}`, { method: 'DELETE' });
                 toast('Deleted.', 'success');
-                viewer.close();
+                page.close(true);
                 screen.grid.reload();
             } catch (error) { fail(error); }
             return;
@@ -337,8 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `Edit ${doc.documentNo}` : `New ${CFG.label.toLowerCase()}`;
             await this.renderHeader(doc);
             linesEl.innerHTML = '<p class="text-sm text-gray-500">Nothing chosen yet.</p>';
-            if (viewer.open) viewer.close();
-            editorDialog.showModal();
+            page.show(editorDialog, doc ? `?open=${doc.id}` : `?new=1${presetParent ? `&parent=${presetParent}` : ''}`);
             if (doc) {
                 for (const g of doc.lineGroups || []) {
                     for (const l of g.colorLines || []) {
@@ -647,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const saved = await api(CFG.api, { method: 'POST', body });
             toast(`${saved.documentNo} saved as a draft.`, 'success');
-            editorDialog.close();
+            editor.picked = new Map();              // saved: nothing left to lose on the way to the viewer
             screen.grid.reload();
             screen.open(saved.id);
         } catch (error) {
@@ -656,16 +667,11 @@ document.addEventListener('DOMContentLoaded', () => {
             button.disabled = false;
         }
     });
-    $$('[data-editor-close]', editorDialog).forEach(b => b.addEventListener('click', async () => {
-        if (editor.picked.size && !await App.confirm({ title: 'Close without saving?', message: 'The lines you picked will be lost.',
-            confirmText: 'Close', danger: true })) return;
-        editorDialog.close();
-    }));
-    editorDialog.addEventListener('cancel', event => { event.preventDefault(); $('[data-editor-close]', editorDialog).click(); });
+    $$('[data-editor-close]', editorDialog).forEach(b => b.addEventListener('click', () => page.close()));
 
     $$('[data-chain-new]').forEach(b => b.addEventListener('click', () => editor.open(null)));
 
     // Raised from a board or a parent document: /weaving-wo?new=1&parent=12
-    const params = new URLSearchParams(location.search);
+    const params = page.initial;
     if (params.get('new') && CFG.canCreate) editor.open(null, Number(params.get('parent')) || null);
 });

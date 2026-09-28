@@ -34,6 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
         kind: CFG.label, api: CFG.api, table: 'supplyTable', revise: false,
         canEdit: CFG.canCreate || CFG.canAmend, onEdit: doc => editor.open(doc), onView: view
     });
+    // After the screen, which has read ?open= already; the page's address then becomes the list's.
+    // Unsaved means lines chosen in the editor - the viewer has nothing to lose.
+    const page = new App.PageEditor({
+        list: $('[data-list-view]'),
+        isDirty: () => page.current === editorDialog && (editor.picked.size > 0 || editor.direct.length > 0),
+        onReopen: params => {
+            const id = Number(params.get('open'));
+            if (id) return void screen.open(id);
+            if (params.has('new') && CFG.canCreate) return void editor.open(null, Number(params.get('parent')) || null);
+            return false;
+        }
+    });
 
     // =========================================================================================
     // Viewer
@@ -96,9 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
         own.push(`<button type="button" class="btn-ghost" data-supply-action="print">${icon('document')}Print</button>`);
         const next = OPEN.includes(doc.status) ? (CFG.next || [])
             .map(n => `<a class="btn-secondary" href="/${esc(n.slug)}?new=1&parent=${esc(doc.id)}">${icon(n.icon)}${esc(n.label)}</a>`) : [];
-        $('[data-view-foot]', viewer).innerHTML = `<button type="button" class="btn-ghost" data-close>Close</button>
+        $('[data-view-foot]', viewer).innerHTML = `<button type="button" class="btn-ghost" data-page-back>Close</button>
             <div class="flex flex-wrap justify-end gap-2">${next.join('')}${own.join('')}${screen.actionButtons(doc)}</div>`;
-        if (!viewer.open) viewer.showModal();
+        page.show(viewer, `?open=${doc.id}`);
     }
 
     /** What a line is: item (or fabric), brand and model, specification, fabric construction. */
@@ -160,11 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     viewer.addEventListener('click', async event => {
+        if (event.target.closest('[data-page-back]')) return page.close();
         const docAction = event.target.closest('[data-doc-action]')?.dataset.docAction;
-        if (docAction) {
-            if (docAction === 'edit') viewer.close();
-            return screen.act(docAction);
-        }
+        if (docAction) return screen.act(docAction);
         const doc = screen.current;
         if (!doc) return;
         const shortClose = event.target.closest('[data-short-close]');
@@ -192,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 await api(`${CFG.api}/${doc.id}`, { method: 'DELETE' });
                 toast('Deleted.', 'success');
-                viewer.close();
+                page.close(true);
                 screen.grid.reload();
             } catch (error) { fail(error); }
             return;
@@ -276,9 +286,8 @@ document.addEventListener('DOMContentLoaded', () => {
             this.picked = new Map();
             this.direct = [];
             $('[data-editor-title]', editorDialog).textContent = doc ? `Edit ${doc.documentNo}` : `New ${CFG.label.toLowerCase()}`;
-            if (viewer.open) viewer.close();
             await this.renderHeader(doc);
-            editorDialog.showModal();
+            page.show(editorDialog, doc ? `?open=${doc.id}` : `?new=1${presetParent ? `&parent=${presetParent}` : ''}`);
             if (doc) {
                 for (const l of doc.lines || []) {
                     if (l.sourceId != null) {
@@ -664,7 +673,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const saved = await api(CFG.api, { method: 'POST', body });
             toast(`${saved.documentNo} saved as a draft.`, 'success');
-            editorDialog.close();
+            editor.picked = new Map();              // saved: nothing left to lose on the way to the viewer
+            editor.direct = [];
             screen.grid.reload();
             screen.open(saved.id);
         } catch (error) {
@@ -673,16 +683,11 @@ document.addEventListener('DOMContentLoaded', () => {
             button.disabled = false;
         }
     });
-    $$('[data-editor-close]', editorDialog).forEach(b => b.addEventListener('click', async () => {
-        if ((editor.picked.size || editor.direct.length) && !await App.confirm({ title: 'Close without saving?',
-            message: 'The lines you entered will be lost.', confirmText: 'Close', danger: true })) return;
-        editorDialog.close();
-    }));
-    editorDialog.addEventListener('cancel', event => { event.preventDefault(); $('[data-editor-close]', editorDialog).click(); });
+    $$('[data-editor-close]', editorDialog).forEach(b => b.addEventListener('click', () => page.close()));
 
     $$('[data-supply-new]').forEach(b => b.addEventListener('click', () => editor.open(null)));
 
     // Raised from a parent document: /mrr?new=1&parent=12
-    const params = new URLSearchParams(location.search);
+    const params = page.initial;
     if (params.get('new') && CFG.canCreate) editor.open(null, Number(params.get('parent')) || null);
 });

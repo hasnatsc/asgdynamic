@@ -14,6 +14,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Marketing teams</h1>
@@ -59,22 +60,25 @@
         </div>
         <div id="mtPager" class="pager"></div>
     </div>
+    </div><!-- /data-list-view -->
 
-    <!-- ============================================================================ editor -->
-    <dialog id="teamDialog" class="modal modal-lg modal-review" data-sticky aria-labelledby="teamDialogTitle">
-        <form id="teamForm" class="flex min-h-0 flex-1 flex-col" novalidate autocomplete="off">
+    <!-- ============================================================================ editor
+         A page, not a modal (App.PageEditor): ?view=12 / ?edit=12 open a team. -->
+    <section id="teamDialog" hidden aria-labelledby="teamDialogTitle">
+        <form id="teamForm" novalidate autocomplete="off">
             <input type="hidden" name="id">
-            <div class="modal-head items-center">
-                <div class="min-w-0">
-                    <h2 id="teamDialogTitle" class="modal-title" data-title>New team</h2>
-                    <p class="mt-0.5 text-sm text-gray-500" data-sub>Give it a code and a name; add its people once it is saved.</p>
-                </div>
-                <button type="button" class="btn-icon -mr-2" data-team-close data-view-keep aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-team-close data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Marketing teams
                 </button>
+                <div class="min-w-0">
+                    <h1 id="teamDialogTitle" class="doc-page-title" data-title data-view-title>New team</h1>
+                    <p class="page-sub mt-0.5" data-sub>Give it a code and a name; add its people once it is saved.</p>
+                </div>
             </div>
 
-            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin" data-team-body>
+            <div class="card">
+            <div data-team-body>
                 <div class="tabs" role="tablist" data-team-tabs>
                     <button type="button" class="tab" role="tab" data-tab="details" aria-selected="true">Details</button>
                     <button type="button" class="tab" role="tab" data-tab="members">
@@ -152,15 +156,16 @@
                 </section>
             </div>
 
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <p class="mr-auto text-sm text-gray-500" data-foot-note></p>
                 <div class="flex flex-wrap items-center gap-2" data-view-actions data-view-keep hidden></div>
                 <button type="button" class="btn-ghost" data-team-close data-view-keep data-cancel>Cancel</button>
                 <button type="submit" class="btn-primary">
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save</button>
             </div>
+            </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <span sec:authorize="hasAuthority('SCREEN_MARKETING_TEAM_AMEND')" id="canEdit" hidden></span>
     <span sec:authorize="hasAuthority('SCREEN_MARKETING_TEAM_DELETE')" id="canDelete" hidden></span>

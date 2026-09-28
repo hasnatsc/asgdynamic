@@ -4,6 +4,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Accounting setup</h1>
@@ -77,19 +78,23 @@
         </div>
     </div>
 
+    </div><!-- /data-list-view -->
+
     <!-- ============================== Rule editor ============================== -->
-    <dialog id="rDialog" class="modal modal-lg" data-sticky aria-labelledby="rDialogTitle">
+    <section id="rDialog" hidden aria-labelledby="rDialogTitle">
         <form id="rForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="rDialogTitle" class="modal-title">New posting rule</h2>
-                    <p class="mt-1 text-sm text-gray-500">Each amount a posting carries must be debited and credited equally.</p>
-                </div>
-                <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-close data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Accounts setup
                 </button>
+                <div class="min-w-0">
+                    <h1 id="rDialogTitle" class="doc-page-title" data-view-title>New posting rule</h1>
+                    <p class="page-sub mt-0.5">Each amount a posting carries must be debited and credited equally.</p>
+                </div>
             </div>
-            <div class="modal-body space-y-4">
+
+            <div class="card">
+            <div class="doc-page-body form-float space-y-5">
                 <div class="grid grid-cols-3 gap-4">
                     <div class="col-span-2">
                         <label class="label" for="rEvent">Event <span class="req">*</span></label>
@@ -118,28 +123,31 @@
                 </div>
                 <p class="hint">Amount names: <code>amount</code> for single-amount events; an invoice carries <code>net</code> and <code>vat</code>.</p>
             </div>
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-ghost" data-close>Cancel</button>
                 <button type="submit" class="btn-primary">
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save rule
                 </button>
             </div>
+        </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <!-- ============================== Cost centre editor ============================== -->
-    <dialog id="cDialog" class="modal" data-sticky aria-labelledby="cDialogTitle">
+    <section id="cDialog" hidden aria-labelledby="cDialogTitle">
         <form id="cForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="cDialogTitle" class="modal-title">New cost centre</h2>
-                    <p class="mt-1 text-sm text-gray-500">The code is fixed once saved.</p>
-                </div>
-                <button type="button" class="btn-icon -mr-2 -mt-1" data-dismiss aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-dismiss data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Accounts setup
                 </button>
+                <div class="min-w-0">
+                    <h1 id="cDialogTitle" class="doc-page-title" data-view-title>New cost centre</h1>
+                    <p class="page-sub mt-0.5">The code is fixed once saved.</p>
+                </div>
             </div>
-            <div class="modal-body space-y-4">
+
+            <div class="card">
+            <div class="doc-page-body form-float space-y-5">
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="label" for="cCode">Code <span class="req">*</span></label>
@@ -180,14 +188,15 @@
                     <input id="cRemarks" class="field" maxlength="500">
                 </div>
             </div>
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-ghost" data-dismiss>Cancel</button>
                 <button type="submit" class="btn-primary" id="cSaveBtn">
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save cost centre
                 </button>
             </div>
+        </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -308,9 +317,22 @@
                 ['Description', esc(r.description || '')] ] });
         });
 
+        // The posting-rule and cost-centre editors are pages, not modals (App.PageEditor): ?rule=new,
+        // ?centre=new or ?centre=12 open one; leaving with unsaved changes asks first.
+        const page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            onReopen: p => openFromAddress(p)
+        });
+        function openFromAddress(p) {
+            if (p.get('rule') === 'new') openRule();
+            else if (p.get('centre') === 'new') openCentre(null);
+            else if (Number(p.get('centre'))) loadCentres().then(() => openCentre(Number(p.get('centre')), 'view'));
+            else return false;
+        }
+
         const rDialog = $('#rDialog');
         const rBody = $('#rLines tbody');
-        rDialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => rDialog.close()));
+        rDialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => page.close()));
 
         function ruleLine(side, account, key) {
             const leafs = chart.filter(a => a.postable);
@@ -342,7 +364,8 @@
         rBody.addEventListener('click', e => { if (e.target.closest('[data-remove]')) { e.target.closest('tr').remove(); checkBalance(); } });
         $('#rAddLine').addEventListener('click', () => ruleLine('DEBIT'));
 
-        $('#rNew').addEventListener('click', async () => {
+        $('#rNew').addEventListener('click', () => openRule());
+        async function openRule() {
             try {
                 if (!Object.keys(events).length) events = await api('/api/accounts/events');
                 if (!chart.length) chart = await api('/api/accounts/chart');
@@ -354,8 +377,8 @@
             $('#rDescription').value = '';
             rBody.innerHTML = '';
             ruleLine('DEBIT'); ruleLine('CREDIT');
-            rDialog.showModal();
-        });
+            page.show(rDialog, '?rule=new');
+        }
 
         $('#rForm').addEventListener('submit', async e => {
             e.preventDefault();
@@ -368,7 +391,7 @@
                 await api('/api/accounts/rules', { method: 'POST', body: { eventType: event, name: events[event],
                     effectiveFrom: $('#rFrom').value, description: $('#rDescription').value.trim() || null, lines } });
                 toast('Posting rule saved.', 'success');
-                rDialog.close();
+                page.close(true);
                 loadRules();
             } catch (err) { fail(err); }
         });
@@ -377,7 +400,7 @@
         let centres = [];
         let currentCentre = null;
         const cDialog = $('#cDialog');
-        cDialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => cDialog.close()));
+        cDialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => page.close()));
 
         async function loadCentres() {
             try { centres = await api('/api/accounts/cost-centres'); } catch (e) { return fail(e); }
@@ -412,7 +435,8 @@
             $('#cForm').querySelectorAll('input, select').forEach(el => { el.disabled = !writable; });
             $('#cCode').disabled = !!c || !writable;
             $('#cSaveBtn').hidden = !writable;
-            cDialog.showModal();
+            App.viewMode(cDialog, false);
+            page.show(cDialog, `?centre=${c ? c.id : 'new'}`);
             App.viewMode(cDialog, mode === 'view' && !!c, { canEdit: CAN.amend });
         }
         $('#cNew').addEventListener('click', () => openCentre(null));
@@ -432,12 +456,13 @@
                 if (currentCentre) await api(`/api/accounts/cost-centres/${currentCentre.id}`, { method: 'PUT', body });
                 else await api('/api/accounts/cost-centres', { method: 'POST', body });
                 toast('Cost centre saved.', 'success');
-                cDialog.close();
+                page.close(true);
                 loadCentres();
             } catch (err) { fail(err); }
         });
 
         loadPeriods();
+        openFromAddress(page.initial);
     });
     </script>
 </div>

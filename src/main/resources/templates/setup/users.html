@@ -5,6 +5,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Users</h1>
@@ -51,21 +52,24 @@
         </div>
         <div id="userPager" class="pager"></div>
     </div>
+    </div><!-- /data-list-view -->
 
-    <!-- ============================== Editor ============================== -->
-    <dialog id="userDialog" class="modal modal-lg" data-sticky aria-labelledby="userDialogTitle">
+    <!-- ============================== Editor ==============================
+         A page, not a modal (App.PageEditor): ?view=12 / ?edit=12 (&tab=scope) open a user. -->
+    <section id="userDialog" hidden aria-labelledby="userDialogTitle">
         <form id="userForm" novalidate>
-            <div class="modal-head">
-                <div class="flex items-center gap-3">
-                    <span class="avatar h-10 w-10 text-sm" id="userAvatar">+</span>
-                    <div>
-                        <h2 id="userDialogTitle" class="text-base font-semibold text-gray-900">New user</h2>
-                        <p id="userDialogSub" class="text-sm text-gray-500">Create a login. The password you set is temporary.</p>
-                    </div>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-dismiss data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Users
+                </button>
+                <span class="avatar h-10 w-10 text-sm" id="userAvatar">+</span>
+                <div class="min-w-0">
+                    <h1 id="userDialogTitle" class="doc-page-title" data-view-title>New user</h1>
+                    <p id="userDialogSub" class="page-sub mt-0.5">Create a login. The password you set is temporary.</p>
                 </div>
-                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
 
+            <div class="card">
             <div class="tabs" role="tablist">
                 <button type="button" class="tab" role="tab" data-tab="profile" aria-selected="true">Profile</button>
                 <button type="button" class="tab" role="tab" data-tab="roles">Roles <span id="roleCount" class="badge-gray ml-1">0</span></button>
@@ -73,16 +77,16 @@
                 <button type="button" class="tab" role="tab" data-tab="security" title="Save the user first">Sign-in &amp; security</button>
             </div>
 
-            <div class="modal-body">
+            <div class="doc-page-body">
                 <p id="selfNotice" class="alert-info mb-4" hidden>
                     This is your own account. Roles, unit, store, access and sign-in controls can only be changed by
                     another administrator.
                 </p>
 
                 <!-- ---------- Profile ---------- -->
-                <div data-panel="profile" class="space-y-4">
+                <div data-panel="profile" class="form-float space-y-5">
                     <input type="hidden" id="userId">
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                         <div>
                             <label class="label" for="userUsername">Username</label>
                             <input id="userUsername" class="field" maxlength="80" required autocomplete="off" spellcheck="false">
@@ -105,7 +109,7 @@
                             their own at first sign-in, so pass this on privately.</p>
                     </div>
 
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                         <div>
                             <label class="label" for="userBusinessUnit">Business unit</label>
                             <select id="userBusinessUnit" class="field" required data-self-locked>
@@ -206,13 +210,14 @@
                 </div>
             </div>
 
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <span id="dirtyNote" class="mr-auto text-xs text-amber-700" hidden>Unsaved changes</span>
                 <button type="button" class="btn-ghost" data-dismiss>Close</button>
                 <button type="submit" class="btn-primary" id="userSaveBtn">Save</button>
             </div>
+            </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -319,15 +324,25 @@
         form.addEventListener('input', () => setDirty(true));
         form.addEventListener('change', e => { if (!e.target.closest('#scopeAdd, #roleFilter, #roleSelectedOnly')) setDirty(true); });
 
-        async function closeEditor() {
-            if (dirty && !(await App.confirm({ title: 'Discard changes?', message: 'Your edits to this user have not been saved.',
-                                                confirmText: 'Discard', danger: true }))) return;
-            setDirty(false);
-            dialog.close();
-            history.replaceState(null, '', location.pathname + (statusFilter.value ? '?status=' + statusFilter.value : ''));
+        // The editor is a page, not a modal: its list keeps the status filter in the address.
+        const page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            listUrl: () => location.pathname + (statusFilter.value ? '?status=' + statusFilter.value : ''),
+            isDirty: () => dirty,
+            onClose: () => setDirty(false),
+            onReopen: p => {
+                if (p.get('edit')) openEditor(Number(p.get('edit')), p.get('tab'));
+                else if (p.get('view')) openEditor(Number(p.get('view')), p.get('tab'), 'view');
+                else if (p.has('new') && CAN.create) openEditor(null);
+                else return false;
+            }
+        });
+
+        /** Back to the list; asks first when there are unsaved changes. */
+        function closeEditor(force) {
+            return page.close(force);
         }
-        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', closeEditor));
-        dialog.addEventListener('cancel', e => { e.preventDefault(); closeEditor(); });
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => closeEditor()));
 
         // ------------------------------------------------------------------ profile
         const unitSelect = $('#userBusinessUnit');
@@ -547,7 +562,7 @@
                 await api(`/api/setup/users/${current.id}`, { method: 'DELETE' });
                 toast('User deleted', 'success');
                 setDirty(false);
-                dialog.close();
+                closeEditor(true);
                 grid.load();
             } catch (error) { fail(error); }
         });
@@ -601,12 +616,12 @@
             fillForm();
             setDirty(false);
             tabs.select(current && tab ? tab : 'profile');
-            if (!dialog.open) dialog.showModal();
-            if (!current) $('#userUsername').focus();
             const viewing = mode === 'view' && !!current;
-            if (current) history.replaceState(null, '', `${location.pathname}?${viewing ? 'view' : 'edit'}=${current.id}`);
+            App.viewMode(dialog, false);
+            page.show(dialog, current ? `?${viewing ? 'view' : 'edit'}=${current.id}` : '?new');
+            if (!current) $('#userUsername').focus();
             App.viewMode(dialog, viewing, { canEdit: CAN.amend,
-                onEdit: () => history.replaceState(null, '', `${location.pathname}?edit=${current.id}`) });
+                onEdit: () => page.replaceQuery(`?edit=${current.id}`) });
         }
 
         $('#userNewBtn')?.addEventListener('click', () => openEditor(null));
@@ -631,7 +646,7 @@
                     current = await api(`/api/setup/users/${current.id}`, { method: 'POST', body });
                     toast('User saved', 'success');
                     setDirty(false);
-                    dialog.close();
+                    closeEditor(true);
                 } else {
                     Object.assign(body, { username: $('#userUsername').value.trim(), password: $('#userPassword').value });
                     current = await api('/api/setup/users', { method: 'POST', body });
@@ -641,7 +656,8 @@
                     applyMode();
                     fillForm();
                     tabs.select(current.unrestricted ? 'profile' : 'scope');
-                    if (current.unrestricted) dialog.close();
+                    if (current.unrestricted) closeEditor(true);
+                    else page.replaceQuery(`?edit=${current.id}&tab=scope`);
                 }
                 grid.load();
             } catch (error) {
@@ -653,11 +669,13 @@
 
         // ------------------------------------------------------------------ boot
         fillScopeValues();
-        const params = new URLSearchParams(location.search);
+        const params = page.initial;
         if (params.get('status')) statusFilter.value = params.get('status');
+        history.replaceState(null, '', page.listUrl());
         grid.load();
         if (params.get('edit')) openEditor(Number(params.get('edit')), params.get('tab'));
         else if (params.get('view')) openEditor(Number(params.get('view')), params.get('tab'), 'view');
+        else if (params.has('new') && CAN.create) openEditor(null);
     });
     </script>
 </div>

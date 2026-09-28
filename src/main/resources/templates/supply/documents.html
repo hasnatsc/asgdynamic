@@ -16,6 +16,7 @@
 <body>
 <div th:fragment="content" data-supply-page>
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title" th:text="${step.plural()}">Purchase orders</h1>
@@ -93,41 +94,42 @@
         </div>
         <div class="pager" data-pager></div>
     </div>
+    </div><!-- /data-list-view -->
 
     <!-- The viewer: a document, where each line stands downstream, and what may be done now. -->
-    <dialog id="supplyViewer" class="modal modal-editor" aria-labelledby="supplyViewerTitle">
-        <div class="flex max-h-[94vh] min-h-0 flex-col">
-            <div class="modal-head items-center">
-                <div class="min-w-0">
-                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500" th:text="${step.label()}">Document</p>
-                    <h2 id="supplyViewerTitle" class="modal-title mt-0.5 flex flex-wrap items-center gap-2" data-view-title></h2>
-                </div>
-                <button type="button" class="btn-icon -mr-2 ml-auto" data-close aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
-                </button>
+    <section id="supplyViewer" hidden aria-labelledby="supplyViewerTitle">
+        <div class="doc-page-head">
+            <button type="button" class="btn-ghost btn-sm shrink-0" data-page-back>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg><span th:text="${step.plural()}">Documents</span>
+            </button>
+            <div class="min-w-0">
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500" th:text="${step.label()}">Document</p>
+                <h1 id="supplyViewerTitle" class="doc-page-title mt-0.5 flex flex-wrap items-center gap-2" data-view-title></h1>
             </div>
-            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin" data-view-body></div>
-            <div class="modal-foot justify-between" data-view-foot></div>
         </div>
-    </dialog>
+        <div class="card">
+            <div data-view-body></div>
+            <div class="modal-foot doc-page-foot justify-between" data-view-foot></div>
+        </div>
+    </section>
 
     <!-- The editor: header, then the parent's open lines - or items added directly. -->
-    <dialog id="supplyEditor" class="modal modal-editor" data-sticky aria-labelledby="supplyEditorTitle">
-        <form class="flex max-h-[94vh] min-h-0 flex-col" novalidate autocomplete="off" data-editor-form>
-            <div class="modal-head items-center">
+    <section id="supplyEditor" hidden aria-labelledby="supplyEditorTitle">
+        <form novalidate autocomplete="off" data-editor-form>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-editor-close>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg><span th:text="${step.plural()}">Documents</span>
+                </button>
                 <div class="min-w-0">
-                    <h2 id="supplyEditorTitle" class="modal-title" data-editor-title th:text="|New ${step.label().toLowerCase()}|">New</h2>
-                    <p class="mt-0.5 text-sm text-gray-500" th:text="${step.isPosting()
+                    <h1 id="supplyEditorTitle" class="doc-page-title" data-editor-title th:text="|New ${step.label().toLowerCase()}|">New</h1>
+                    <p class="page-sub mt-0.5" th:text="${step.isPosting()
                         ? 'Saved as a draft; Post writes it to stock.'
                         : 'Saved as a draft; submit it for approval from the document once it is complete.'}">Saved as a draft.</p>
                 </div>
-                <button type="button" class="btn-icon -mr-2 ml-auto" data-editor-close aria-label="Close editor">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
-                </button>
             </div>
-            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin">
-                <section class="form-section">
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-editor-header></div>
+            <div class="card">
+                <section class="form-section form-float">
+                    <div class="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-4" data-editor-header></div>
                 </section>
                 <section class="form-section">
                     <div class="form-section-head">
@@ -147,8 +149,7 @@
                         <p class="text-sm text-gray-500">Nothing chosen yet.</p>
                     </div>
                 </section>
-            </div>
-            <div class="modal-foot justify-between">
+            <div class="modal-foot doc-page-foot justify-between">
                 <p class="text-sm text-gray-600">Total <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-editor-total>0</span>
                     <span th:if="${step.isPriced()}"> · Amount <span class="font-semibold tabular-nums text-gray-900 dark:text-white" data-editor-amount>0</span></span></p>
                 <div class="flex gap-2">
@@ -157,8 +158,9 @@
                         <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save draft</button>
                 </div>
             </div>
+            </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
         window.SUPPLY = /*[[${config}]]*/ {};

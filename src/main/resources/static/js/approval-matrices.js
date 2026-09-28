@@ -139,7 +139,20 @@
             dirty = true;
         });
 
-        // ------------------------------------------------------------------ the dialog
+        // ------------------------------------------------------------------ the matrix's page
+
+        // A page, not a modal (App.PageEditor): the list steps aside, ?view=12 / ?edit=12 name the matrix.
+        const page = new App.PageEditor({
+            list: document.querySelector('[data-list-view]'),
+            isDirty: () => dirty,
+            onClose: () => { dirty = false; },
+            onReopen: p => {
+                if (p.get('edit')) open(Number(p.get('edit')), false);
+                else if (p.get('view')) open(Number(p.get('view')), true);
+                else if (p.has('new') && document.querySelector('[data-action="matrix-new"]')) open(null, false);
+                else return false;
+            }
+        });
 
         async function open(id, viewOnly) {
             await optionsReady;
@@ -180,7 +193,7 @@
                 form.querySelector('[data-cancel]').textContent = 'Cancel';
             }
             dirty = false;
-            if (!dialog.open) dialog.showModal();
+            page.show(dialog, detail ? `?${viewOnly ? 'view' : 'edit'}=${detail.id}` : '?new');
             if (viewOnly && detail) App.viewMode(dialog, true);
             else f(detail ? 'name' : 'documentType').focus();
         }
@@ -191,16 +204,15 @@
             form.querySelector('[data-title]').textContent = `Edit ${matrix.name}`;
             form.querySelector('[data-view-actions]').hidden = true;
             form.querySelector('[data-cancel]').textContent = 'Cancel';
+            page.replaceQuery(`?edit=${matrix.id}`);
             f('name').focus();
         });
 
-        async function close() {
-            if (dirty && !await App.confirm({ title: 'Close without saving?', message: 'Changes to this matrix have not been saved.',
-                    confirmText: 'Close', danger: true })) return;
-            dialog.close();
+        /** Back to the list; asks first when there are unsaved changes. */
+        function close(force) {
+            return page.close(force);
         }
-        form.querySelectorAll('[data-matrix-close]').forEach(b => b.addEventListener('click', close));
-        dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+        form.querySelectorAll('[data-matrix-close]').forEach(b => b.addEventListener('click', () => close()));
         form.addEventListener('input', () => { dirty = true; });
         form.addEventListener('change', () => { dirty = true; });
 
@@ -222,9 +234,15 @@
                 await App.api(API, { method: 'POST', body });
                 App.toast(matrix ? 'Matrix saved.' : 'Matrix created. Documents submitted from now on follow it.', 'success');
                 dirty = false;
-                dialog.close();
+                close(true);
                 grid.reload();
             } catch (error) { App.fail(error); }
         });
+
+        // ?view=12, ?edit=12 or ?new - a link or a refresh - opens the matrix's page.
+        const asked = page.initial;
+        if (asked.get('edit')) open(Number(asked.get('edit')), false);
+        else if (asked.get('view')) open(Number(asked.get('view')), true);
+        else if (asked.has('new') && document.querySelector('[data-action="matrix-new"]')) open(null, false);
     });
 })();

@@ -76,7 +76,20 @@
 
         document.querySelector('[data-action="team-new"]')?.addEventListener('click', () => open(null, false));
 
-        // ------------------------------------------------------------------ the dialog
+        // ------------------------------------------------------------------ the team's page
+
+        // A page, not a modal (App.PageEditor): the list steps aside, ?view=12 / ?edit=12 name the team.
+        const page = new App.PageEditor({
+            list: document.querySelector('[data-list-view]'),
+            isDirty: () => dirty,
+            onClose: () => { dirty = false; team = null; },
+            onReopen: p => {
+                if (p.get('edit')) open(Number(p.get('edit')), false);
+                else if (p.get('view')) open(Number(p.get('view')), true);
+                else if (p.has('new') && document.querySelector('[data-action="team-new"]')) open(null, false);
+                else return false;
+            }
+        });
 
         async function open(id, viewOnly) {
             let detail = null;
@@ -86,9 +99,8 @@
             App.viewMode(dialog, false);
             fill(detail);
             tabs.select('details');
+            page.show(dialog, detail ? `?${viewOnly ? 'view' : 'edit'}=${detail.id}` : '?new');
             setMode(viewOnly && !!detail);
-            if (!dialog.open) dialog.showModal();
-            form.querySelector('[data-team-body]').scrollTop = 0;
             if (!viewOnly) f('code').focus();
         }
 
@@ -140,16 +152,15 @@
             if (!event.target.closest('[data-action="team-edit"]')) return;
             App.viewMode(dialog, false);
             setMode(false);
+            page.replaceQuery(`?edit=${team.id}`);
             f('name').focus();
         });
 
-        async function close() {
-            if (dirty && !await App.confirm({ title: 'Close without saving?',
-                    message: 'Changes to the details have not been saved.', confirmText: 'Close', danger: true })) return;
-            dialog.close();
+        /** Back to the list; asks first when the details have unsaved changes. */
+        function close() {
+            return page.close();
         }
-        form.querySelectorAll('[data-team-close]').forEach(b => b.addEventListener('click', close));
-        dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+        form.querySelectorAll('[data-team-close]').forEach(b => b.addEventListener('click', () => close()));
         form.querySelector('[data-panel="details"]').addEventListener('input', () => { dirty = true; });
         form.querySelector('[data-panel="details"]').addEventListener('change', () => { dirty = true; });
 
@@ -175,6 +186,7 @@
                 const created = !team;
                 fill(await App.api(`${API}/${saved.id}`));
                 setMode(false);
+                page.replaceQuery(`?edit=${saved.id}`);
                 if (created) tabs.select('members');
                 grid.reload();
             } catch (error) { App.fail(error); }
@@ -237,5 +249,10 @@
             } catch (error) { App.fail(error); }
         });
 
+        // ?view=12, ?edit=12 or ?new - a link or a refresh - opens the team's page.
+        const asked = page.initial;
+        if (asked.get('edit')) open(Number(asked.get('edit')), false);
+        else if (asked.get('view')) open(Number(asked.get('view')), true);
+        else if (asked.has('new') && document.querySelector('[data-action="team-new"]')) open(null, false);
     });
 })();

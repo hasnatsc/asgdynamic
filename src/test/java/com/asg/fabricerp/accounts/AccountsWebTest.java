@@ -92,6 +92,20 @@ class AccountsWebTest {
             .andExpect(content().string(containsString("id=\"" + table + "\"")));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "/accounts/journals, jvDialog",
+        "/accounts/credit,   clDialog",
+        "/accounts/setup,    cDialog"
+    })
+    void recordEditorsOpenAsPagesNotModals(String path, String editor) throws Exception {
+        mvc.perform(get(path).with(signedIn(accountant)))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-list-view")))
+            .andExpect(content().string(containsString("<section id=\"" + editor + "\" hidden")))
+            .andExpect(content().string(org.hamcrest.Matchers.not(containsString("<dialog id=\"" + editor + "\""))));
+    }
+
     @Test
     void aViewOnlyUserSeesTheLedgerButCannotPostOrReverse() throws Exception {
         mvc.perform(get("/accounts/journals").with(signedIn(clerk)))

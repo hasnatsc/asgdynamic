@@ -5,12 +5,14 @@
   Party directory and editor. Built for a directory in the tens of thousands: paging, sorting,
   searching and the role counts all happen in the database; a page of rows is one query plus three
   batched lookups (roles, primary contact, primary address). Filter state lives in the URL, so a
-  filtered view can be bookmarked or sent, and ?id= opens a party directly.
+  filtered view can be bookmarked or sent, and ?id= opens a party directly. The editor is a page,
+  not a modal (App.PageEditor): it takes the list's place, and Back returns to the filtered list.
 -->
 <head><title th:text="${title}">Parties</title></head>
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Parties</h1>
@@ -83,26 +85,25 @@
         </div>
         <div id="partyPager" class="pager"></div>
     </div>
+    </div><!-- /data-list-view -->
 
     <!-- ============================== Editor ============================== -->
-    <dialog id="partyDialog" class="modal modal-xl" data-sticky aria-labelledby="partyDialogTitle">
+    <section id="partyDialog" hidden aria-labelledby="partyDialogTitle">
         <form id="partyForm" novalidate>
-            <div class="modal-head">
-                <div class="flex min-w-0 items-center gap-3">
-                    <span class="avatar h-11 w-11 text-sm" id="partyAvatar">+</span>
-                    <div class="min-w-0">
-                        <h2 id="partyDialogTitle" class="truncate text-base font-semibold text-gray-900">New party</h2>
-                        <p id="partyDialogSub" class="text-sm text-gray-500">One record per company - give it every role it plays.</p>
-                        <div id="partyHeaderRoles" class="mt-1 flex flex-wrap gap-1"></div>
-                    </div>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-dismiss data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Parties
+                </button>
+                <span class="avatar h-11 w-11 text-sm" id="partyAvatar">+</span>
+                <div class="min-w-0">
+                    <h1 id="partyDialogTitle" class="doc-page-title truncate" data-view-title>New party</h1>
+                    <p id="partyDialogSub" class="page-sub mt-0.5">One record per company - give it every role it plays.</p>
+                    <div id="partyHeaderRoles" class="mt-1 flex flex-wrap gap-1"></div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span id="partyUsage" class="badge-gray" hidden></span>
-                    <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
-                </div>
+                <span id="partyUsage" class="badge-gray ml-auto" hidden></span>
             </div>
 
-            <div id="partyTabs">
+            <div id="partyTabs" class="card">
                 <div class="tabs" role="tablist">
                     <button type="button" class="tab" role="tab" data-tab="general" aria-selected="true">General</button>
                     <button type="button" class="tab" role="tab" data-tab="roles">Roles <span class="badge-gray ml-1" data-tab-count="roles">0</span></button>
@@ -112,11 +113,11 @@
                     <button type="button" class="tab" role="tab" data-tab="details">Other details <span class="badge-gray ml-1" data-tab-count="details">0</span></button>
                 </div>
 
-                <div class="modal-body min-h-[26rem]">
+                <div class="doc-page-body min-h-[26rem]">
 
                     <!-- ---------- General ---------- -->
                     <div data-panel="general" class="space-y-5">
-                        <div class="grid gap-4 sm:grid-cols-6">
+                        <div class="form-float grid gap-x-4 gap-y-5 sm:grid-cols-6">
                             <div class="sm:col-span-2">
                                 <label class="label" for="pCode">Code</label>
                                 <input id="pCode" class="field font-mono uppercase" maxlength="40" autocomplete="off" spellcheck="false"
@@ -151,7 +152,7 @@
 
                         <fieldset class="rounded-lg border border-gray-200 p-4">
                             <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Statutory registration</legend>
-                            <div class="grid gap-4 sm:grid-cols-3">
+                            <div class="form-float grid gap-4 pt-1 sm:grid-cols-3">
                                 <div>
                                     <label class="label" for="pTin">TIN</label>
                                     <input id="pTin" class="field font-mono" maxlength="40" autocomplete="off" inputmode="numeric">
@@ -223,9 +224,8 @@
                         <button type="button" class="btn-ghost btn-sm mt-3" data-add="detail">+ Add detail</button>
                     </div>
                 </div>
-            </div>
 
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-subtle mr-auto text-red-600" id="partyDeleteBtn" hidden
                         sec:authorize="hasAuthority('SCREEN_PARTY_DELETE')">Delete party</button>
                 <span id="partyDirtyNote" class="text-xs text-amber-700" hidden>Unsaved changes</span>
@@ -233,8 +233,9 @@
                 <button type="button" class="btn-ghost" data-dismiss>Close</button>
                 <button type="submit" class="btn-primary" id="partySaveBtn">Save party</button>
             </div>
+            </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -271,6 +272,8 @@
         let current = null;     // the loaded party; null while creating
         let banks = [];
         let dirty = false;
+        let page = null;        // App.PageEditor, set at boot
+        let listQuery = '';     // the list's filters, as the address carries them
 
         // ================================================================== directory
         const grid = new App.Grid({
@@ -328,8 +331,8 @@
             if (state.role) qs.set('role', state.role);
             if (state.active !== 'true') qs.set('active', state.active || 'all');
             if (state.type) qs.set('type', state.type);
-            if (current && current.id) qs.set('id', current.id);
-            history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
+            listQuery = qs.toString();
+            if (!page || !page.isOpen) history.replaceState(history.state, '', location.pathname + (listQuery ? '?' + listQuery : ''));
             const exportQs = new URLSearchParams();
             if (q) exportQs.set('search[value]', q);
             if (state.role) exportQs.set('role', state.role);
@@ -634,23 +637,18 @@
 
             clearDirty();
             tabs.select('general');
-            if (!dialog.open) dialog.showModal();
+            App.viewMode(dialog, false);
+            page.show(dialog, editing ? `?id=${party.id}` : '?new');
             const viewing = mode === 'view' && editing;
             if (writable && !viewing) (editing ? $('#pName') : $('#pCode')).focus();
-            syncUrl();
             App.viewMode(dialog, viewing, { canEdit: CAN.amend, onEdit: () => $('#pName').focus() });
         }
 
-        async function closeEditor() {
-            if (dirty && !(await App.confirm({ title: 'Discard changes?', message: 'Your edits to this party have not been saved.',
-                                                confirmText: 'Discard', danger: true }))) return;
-            clearDirty();
-            current = null;
-            dialog.close();
-            syncUrl();
+        /** Back to the list; asks first when there are unsaved changes (page's onClose tidies up). */
+        function closeEditor(force) {
+            return page.close(force);
         }
-        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', closeEditor));
-        dialog.addEventListener('cancel', e => { e.preventDefault(); closeEditor(); });
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => closeEditor()));
         $('#partyNewBtn')?.addEventListener('click', () => openEditor(null));
 
         // Ctrl/Cmd+S saves, as in any desktop form.
@@ -702,9 +700,7 @@
                 } });
                 toast(`Saved ${saved.code} - ${saved.name}`, 'success');
                 clearDirty();
-                current = null;
-                dialog.close();
-                syncUrl();
+                closeEditor(true);
                 grid.load();
                 loadCounts();
             } catch (error) {
@@ -729,15 +725,14 @@
                 await api(`/api/setup/parties/${current.id}`, { method: 'DELETE' });
                 toast('Party deleted', 'success');
                 clearDirty();
-                current = null;
-                dialog.close();
-                syncUrl();
+                closeEditor(true);
                 grid.load();
                 loadCounts();
             } catch (error) { fail(error); }
         });
 
         // ================================================================== boot
+        // The editor is a page (App.PageEditor), built once the filters are read: its list keeps them.
         const params = new URLSearchParams(location.search);
         $('#partySearch').value = params.get('q') || '';
         setRole(params.get('role') || '');
@@ -746,9 +741,21 @@
         state.type = params.get('type') || '';
         $('#partyType').value = state.type;
         syncUrl();
+        page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            listUrl: () => location.pathname + (listQuery ? '?' + listQuery : ''),
+            isDirty: () => dirty,
+            onClose: () => { clearDirty(); current = null; },
+            onReopen: p => {
+                if (p.get('id')) openEditor(Number(p.get('id')), 'view');
+                else if (p.has('new') && CAN.create) openEditor(null);
+                else return false;
+            }
+        });
         grid.load();
         loadCounts();
         if (params.get('id')) openEditor(Number(params.get('id')), 'view');
+        else if (params.has('new') && CAN.create) openEditor(null);
     });
     </script>
 </div>

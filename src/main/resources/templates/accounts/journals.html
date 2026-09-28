@@ -4,6 +4,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Journal entries</h1>
@@ -56,41 +57,48 @@
         <div id="jvPager" class="pager"></div>
     </div>
 
+    </div><!-- /data-list-view -->
+
     <!-- ============================== Entry (read-only) ============================== -->
-    <dialog id="entryDrawer" class="drawer" aria-labelledby="entryTitle">
-        <div class="modal-head">
+    <section id="entryDrawer" hidden aria-labelledby="entryTitle">
+        <div class="doc-page-head">
+            <button type="button" class="btn-ghost btn-sm shrink-0" data-close data-view-keep>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Journals
+            </button>
             <div class="min-w-0">
                 <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Ledger entry</p>
-                <h2 id="entryTitle" class="modal-title mt-0.5 flex flex-wrap items-center gap-2"></h2>
+                <h1 id="entryTitle" class="doc-page-title mt-0.5 flex flex-wrap items-center gap-2" data-view-title></h1>
             </div>
-            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
-                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
-            </button>
         </div>
-        <div class="modal-body p-0" id="entryBody"></div>
-        <div class="modal-foot justify-between">
+
+        <div class="card">
+        <div class="min-w-0" id="entryBody"></div>
+        <div class="modal-foot doc-page-foot justify-between">
             <button type="button" class="btn-ghost" data-close>Close</button>
             <button type="button" class="btn-danger-ghost" id="entryReverseBtn" hidden>
                 <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reverse entry
             </button>
         </div>
-    </dialog>
+    </div><!-- /card -->
+    </section>
 
     <!-- ============================== New journal ============================== -->
-    <dialog id="jvDialog" class="modal modal-xl" data-sticky aria-labelledby="jvDialogTitle">
+    <section id="jvDialog" hidden aria-labelledby="jvDialogTitle">
         <form id="jvForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="jvDialogTitle" class="modal-title">New voucher</h2>
-                    <p class="mt-1 text-sm text-gray-500">For adjustments, accruals and opening balances. Receivable and payable
-                        control accounts are posted through customer and supplier transactions, not here.</p>
-                </div>
-                <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-close data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Journals
                 </button>
+                <div class="min-w-0">
+                    <h1 id="jvDialogTitle" class="doc-page-title" data-view-title>New voucher</h1>
+                    <p class="page-sub mt-0.5">For adjustments, accruals and opening balances. Receivable and payable
+                    control accounts are posted through customer and supplier transactions, not here.</p>
+                </div>
             </div>
-            <div class="modal-body space-y-4">
-                <div class="grid gap-4 sm:grid-cols-5">
+
+            <div class="card">
+            <div class="doc-page-body form-float space-y-5">
+                <div class="grid gap-x-4 gap-y-5 sm:grid-cols-5">
                     <div>
                         <label class="label" for="jvType">Voucher type <span class="req">*</span></label>
                         <select id="jvType" class="field" required></select>
@@ -131,14 +139,15 @@
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add line
                 </button>
             </div>
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-ghost" data-close>Cancel</button>
                 <button type="submit" class="btn-primary" id="jvPostBtn" disabled>
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#send}"/></svg>Post journal
                 </button>
             </div>
+        </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -188,14 +197,25 @@
             if (view) openEntry(Number(view.dataset.view));
         });
 
-        // ------------------------------------------------------------------ entry drawer
+        // ------------------------------------------------------------------ entry page
         const drawer = $('#entryDrawer');
         let currentEntry = null;
+        // The entry and the new voucher are pages, not modals (App.PageEditor): ?open=12 shows an
+        // entry, ?new a blank voucher; leaving a voucher with unsaved lines asks first.
+        const page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            onReopen: p => {
+                if (Number(p.get('open'))) openEntry(Number(p.get('open')));
+                else if (p.has('new') && $('#jvNewBtn')) openNewVoucher();
+                else return false;
+            }
+        });
+        drawer.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => page.close()));
 
         async function openEntry(id) {
             $('#entryBody').innerHTML = '<div class="space-y-3 p-6">' + '<div class="skeleton h-5 w-2/3"></div>'.repeat(4) + '</div>';
-            if (!drawer.open) drawer.showModal();
-            try { currentEntry = await api(`/api/accounts/entries/${id}`); } catch (e) { drawer.close(); return fail(e); }
+            page.show(drawer, `?open=${id}`);
+            try { currentEntry = await api(`/api/accounts/entries/${id}`); } catch (e) { page.close(true); return fail(e); }
             const e = currentEntry;
             $('#entryTitle').innerHTML = `${esc(e.entryNo)} ${statusCell(e)}`;
             const debit = e.lines.filter(l => l.side === 'DEBIT').reduce((s, l) => s + Number(l.amount), 0);
@@ -310,9 +330,10 @@
             recalc();
         });
         $('#jvAddLine').addEventListener('click', addLine);
-        jvDialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => jvDialog.close()));
+        jvDialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => page.close()));
 
-        $('#jvNewBtn')?.addEventListener('click', async () => {
+        $('#jvNewBtn')?.addEventListener('click', () => openNewVoucher());
+        async function openNewVoucher() {
             try {
                 const [chart, cc] = await Promise.all([api('/api/accounts/chart'), api('/api/accounts/cost-centres').catch(() => [])]);
                 postable = chart.filter(a => a.postable && a.usage !== 'CONTROL');
@@ -325,9 +346,9 @@
             $('#jvNarration').value = '';
             tbody.innerHTML = '';
             addLine(); addLine();
-            jvDialog.showModal();
+            page.show(jvDialog, '?new');
             $('#jvNarration').focus();
-        });
+        }
 
         $('#jvForm').addEventListener('submit', async e => {
             e.preventDefault();
@@ -343,7 +364,7 @@
                 const r = await api('/api/accounts/journals', { method: 'POST',
                     body: { voucherType: $('#jvType').value, postingDate: $('#jvDate').value, narration: $('#jvNarration').value.trim(), lines } });
                 toast(`Voucher ${r.entryNo} posted.`, 'success');
-                jvDialog.close();
+                page.close(true);
                 grid.reload(true);
             } catch (err) { fail(err); }
         });
@@ -358,6 +379,8 @@
                 $('#jvEvent').insertAdjacentHTML('beforeend', `<option value="${esc(code)}">${esc(label)}</option>`));
         }).catch(() => {});
         grid.reload(true);
+        if (Number(page.initial.get('open'))) openEntry(Number(page.initial.get('open')));
+        else if (page.initial.has('new') && $('#jvNewBtn')) openNewVoucher();
     });
     </script>
 </div>

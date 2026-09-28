@@ -66,11 +66,23 @@
         const screen = new App.DocumentScreen(Object.assign({}, window.BOOKING_SCREEN,
             { canEdit: canAmend, onEdit: d => openEditor(d), onView: (d, history) => viewBooking(d, history) }));
         const editorTabs = App.tabs(form.querySelector('[data-editor-tabs]').parentElement);
-        // What the address asked for (?open= is DocumentScreen's, read above; ?new is ours). The
-        // entry itself becomes the list, so Back from the editor lands there.
-        const listUrl = location.pathname;
-        const askedForNew = new URLSearchParams(location.search).has('new');
-        history.replaceState(null, '', listUrl);
+        // The editor is a page, not a modal (App.PageEditor). Built after the screen: DocumentScreen
+        // has already read ?open=, and the page's address then becomes the list's.
+        const page = new App.PageEditor({
+            list: listView,
+            isDirty: () => dirty,
+            onClose: () => {
+                if (specEditor.open) specEditor.close();
+                doc = null;
+                dirty = false;
+            },
+            onReopen: params => {
+                const id = Number(params.get('open'));
+                if (id) screen.open(id);
+                else if (newButton) openEditor(null);
+                else return false;
+            }
+        });
 
         // ------------------------------------------------------------------ reference lists
 
@@ -102,63 +114,8 @@
         newButton?.addEventListener('click', () => openEditor(null));
         $$('[data-editor-close]').forEach(b => b.addEventListener('click', () => closeEditor()));
 
-        // The editor is a page, not a modal: it takes the list's place, and the address says what
-        // is open (?new, ?open=id) - so Back returns to the list, and a refresh or a link reopens it.
-        const EDITOR_STATE = { bookingEditor: true };
-        const editorOpen = () => !editor.hidden;
-        let editorQuery = '';
-        let leaving = false;       // the history.back() is closeEditor's own, not the user's
-
-        function showEditor(query) {
-            editorQuery = query;
-            if (history.state?.bookingEditor) history.replaceState(EDITOR_STATE, '', listUrl + query);
-            else history.pushState(EDITOR_STATE, '', listUrl + query);
-            listView.hidden = true;
-            editor.hidden = false;
-            window.scrollTo(0, 0);
-        }
-
-        function hideEditor() {
-            App.viewMode(editor, false);
-            editor.hidden = true;
-            listView.hidden = false;
-            window.scrollTo(0, 0);
-            if (history.state?.bookingEditor) {
-                leaving = true;
-                history.back();
-            }
-        }
-
-        window.addEventListener('popstate', async () => {
-            if (leaving) { leaving = false; return; }
-            if (!editorOpen()) {
-                // Forward onto an editor entry: open what it names.
-                if (!history.state?.bookingEditor) return;
-                const id = Number(new URLSearchParams(location.search).get('open'));
-                if (id) screen.open(id);
-                else if (newButton) openEditor(null);
-                else history.replaceState(null, '', listUrl);
-                return;
-            }
-            // Back while editing asks what Cancel asks; staying puts the editor's entry back.
-            if (dirty && !await App.confirm({
-                title: 'Close without saving?', message: 'Changes not saved yet will be lost.',
-                confirmText: 'Close', danger: true })) {
-                history.pushState(EDITOR_STATE, '', listUrl + editorQuery);
-                return;
-            }
-            closeEditor(true);
-        });
-
-        // Leaving the page altogether (a menu link, a refresh) with unsaved changes: the browser asks.
-        window.addEventListener('beforeunload', event => {
-            if (!editorOpen() || !dirty) return;
-            event.preventDefault();
-            event.returnValue = '';
-        });
-
         async function openEditor(existing, approvalInfo) {
-            if (editorOpen() && dirty && !await App.confirm({
+            if (page.isOpen && dirty && !await App.confirm({
                 title: 'Discard the booking you are editing?', message: 'Changes not saved yet will be lost.',
                 confirmText: 'Discard', danger: true })) return;
             await optionsReady;
@@ -179,7 +136,7 @@
             form.querySelector('[data-editor-title]').textContent = existing ? `Edit ${existing.documentNo}` : 'New booking';
             form.querySelector('[data-editor-rail]').innerHTML = App.statusSteps(existing ? existing.status : 'DRAFT');
             dirty = false;
-            showEditor(existing ? `?open=${existing.id}` : '?new');
+            page.show(editor, existing ? `?open=${existing.id}` : '?new');
             renderApproval(existing, approvalInfo || null);
             if (existing && !approvalInfo) {
                 // Editing a returned or rejected draft: say why it came back.
@@ -321,14 +278,9 @@
             }
         });
 
-        async function closeEditor(force) {
-            if (!force && dirty && !await App.confirm({
-                title: 'Close without saving?', message: 'Changes not saved yet will be lost.',
-                confirmText: 'Close', danger: true })) return;
-            if (specEditor.open) specEditor.close();
-            hideEditor();
-            doc = null;
-            dirty = false;
+        /** Back to the list; asks first when there are unsaved changes (page's onClose tidies up). */
+        function closeEditor(force) {
+            return page.close(force);
         }
 
         form.addEventListener('input', () => { dirty = true; });
@@ -1179,6 +1131,6 @@
         });
 
         // /booking?new - a refreshed or linked "New booking".
-        if (askedForNew && newButton) openEditor(null);
+        if (page.initial.has('new') && newButton) openEditor(null);
     });
 })();

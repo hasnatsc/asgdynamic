@@ -5,6 +5,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Roles</h1>
@@ -45,22 +46,27 @@
         </div>
         <div id="rolePager" class="pager"></div>
     </div>
+    </div><!-- /data-list-view -->
 
     <!-- ============================== Editor ============================== -->
-    <dialog id="roleDialog" class="modal modal-lg" data-sticky aria-labelledby="roleDialogTitle">
+    <!-- The editor: a page, not a modal (App.PageEditor) - ?view=12 / ?edit=12 open a role. -->
+    <section id="roleDialog" hidden aria-labelledby="roleDialogTitle">
         <form id="roleForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="roleDialogTitle" class="text-base font-semibold text-gray-900">New role</h2>
-                    <p id="roleDialogSub" class="text-sm text-gray-500">Tick what this role may do on each screen.</p>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-dismiss data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Roles
+                </button>
+                <div class="min-w-0">
+                    <h1 id="roleDialogTitle" class="doc-page-title" data-view-title>New role</h1>
+                    <p id="roleDialogSub" class="page-sub mt-0.5">Tick what this role may do on each screen.</p>
                 </div>
-                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
 
-            <div class="modal-body space-y-4">
+            <div class="card">
+            <div class="doc-page-body space-y-5">
                 <p id="roleUsersNotice" class="alert-warn" hidden></p>
 
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="form-float grid gap-x-4 gap-y-5 sm:grid-cols-2">
                     <div>
                         <label class="label" for="roleName">Name</label>
                         <input id="roleName" class="field" maxlength="80" required autocomplete="off">
@@ -120,15 +126,16 @@
                 </div>
             </div>
 
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-subtle mr-auto text-red-600" id="roleDeleteBtn" hidden
                         sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_DELETE')">Delete role</button>
                 <span id="roleDirtyNote" class="text-xs text-amber-700" hidden>Unsaved changes</span>
                 <button type="button" class="btn-ghost" data-dismiss>Close</button>
                 <button type="submit" class="btn-primary" id="roleSaveBtn">Save role</button>
             </div>
+            </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -254,14 +261,24 @@
 
         const canWrite = () => (current && current.id) ? CAN.amend : CAN.create;
 
-        async function closeEditor() {
-            if (dirty && !(await App.confirm({ title: 'Discard changes?', message: 'Your edits to this role have not been saved.',
-                                                confirmText: 'Discard', danger: true }))) return;
-            clearDirty();
-            dialog.close();
+        // The editor is a page, not a modal (App.PageEditor).
+        const page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            isDirty: () => dirty,
+            onClose: () => clearDirty(),
+            onReopen: p => {
+                if (p.get('edit')) openEditor(Number(p.get('edit')));
+                else if (p.get('view')) openEditor(Number(p.get('view')), { view: true });
+                else if (p.has('new') && CAN.create) openEditor(null);
+                else return false;
+            }
+        });
+
+        /** Back to the list; asks first when there are unsaved changes. */
+        function closeEditor(force) {
+            return page.close(force);
         }
-        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', closeEditor));
-        dialog.addEventListener('cancel', e => { e.preventDefault(); closeEditor(); });
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => closeEditor()));
 
         async function openEditor(id, opts) {
             opts = opts || {};
@@ -306,10 +323,11 @@
             }
 
             clearDirty();
-            dialog.showModal();
             const viewing = !!opts.view && editing;
+            App.viewMode(dialog, false);
+            page.show(dialog, editing ? `?${viewing ? 'view' : 'edit'}=${role.id}` : '?new');
             if (writable && !viewing) $('#roleName').focus();
-            App.viewMode(dialog, viewing, { canEdit: CAN.amend });
+            App.viewMode(dialog, viewing, { canEdit: CAN.amend, onEdit: () => page.replaceQuery(`?edit=${role.id}`) });
         }
 
         $('#roleNewBtn')?.addEventListener('click', () => openEditor(null));
@@ -322,7 +340,7 @@
                 await api(`/api/setup/roles/${current.id}`, { method: 'DELETE' });
                 toast('Role deleted', 'success');
                 clearDirty();
-                dialog.close();
+                closeEditor(true);
                 grid.load();
             } catch (error) { fail(error); }
         });
@@ -342,7 +360,7 @@
                 } });
                 toast(`Role "${saved.name}" saved`, 'success');
                 clearDirty();
-                dialog.close();
+                closeEditor(true);
                 grid.load();
             } catch (error) {
                 fail(error);
@@ -352,9 +370,12 @@
         });
 
         // ------------------------------------------------------------------ boot
-        const initial = new URLSearchParams(location.search).get('grants');
+        const initial = page.initial.get('grants');
         if (initial) $(`#grantFilter [data-grants="${initial === 'empty' ? 'empty' : 'with'}"]`).click();
         else grid.load();
+        if (page.initial.get('edit')) openEditor(Number(page.initial.get('edit')));
+        else if (page.initial.get('view')) openEditor(Number(page.initial.get('view')), { view: true });
+        else if (page.initial.has('new') && CAN.create) openEditor(null);
     });
     </script>
 </div>

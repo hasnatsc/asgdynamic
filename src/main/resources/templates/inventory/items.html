@@ -10,6 +10,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Items</h1>
@@ -58,16 +59,22 @@
         <div id="itemPager" class="pager"></div>
     </div>
 
+    </div><!-- /data-list-view -->
+
     <!-- ============================== Editor ============================== -->
-    <dialog id="itemDialog" class="modal modal-lg" data-sticky aria-labelledby="itemDialogTitle">
+    <section id="itemDialog" hidden aria-labelledby="itemDialogTitle">
         <form id="itemForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="itemDialogTitle" class="text-base font-semibold text-gray-900">New item</h2>
-                    <p id="itemDialogSub" class="text-sm text-gray-500"></p>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-dismiss data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Items
+                </button>
+                <div class="min-w-0">
+                    <h1 id="itemDialogTitle" class="doc-page-title" data-view-title>New item</h1>
+                    <p id="itemDialogSub" class="page-sub mt-0.5"></p>
                 </div>
-                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
+
+            <div class="card">
 
             <div id="itemTabs">
                 <div class="tabs" role="tablist">
@@ -77,12 +84,12 @@
                     <button type="button" class="tab" role="tab" data-tab="costing">Production &amp; costing</button>
                 </div>
 
-                <div class="modal-body space-y-4">
+                <div class="doc-page-body form-float space-y-5">
                     <p id="itemApproval" class="alert-info" hidden></p>
 
                     <!-- ---------------------------------------------------- General -->
-                    <div data-panel="general" class="space-y-4">
-                        <div class="grid gap-4 sm:grid-cols-2">
+                    <div data-panel="general" class="space-y-5">
+                        <div class="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                             <div>
                                 <label class="label" for="fItemType">Item type</label>
                                 <select id="fItemType" class="field" data-f="itemType" data-t="enum" required>
@@ -143,7 +150,7 @@
 
                     <!-- ---------------------------------------------------- Type details -->
                     <div data-panel="spec" hidden>
-                        <div data-spec="FIBER" class="grid gap-4 sm:grid-cols-3">
+                        <div data-spec="FIBER" class="grid gap-x-4 gap-y-5 sm:grid-cols-3">
                             <div>
                                 <label class="label" for="fFiberType">Fiber type</label>
                                 <select id="fFiberType" class="field" data-f="fiberType" data-t="enum">
@@ -170,7 +177,7 @@
                                 <input id="fPurity" class="field" type="number" step="0.01" min="0" max="100" data-f="purity" data-t="num"></div>
                         </div>
 
-                        <div data-spec="YARN" class="grid gap-4 sm:grid-cols-2">
+                        <div data-spec="YARN" class="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                             <div><label class="label" for="fYarnCount">Count</label>
                                 <select id="fYarnCount" class="field yarn-req" data-f="yarnCountId" data-t="id" data-lookup="yarn-counts"></select></div>
                             <div><label class="label" for="fYarnPly">Ply</label>
@@ -184,7 +191,7 @@
                             <p class="hint sm:col-span-2">No two active yarns may share the same count, ply, type and blend.</p>
                         </div>
 
-                        <div data-spec="CHEMICALS" class="grid gap-4 sm:grid-cols-2">
+                        <div data-spec="CHEMICALS" class="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                             <div><label class="label" for="fFormula">Chemical formula</label>
                                 <input id="fFormula" class="field" data-f="chemicalFormula" data-t="text" maxlength="50"></div>
                             <div><label class="label" for="fCas">CAS number</label>
@@ -200,7 +207,7 @@
                                 <p class="hint">Required for a hazardous chemical.</p></div>
                         </div>
 
-                        <div data-spec="FIXED_ASSET" class="grid gap-4 sm:grid-cols-2">
+                        <div data-spec="FIXED_ASSET" class="grid gap-x-4 gap-y-5 sm:grid-cols-2">
                             <div><label class="label" for="fManufacturer">Manufacturer</label>
                                 <input id="fManufacturer" class="field" data-f="manufacturer" data-t="text" maxlength="100"></div>
                             <div><label class="label" for="fModelNo">Model number</label>
@@ -217,7 +224,7 @@
                     </div>
 
                     <!-- ---------------------------------------------------- Stock & pricing -->
-                    <div data-panel="stock" class="grid gap-4 sm:grid-cols-3" hidden>
+                    <div data-panel="stock" class="grid gap-x-4 gap-y-5 sm:grid-cols-3" hidden>
                         <div><label class="label" for="fReorder">Reorder level</label>
                             <input id="fReorder" class="field" type="number" step="0.001" min="0" data-f="reorderLevel" data-t="num"></div>
                         <div><label class="label" for="fMin">Minimum stock</label>
@@ -234,7 +241,7 @@
                     </div>
 
                     <!-- ---------------------------------------------------- Production & costing -->
-                    <div data-panel="costing" class="grid gap-4 sm:grid-cols-2" hidden>
+                    <div data-panel="costing" class="grid gap-x-4 gap-y-5 sm:grid-cols-2" hidden>
                         <div><label class="label" for="fLoss">Process loss %</label>
                             <input id="fLoss" class="field" type="number" step="0.01" min="0" max="100" data-f="processLossPercent" data-t="num"></div>
                         <div><label class="label" for="fYield">Yield %</label>
@@ -247,14 +254,15 @@
                 </div>
             </div>
 
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-subtle mr-auto text-red-600" id="itemDeleteBtn" hidden>Delete</button>
                 <button type="button" class="btn-ghost" data-dismiss>Close</button>
                 <button type="button" class="btn-ghost" id="itemApproveBtn" hidden>Approve</button>
                 <button type="submit" class="btn-primary" id="itemSaveBtn">Save</button>
             </div>
+        </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -269,6 +277,18 @@
 
         const $ = sel => document.querySelector(sel);
         const dialog = $('#itemDialog');
+        // The editor is a page, not a modal (App.PageEditor): ?view=12, ?edit=12 or ?new open it, and
+        // leaving it with unsaved changes asks first.
+        const page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            onClose: () => { current = null; },
+            onReopen: p => {
+                if (p.get('edit')) openEditor(Number(p.get('edit')));
+                else if (p.get('view')) openEditor(Number(p.get('view')), 'view');
+                else if (p.has('new') && $('#itemNewBtn')) openEditor(null);
+                else return false;
+            }
+        });
         const form = $('#itemForm');
         const fields = () => Array.from(form.querySelectorAll('[data-f]'));
         const tabs = App.tabs($('#itemTabs'));
@@ -427,11 +447,13 @@
             $('#itemDeleteBtn').hidden = !(item && CAN.del);
             $('#itemApproveBtn').hidden = !(item && !item.approved && CAN.approve);
             tabs.select('general');
-            dialog.showModal();
-            App.viewMode(dialog, mode === 'view' && !!item, { canEdit: CAN.amend });
+            App.viewMode(dialog, false);
+            page.show(dialog, current ? `?${mode === 'view' ? 'view' : 'edit'}=${current.id}` : '?new');
+            App.viewMode(dialog, mode === 'view' && !!item, { canEdit: CAN.amend,
+                onEdit: () => page.replaceQuery(`?edit=${current.id}`) });
         }
 
-        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => page.close()));
         $('#itemNewBtn')?.addEventListener('click', () => openEditor(null));
 
         form.addEventListener('submit', async e => {
@@ -448,7 +470,7 @@
             try {
                 const saved = await api('/api/inventory/items', { method: 'POST', body: collect() });
                 toast(`Saved ${saved.itemCode} - ${saved.name}`, 'success');
-                dialog.close();
+                page.close(true);
                 grid.load();
             } catch (error) {
                 fail(error);
@@ -461,7 +483,7 @@
             try {
                 await api(`/api/inventory/items/${current.id}/approve`, { method: 'POST' });
                 toast('Item approved', 'success');
-                dialog.close();
+                page.close(true);
                 grid.load();
             } catch (error) { fail(error); }
         });
@@ -473,12 +495,16 @@
             try {
                 await api(`/api/inventory/items/${current.id}`, { method: 'DELETE' });
                 toast('Item deleted', 'success');
-                dialog.close();
+                page.close(true);
                 grid.load();
             } catch (error) { fail(error); }
         });
 
         grid.load();
+        // ?view=12, ?edit=12 or ?new - a link or a refresh - opens the record's page.
+        if (page.initial.get('edit')) openEditor(Number(page.initial.get('edit')));
+        else if (page.initial.get('view')) openEditor(Number(page.initial.get('view')), 'view');
+        else if (page.initial.has('new') && $('#itemNewBtn')) openEditor(null);
     });
     </script>
 </div>

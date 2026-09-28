@@ -14,6 +14,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Approval matrices</h1>
@@ -55,21 +56,23 @@
         </div>
         <div id="amPager" class="pager"></div>
     </div>
+    </div><!-- /data-list-view -->
 
-    <!-- ============================================================================ editor -->
-    <dialog id="matrixDialog" class="modal modal-review" data-sticky aria-labelledby="matrixDialogTitle">
-        <form id="matrixForm" class="flex min-h-0 flex-1 flex-col" novalidate autocomplete="off">
-            <div class="modal-head items-center">
-                <div class="min-w-0">
-                    <h2 id="matrixDialogTitle" class="modal-title" data-title>New approval matrix</h2>
-                    <p class="mt-0.5 text-sm text-gray-500">A document is signed at each level in turn; the last signature approves it.</p>
-                </div>
-                <button type="button" class="btn-icon -mr-2" data-matrix-close data-view-keep aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+    <!-- ============================================================================ editor
+         A page, not a modal (App.PageEditor): ?view=12 / ?edit=12 open a matrix. -->
+    <section id="matrixDialog" hidden aria-labelledby="matrixDialogTitle">
+        <form id="matrixForm" novalidate autocomplete="off">
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-matrix-close data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Approval matrices
                 </button>
+                <div class="min-w-0">
+                    <h1 id="matrixDialogTitle" class="doc-page-title" data-title data-view-title>New approval matrix</h1>
+                    <p class="page-sub mt-0.5">A document is signed at each level in turn; the last signature approves it.</p>
+                </div>
             </div>
 
-            <div class="min-h-0 flex-1 overflow-y-auto scroll-thin">
+            <div class="card">
                 <section class="form-section form-float">
                     <div class="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-6">
                         <div class="sm:col-span-2">
@@ -121,16 +124,16 @@
                         </table>
                     </div>
                 </section>
-            </div>
 
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <div class="mr-auto flex flex-wrap items-center gap-2" data-view-actions data-view-keep hidden></div>
                 <button type="button" class="btn-ghost" data-matrix-close data-view-keep data-cancel>Cancel</button>
                 <button type="submit" class="btn-primary">
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Save</button>
             </div>
+            </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <span sec:authorize="hasAuthority('SCREEN_APPROVAL_SETUP_AMEND')" id="canEdit" hidden></span>
     <span sec:authorize="hasAuthority('SCREEN_APPROVAL_SETUP_DELETE')" id="canDelete" hidden></span>

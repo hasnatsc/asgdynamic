@@ -10,6 +10,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title" th:text="${page.title}">List</h1>
@@ -45,32 +46,39 @@
         <div id="masterPager" class="pager"></div>
     </div>
 
+    </div><!-- /data-list-view -->
+
     <!-- ============================== Editor ============================== -->
-    <dialog id="masterDialog" class="modal" data-sticky aria-labelledby="masterDialogTitle">
+    <section id="masterDialog" hidden aria-labelledby="masterDialogTitle">
         <form id="masterForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="masterDialogTitle" class="text-base font-semibold text-gray-900">New</h2>
-                    <p id="masterDialogSub" class="text-sm text-gray-500"></p>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-dismiss data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg><span th:text="${page.title}">Back</span>
+                </button>
+                <div class="min-w-0">
+                    <h1 id="masterDialogTitle" class="doc-page-title" data-view-title>New</h1>
+                    <p id="masterDialogSub" class="page-sub mt-0.5"></p>
                 </div>
-                <button type="button" class="btn-icon" data-dismiss aria-label="Close">&#x2715;</button>
             </div>
-            <div class="modal-body space-y-4">
+
+            <div class="card">
+            <div class="doc-page-body form-float space-y-5">
                 <p id="masterApproval" class="alert-info" hidden></p>
-                <div id="masterFields" class="grid gap-4 sm:grid-cols-2"></div>
+                <div id="masterFields" class="grid gap-x-4 gap-y-5 sm:grid-cols-2"></div>
                 <label class="inline-flex items-center gap-2 text-sm">
                     <input type="checkbox" id="masterActive" class="checkbox" checked>
                     <span><b>Active</b> <span class="text-gray-500">- inactive entries stay on records but leave the pickers.</span></span>
                 </label>
             </div>
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-subtle mr-auto text-red-600" id="masterDeleteBtn" hidden>Delete</button>
                 <button type="button" class="btn-ghost" data-dismiss>Close</button>
                 <button type="button" class="btn-ghost" id="masterApproveBtn" hidden>Approve</button>
                 <button type="submit" class="btn-primary" id="masterSaveBtn">Save</button>
             </div>
+        </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -85,6 +93,18 @@
 
         const $ = sel => document.querySelector(sel);
         const dialog = $('#masterDialog');
+        // The editor is a page, not a modal (App.PageEditor): ?view=12, ?edit=12 or ?new open it, and
+        // leaving it with unsaved changes asks first.
+        const page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            onClose: () => { current = null; },
+            onReopen: p => {
+                if (p.get('edit')) openEditor(Number(p.get('edit')));
+                else if (p.get('view')) openEditor(Number(p.get('view')), 'view');
+                else if (p.has('new') && $('#masterNewBtn')) openEditor(null);
+                else return false;
+            }
+        });
         const form = $('#masterForm');
         let current = null;
 
@@ -201,13 +221,15 @@
             $('#masterDeleteBtn').hidden = !(row && CAN.del);
             $('#masterApproveBtn').hidden = !(PAGE.approvable && row && !row.approved && CAN.approve);
 
-            dialog.showModal();
+            App.viewMode(dialog, false);
+            page.show(dialog, current ? `?${mode === 'view' ? 'view' : 'edit'}=${current.id}` : '?new');
             const viewing = mode === 'view' && !!row;
             if (writable && !viewing) fieldsBox.querySelector('input:not([type=checkbox]), select')?.focus();
-            App.viewMode(dialog, viewing, { canEdit: CAN.amend });
+            App.viewMode(dialog, viewing, { canEdit: CAN.amend,
+                onEdit: () => page.replaceQuery(`?edit=${current.id}`) });
         }
 
-        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        dialog.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => page.close()));
         $('#masterNewBtn')?.addEventListener('click', () => openEditor(null));
 
         form.addEventListener('submit', async e => {
@@ -218,7 +240,7 @@
             try {
                 const saved = await api(PAGE.api, { method: 'POST', body: collect() });
                 toast(`Saved ${saved.code || saved.hsCode || ''}`.trim(), 'success');
-                dialog.close();
+                page.close(true);
                 grid.load();
             } catch (error) {
                 fail(error);
@@ -231,7 +253,7 @@
             try {
                 await api(`${PAGE.api}/${current.id}/approve`, { method: 'POST' });
                 toast('Approved', 'success');
-                dialog.close();
+                page.close(true);
                 grid.load();
             } catch (error) { fail(error); }
         });
@@ -243,12 +265,16 @@
             try {
                 await api(`${PAGE.api}/${current.id}`, { method: 'DELETE' });
                 toast('Deleted', 'success');
-                dialog.close();
+                page.close(true);
                 grid.load();
             } catch (error) { fail(error); }
         });
 
         grid.load();
+        // ?view=12, ?edit=12 or ?new - a link or a refresh - opens the record's page.
+        if (page.initial.get('edit')) openEditor(Number(page.initial.get('edit')));
+        else if (page.initial.get('view')) openEditor(Number(page.initial.get('view')), 'view');
+        else if (page.initial.has('new') && $('#masterNewBtn')) openEditor(null);
     });
     </script>
 </div>

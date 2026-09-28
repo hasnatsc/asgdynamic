@@ -4,6 +4,7 @@
 <body>
 <div th:fragment="content">
 
+    <div data-list-view>
     <div class="page-header">
         <div>
             <h1 class="page-title">Credit control</h1>
@@ -53,20 +54,24 @@
         </div>
     </div>
 
+    </div><!-- /data-list-view -->
+
     <!-- ============================== New limit ============================== -->
-    <dialog id="clDialog" class="modal modal-lg" data-sticky aria-labelledby="clDialogTitle">
+    <section id="clDialog" hidden aria-labelledby="clDialogTitle">
         <form id="clForm" novalidate>
-            <div class="modal-head">
-                <div>
-                    <h2 id="clDialogTitle" class="modal-title">New credit limit</h2>
-                    <p class="mt-1 text-sm text-gray-500">A customer's current limit is superseded from the effective date, never
-                        edited, so earlier decisions stay explainable.</p>
-                </div>
-                <button type="button" class="btn-icon -mr-2 -mt-1" data-close aria-label="Close">
-                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg>
+            <div class="doc-page-head">
+                <button type="button" class="btn-ghost btn-sm shrink-0" data-close data-view-keep>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Credit limits
                 </button>
+                <div class="min-w-0">
+                    <h1 id="clDialogTitle" class="doc-page-title" data-view-title>New credit limit</h1>
+                    <p class="page-sub mt-0.5">A customer's current limit is superseded from the effective date, never
+                    edited, so earlier decisions stay explainable.</p>
+                </div>
             </div>
-            <div class="modal-body space-y-4">
+
+            <div class="card">
+            <div class="doc-page-body form-float space-y-5">
                 <div>
                     <label class="label" for="clParty">Customer <span class="req">*</span></label>
                     <select id="clParty" class="field" data-remote="/api/parties/lookup?role=CUSTOMER"
@@ -103,14 +108,15 @@
                     <textarea id="clRemarks" class="field" rows="2" maxlength="500" placeholder="Basis for the decision"></textarea>
                 </div>
             </div>
-            <div class="modal-foot">
+            <div class="modal-foot doc-page-foot">
                 <button type="button" class="btn-ghost" data-close>Cancel</button>
                 <button type="submit" class="btn-primary">
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#save}"/></svg>Grant limit
                 </button>
             </div>
+        </div><!-- /card -->
         </form>
-    </dialog>
+    </section>
 
     <script th:inline="javascript">
     document.addEventListener('DOMContentLoaded', () => {
@@ -214,7 +220,12 @@
 
         // ------------------------------------------------------------------ new limit
         const dialog = $('#clDialog');
-        dialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dialog.close()));
+        // A page, not a modal (App.PageEditor): ?new opens it; leaving with unsaved changes asks first.
+        const page = new App.PageEditor({
+            list: $('[data-list-view]'),
+            onReopen: p => { if (p.has('new') && $('#clNewBtn')) openNew(); else return false; }
+        });
+        dialog.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => page.close()));
         const customer = App.RemoteSelect.of($('#clParty'));
         $('#clParty').addEventListener('change', async () => {
             const partyId = $('#clParty').value;
@@ -227,16 +238,17 @@
             }
         });
 
-        $('#clNewBtn')?.addEventListener('click', () => {
+        $('#clNewBtn')?.addEventListener('click', () => openNew());
+        function openNew() {
             $('#clForm').reset();
             $('#clCurrency').value = 'BDT';
             $('#clSecured').value = '0';
             $('#clFrom').value = new Date().toLocaleDateString('en-CA');
             $('#clPartyHint').textContent = '';
             customer.setValue(null);
-            dialog.showModal();
+            page.show(dialog, '?new');
             customer.trigger.focus();
-        });
+        }
 
         $('#clForm').addEventListener('submit', async e => {
             e.preventDefault();
@@ -247,12 +259,13 @@
                     effectiveFrom: $('#clFrom').value || null, securedAmount: Number($('#clSecured').value || 0),
                     reviewOn: $('#clReview').value || null, remarks: $('#clRemarks').value.trim() || null } });
                 toast('Credit limit granted.', 'success');
-                dialog.close();
+                page.close(true);
                 load();
             } catch (err) { fail(err); }
         });
 
         load();
+        if (page.initial.has('new') && $('#clNewBtn')) openNew();
     });
     </script>
 </div>

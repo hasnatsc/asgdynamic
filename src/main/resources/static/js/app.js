@@ -1422,6 +1422,132 @@
     ];
 
     /**
+     * A record editor or viewer that is the page itself, not a modal (booking set the pattern). The
+     * list steps aside while a page is open; the address names what is open (?new, ?open=12), so
+     * Back returns to the list and a refresh or a link reopens it; and leaving with unsaved changes
+     * asks first - Back, Cancel, a menu link, a refresh.
+     *
+     *   const page = new App.PageEditor({ list, onClose, onReopen, isDirty });
+     *   page.show(editorSection, '?new');   // hides the list and whichever page was showing
+     *   await page.close();                 // asks when dirty; false when the user stays
+     *   page.markClean();                   // after a save
+     *
+     * Without isDirty, any input or change inside the shown page since show() counts as unsaved.
+     * onClose(page) runs once a page is left, by close() or by Back; onReopen(params) is asked to
+     * reopen what a Forward entry names and returns false when it cannot. The address the page
+     * loaded with is page.initial - read it first: the entry itself becomes the list's, which is
+     * the bare path unless listUrl() says otherwise (a list keeping its filters in the address);
+     * a page's query is then added to it.
+     */
+    class PageEditor {
+        constructor(opts) {
+            this.opts = opts || {};
+            this.list = this.opts.list;
+            this.initial = new URLSearchParams(location.search);
+            history.replaceState(null, '', this.listUrl());
+            this.current = null;
+            this.query = '';
+            this.changed = false;
+            this.leaving = false;          // the history.back() is close()'s own, not the user's
+            this.tracked = new WeakSet();
+            window.addEventListener('popstate', () => this.onPopState());
+            window.addEventListener('beforeunload', event => {
+                if (!this.isOpen || !this.isDirty()) return;
+                event.preventDefault();
+                event.returnValue = '';
+            });
+        }
+
+        get isOpen() { return !!this.current; }
+
+        listUrl() { return this.opts.listUrl ? this.opts.listUrl() : location.pathname; }
+
+        /** The list's address with a page's query added: /parties?role=BANK + ?id=12. */
+        pageUrl(query) {
+            const [path, listQuery] = this.listUrl().split('?');
+            const q = [listQuery, (query || '').replace(/^\?/, '')].filter(Boolean).join('&');
+            return q ? `${path}?${q}` : path;
+        }
+
+        isDirty() { return this.opts.isDirty ? this.opts.isDirty() : this.changed; }
+
+        markClean() { this.changed = false; }
+
+        show(page, query) {
+            if (!this.tracked.has(page)) {
+                this.tracked.add(page);
+                const mark = () => { if (this.current === page) this.changed = true; };
+                page.addEventListener('input', mark);
+                page.addEventListener('change', mark);
+            }
+            this.query = query || '';
+            const state = { pageEditor: true };
+            if (history.state?.pageEditor) history.replaceState(state, '', this.pageUrl(this.query));
+            else history.pushState(state, '', this.pageUrl(this.query));
+            if (this.current && this.current !== page) {
+                this.current.hidden = true;
+                viewMode(this.current, false);
+            }
+            if (this.list) this.list.hidden = true;
+            page.hidden = false;
+            this.current = page;
+            this.changed = false;
+            window.scrollTo(0, 0);
+        }
+
+        /** A new query for the open page on the same history entry - view to edit, say. */
+        replaceQuery(query) {
+            this.query = query || '';
+            history.replaceState({ pageEditor: true }, '', this.pageUrl(this.query));
+        }
+
+        async close(force) {
+            if (!this.current) return true;
+            if (!force && this.isDirty() && !await this.askToLeave()) return false;
+            this.leave();
+            if (history.state?.pageEditor) {
+                this.leaving = true;
+                history.back();
+            }
+            return true;
+        }
+
+        askToLeave() {
+            return confirmDialog({ title: 'Close without saving?', message: 'Changes not saved yet will be lost.',
+                                   confirmText: 'Close', danger: true });
+        }
+
+        leave() {
+            const page = this.current;
+            this.current = null;
+            this.changed = false;
+            page.hidden = true;
+            viewMode(page, false);
+            if (this.list) this.list.hidden = false;
+            window.scrollTo(0, 0);
+            if (this.opts.onClose) this.opts.onClose(page);
+        }
+
+        async onPopState() {
+            if (this.leaving) { this.leaving = false; return; }
+            if (!this.current) {
+                // Forward onto a page's entry: reopen what it names, or say the list is showing.
+                if (!history.state?.pageEditor) return;
+                if (!this.opts.onReopen || this.opts.onReopen(new URLSearchParams(location.search)) === false) {
+                    history.replaceState(null, '', this.listUrl());
+                }
+                return;
+            }
+            // Back while a page is open asks what Cancel asks; staying puts the page's entry back.
+            if (this.isDirty() && !await this.askToLeave()) {
+                history.pushState({ pageEditor: true }, '', this.pageUrl(this.query));
+                return;
+            }
+            this.leave();
+        }
+    }
+
+    /**
      * A document list with filters and a review drawer, driven by the table's own header:
      *   <th data-col="documentNo" data-format="doc|date|num|status|actions" data-sort="…">
      * and by the [data-filter="search|status|from|to"] controls and [data-pager] inside the
@@ -1899,5 +2025,5 @@
         document.querySelectorAll('[data-cmd-trigger]').forEach(btn => btn.addEventListener('click', openCommandPalette));
     });
 
-    window.App = { api, fail, esc, fmt, status, statusSteps, debounce, downloadCsv, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, RemoteSelect, remoteSelects, Tree, DocumentScreen, statusBadge, theme, commandPalette: openCommandPalette };
+    window.App = { api, fail, esc, fmt, status, statusSteps, debounce, downloadCsv, icon, rowButton, viewButton, editButton, recordButtons, rowActions, viewMode, viewRecord, toast, form: formDialog, confirm: confirmDialog, tabs, Grid, RemoteSelect, remoteSelects, Tree, DocumentScreen, PageEditor, statusBadge, theme, commandPalette: openCommandPalette };
 })();
