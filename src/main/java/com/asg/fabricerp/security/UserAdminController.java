@@ -207,6 +207,7 @@ public class UserAdminController {
         row.put("id", u.getId());
         row.put("username", u.getUsername());
         row.put("fullName", u.getFullName());
+        row.put("photoUrl", u.photoThumbUrl());
         row.put("businessUnitCode", u.getBusinessUnitCode());
         row.put("accountLocked", u.getAccountLocked());
         row.put("unrestricted", u.isUnrestricted());

@@ -62,7 +62,7 @@
                 <button type="button" class="btn-ghost btn-sm shrink-0" data-dismiss data-view-keep>
                     <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Users
                 </button>
-                <span class="avatar h-10 w-10 text-sm" id="userAvatar">+</span>
+                <span class="avatar h-12 w-12 overflow-hidden text-base" id="userAvatar">+</span>
                 <div class="min-w-0">
                     <h1 id="userDialogTitle" class="doc-page-title" data-view-title>New user</h1>
                     <p id="userDialogSub" class="page-sub mt-0.5">Create a login. The password you set is temporary.</p>
@@ -242,12 +242,23 @@
         const statusFilter = $('#userStatus');
 
         // ------------------------------------------------------------------ grid
+        /** Inside an avatar: the user's photo when they have one, otherwise their initials. */
+        const avatarInner = (name, photoUrl) => photoUrl
+            ? `<img src="${esc(photoUrl)}" alt="" class="h-full w-full rounded-full object-cover" loading="lazy"
+                    data-initials="${esc(fmt.initials(name))}">`
+            : esc(fmt.initials(name));
+        // A photo that fails to load (removed since the list was drawn) falls back to the initials.
+        document.addEventListener('error', e => {
+            const img = e.target;
+            if (img instanceof HTMLImageElement && img.dataset.initials != null) img.replaceWith(img.dataset.initials);
+        }, true);
+
         // One line per user: rows stay about 40 px high and every column reads straight across.
         function userCell(r) {
             const name = r.fullName || r.username;
             const you = r.id === SELF_ID ? '<span class="badge-brand">You</span>' : '';
             return `<div class="flex items-center gap-2.5">
-                <span class="avatar h-7 w-7 text-[11px]">${esc(fmt.initials(name))}</span>
+                <span class="avatar h-7 w-7 overflow-hidden text-[11px]">${avatarInner(name, r.photoUrl)}</span>
                 <span class="truncate font-semibold text-gray-900 dark:text-white">${esc(name)}</span>${you}</div>`;
         }
         function usernameCell(r) {
@@ -577,7 +588,7 @@
             const name = editing ? (current.fullName || current.username) : '';
             $('#userDialogTitle').textContent = editing ? name : 'New user';
             $('#userDialogSub').textContent = editing ? current.username : 'Create a login. The password you set is temporary.';
-            $('#userAvatar').textContent = editing ? fmt.initials(name) : '+';
+            $('#userAvatar').innerHTML = editing ? avatarInner(name, current.photoUrl) : '+';
             $('#userUsername').disabled = editing;
             $('#userPasswordGroup').hidden = editing;
             $('#userPassword').required = !editing;

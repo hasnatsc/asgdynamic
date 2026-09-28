@@ -173,6 +173,11 @@ public class FabricUser extends BaseOrgEntity {
     public void setBio(String v)               { this.bio = v; }
     public Long getPhotoVersion()              { return photoVersion; }
     public void setPhotoVersion(Long v)        { this.photoVersion = v; }
+
+    /** The 96 px photo for an avatar, versioned so it is cached until replaced; null without a photo. */
+    public String photoThumbUrl() {
+        return photoVersion == null ? null : "/account/photo/" + getId() + "?size=thumb&v=" + photoVersion;
+    }
     public Long getBusinessUnitId()            { return businessUnitId; }
     public void setBusinessUnitId(Long v)      { this.businessUnitId = v; }
     public String getBusinessUnitCode()        { return businessUnitCode; }

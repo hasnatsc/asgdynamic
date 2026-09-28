@@ -136,6 +136,20 @@ class SecurityAdminWebTest {
     }
 
     @Test
+    void aUserWithAPhotoComesWithItsVersionedThumbnail_andOneWithoutComesWithNone() throws Exception {
+        clerk.setPhotoVersion(1727400000000L);
+        when(userAdminService.get(2L)).thenReturn(clerk);
+        when(userAdminService.get(1L)).thenReturn(admin);
+
+        mvc.perform(get("/api/setup/users/2").with(signedIn(admin)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.photoUrl").value("/account/photo/2?size=thumb&v=1727400000000"));
+        mvc.perform(get("/api/setup/users/1").with(signedIn(admin)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.photoUrl").doesNotExist());
+    }
+
+    @Test
     void theRolesScreenRendersTheMatrixWithScreenNames() throws Exception {
         mvc.perform(get("/setup/roles").with(signedIn(admin)))
             .andExpect(status().isOk())
