@@ -253,6 +253,23 @@ Booking ─► Production order ─┬─► Weaving WO ─► Greige receive �
             copied)           └─► Delivery schedule ─► Delivery order ─► Fabrics delivery
 ```
 
+- **The production order's header** (V35) shows the booking's master data read-only: number and
+  dates, booking and order type, buyer, brand, garments and address, unit, team, marketing person,
+  pre-cost buyer, currency and rate, and booked quantity and value. It carries the legacy BPO
+  screen's checkboxes: in-house test report, inspection report, dye lot, test fabrics, blanket, head
+  cutting and packing list. **Price in metre** is shown but taken from the booking, because it sets
+  the unit the quantities are in. **Garments**: when the booking names one, the order takes it and
+  it cannot be changed; otherwise the field is blank for the planner to enter. The order's work
+  orders and schedules inherit it.
+- **Pre-delivery schedule** (V36): the tab after Lines on a production order. Each row plans one
+  delivery: its type, date, colour (one of the order's colours), quantity and serial number, for
+  example a PP submission of 20 on the 25th and the full delivery on the 30th. It is planning only:
+  it draws nothing, and delivery schedules still raise the deliveries. The editor shows planned
+  against ordered for each colour, and flags a plan larger than the order without refusing it.
+  Rows point at the booking colour line, so the plan survives edits, and a revision starts with it.
+  Delivery types (*Master data → Delivery types*) have a code, a name and a sort order. PP
+  Submission, Partial Delivery and Full Delivery are seeded. A type a schedule has used is retired,
+  not deleted.
 - **Routes** (`fab_process_routes`, *Master data → Process routes*): the fabric type decides the
   route - greige, yarn-dyed greige, denim greige, piece-dyed, finished - and with it whether there
   is dyeing, whether greige is woven per fabric line or per colour, which store delivers, and the

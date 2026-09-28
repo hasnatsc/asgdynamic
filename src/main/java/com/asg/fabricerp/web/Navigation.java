@@ -117,6 +117,7 @@ public final class Navigation {
             case FABRIC_STOCK   -> "inventory";
             case DELIVERY_BOARD -> "clock";
             case PROCESS_ROUTE  -> "workflow";
+            case DELIVERY_TYPE  -> "truck";
             case ITEM_STOCK     -> "inventory";
             case SR             -> "clipboard-check";
             case MI             -> "arrow-up-right";

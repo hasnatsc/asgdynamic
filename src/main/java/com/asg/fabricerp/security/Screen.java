@@ -70,6 +70,8 @@ public enum Screen {
     QUALITY("Fabric qualities", Section.SETUP, "/setup/qualities"),
     /** Which route each fabric type follows, and its allowances. */
     PROCESS_ROUTE("Process routes", Section.SETUP, "/setup/process-routes"),
+    /** PP submission, partial, full...: what a production order's pre-delivery schedule plans. */
+    DELIVERY_TYPE("Delivery types", Section.SETUP, "/setup/delivery-types"),
     ACC_CHART("Chart of accounts", Section.ACCOUNTS, "/accounts/chart"),
     ACC_JOURNAL("Journal entries", Section.ACCOUNTS, "/accounts/journals"),
     ACC_REPORTS("Financial reports", Section.ACCOUNTS, "/accounts/reports"),

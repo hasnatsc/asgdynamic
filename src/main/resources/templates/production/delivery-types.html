@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Master data -> Delivery types (com.asg.fabricerp.production.DeliveryTypeController): what a
+  production order's pre-delivery schedule plans - PP submission, partial delivery, full delivery.
+  A type a schedule has used is retired, not deleted.
+-->
+<head><title>Delivery types</title></head>
+<body>
+<div th:fragment="content" id="dtRoot"
+     th:attr="data-can-create=${canCreate},data-can-amend=${canAmend},data-can-delete=${canDelete}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Delivery types</h1>
+            <p class="page-sub">What a production order's pre-delivery schedule plans. Sort order decides the order they are offered in.</p>
+        </div>
+        <div class="page-actions" th:if="${canCreate}">
+            <button type="button" class="btn-primary" data-dt-add>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New delivery type</button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <div class="table-wrap">
+            <table class="table-grid">
+                <thead><tr><th class="w-24 text-right">Sort order</th><th class="w-40">Code</th><th>Name</th><th class="w-28">Status</th><th class="w-px">Actions</th></tr></thead>
+                <tbody data-dt-rows><tr><td colspan="5" class="py-8 text-center text-sm text-gray-500">Loading…</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script th:inline="none">
+        document.addEventListener('DOMContentLoaded', () => {
+            const root = document.getElementById('dtRoot');
+            const { api, esc, toast, fail } = App;
+            const can = k => root.dataset[k] === 'true';
+            const body = root.querySelector('[data-dt-rows]');
+            let rows = [];
+
+            async function load() {
+                try { rows = await api('/api/delivery-types'); } catch (e) { return fail(e); }
+                body.innerHTML = rows.length ? rows.map(t => `<tr>
+                        <td class="text-right tabular-nums">${esc(t.sortOrder)}</td>
+                        <td class="font-mono text-xs">${esc(t.code)}</td>
+                        <td>${esc(t.name)}</td>
+                        <td>${t.active ? '<span class="badge-green badge-dot">Active</span>' : '<span class="badge-gray badge-dot">Retired</span>'}</td>
+                        <td>${App.rowActions([
+                            can('canAmend') ? App.rowButton('Edit', 'edit', `data-dt-edit="${esc(t.id)}"`) : '',
+                            can('canDelete') ? App.rowButton('Delete', 'trash', `data-dt-delete="${esc(t.id)}"`) : ''].join(''))}</td>
+                    </tr>`).join('')
+                    : '<tr><td colspan="5" class="py-8 text-center text-sm text-gray-500">No delivery types yet.</td></tr>';
+            }
+
+            async function edit(id) {
+                const t = id ? rows.find(r => String(r.id) === String(id)) : null;
+                const next = rows.reduce((m, r) => Math.max(m, r.sortOrder || 0), 0) + 1;
+                const values = await App.form({
+                    title: t ? `Edit ${t.name}` : 'New delivery type',
+                    confirmText: 'Save',
+                    fields: [
+                        { name: 'code', label: 'Code', required: true, maxlength: 20, value: t ? t.code : '' },
+                        { name: 'name', label: 'Name', required: true, maxlength: 100, value: t ? t.name : '' },
+                        { name: 'sortOrder', label: 'Sort order', type: 'number', value: t ? t.sortOrder : next },
+                        { name: 'active', label: 'Status', type: 'select', value: t && !t.active ? 'false' : 'true',
+                          options: [{ value: 'true', label: 'Active' }, { value: 'false', label: 'Retired' }] }
+                    ]
+                });
+                if (!values) return;
+                try {
+                    await api('/api/delivery-types', { method: 'POST', query: t ? { id: t.id } : undefined,
+                        body: { code: values.code, name: values.name, sortOrder: Number(values.sortOrder) || 0, active: values.active === 'true' } });
+                    toast(t ? 'Delivery type saved.' : 'Delivery type added.', 'success');
+                    load();
+                } catch (e) { fail(e); }
+            }
+
+            root.addEventListener('click', async e => {
+                if (e.target.closest('[data-dt-add]')) return edit(null);
+                const ed = e.target.closest('[data-dt-edit]');
+                if (ed) return edit(ed.dataset.dtEdit);
+                const del = e.target.closest('[data-dt-delete]');
+                if (!del) return;
+                const t = rows.find(r => String(r.id) === del.dataset.dtDelete);
+                if (!await App.confirm({ title: `Delete “${t ? t.name : 'this type'}”?`,
+                        message: 'If a production order has planned a delivery of this type, it is retired instead, so the order still reads.',
+                        confirmText: 'Delete', danger: true })) return;
+                try {
+                    const r = await api(`/api/delivery-types/${del.dataset.dtDelete}`, { method: 'DELETE' });
+                    toast(r.outcome === 'retired' ? 'In use - retired instead.' : 'Deleted.', 'success');
+                    load();
+                } catch (err) { fail(err); }
+            });
+            load();
+        });
+    </script>
+</div>
+</body>
+</html>

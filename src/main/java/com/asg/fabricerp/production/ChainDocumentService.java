@@ -45,11 +45,13 @@ public class ChainDocumentService {
     private final ChainQueries queries;
     private final OrgContext context;
     private final EntityManager em;
+    private final PreDeliverySchedule preDeliveries;
 
     public ChainDocumentService(BusinessDocumentRepository repository, BusinessNumberService numbering,
                                 DocumentReferences references, DocumentRevisionService revisions,
                                 PartyService parties, WarehouseRepository warehouses, ProcessRouteRepository routes,
-                                ChainSupport chain, ChainQueries queries, OrgContext context, EntityManager em) {
+                                ChainSupport chain, ChainQueries queries, OrgContext context, EntityManager em,
+                                PreDeliverySchedule preDeliveries) {
         this.repository = repository;
         this.numbering = numbering;
         this.references = references;
@@ -61,6 +63,7 @@ public class ChainDocumentService {
         this.queries = queries;
         this.context = context;
         this.em = em;
+        this.preDeliveries = preDeliveries;
     }
 
     // ------------------------------------------------------------------------------------ read
@@ -113,6 +116,7 @@ public class ChainDocumentService {
         }
         BusinessDocument saved = repository.saveAndFlush(doc);
         if (chain.holdsDraws(saved)) chain.drawAll(step, saved);
+        if (step == ChainStep.BPO && request.preDeliveries() != null) preDeliveries.replace(saved, request.preDeliveries());
         return saved;
     }
 
@@ -539,7 +543,9 @@ public class ChainDocumentService {
             .anyMatch(d -> d.getRevisionNo() > original.getRevisionNo() && !d.getStatus().isCommitted()
                 && d.getStatus() != BusinessDocumentStatus.CANCELLED);
         if (pending) throw new IllegalStateException("A revision of %s is already in progress".formatted(original.getDocumentNo()));
-        return revisions.revise(original, reason);
+        BusinessDocument revision = revisions.revise(original, reason);
+        if (step == ChainStep.BPO) preDeliveries.copy(original.getId(), revision.getId());
+        return revision;
     }
 
     // ------------------------------------------------------------------------------- lookups

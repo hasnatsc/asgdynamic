@@ -149,6 +149,21 @@ document.addEventListener('DOMContentLoaded', () => {
             ${b.remarks ? `<p class="mt-3 whitespace-pre-line text-sm text-gray-600 dark:text-gray-300"><span class="text-gray-500">Booking remarks:</span> ${esc(b.remarks)}</p>` : ''}`;
     }
 
+    /** The pre-delivery schedule, read-only. */
+    function preDeliveryViewHtml(doc) {
+        const rows = doc.preDeliveries || [];
+        if (!rows.length) return '<p class="text-sm text-gray-500">No deliveries planned.</p>';
+        const twoLines = new Set(rows.map(r => r.groupNo)).size > 1;
+        return `<div class="table-wrap"><table class="table-grid">
+            <thead><tr><th class="w-12">SL</th><th>Delivery type</th><th>Delivery date</th><th>Color</th>
+                <th class="text-right">Quantity</th><th class="text-right">Serial number</th></tr></thead>
+            <tbody>${rows.map(r => `<tr><td class="tabular-nums">${esc(r.lineNo)}</td><td>${esc(r.deliveryTypeName)}</td>
+                <td class="tabular-nums">${esc(fmt.date(r.deliveryDate))}</td>
+                <td>${esc(r.colorName || '')}${twoLines ? ` <span class="text-xs text-gray-500">line ${esc(r.groupNo)}</span>` : ''}</td>
+                <td class="text-right tabular-nums">${num(r.quantity)}</td><td class="text-right tabular-nums">${esc(r.serialNo)}</td></tr>`).join('')}</tbody>
+            </table></div>`;
+    }
+
     /** Ticked requirements as badges, for the viewer. */
     function requirementsHtml(req) {
         const on = REQUIREMENTS.filter(([key]) => req && req[key]);
@@ -207,15 +222,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="form-section-head"><h3 class="form-section-title">Requirements</h3></div>
                 <div class="flex flex-wrap gap-2">${requirementsHtml(doc.requirements)}</div>
             </section>` : ''}
-            <section class="form-section">
+            ${STEP === 'BPO' ? `<div class="tabs" role="tablist">
+                <button type="button" class="tab" role="tab" data-tab="lines" aria-selected="true">Lines</button>
+                <button type="button" class="tab" role="tab" data-tab="predelivery">Pre-delivery schedule
+                    <span class="badge-gray ml-1">${(doc.preDeliveries || []).length}</span></button>
+            </div>` : ''}
+            <section class="form-section" data-panel="lines">
                 <div class="form-section-head"><h3 class="form-section-title">Lines</h3></div>
                 <div class="space-y-3">${groups || '<p class="text-sm text-gray-500">No lines.</p>'}</div>
             </section>
+            ${STEP === 'BPO' ? `<section class="form-section" data-panel="predelivery" hidden>
+                <div class="form-section-head"><h3 class="form-section-title">Pre-delivery schedule</h3></div>
+                ${preDeliveryViewHtml(doc)}
+            </section>` : ''}
             ${children}
             <section class="form-section">
                 <div class="form-section-head"><h3 class="form-section-title">History</h3></div>
                 ${screen.historyHtml(history)}
             </section>`;
+
+        if (STEP === 'BPO') App.tabs($('[data-view-body]', viewer));
 
         const own = [];
         if (doc.postable) own.push(`<button type="button" class="btn-primary" data-chain-action="post">${icon('check')}Post</button>`);
@@ -382,6 +408,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = $('[data-editor-form]', editorDialog);
     const headerEl = $('[data-editor-header]', editorDialog);
     const linesEl = $('[data-editor-lines]', editorDialog);
+    const editorTabsEl = $('[data-editor-tabs]', editorDialog);
+    const editorTabs = editorTabsEl ? App.tabs(editorTabsEl.parentElement) : null;
 
     const REF_LABEL = { GR: 'Challan no', FFR: 'Challan no', GI: 'Batch no', RPI: 'PI reference', DO: 'Reference', FD: 'Challan / gate pass no' };
     const REQUIRED_LABEL = { BPO: 'Required by', WWO: 'Target date', PWO: 'Target date', RPI: 'Deliver from', DO: 'Delivery date' };
@@ -394,9 +422,19 @@ document.addEventListener('DOMContentLoaded', () => {
         picked: new Map(),      // "KIND:id" -> { quantity, lotId, rolls, dyeLot, shade, grade, deliveryDate, remarks, revisedFromLineId }
         allowances: new Map(),  // BPO: booking group id -> %
         stores: [],
+        pre: [],                // BPO: pre-delivery rows { deliveryTypeId, deliveryDate, sourceId, quantity, serialNo }
+        deliveryTypes: null,    // BPO: loaded once
 
         async open(doc, presetParent) {
             this.doc = doc || null;
+            if (STEP === 'BPO') {
+                this.pre = (doc && doc.preDeliveries || []).map(r => ({ deliveryTypeId: r.deliveryTypeId, deliveryDate: r.deliveryDate,
+                    sourceId: r.sourceId, quantity: r.quantity, serialNo: r.serialNo }));
+                if (editorTabs) editorTabs.select('lines');
+                if (!this.deliveryTypes) {
+                    try { this.deliveryTypes = await api('/api/delivery-types'); } catch (error) { fail(error); this.deliveryTypes = []; }
+                }
+            }
             this.parents = new Map();
             this.rows = new Map();
             this.picked = new Map();
@@ -461,10 +499,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 f.push(`<div class="sm:col-span-2 lg:col-span-4"><p class="mb-2 text-[13px] font-medium text-gray-700 dark:text-gray-200">Requirements</p>
                     <div class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">${REQUIREMENTS.map(([key, label]) => key === 'priceInMeter'
                         ? `<label class="flex items-center gap-2 text-sm text-gray-500" title="From the booking: it says what unit the quantities are in">
-                            <input type="checkbox" class="checkbox" data-req="priceInMeter" disabled${req.priceInMeter ? ' checked' : ''}> ${esc(label)} <span class="text-xs">(booking)</span></label>`
+                            <input type="checkbox" class="checkbox" data-req="priceInMeter" disabled${req.priceInMeter ? ' checked' : ''}> <span>${esc(label)} <span class="text-xs">(booking)</span></span></label>`
                         : `<label class="flex items-center gap-2 text-sm"><input type="checkbox" class="checkbox" data-req="${key}"${req[key] ? ' checked' : ''}> ${esc(label)}</label>`).join('')}
                     </div></div>`);
-                f.push(`<div class="sm:col-span-2 lg:col-span-4 rounded-lg border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                f.push(`<div class="sm:col-span-2 lg:col-span-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
                     <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Booking</p>
                     <div data-booking-master>${bookingMasterHtml(d.booking)}</div></div>`);
             }
@@ -663,6 +701,61 @@ document.addEventListener('DOMContentLoaded', () => {
         total() {
             const total = [...this.picked.values()].reduce((t, p) => t + (Number(p.quantity) || 0), 0);
             $('[data-editor-total]', editorDialog).textContent = nf.format(total);
+            if (STEP === 'BPO') this.renderPre();
+        },
+
+        /** The order's colours a delivery may be planned for: its ticked colour lines. */
+        preColours() {
+            const out = [...this.picked.entries()].filter(([key]) => key.startsWith('COLOUR:') && this.rows.has(key))
+                .map(([key, p]) => {
+                    const r = this.rows.get(key);
+                    return { id: Number(key.split(':')[1]), name: r.colorName || r.colorCode || `#${r.sourceId}`, groupNo: r.groupNo,
+                        ordered: Number(p.quantity) || 0, uom: r.uom };
+                });
+            const twoLines = new Set(out.map(c => c.groupNo)).size > 1;
+            out.forEach(c => { c.label = twoLines ? `${c.name} · line ${c.groupNo}` : c.name; });
+            return out;
+        },
+
+        renderPre() {
+            const body = $('[data-pd-rows]', editorDialog);
+            if (!body) return;
+            const colours = this.preColours();
+            const types = (this.deliveryTypes || []);
+            const count = $('[data-pd-count]', editorDialog);
+            if (count) count.textContent = this.pre.length;
+            body.innerHTML = this.pre.length ? this.pre.map((p, i) => {
+                const typeOptions = types.filter(t => t.active || t.id === p.deliveryTypeId).map(t =>
+                    `<option value="${esc(t.id)}"${t.id === p.deliveryTypeId ? ' selected' : ''}>${esc(t.name)}${t.active ? '' : ' (retired)'}</option>`).join('');
+                const known = colours.some(c => c.id === p.sourceId);
+                const colourOptions = colours.map(c => `<option value="${esc(c.id)}"${c.id === p.sourceId ? ' selected' : ''}>${esc(c.label)}</option>`).join('')
+                    + (p.sourceId && !known ? `<option value="${esc(p.sourceId)}" selected>Not on this order</option>` : '');
+                return `<tr data-pd-row="${i}">
+                    <td class="tabular-nums text-gray-500">${i + 1}</td>
+                    <td><select class="field field-sm" data-pd-field="deliveryTypeId" aria-label="Delivery type">
+                        <option value="">Choose…</option>${typeOptions}</select></td>
+                    <td><input type="date" class="field field-sm" data-pd-field="deliveryDate" value="${esc(p.deliveryDate || '')}" aria-label="Delivery date"></td>
+                    <td><select class="field field-sm${p.sourceId && !known ? ' is-invalid' : ''}" data-pd-field="sourceId" aria-label="Color">
+                        <option value="">Choose…</option>${colourOptions}</select></td>
+                    <td><input type="number" min="0" step="any" class="field field-sm text-right" data-pd-field="quantity" value="${esc(p.quantity ?? '')}" aria-label="Quantity"></td>
+                    <td><input type="number" min="1" step="1" class="field field-sm text-right" data-pd-field="serialNo" value="${esc(p.serialNo ?? '')}" aria-label="Serial number"></td>
+                    <td><button type="button" class="btn-icon btn-sm text-red-600" data-pd-remove="${i}" title="Remove" aria-label="Remove row ${i + 1}">${icon('trash')}</button></td>
+                </tr>`;
+            }).join('') : `<tr><td colspan="7" class="py-6 text-center text-sm text-gray-500">${colours.length
+                ? 'No deliveries planned yet - Add delivery.' : 'Tick the order\'s lines first; a delivery is planned for one of its colours.'}</td></tr>`;
+            this.renderPreSummary();
+        },
+
+        /** Planned against ordered, per colour - a plan over the order is shown, not refused. */
+        renderPreSummary() {
+            const box = $('[data-pd-summary]', editorDialog);
+            if (!box) return;
+            const planned = new Map();
+            this.pre.forEach(p => { if (p.sourceId) planned.set(Number(p.sourceId), (planned.get(Number(p.sourceId)) || 0) + (Number(p.quantity) || 0)); });
+            box.innerHTML = this.preColours().filter(c => planned.has(c.id)).map(c => {
+                const q = planned.get(c.id);
+                return `<span class="${q > c.ordered ? 'badge-amber' : 'badge-gray'}">${esc(c.label)}: ${nf.format(q)} planned of ${nf.format(c.ordered)} ${esc(c.uom || '')}</span>`;
+            }).join('');
         },
 
         payload() {
@@ -684,6 +777,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 garmentsAddress: $('[name="garmentsAddress"]', headerEl) ? $('[name="garmentsAddress"]', headerEl).value : null,
                 vehicleNo: v('vehicleNo'), driverName: v('driverName'), remarks: v('remarks'),
                 lines,
+                preDeliveries: STEP === 'BPO' ? this.pre.map(p => ({
+                    deliveryTypeId: p.deliveryTypeId ? Number(p.deliveryTypeId) : null, deliveryDate: p.deliveryDate || null,
+                    sourceId: p.sourceId ? Number(p.sourceId) : null,
+                    quantity: p.quantity === '' || p.quantity == null ? null : Number(p.quantity),
+                    serialNo: p.serialNo === '' || p.serialNo == null ? null : Number(p.serialNo) })) : null,
                 requirements: STEP === 'BPO' ? Object.fromEntries(REQUIREMENTS.filter(([key]) => key !== 'priceInMeter')
                     .map(([key]) => [key, !!$(`[data-req="${key}"]`, headerEl)?.checked])) : null,
                 groups: [...this.allowances.entries()].map(([id, pct]) => ({ sourceGroupId: Number(id), greigeAllowancePct: pct === '' ? null : Number(pct) }))
@@ -775,12 +873,45 @@ document.addEventListener('DOMContentLoaded', () => {
             screen.grid.reload();
             screen.open(saved.id);
         } catch (error) {
+            if (editorTabs && /^Pre-delivery/.test(error.message || '')) editorTabs.select('predelivery');
             fail(error);
         } finally {
             button.disabled = false;
         }
     });
     $$('[data-editor-close]', editorDialog).forEach(b => b.addEventListener('click', () => page.close()));
+
+    // Production order: the pre-delivery schedule tab.
+    if (STEP === 'BPO') {
+        const pdBody = $('[data-pd-rows]', editorDialog);
+        const pdField = el => {
+            const row = el.closest('[data-pd-row]');
+            if (!row || !el.dataset.pdField) return;
+            const p = editor.pre[Number(row.dataset.pdRow)];
+            const f = el.dataset.pdField;
+            p[f] = (f === 'deliveryTypeId' || f === 'sourceId') ? (el.value ? Number(el.value) : null) : el.value;
+            if (f === 'sourceId') el.classList.remove('is-invalid');
+            editor.renderPreSummary();
+        };
+        pdBody.addEventListener('input', e => pdField(e.target));
+        pdBody.addEventListener('change', e => pdField(e.target));
+        pdBody.addEventListener('click', e => {
+            const remove = e.target.closest('[data-pd-remove]');
+            if (!remove) return;
+            editor.pre.splice(Number(remove.dataset.pdRemove), 1);
+            editor.renderPre();
+        });
+        $('[data-pd-add]', editorDialog).addEventListener('click', () => {
+            const colours = editor.preColours();
+            if (!colours.length) return toast('Tick the order\'s lines first; a delivery is planned for one of its colours.', 'warn');
+            const serial = editor.pre.reduce((m, p) => Math.max(m, Number(p.serialNo) || 0), 0) + 1;
+            editor.pre.push({ deliveryTypeId: null, deliveryDate: $('[name="requiredDate"]', headerEl)?.value || '',
+                sourceId: colours.length === 1 ? colours[0].id : null, quantity: '', serialNo: serial });
+            editor.renderPre();
+            const last = $('[data-pd-row]:last-child [data-pd-field="deliveryTypeId"]', pdBody);
+            if (last) last.focus();
+        });
+    }
 
     $$('[data-chain-new]').forEach(b => b.addEventListener('click', () => editor.open(null)));
 

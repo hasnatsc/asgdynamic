@@ -25,11 +25,14 @@ public class ChainViews {
     private final ChainSupport chain;
     private final ChainQueries queries;
     private final ChainDocumentService documents;
+    private final PreDeliverySchedule preDeliveries;
 
-    public ChainViews(ChainSupport chain, ChainQueries queries, ChainDocumentService documents) {
+    public ChainViews(ChainSupport chain, ChainQueries queries, ChainDocumentService documents,
+                      PreDeliverySchedule preDeliveries) {
         this.chain = chain;
         this.queries = queries;
         this.documents = documents;
+        this.preDeliveries = preDeliveries;
     }
 
     /** A document's detail, loaded and read in one transaction (open-in-view is off). */
@@ -155,6 +158,7 @@ public class ChainViews {
         out.put("revisionOfId", idOf(d.getRevisionOf()));
         if (step == ChainStep.BPO) {
             out.put("requirements", requirements(d));
+            out.put("preDeliveries", preDeliveries.rows(d.getId()));
             if (parent != null) out.put("booking", bookingMaster(parent));
         }
 

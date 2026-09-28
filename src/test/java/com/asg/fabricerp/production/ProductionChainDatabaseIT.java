@@ -51,6 +51,7 @@ class ProductionChainDatabaseIT {
     @Autowired private ChainPostingService posting;
     @Autowired private ChainApprovalListener approvals;
     @Autowired private ChainViews views;
+    @Autowired private DeliveryTypeService deliveryTypes;
     @Autowired private ProductionBoardService boards;
     @Autowired private FabricStockQueries stockQueries;
     @Autowired private BusinessDocumentRepository repository;
@@ -255,6 +256,68 @@ class ProductionChainDatabaseIT {
         assertThat(saved.getGarments().getId()).isEqualTo(garmentsA);
         assertThat(saved.getGarmentsAddress()).isEqualTo("Booking address");
         assertThat(views.bookingMaster(named.getId())).containsEntry("garmentsId", garmentsA);
+    }
+
+    @Test
+    void aProductionOrderKeepsItsPreDeliverySchedule_throughEditsAndRevision() {
+        long pps = jdbc.queryForObject("SELECT id FROM fab_delivery_types WHERE organization_id = ? AND code = 'PPS'", Long.class, orgId);
+        long full = jdbc.queryForObject("SELECT id FROM fab_delivery_types WHERE organization_id = ? AND code = 'FULL'", Long.class, orgId);
+        BusinessDocument booking = approvedBooking("Solid Dyed", "CAMO AOP", "18650");
+        long colour = lineOf(booking, 0);
+        List<ChainDocumentRequest.PreDelivery> plan = List.of(
+            new ChainDocumentRequest.PreDelivery(pps, LocalDate.of(2025, 11, 25), colour, new BigDecimal("20"), 2),
+            new ChainDocumentRequest.PreDelivery(full, LocalDate.of(2025, 11, 30), colour, new BigDecimal("18630"), 1));
+
+        BusinessDocument bpo = documents.save(ChainStep.BPO, scheduled(null, plan, line("COLOUR", colour, "18650")));
+        @SuppressWarnings("unchecked") List<Map<String, Object>> rows =
+            (List<Map<String, Object>>) views.detail(ChainStep.BPO, bpo.getId()).get("preDeliveries");
+        assertThat(rows).extracting(r -> r.get("deliveryTypeName")).containsExactly("PP Submission", "Full Delivery");
+        assertThat(rows).extracting(r -> r.get("colorName")).containsOnly("CAMO AOP");
+        assertThat(rows).extracting(r -> r.get("serialNo")).containsExactly(2, 1);
+        assertThat((BigDecimal) rows.get(1).get("quantity")).isEqualByComparingTo("18630");
+
+        // Editing the lines without the schedule leaves it; a colour from another booking is refused.
+        documents.save(ChainStep.BPO, request(bpo.getId(), line("COLOUR", colour, "18650")));
+        assertThat(count(bpo)).isEqualTo(2);
+        long foreign = lineOf(approvedBooking("Solid Dyed", "Navy", "100"), 0);
+        assertThatThrownBy(() -> documents.save(ChainStep.BPO, scheduled(bpo.getId(),
+                List.of(new ChainDocumentRequest.PreDelivery(pps, LocalDate.of(2025, 11, 25), foreign, BigDecimal.TEN, 1)),
+                line("COLOUR", colour, "18650"))))
+            .hasMessageContaining("Pre-delivery row 1: choose one of the order's colours");
+
+        // A revision starts with the schedule.
+        approve(bpo);
+        BusinessDocument revision = documents.revise(ChainStep.BPO, bpo.getId(), "IT revision");
+        assertThat(count(revision)).isEqualTo(2);
+    }
+
+    @Test
+    void deliveryTypesHaveAUniqueCode_andOneInUseIsRetiredNotDeleted() {
+        String code = "IT" + (System.currentTimeMillis() % 1_000_000_000L);
+        DeliveryType type = deliveryTypes.save(null, new DeliveryTypeService.Request(code.toLowerCase(), "IT Shipment Sample", 9, true));
+        assertThat(type.getCode()).isEqualTo(code);
+        assertThatThrownBy(() -> deliveryTypes.save(null, new DeliveryTypeService.Request(code, "Again", 1, true)))
+            .hasMessageContaining("already used");
+        assertThatThrownBy(() -> deliveryTypes.save(null, new DeliveryTypeService.Request("bad code!", "X", 1, true)))
+            .hasMessageContaining("up to 20 letters");
+
+        BusinessDocument booking = approvedBooking("Solid Dyed", "Olive", "300");
+        long colour = lineOf(booking, 0);
+        documents.save(ChainStep.BPO, scheduled(null, List.of(new ChainDocumentRequest.PreDelivery(type.getId(),
+            LocalDate.of(2025, 12, 1), colour, new BigDecimal("300"), 1)), line("COLOUR", colour, "300")));
+        assertThat(deliveryTypes.delete(type.getId())).isEqualTo("retired");
+
+        DeliveryType unused = deliveryTypes.save(null, new DeliveryTypeService.Request(code + "X", "IT Unused", 10, true));
+        assertThat(deliveryTypes.delete(unused.getId())).isEqualTo("deleted");
+    }
+
+    private int count(BusinessDocument doc) {
+        return jdbc.queryForObject("SELECT count(*) FROM fab_bpo_pre_deliveries WHERE document_id = ?", Integer.class, doc.getId());
+    }
+
+    private static ChainDocumentRequest scheduled(Long id, List<ChainDocumentRequest.PreDelivery> plan, ChainDocumentRequest.Line... lines) {
+        return new ChainDocumentRequest(id, null, null, null, null, null, null, null, null, null, null, null,
+            List.of(lines), List.of(), null, plan);
     }
 
     @Test
@@ -487,7 +550,7 @@ class ProductionChainDatabaseIT {
     private static ChainDocumentRequest bpoRequest(Long id, Long garmentsId, String address,
                                                    ChainDocumentRequest.Requirements requirements, ChainDocumentRequest.Line... lines) {
         return new ChainDocumentRequest(id, null, null, null, null, null, null, garmentsId, address, null, null, null,
-            List.of(lines), List.of(), requirements);
+            List.of(lines), List.of(), requirements, null);
     }
 
     private long garmentFactory(String code, String name) {
