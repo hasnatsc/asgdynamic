@@ -331,6 +331,8 @@ public class ModuleDashboardService {
             DocumentType type = DocumentType.valueOf((String) r.get("document_type"));
             m.put("typeLabel", type.label());
             m.put("path", openPath(screenOf(type).orElseThrow(), r.get("id")));
+            // The page formats it with #temporals, which takes java.time, not JDBC's Timestamp.
+            if (r.get("updated_at") instanceof java.sql.Timestamp ts) m.put("updatedAt", ts.toLocalDateTime());
             return m;
         }).toList();
     }

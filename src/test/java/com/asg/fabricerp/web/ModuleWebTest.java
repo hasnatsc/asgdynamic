@@ -90,15 +90,21 @@ class ModuleWebTest {
             "key", "production", "label", "Production", "icon", "production", "description", "Production orders",
             "documents", List.of(Map.ofEntries(Map.entry("key", "BPO"), Map.entry("label", "Production order"), Map.entry("path", "/bpo"),
                 Map.entry("icon", "planning"), Map.entry("draft", 1L), Map.entry("submitted", 2L), Map.entry("open", 3L),
-                Map.entry("done", 4L), Map.entry("rejected", 0L), Map.entry("thisMonth", 5L), Map.entry("total", 10L),
+                Map.entry("done", 4L), Map.entry("rejected", 0L), Map.entry("cancelled", 0L), Map.entry("thisMonth", 5L), Map.entry("total", 10L),
                 Map.entry("newPath", "/bpo?new=1"))),
-            "tools", List.of(), "related", List.of(), "recent", List.of(), "activity", List.of(),
+            "tools", List.of(), "related", List.of(),
+            "recent", List.of(Map.of("documentNo", "BPO-2026-000007", "typeLabel", "Production Order", "status", "DRAFT",
+                "path", "/bpo?open=7", "updatedAt", java.time.LocalDateTime.of(2026, 9, 28, 10, 30))),
+            "activity", List.of(Map.of("week", "2026-09-21", "documents", 3L)),
             "attention", Map.of("awaitingYou", 0L, "returned", 0L, "rejected", 0L, "drafts", 1L)));
 
         mvc.perform(get("/module/production").with(signedIn()))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("data-module=\"production\"")))
             .andExpect(content().string(containsString("href=\"/bpo?new=1\"")))
+            .andExpect(content().string(containsString("href=\"/bpo?open=7\"")))
+            .andExpect(content().string(containsString("28 Sep, 10:30")))
+            .andExpect(content().string(containsString("</html>")))                      // rendered to the end
             .andExpect(content().string(containsString("href=\"/production/board\"")))   // its own menu
             .andExpect(content().string(containsString("All apps")));
     }

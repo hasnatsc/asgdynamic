@@ -578,6 +578,36 @@ mvn spring-boot:run
 mvn -Dfrontend.skip=true test
 ```
 
+## Home and apps
+
+After sign-in, `/` shows two things:
+- **Needs your attention:**
+  - documents pending your approval (your approvals inbox);
+  - your documents returned to you (a draft whose last approval step was *returned*);
+  - your documents that were rejected;
+  - your drafts.
+- **All apps:** one tile for each menu module (`Screen.Section`) in which your roles let you view
+  at least one screen. This is the rule that draws the sidebar, so the apps, the menu and the
+  `@PreAuthorize` checks always agree. A tile shows how many documents in it wait for your
+  approval, and how many of your own are waiting on you.
+
+A tile opens **`/module/{key}`**, the app's own page. On the left is the app's menu: its
+dashboard, its screens (the same items the sidebar lists for it) and related dashboards kept in
+other apps. On the right is the app's dashboard:
+- what needs you in this app;
+- its documents counted by status (draft, awaiting approval, open, completed, rejected,
+  cancelled, raised this month, total), with **New** and **Open list** links;
+- documents raised each week over the last twelve weeks;
+- the documents most recently changed;
+- its boards, reports and setup screens.
+
+An app with none of its screens in your roles is refused (403) rather than shown empty. The
+attention cards open your documents in a drawer (`/api/home/my-work`), each linking to its screen.
+
+Everything is read from the documents by `ModuleDashboardService`, limited as the lists limit
+them: the operating unit, and your row scope on store and marketing team. A document belongs to
+the app of its screen, since `DocumentType.roleRoot()` names that screen.
+
 ## Security
 
 `FabricUser` (username, password hash, default business unit/warehouse, a flat set of

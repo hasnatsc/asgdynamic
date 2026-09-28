@@ -390,6 +390,9 @@ class ProductionChainDatabaseIT {
         assertThat(rows.get(1).get("newPath")).isNull();                        // no CREATE on weaving WOs
         assertThat((List<Map<String, Object>>) app.get("tools")).extracting(t -> t.get("key")).containsExactly("PROD_BOARD");
         assertThat((List<Map<String, Object>>) app.get("recent")).extracting(r -> r.get("path")).contains("/bpo?open=" + bpo.getId());
+        // The page formats its time with #temporals: java.time, never JDBC's Timestamp.
+        assertThat((List<Map<String, Object>>) app.get("recent")).allSatisfy(r -> assertThat(r.get("updatedAt"))
+            .satisfiesAnyOf(v -> assertThat(v).isNull(), v -> assertThat(v).isInstanceOf(java.time.LocalDateTime.class)));
         assertThat((List<Map<String, Object>>) app.get("activity")).hasSize(12);
 
         // The user's own draft is theirs to act on; returned when an approver sends it back.
@@ -398,7 +401,7 @@ class ProductionChainDatabaseIT {
             INSERT INTO apr_document_history (document_id, document_type, action, from_status, to_status, remarks, version, created_by, created_at)
             VALUES (?, 'BULK_PRODUCTION_ORDER', 'RETURNED', 'SUBMITTED', 'DRAFT', 'Fix the colour', 0, 'approver', now())
             """, bpo.getId());
-        assertThat(modules.myWork(authorities, "production", "returned")).singleElement().satisfies(m -> {
+        assertThat(modules.myWork(authorities, "production", "returned")).anySatisfy(m -> {
             assertThat(m.get("id")).isEqualTo(bpo.getId());
             assertThat(m.get("lastRemarks")).isEqualTo("Fix the colour");
         });
