@@ -41,10 +41,10 @@ public class ProductionBoardService {
 
     // ------------------------------------------------------------------------- production board
 
-    private static final String BOARD = """
+    static final String BOARD = """
         WITH l AS (
             SELECT d.id AS bpo_id, d.document_no AS bpo_no, d.status, d.required_date, d.document_date,
-                   p.name AS buyer, t.name AS team, g.id AS group_id, g.group_no, g.construction, g.fabric_type,
+                   d.party_id AS buyer_id, p.name AS buyer, t.name AS team, g.id AS group_id, g.group_no, g.construction, g.fabric_type,
                    g.route_code, g.greige_key, g.deliver_stage, COALESCE(g.needs_processing, false) AS needs_processing,
                    COALESCE(g.greige_allowance_pct, 0) AS allowance, COALESCE(g.delivery_tolerance_pct, 0) AS tolerance,
                    COALESCE(NULLIF(u.symbol, ''), u.name) AS uom, cl.id AS line_id, cl.color_name, cl.color_code, cl.quantity,
@@ -65,6 +65,10 @@ public class ProductionBoardService {
               AND (CAST(:buyerId AS BIGINT) IS NULL OR d.party_id = :buyerId)
               AND (CAST(:fabricType AS VARCHAR) IS NULL OR lower(g.fabric_type) = lower(CAST(:fabricType AS VARCHAR)))
               AND (CAST(:dueBy AS DATE) IS NULL OR d.required_date <= :dueBy)
+              AND (CAST(:bpoId AS BIGINT) IS NULL OR d.id = :bpoId)
+              AND (CAST(:color AS VARCHAR) IS NULL OR lower(COALESCE(cl.color_name, '')) = lower(CAST(:color AS VARCHAR)))
+              AND (CAST(:fromDate AS DATE) IS NULL OR d.document_date >= :fromDate)
+              AND (CAST(:toDate AS DATE) IS NULL OR d.document_date <= :toDate)
               AND (:q = '%' OR lower(d.document_no) LIKE :q OR lower(COALESCE(p.name, '')) LIKE :q
                    OR lower(COALESCE(cl.color_name, '')) LIKE :q OR lower(COALESCE(g.construction, '')) LIKE :q)
         ), f AS (
@@ -140,6 +144,7 @@ public class ProductionBoardService {
             .addValue("teamId", filter.teamId()).addValue("buyerId", filter.buyerId())
             .addValue("fabricType", blank(filter.fabricType())).addValue("dueBy", filter.dueBy())
             .addValue("q", like(filter.q())).addValue("lateBy", LocalDate.now().plusDays(LATE_WITHIN_DAYS))
+            .addValue("bpoId", null).addValue("color", null).addValue("fromDate", null).addValue("toDate", null)
             .addValue("limit", size).addValue("offset", Math.max(0, page) * size);
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM (" + BOARD + ") b "
             + "ORDER BY b.late DESC, b.required_date NULLS LAST, b.bpo_no, b.group_no, b.line_id LIMIT :limit OFFSET :offset", p);
@@ -156,7 +161,7 @@ public class ProductionBoardService {
 
     // ------------------------------------------------------------------------ ready to deliver
 
-    private static final String READY = """
+    static final String READY = """
         WITH s AS (
             SELECT d.id AS schedule_id, d.document_no AS schedule_no, d.status, p.name AS buyer, t.name AS team,
                    rl.id AS line_id, rl.color_name, rl.quantity AS scheduled,
@@ -177,8 +182,9 @@ public class ProductionBoardService {
             LEFT JOIN inv_uoms u ON u.id = g.uom_id
             WHERE d.organization_id = :org AND d.business_unit_id = :unit
               AND d.document_type = 'REQUEST_FOR_PI' AND d.deleted = false
-              AND d.status IN ('APPROVED', 'PARTIAL')
+              AND d.status IN (:scheduleStatuses)
               AND rl.short_close_reason IS NULL
+              AND (:allOrders OR bd.id IN (:bpoIds))
               AND (:allTeams OR d.marketing_team_id IN (:teams))
               AND (CAST(:buyerId AS BIGINT) IS NULL OR d.party_id = :buyerId)
               AND (:q = '%' OR lower(d.document_no) LIKE :q OR lower(COALESCE(p.name, '')) LIKE :q
@@ -211,6 +217,7 @@ public class ProductionBoardService {
 
     public Page readyToDeliver(Long buyerId, String q, boolean deliverableOnly, int page, int size) {
         MapSqlParameterSource p = scopeParams().addValue("buyerId", buyerId).addValue("q", like(q))
+            .addValue("scheduleStatuses", List.of("APPROVED", "PARTIAL")).addValue("allOrders", true).addValue("bpoIds", List.of(-1L))
             .addValue("today", LocalDate.now()).addValue("limit", size).addValue("offset", Math.max(0, page) * size);
         String where = deliverableOnly ? " WHERE b.deliverable > 0" : "";
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM (" + READY + ") b" + where
@@ -226,7 +233,8 @@ public class ProductionBoardService {
 
     // --------------------------------------------------------------------------------- helpers
 
-    private MapSqlParameterSource scopeParams() {
+    /** The organization, unit and marketing-team scope every board query starts from. */
+    MapSqlParameterSource scopeParams() {
         RowScope scope = context.requireRowScope();
         return new MapSqlParameterSource("org", context.requireOrganizationId())
             .addValue("unit", context.requireBusinessUnitId())
@@ -249,7 +257,7 @@ public class ProductionBoardService {
         return out;
     }
 
-    private static String like(String q) {
+    static String like(String q) {
         return q == null || q.isBlank() ? "%" : "%" + q.strip().toLowerCase(Locale.ROOT) + "%";
     }
 

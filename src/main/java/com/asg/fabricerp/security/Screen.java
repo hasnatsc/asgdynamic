@@ -87,7 +87,12 @@ public enum Screen {
      * Booking analytics & reports. VIEW opens it; what it shows is decided by who is looking - a
      * team member's own bookings, a supervisor's or approver's teams, management's whole unit.
      */
-    BOOKING_ANALYTICS("Booking analytics", Section.ANALYTICS, "/analytics/booking");
+    BOOKING_ANALYTICS("Booking analytics", Section.ANALYTICS, "/analytics/booking"),
+    /**
+     * Management's view of the production chain, Booking to the buyer's gate: KPIs, pipeline, status
+     * board, work-order progress, stock, deliveries and alerts - read-only, drilling into the documents.
+     */
+    PROD_DASHBOARD("Production dashboard", Section.ANALYTICS, "/production/dashboard");
 
     /** Declaration order is menu order: reference data first, then the order-to-delivery modules. */
     public enum Section {

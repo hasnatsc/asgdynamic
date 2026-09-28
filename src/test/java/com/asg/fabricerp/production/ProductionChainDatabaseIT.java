@@ -52,6 +52,7 @@ class ProductionChainDatabaseIT {
     @Autowired private ChainApprovalListener approvals;
     @Autowired private ChainViews views;
     @Autowired private DeliveryTypeService deliveryTypes;
+    @Autowired private ProductionDashboardService dashboard;
     @Autowired private ProductionBoardService boards;
     @Autowired private FabricStockQueries stockQueries;
     @Autowired private BusinessDocumentRepository repository;
@@ -289,6 +290,68 @@ class ProductionChainDatabaseIT {
         approve(bpo);
         BusinessDocument revision = documents.revise(ChainStep.BPO, bpo.getId(), "IT revision");
         assertThat(count(revision)).isEqualTo(2);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theDashboardReadsTheChainsOwnFigures_andDrillsIntoItsDocuments() {
+        BusinessDocument booking = approvedBooking("Solid Dyed", "Navy", "1000", "Red", "500");
+        BusinessDocument bpo = load(documents.createFromBooking(booking.getId()).get(0).getId());
+        approve(bpo);
+        BusinessDocument wwo = documents.save(ChainStep.WWO, request(null, line("GROUP", bpo.getLineGroups().get(0).getId(), "1650")));
+        approve(wwo);
+        BusinessDocument gr = documents.save(ChainStep.GR, store(request(null, line("COLOUR", lineOf(wwo, 0), "1600", 40)), greigeStore));
+        posting.post(ChainStep.GR, gr.getId());
+
+        var one = new ProductionDashboardService.Filter(null, null, null, null, null, bpo.getId(), null);
+        Map<String, Object> d = dashboard.dashboard(one, null);
+
+        List<Map<String, Object>> orders = (List<Map<String, Object>>) d.get("orders");
+        assertThat(orders).hasSize(1);
+        Map<String, Object> order = orders.get(0);
+        assertThat((BigDecimal) order.get("quantity")).isEqualByComparingTo("1500");
+        assertThat((BigDecimal) order.get("greigeReceived")).isEqualByComparingTo("1600");
+        assertThat(order.get("stage")).isEqualTo("Greige in store");
+        assertThat(order.get("colours")).isEqualTo(List.of("Navy", "Red"));
+
+        Map<String, Object> kpis = (Map<String, Object>) d.get("kpis");
+        assertThat(((Map<String, Object>) kpis.get("bookings")).get("count")).isEqualTo(1L);
+        assertThat(((Map<String, Object>) kpis.get("weaving")).get("documents")).isEqualTo(1L);
+        assertThat((BigDecimal) ((Map<String, Object>) kpis.get("greigeStock")).get("quantity")).isEqualByComparingTo("1600");
+
+        Map<String, Object> grNode = ((List<Map<String, Object>>) d.get("pipeline")).stream()
+            .filter(n -> "GR".equals(n.get("key"))).findFirst().orElseThrow();
+        assertThat(grNode.get("documents")).isEqualTo(1L);
+        assertThat((BigDecimal) grNode.get("quantity")).isEqualByComparingTo("1600");
+
+        List<Map<String, Object>> byType = (List<Map<String, Object>>) d.get("byFabricType");
+        assertThat(byType).singleElement().satisfies(r -> {
+            assertThat(r.get("key")).isEqualTo("Solid Dyed");
+            assertThat((BigDecimal) r.get("quantity")).isEqualByComparingTo("1500");
+        });
+        assertThat((List<Map<String, Object>>) d.get("workOrders")).extracting(w -> w.get("id")).contains(wwo.getId());
+
+        // Every figure opens its documents.
+        assertThat(dashboard.documents(one, ChainStep.GR, "")).singleElement()
+            .satisfies(doc -> assertThat(doc.get("documentNo")).isEqualTo(load(gr.getId()).getDocumentNo()));
+        assertThat(dashboard.bookingDocuments(one)).extracting(b -> b.get("id")).containsExactly(booking.getId());
+
+        // Past its required date with a balance: overdue, and an alert that opens the order.
+        jdbc.update("UPDATE gbl_business_documents SET required_date = CURRENT_DATE - 5 WHERE id = ?", bpo.getId());
+        Map<String, Object> late = dashboard.dashboard(one, null);
+        assertThat(((List<Map<String, Object>>) late.get("orders")).get(0).get("overdue")).isEqualTo(true);
+        assertThat((List<Map<String, Object>>) late.get("alerts")).anySatisfy(a -> {
+            assertThat(a.get("kind")).isEqualTo("OVERDUE");
+            assertThat(a.get("severity")).isEqualTo("critical");
+            assertThat(a.get("documentId")).isEqualTo(bpo.getId());
+            assertThat(a.get("slug")).isEqualTo("bpo");
+            assertThat((String) a.get("detail")).contains("5 day(s) late");
+        });
+        assertThat(((Map<String, Object>) ((Map<String, Object>) late.get("kpis")).get("overdue")).get("orders")).isEqualTo(1L);
+
+        // A colour filter narrows the order to its lines.
+        Map<String, Object> red = dashboard.dashboard(new ProductionDashboardService.Filter(null, null, null, "red", null, bpo.getId(), null), null);
+        assertThat((BigDecimal) ((List<Map<String, Object>>) red.get("orders")).get(0).get("quantity")).isEqualByComparingTo("500");
     }
 
     @Test

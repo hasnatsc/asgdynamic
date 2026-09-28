@@ -307,6 +307,44 @@ Not built yet (design phase 4–5): roll-by-roll tracking, fabric stock adjustme
 yarn-dyeing work orders, accounting postings from fabric receipts and deliveries, production
 analytics. (Fabric lots now move between stores - see **Purchase and stores**, below.)
 
+### Production dashboard (`/production/dashboard`, V37)
+
+*Analytics & reports → Production dashboard* is management's view of the whole chain. It is
+read-only and computes nothing of its own: `ProductionDashboardService` runs the Production
+board's and Ready to deliver's own queries (`ProductionBoardService.BOARD` and `READY`, extended
+with the dashboard's filters), so the dashboard and the boards always show the same figures.
+Whoever may view the Production board may view it.
+
+- **Filters:** order date, fabric type, colour, customer, production order and status. They pick a
+  set of order lines, and every other figure (work orders, stock, movements, deliveries) is what
+  belongs to those orders. They are kept in the URL, so a view can be bookmarked.
+- **Overview:** eight KPIs, each opening what it counts. Then the order-to-delivery pipeline, with
+  each stage's documents, the quantity that reached it and what is still waiting. Then planned vs
+  produced vs received vs delivered by fabric type, pending quantity per stage, the top alerts,
+  and efficiency: weaving and dyeing completion, grade A share, process loss measured on closed
+  batches, and on-time delivery.
+- **Orders:** a status board (overdue and at-risk cards first), an order progress table with bars
+  for weaving, dyeing and delivery plus in-stock and stage (sortable, searchable, CSV export), and
+  a timeline from order date to required date, showing delivered progress, planned pre-deliveries
+  and today.
+- **Weaving & dyeing:** open work orders with what has come back against each; the greige →
+  issued → finished (A/B) → delivered flow for dyed fabric; figures by fabric type and by colour.
+- **Stock & movement:** greige and finished on hand, free and reserved; the movement ledger in and
+  out over the period, by type, and by store.
+- **Deliveries:** a month calendar of delivery schedule lines (delivered / stock ready / short /
+  overdue) and planned pre-deliveries, with the list for a chosen day.
+- **Alerts:**
+  - orders overdue, or at risk (due within 7 days and not ready);
+  - orders blocked by a missing process route;
+  - chain documents waiting for approval for more than 3 days, or rejected;
+  - deliveries due with nothing in stock.
+
+Every figure drills down. A stage or KPI opens its documents in a side drawer, a fabric type or
+colour filters the page, and a card, bar, alert or calendar line opens its document. Charts use
+the `analytics-charts.js` kit and its validated colour roles. The planned → delivered stages use
+the one-hue ordinal ramp because they are ordered, and red is kept for overdue. Every chart
+has a table view.
+
 ## Purchase and stores (`supply` package, V31)
 
 The legacy Inventory and Purchase menus - SR, SPR, PO, MRR, issue against SR, direct issue and

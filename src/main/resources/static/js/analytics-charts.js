@@ -13,8 +13,8 @@
  *     ellipsis or moved to the tooltip, never clipped;
  *   - names from the data go into the page as text (textContent), never as markup.
  *
- *   AnalyticsCharts.columns(host, { categories, series: [{ name, cls, values }], format, stacked })
- *   AnalyticsCharts.hbars(host, { rows: [{ label, value, cls? }], format, detail(row) })
+ *   AnalyticsCharts.columns(host, { categories, series: [{ name, cls, values }], format, grouped, onSelect(i) })
+ *   AnalyticsCharts.hbars(host, { rows: [{ label, value, cls? }], format, detail(row), onSelect(row) })
  *   AnalyticsCharts.stackbar(host, { segments: [{ label, value, cls, icon? }], format })
  *   AnalyticsCharts.table(host, { columns: [{ label, get, num? }], rows })
  */
@@ -160,6 +160,16 @@
         hit.addEventListener('blur', () => tooltip.hide());
     }
 
+    /** A mark that opens what it stands for: click, Enter or Space. */
+    function selectable(hit, onSelect) {
+        if (!onSelect) return;
+        hit.classList.add('v-select');
+        hit.addEventListener('click', () => { tooltip.hide(); onSelect(); });
+        hit.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tooltip.hide(); onSelect(); }
+        });
+    }
+
     /** Redraws on resize, and keeps the last draw so the page can re-render in place. */
     function responsive(host, draw) {
         host._draw = draw;
@@ -212,7 +222,9 @@
             if (series.length > 1) host.appendChild(legend(series.map(s => ({ label: s.name, cls: s.cls }))));
             const width = Math.max(host.clientWidth, 280);
             const height = opts.height || 240;
-            const max = Math.max(...Array.from({ length: n }, (_, i) => total(i)));
+            // Grouped bars compare series side by side (stages of one flow never add up); stacked bars add.
+            const max = opts.grouped ? Math.max(...series.flatMap(s => s.values.map(v => Number(v) || 0)))
+                                     : Math.max(...Array.from({ length: n }, (_, i) => total(i)));
             const ys = ticks(max, 4);
             const top = ys[ys.length - 1];
             const left = Math.ceil(Math.max(...ys.map(v => measure(format(v), 11)))) + 10;
@@ -226,7 +238,9 @@
                 text(svg, m.left - 8, y(v), format(v), 'v-tick', 'end');
             }
             const band = plotW / n;
-            const barW = Math.max(2, Math.min(24, band * 0.62));
+            const barW = opts.grouped
+                ? Math.max(2, Math.min(16, (band * 0.8 - (series.length - 1) * 2) / series.length))
+                : Math.max(2, Math.min(24, band * 0.62));
             // x labels: as many as fit without touching
             const labels = opts.labels || opts.categories;
             const widest = Math.max(...labels.map(l => measure(l, 11))) + 12;
@@ -235,21 +249,32 @@
                 const cx = m.left + band * i + band / 2;
                 const g = el('g', {}, svg);
                 el('rect', { x: m.left + band * i, y: m.top, width: band, height: plotH, class: 'v-hover' }, g);
-                let base = y(0);
-                const visible = series.filter(s => Number(s.values[i]) > 0);
-                visible.forEach((s, k) => {
-                    const v = Number(s.values[i]);
-                    let h = (v / top) * plotH;
-                    const gap = k > 0 ? 2 : 0;
-                    h = Math.max(0, h - gap);
-                    const yTop = base - gap - h;
-                    el('path', { d: barPath(cx - barW / 2, yTop, barW, h, 4, k === visible.length - 1 ? 'top' : 'none'), class: fill(s.cls) }, g);
-                    base = yTop;
-                });
+                if (opts.grouped) {
+                    const groupW = series.length * barW + (series.length - 1) * 2;
+                    series.forEach((s, k) => {
+                        const v = Number(s.values[i]) || 0;
+                        if (v <= 0) return;
+                        const h = (v / top) * plotH;
+                        el('path', { d: barPath(cx - groupW / 2 + k * (barW + 2), y(0) - h, barW, h, 4, 'top'), class: fill(s.cls) }, g);
+                    });
+                } else {
+                    let base = y(0);
+                    const visible = series.filter(s => Number(s.values[i]) > 0);
+                    visible.forEach((s, k) => {
+                        const v = Number(s.values[i]);
+                        let h = (v / top) * plotH;
+                        const gap = k > 0 ? 2 : 0;
+                        h = Math.max(0, h - gap);
+                        const yTop = base - gap - h;
+                        el('path', { d: barPath(cx - barW / 2, yTop, barW, h, 4, k === visible.length - 1 ? 'top' : 'none'), class: fill(s.cls) }, g);
+                        base = yTop;
+                    });
+                }
                 if (i % every === 0) text(svg, cx, height - 10, labels[i], 'v-tick', 'middle');
                 const rows = series.map(s => ({ label: s.name, value: format(Number(s.values[i]) || 0, true), cls: s.cls }));
-                if (series.length > 1) rows.push({ label: 'Total', value: format(total(i), true) });
+                if (series.length > 1 && !opts.grouped) rows.push({ label: 'Total', value: format(total(i), true) });
                 interactive(g, (opts.titles || opts.categories)[i], rows);
+                selectable(g, opts.onSelect && (() => opts.onSelect(i)));
             }
         });
     }
@@ -281,6 +306,7 @@
                 text(g, labelW + w + 6, yMid, format(r.value), 'v-value');
                 const detail = opts.detail ? opts.detail(r) : [{ label: opts.valueLabel || 'Value', value: format(r.value, true) }];
                 interactive(g, r.label, detail);
+                selectable(g, opts.onSelect && (() => opts.onSelect(r)));
             });
         });
     }

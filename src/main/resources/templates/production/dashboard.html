@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Analytics & reports -> Production dashboard (com.asg.fabricerp.production.ProductionDashboardController).
+  Management's control centre for the chain Booking -> Production order -> Weaving / Dyeing ->
+  stores -> Delivery schedule -> Delivery order -> Fabrics delivery. Read-only: every figure is read
+  from the documents and the fabric stock ledger, and opens the documents it came from.
+  Drawn by production-dashboard.js with the AnalyticsCharts kit.
+-->
+<head><title>Production dashboard</title></head>
+<body>
+<div th:fragment="content" class="viz" data-pd-root>
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Production dashboard</h1>
+            <p class="page-sub">The whole chain from booking to the buyer's gate - where every order stands, what is late, and what is in the stores.
+                Every figure opens the documents behind it.</p>
+        </div>
+        <div class="page-actions" data-no-print>
+            <a class="btn-ghost" href="/production/board">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#activity}"/></svg>Production board</a>
+            <button type="button" class="btn-ghost" data-pd-print>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#document}"/></svg>Print</button>
+            <button type="button" class="btn-primary" data-pd-refresh>
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Refresh</button>
+        </div>
+    </div>
+
+    <!-- Filters: one row, applied as they change. -->
+    <form class="an-filters" data-pd-filters autocomplete="off" onsubmit="return false">
+        <div class="an-filter">
+            <label for="pdFrom">Order date from</label>
+            <input id="pdFrom" type="date" class="field w-auto" name="from">
+        </div>
+        <div class="an-filter">
+            <label for="pdTo">to</label>
+            <input id="pdTo" type="date" class="field w-auto" name="to">
+        </div>
+        <div class="an-filter">
+            <label for="pdFabric">Fabric type</label>
+            <select id="pdFabric" class="field w-auto" name="fabricType"><option value="">All fabric types</option></select>
+        </div>
+        <div class="an-filter">
+            <label for="pdColour">Colour</label>
+            <select id="pdColour" class="field w-auto" name="color"><option value="">All colours</option></select>
+        </div>
+        <div class="an-filter min-w-[13rem]">
+            <label for="pdBuyer">Customer</label>
+            <select id="pdBuyer" class="field" name="buyerId" data-remote="/api/parties/lookup?role=CUSTOMER"
+                    data-allow-clear data-placeholder="All customers"></select>
+        </div>
+        <div class="an-filter min-w-[12rem]">
+            <label for="pdOrder">Production order</label>
+            <select id="pdOrder" class="field" name="bpoId" data-remote="/api/production/dashboard/orders"
+                    data-allow-clear data-placeholder="All orders"></select>
+        </div>
+        <div class="an-filter">
+            <label for="pdStatus">Status</label>
+            <select id="pdStatus" class="field w-auto" name="status">
+                <option value="">All but cancelled</option>
+                <option value="OPEN">Open (approved, in progress)</option>
+                <option th:each="s : ${statuses}" th:value="${s.name()}" th:text="${s.label()}">Draft</option>
+            </select>
+        </div>
+        <button type="button" class="btn-subtle ml-auto" data-pd-reset>
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset</button>
+    </form>
+
+    <p class="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500" data-pd-scope></p>
+
+    <div data-pd-tabs>
+        <div class="tabs mb-5 !px-0" role="tablist">
+            <button type="button" class="tab" role="tab" data-tab="overview" aria-selected="true">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chart-bar}"/></svg>Overview</button>
+            <button type="button" class="tab" role="tab" data-tab="orders">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#clipboard-check}"/></svg>Orders</button>
+            <button type="button" class="tab" role="tab" data-tab="production">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#loom}"/></svg>Weaving &amp; dyeing</button>
+            <button type="button" class="tab" role="tab" data-tab="stock">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#inventory}"/></svg>Stock &amp; movement</button>
+            <button type="button" class="tab" role="tab" data-tab="deliveries">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#truck}"/></svg>Deliveries</button>
+            <button type="button" class="tab" role="tab" data-tab="alerts">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#alert}"/></svg>Alerts
+                <span class="badge-gray ml-1" data-pd-alert-count>0</span></button>
+        </div>
+
+        <!-- ======================================================== overview -->
+        <div data-panel="overview">
+            <div class="an-kpis !grid-cols-2 md:!grid-cols-4" data-pd-kpis></div>
+
+            <section class="an-card mb-5">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Order to delivery</h2>
+                        <p class="card-sub">Each stage: its documents, and how much of the filtered orders has reached it. Open a stage for its documents.</p>
+                    </div>
+                </div>
+                <div class="pd-flow" data-pd-pipeline></div>
+            </section>
+
+            <div class="an-grid mb-5">
+                <section class="an-card an-card-wide" data-chart="plan">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Planned vs produced vs received vs delivered</h2>
+                            <p class="card-sub">By fabric type. Planned is the order; produced is greige woven and received; received is what reached the
+                                store it delivers from (finished for dyed fabric); delivered went out on approved fabric deliveries. Select a fabric type to filter by it.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+
+                <section class="an-card" data-chart="pending">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Pending quantity</h2>
+                            <p class="card-sub">What is still to do at each stage, over open orders. Select a stage for the orders behind it.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart !min-h-0" data-host></div>
+                </section>
+
+                <section class="an-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Top alerts</h2>
+                            <p class="card-sub">The most urgent; the Alerts tab has them all.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-goto="alerts">All alerts</button>
+                    </div>
+                    <div data-pd-top-alerts></div>
+                </section>
+            </div>
+
+            <section class="an-card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Production efficiency</h2>
+                        <p class="card-sub">Completion of what has been put on work orders, first quality, fulfilment and punctuality.</p>
+                    </div>
+                </div>
+                <div class="pd-eff" data-pd-efficiency></div>
+            </section>
+        </div>
+
+        <!-- ======================================================== orders -->
+        <div data-panel="orders" hidden>
+            <section class="an-card mb-5">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Production order status board</h2>
+                        <p class="card-sub">Overdue and at-risk orders first in each column. Open a card for the order.</p>
+                    </div>
+                </div>
+                <div class="pd-board" data-pd-board></div>
+            </section>
+
+            <section class="an-card mb-5">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Order progress</h2>
+                        <p class="card-sub">Weaving: greige received of greige required. Dyeing: finished received of the dyed quantity. Delivery: delivered of the order.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2" data-no-print>
+                        <div class="input-icon w-56">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                            <input type="search" class="field field-sm" placeholder="Order, customer, colour" aria-label="Search orders" data-pd-order-search>
+                        </div>
+                        <select class="field field-sm w-auto" aria-label="Show" data-pd-order-show>
+                            <option value="">All orders</option>
+                            <option value="overdue">Overdue</option>
+                            <option value="late">At risk</option>
+                            <option value="open">Open</option>
+                        </select>
+                        <button type="button" class="btn-ghost btn-sm" data-pd-export>
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>Export</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="table-grid" data-pd-orders>
+                        <thead><tr>
+                            <th class="w-10">SL</th>
+                            <th data-sort="documentNo">Order no</th>
+                            <th data-sort="buyer">Customer / fabric</th>
+                            <th data-sort="requiredDate">Required</th>
+                            <th>Weaving</th>
+                            <th>Dyeing</th>
+                            <th>Delivery</th>
+                            <th class="text-right" data-sort="stock">In stock</th>
+                            <th data-sort="stage">Stage</th>
+                            <th class="w-px">Actions</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pager" data-pd-order-pager></div>
+            </section>
+
+            <section class="an-card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Timeline</h2>
+                        <p class="card-sub">Open orders from order date to required date; the fill is what has been delivered. Diamonds are planned pre-deliveries,
+                            the red line is today, a red outline is overdue.</p>
+                    </div>
+                </div>
+                <div class="pd-gantt" data-pd-gantt></div>
+            </section>
+        </div>
+
+        <!-- ======================================================== weaving & dyeing -->
+        <div data-panel="production" hidden>
+            <div class="an-grid mb-5">
+                <section class="an-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Weaving work orders</h2>
+                            <p class="card-sub">Open ones: greige received of the quantity ordered.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-drill="WWO" data-group="">All</button>
+                    </div>
+                    <div class="table-wrap"><table class="table-grid" data-pd-wo="WWO"><thead><tr>
+                        <th>Work order</th><th>Order / fabric</th><th>Due</th><th>Progress</th></tr></thead><tbody></tbody></table></div>
+                </section>
+                <section class="an-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Dyeing work orders</h2>
+                            <p class="card-sub">Open ones: greige issued and finished received of the quantity ordered.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-drill="PWO" data-group="">All</button>
+                    </div>
+                    <div class="table-wrap"><table class="table-grid" data-pd-wo="PWO"><thead><tr>
+                        <th>Work order</th><th>Order / colours</th><th>Due</th><th>Issued</th><th>Finished</th></tr></thead><tbody></tbody></table></div>
+                </section>
+
+                <section class="an-card an-card-wide">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Greige → dyeing → finished</h2>
+                            <p class="card-sub">Dyed fabric only. Each bar is a share of the greige required; select a stage for its documents.</p>
+                        </div>
+                    </div>
+                    <div class="pd-flowbars" data-pd-flow></div>
+                </section>
+            </div>
+
+            <section class="an-card mb-5" data-table="fabric">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">By fabric type</h2>
+                        <p class="card-sub">Select a row to filter the dashboard by that fabric type.</p>
+                    </div>
+                </div>
+                <div class="table-wrap" data-host></div>
+            </section>
+            <section class="an-card" data-table="colour">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">By colour</h2>
+                        <p class="card-sub">Per fabric type and colour. Select a row to filter by that colour.</p>
+                    </div>
+                </div>
+                <div class="table-wrap" data-host></div>
+            </section>
+        </div>
+
+        <!-- ======================================================== stock -->
+        <div data-panel="stock" hidden>
+            <div class="an-kpis !grid-cols-2 md:!grid-cols-4" data-pd-stock-kpis></div>
+            <div class="an-grid">
+                <section class="an-card an-card-wide" data-chart="moves">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Stock movement</h2>
+                            <p class="card-sub" data-sub>In and out of the fabric stores.</p>
+                        </div>
+                        <button type="button" class="btn-ghost btn-sm" data-table-toggle data-no-print>Table</button>
+                    </div>
+                    <div class="an-chart" data-host></div>
+                </section>
+                <section class="an-card" data-table="movetypes">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Movement by type</h2>
+                            <p class="card-sub">Reversals are cancelled documents' moves, backed out.</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap" data-host></div>
+                </section>
+                <section class="an-card" data-table="stores">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">On hand by store</h2>
+                            <p class="card-sub">Lots of the filtered orders. <a class="card-link" href="/stock/fabric">Fabric stock</a> has every lot.</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap" data-host></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- ======================================================== deliveries -->
+        <div data-panel="deliveries" hidden>
+            <div class="an-kpis !grid-cols-2 md:!grid-cols-4" data-pd-delivery-kpis></div>
+            <section class="an-card mb-5">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title" data-pd-month-title>Delivery calendar</h2>
+                        <p class="card-sub">Delivery schedule lines by due date, and the orders' planned pre-deliveries. Select a day for its deliveries.</p>
+                    </div>
+                    <div class="flex items-center gap-1" data-no-print>
+                        <button type="button" class="btn-icon btn-sm" data-pd-month="-1" aria-label="Previous month">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg></button>
+                        <button type="button" class="btn-ghost btn-sm" data-pd-month="0">This month</button>
+                        <button type="button" class="btn-icon btn-sm" data-pd-month="1" aria-label="Next month">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-right}"/></svg></button>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 px-4 pb-3 text-xs" data-pd-cal-legend></div>
+                <div class="overflow-x-auto px-4 pb-4"><div class="min-w-[44rem] pd-cal" data-pd-calendar></div></div>
+            </section>
+            <section class="an-card">
+                <div class="card-header">
+                    <div><h2 class="card-title" data-pd-day-title>This month's deliveries</h2>
+                        <p class="card-sub">Open a line for its delivery schedule or production order.</p></div>
+                </div>
+                <div class="table-wrap"><table class="table-grid" data-pd-day><thead><tr>
+                    <th>Due</th><th>Document</th><th>Customer</th><th>Order / colour</th><th class="text-right">Quantity</th>
+                    <th class="text-right">Delivered</th><th class="text-right">Ready</th><th>State</th></tr></thead><tbody></tbody></table></div>
+            </section>
+        </div>
+
+        <!-- ======================================================== alerts -->
+        <div data-panel="alerts" hidden>
+            <section class="an-card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Alerts</h2>
+                        <p class="card-sub">Overdue and at-risk orders, orders blocked for want of a route, documents waiting for approval or rejected,
+                            and deliveries due with nothing in stock.</p>
+                    </div>
+                    <div class="segmented" role="group" aria-label="Severity" data-pd-alert-filter>
+                        <button type="button" data-severity="" aria-pressed="true">All</button>
+                        <button type="button" data-severity="critical" aria-pressed="false">Critical</button>
+                        <button type="button" data-severity="warning" aria-pressed="false">Warning</button>
+                    </div>
+                </div>
+                <div data-pd-alerts></div>
+            </section>
+        </div>
+    </div>
+
+    <!-- The documents behind a figure. -->
+    <dialog class="drawer" data-pd-drill aria-labelledby="pdDrillTitle">
+        <div class="modal-head">
+            <div><h2 id="pdDrillTitle" class="modal-title" data-pd-drill-title>Documents</h2>
+                <p class="mt-0.5 text-sm text-gray-500" data-pd-drill-sub></p></div>
+            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+        </div>
+        <div class="modal-body" data-pd-drill-body></div>
+    </dialog>
+
+    <script th:inline="javascript">window.PD_STEPS = /*[[${steps}]]*/ [];</script>
+    <script th:src="@{/js/analytics-charts.js}" defer></script>
+    <script th:src="@{/js/production-dashboard.js}" defer></script>
+</div>
+</body>
+</html>
