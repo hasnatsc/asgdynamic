@@ -212,6 +212,52 @@ class ProductionChainDatabaseIT {
     }
 
     @Test
+    void aProductionOrderShowsItsBooking_keepsItsRequirements_andTakesTheBookingsGarmentsOrTheOneEntered() {
+        long garmentsA = garmentFactory("IT-GMT-A", "IT Garments A");
+        long garmentsB = garmentFactory("IT-GMT-B", "IT Garments B");
+        var ticked = new ChainDocumentRequest.Requirements(true, false, true, false, true, false, true);
+
+        // A booking naming no garments: the order takes the one entered, and its requirements.
+        BusinessDocument open = approvedBooking("Solid Dyed", "Navy", "1000");
+        BusinessDocument bpo = documents.save(ChainStep.BPO, bpoRequest(null, garmentsA, "Plot 7, Gazipur", ticked,
+            line("COLOUR", lineOf(open, 0), "1000")));
+        BusinessDocument saved = load(bpo.getId());
+        assertThat(saved.getGarments().getId()).isEqualTo(garmentsA);
+        assertThat(saved.getGarmentsAddress()).isEqualTo("Plot 7, Gazipur");
+        assertThat(saved.isInHouseTestReport()).isTrue();
+        assertThat(saved.isInspectionReport()).isFalse();
+        assertThat(saved.isDyeLotRequired()).isTrue();
+        assertThat(saved.isBlanket()).isTrue();
+        assertThat(saved.isPackingList()).isTrue();
+        assertThat(saved.isHeadCutting()).isFalse();
+
+        // Its detail carries the booking's master data and the ticks.
+        Map<String, Object> detail = views.detail(ChainStep.BPO, bpo.getId());
+        @SuppressWarnings("unchecked") Map<String, Object> booking = (Map<String, Object>) detail.get("booking");
+        assertThat(booking.get("documentNo")).isEqualTo(open.getDocumentNo());
+        assertThat(booking.get("buyer")).isEqualTo("IT Buyer Ltd");
+        assertThat(booking).containsKeys("bookingType", "orderType", "brand", "marketingPerson", "currency", "priceInMeter");
+        @SuppressWarnings("unchecked") Map<String, Object> req = (Map<String, Object>) detail.get("requirements");
+        assertThat(req).containsEntry("inHouseTestReport", true).containsEntry("testFabrics", false);
+
+        // Editing without requirements leaves them; clearing the garments is allowed when the booking has none.
+        documents.save(ChainStep.BPO, bpoRequest(bpo.getId(), null, null, null, line("COLOUR", lineOf(open, 0), "1000")));
+        saved = load(bpo.getId());
+        assertThat(saved.getGarments()).isNull();
+        assertThat(saved.isInHouseTestReport()).isTrue();
+
+        // A booking naming its garments decides it: another one sent is ignored.
+        BusinessDocument named = approvedBooking("Solid Dyed", "Red", "500");
+        jdbc.update("UPDATE gbl_business_documents SET garments_id = ?, garments_address = 'Booking address' WHERE id = ?", garmentsA, named.getId());
+        BusinessDocument other = documents.save(ChainStep.BPO, bpoRequest(null, garmentsB, null, null,
+            line("COLOUR", lineOf(named, 0), "500")));
+        saved = load(other.getId());
+        assertThat(saved.getGarments().getId()).isEqualTo(garmentsA);
+        assertThat(saved.getGarmentsAddress()).isEqualTo("Booking address");
+        assertThat(views.bookingMaster(named.getId())).containsEntry("garmentsId", garmentsA);
+    }
+
+    @Test
     void weavingDyeingAndSchedulingEachSeeTheirOwnBalanceOfOneLine() {
         BusinessDocument booking = approvedBooking("Yarn Dyed", "Check", "1000");
         BusinessDocument bpo = load(documents.createFromBooking(booking.getId()).get(0).getId());
@@ -436,6 +482,26 @@ class ProductionChainDatabaseIT {
 
     private static ChainDocumentRequest request(Long id, ChainDocumentRequest.Line... lines) {
         return new ChainDocumentRequest(id, null, null, null, null, null, null, null, null, null, null, null, List.of(lines), List.of());
+    }
+
+    private static ChainDocumentRequest bpoRequest(Long id, Long garmentsId, String address,
+                                                   ChainDocumentRequest.Requirements requirements, ChainDocumentRequest.Line... lines) {
+        return new ChainDocumentRequest(id, null, null, null, null, null, null, garmentsId, address, null, null, null,
+            List.of(lines), List.of(), requirements);
+    }
+
+    private long garmentFactory(String code, String name) {
+        jdbc.update("""
+            INSERT INTO pty_parties (organization_id, code, name, active, deleted, version, created_by, created_at)
+            SELECT ?, ?, ?, TRUE, FALSE, 0, 'it', now()
+            WHERE NOT EXISTS (SELECT 1 FROM pty_parties WHERE organization_id = ? AND code = ?)
+            """, orgId, code, name, orgId, code);
+        long id = jdbc.queryForObject("SELECT id FROM pty_parties WHERE organization_id = ? AND code = ?", Long.class, orgId, code);
+        jdbc.update("""
+            INSERT INTO pty_party_roles (organization_id, party_id, role_type, qualifier, granted_on, is_current, version)
+            VALUES (?, ?, 'GARMENT_FACTORY', NULL, CURRENT_DATE, TRUE, 0) ON CONFLICT DO NOTHING
+            """, orgId, id);
+        return id;
     }
 
     private static ChainDocumentRequest store(ChainDocumentRequest r, long warehouseId) {

@@ -11,7 +11,7 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.*;
 
-/** A draft saved before the single-colour rule still may not go for approval breaking it. */
+/** What a booking needs before approval - and what it no longer does: one colour per solid-dyed line. */
 class BookingSubmissionCheckTest {
 
     private final BookingSubmissionCheck check = new BookingSubmissionCheck();
@@ -35,10 +35,15 @@ class BookingSubmissionCheckTest {
     }
 
     @Test
-    void aSingleColourLineWithTwoColoursIsNotSubmitted() {
-        assertThatThrownBy(() -> check.check(booking("Greige Solid Dyed", "Navy", "Black")))
+    void aSolidDyedLineWithTwoColoursIsSubmitted() {
+        assertThatCode(() -> check.check(booking("Greige Solid Dyed", "Navy", "Black"))).doesNotThrowAnyException();
+    }
+
+    @Test
+    void aLineWithoutColoursIsStillNotSubmitted() {
+        assertThatThrownBy(() -> check.check(booking("Yarn Dyed")))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("single-colour fabric");
+            .hasMessageContaining("has no colours");
     }
 
     @Test

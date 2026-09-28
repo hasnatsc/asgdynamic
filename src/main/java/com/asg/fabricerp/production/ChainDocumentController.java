@@ -155,6 +155,14 @@ public class ChainDocumentController {
         return documents.openLines(ChainStep.ofSlug(slug), parentId, exclude, kind);
     }
 
+    /** The booking's master data, shown on a production order as soon as its booking is chosen. */
+    @GetMapping("/api/bpo/booking-master/{bookingId:\\d+}")
+    @ResponseBody
+    @PreAuthorize("@chainAccess.can('bpo', 'VIEW')")
+    public Map<String, Object> bookingMaster(@PathVariable Long bookingId) {
+        return views.bookingMaster(bookingId);
+    }
+
     /** Stores a step may use: greige stores for greige documents, finished for finished ones. */
     @GetMapping("/api/production/stores")
     @ResponseBody

@@ -38,6 +38,59 @@ public class ChainViews {
         return detail(step, documents.get(step, id));
     }
 
+    /** The booking's master data, as a production order's editor shows it before anything is saved. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> bookingMaster(Long bookingId) {
+        return bookingMaster(documents.bookingForBpo(bookingId));
+    }
+
+    /**
+     * Everything the booking's header says, for the production order raised on it - read from the
+     * booking itself, so an order shows what its booking says now.
+     */
+    public static Map<String, Object> bookingMaster(BusinessDocument b) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", b.getId());
+        m.put("documentNo", b.getDocumentNo());
+        m.put("documentDate", b.getDocumentDate());
+        m.put("requiredDate", b.getRequiredDate());
+        m.put("status", b.getStatus().label());
+        m.put("referenceNo", b.getReferenceNo());
+        m.put("businessUnit", b.getBusinessUnit() == null ? null : b.getBusinessUnit().getName());
+        m.put("buyer", b.getParty() == null ? null : b.getParty().getName());
+        m.put("brand", b.getBrand() == null ? null : b.getBrand().getName());
+        m.put("marketingTeam", b.getMarketingTeam() == null ? null : b.getMarketingTeam().getName());
+        m.put("marketingPerson", b.getMarketingPerson() == null ? null
+            : Optional.ofNullable(b.getMarketingPerson().getFullName()).orElse(b.getMarketingPerson().getUsername()));
+        m.put("bookingType", b.getBookingType() == null ? null : b.getBookingType().label());
+        m.put("orderType", b.getOrderType() == null ? null : b.getOrderType().label());
+        m.put("preCostBuyer", b.getPreCostBuyer());
+        m.put("currency", b.getCurrencyCode());
+        m.put("exchangeRate", b.getExchangeRate());
+        m.put("priceInMeter", b.isPriceInMeter());
+        m.put("garmentsId", idOf(b.getGarments()));
+        m.put("garmentsName", b.getGarments() == null ? null : b.getGarments().getName());
+        m.put("garmentsAddress", b.getGarmentsAddress());
+        m.put("totalQuantity", b.getTotalQuantity());
+        m.put("subtotalAmount", b.getSubtotalAmount());
+        m.put("remarks", b.getRemarks());
+        return m;
+    }
+
+    /** A production order's checkboxes; price in metre is the booking's. */
+    static Map<String, Object> requirements(BusinessDocument d) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("inHouseTestReport", d.isInHouseTestReport());
+        m.put("inspectionReport", d.isInspectionReport());
+        m.put("dyeLot", d.isDyeLotRequired());
+        m.put("testFabrics", d.isTestFabrics());
+        m.put("blanket", d.isBlanket());
+        m.put("headCutting", d.isHeadCutting());
+        m.put("packingList", d.isPackingList());
+        m.put("priceInMeter", d.isPriceInMeter());
+        return m;
+    }
+
     /** Constructions and colours per document, for a page of the list. */
     public Map<Long, Map<String, Object>> fabricSummaries(Collection<Long> documentIds) {
         return queries.fabricSummaries(documentIds);
@@ -100,6 +153,10 @@ public class ChainViews {
         out.put("batchClosed", d.isBatchClosed());
         out.put("remarks", d.getRemarks());
         out.put("revisionOfId", idOf(d.getRevisionOf()));
+        if (step == ChainStep.BPO) {
+            out.put("requirements", requirements(d));
+            if (parent != null) out.put("booking", bookingMaster(parent));
+        }
 
         boolean maker = AuthorityChecks.holds(step.authority("CREATE")) || AuthorityChecks.holds(step.authority("AMEND"));
         boolean amender = AuthorityChecks.holds(step.authority("AMEND"));

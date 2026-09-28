@@ -207,15 +207,13 @@ class BookingServiceSaveTest {
     }
 
     @Test
-    void aSingleColourFabricBookedInTwoColoursOnOneLineIsRefused() {
+    void aSolidDyedFabricTakesSeveralColoursOnOneLine() {
         BusinessDocument doc = newBooking();
         BusinessDocumentLineGroup group = spec(null, colour("Navy", "1000", "2"), colour("Black", "500", "2"));
         group.getFabric().setFabricType("Solid Dyed Spandex");
         doc.addLineGroup(group);
 
-        assertThatThrownBy(() -> service.save(doc))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Solid Dyed Spandex is a single-colour fabric");
+        assertThat(service.save(doc).getLineGroups().get(0).getColorLines()).hasSize(2);
     }
 
     @Test
@@ -245,16 +243,16 @@ class BookingServiceSaveTest {
     }
 
     @Test
-    void aSingleColourFabricTakesOneColourPerLineAndAMultiColourFabricTakesMany() {
+    void everyFabricTypeTakesAsManyColoursAsItsLineNeeds() {
         BusinessDocument doc = newBooking();
-        BusinessDocumentLineGroup solid = spec(null, colour("Navy", "1000", "2"));
+        BusinessDocumentLineGroup solid = spec(null, colour("Navy", "1000", "2"), colour("Olive", "800", "2"));
         solid.getFabric().setFabricType("Greige Solid Dyed Lungi");
         BusinessDocumentLineGroup print = spec(null, colour("Navy", "1000", "2"), colour("Black", "500", "2"));
         print.getFabric().setFabricType("Solid Dyed Print");
         doc.addLineGroup(solid);
         doc.addLineGroup(print);
 
-        assertThat(service.save(doc).getLineGroups()).hasSize(2);
+        assertThat(service.save(doc).getLineGroups()).extracting(g -> g.getColorLines().size()).containsExactly(2, 2);
     }
 
     @Test

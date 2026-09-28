@@ -59,6 +59,13 @@ public class DocumentRevisionService {
         revision.setGarmentsAddress(original.getGarmentsAddress());
         revision.setPreCostBuyer(original.getPreCostBuyer());
         revision.setPriceInMeter(original.isPriceInMeter());
+        revision.setInHouseTestReport(original.isInHouseTestReport());
+        revision.setInspectionReport(original.isInspectionReport());
+        revision.setDyeLotRequired(original.isDyeLotRequired());
+        revision.setTestFabrics(original.isTestFabrics());
+        revision.setBlanket(original.isBlanket());
+        revision.setHeadCutting(original.isHeadCutting());
+        revision.setPackingList(original.isPackingList());
         revision.setMarketingPerson(original.getMarketingPerson());
         revision.setProcessKind(original.getProcessKind());
         revision.setVendor(original.getVendor());

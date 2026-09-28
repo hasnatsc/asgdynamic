@@ -11,13 +11,30 @@ import java.util.List;
  * taken from the parent line it names, so buyer, team, fabric, colour and route are inherited,
  * never typed - an order cannot drift to another buyer or team mid-chain.
  *
- * @param groups production order only: the greige allowance the planner set per fabric line,
- *               keyed by the Booking fabric line it comes from
+ * @param groups       production order only: the greige allowance the planner set per fabric line,
+ *                     keyed by the Booking fabric line it comes from
+ * @param requirements production order only: what the buyer wants with the goods; null leaves them as they are
  */
 public record ChainDocumentRequest(Long id, LocalDate documentDate, LocalDate requiredDate, Long warehouseId,
                                    Long vendorId, ProcessKind processKind, String referenceNo, Long garmentsId,
                                    String garmentsAddress, String vehicleNo, String driverName, String remarks,
-                                   List<Line> lines, List<GroupSetting> groups) {
+                                   List<Line> lines, List<GroupSetting> groups, Requirements requirements) {
+
+    /** Without production order requirements - every step but the production order. */
+    public ChainDocumentRequest(Long id, LocalDate documentDate, LocalDate requiredDate, Long warehouseId,
+                                Long vendorId, ProcessKind processKind, String referenceNo, Long garmentsId,
+                                String garmentsAddress, String vehicleNo, String driverName, String remarks,
+                                List<Line> lines, List<GroupSetting> groups) {
+        this(id, documentDate, requiredDate, warehouseId, vendorId, processKind, referenceNo, garmentsId,
+            garmentsAddress, vehicleNo, driverName, remarks, lines, groups, null);
+    }
+
+    /**
+     * The production order's checkboxes, as the legacy BPO screen had them. Price in metre is not
+     * here: it is the booking's, because it says what unit the quantities are in.
+     */
+    public record Requirements(boolean inHouseTestReport, boolean inspectionReport, boolean dyeLot,
+                               boolean testFabrics, boolean blanket, boolean headCutting, boolean packingList) { }
 
     /**
      * One line, drawn on one parent line.

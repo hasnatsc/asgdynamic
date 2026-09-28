@@ -109,6 +109,54 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // =========================================================================================
+    // Production order: the booking's master data, and what the buyer wants with the goods
+    // =========================================================================================
+
+    /** The legacy BPO screen's checkboxes. Price in metre is the booking's - it says what unit the quantities are in. */
+    const REQUIREMENTS = [
+        ['inHouseTestReport', 'In-house test report'], ['inspectionReport', 'Inspection report'],
+        ['dyeLot', 'Dye lot'], ['testFabrics', 'Test fabrics'], ['blanket', 'Blanket'],
+        ['headCutting', 'Head cutting'], ['packingList', 'Packing list'], ['priceInMeter', 'Price in metre']
+    ];
+
+    /** The booking's header, read-only, on the production order raised on it. */
+    function bookingMasterHtml(b) {
+        if (!b) return '<p class="text-sm text-gray-500">Choose the booking to see its details.</p>';
+        const facts = [
+            ['Booking no', `<a class="card-link" href="/booking?open=${esc(b.id)}">${esc(b.documentNo || '')}</a>`, true],
+            ['Booking date', b.documentDate && fmt.date(b.documentDate)],
+            ['Delivery required', b.requiredDate && fmt.date(b.requiredDate)],
+            ['Booking type', b.bookingType],
+            ['Order type', b.orderType],
+            ['Buyer', b.buyer],
+            ['Brand', b.brand],
+            ['Garments', b.garmentsName],
+            ['Delivery address', b.garmentsAddress],
+            ['Business unit', b.businessUnit],
+            ['Marketing team', b.marketingTeam],
+            ['Marketing person', b.marketingPerson],
+            ['Pre-cost buyer', b.preCostBuyer],
+            ['Reference', b.referenceNo],
+            ['Currency', b.currency && `${b.currency}${b.exchangeRate && Number(b.exchangeRate) !== 1 ? ` @ ${num(b.exchangeRate)}` : ''}`],
+            ['Priced in', b.priceInMeter ? 'Metres' : 'Yards'],
+            ['Booked quantity', num(b.totalQuantity)],
+            ['Booked value', `${num(b.subtotalAmount)} ${esc(b.currency || '')}`, true],
+            ['Booking status', b.status]
+        ].filter(([, value]) => value != null && value !== '')
+            .map(([label, value, html]) => `<div><dt class="text-xs text-gray-500">${esc(label)}</dt>
+                <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">${html ? value : esc(value)}</dd></div>`).join('');
+        return `<dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3 lg:grid-cols-6">${facts}</dl>
+            ${b.remarks ? `<p class="mt-3 whitespace-pre-line text-sm text-gray-600 dark:text-gray-300"><span class="text-gray-500">Booking remarks:</span> ${esc(b.remarks)}</p>` : ''}`;
+    }
+
+    /** Ticked requirements as badges, for the viewer. */
+    function requirementsHtml(req) {
+        const on = REQUIREMENTS.filter(([key]) => req && req[key]);
+        return on.length ? on.map(([, label]) => `<span class="badge-brand">${esc(label)}</span>`).join(' ')
+            : '<span class="text-sm text-gray-500">None ticked.</span>';
+    }
+
+    // =========================================================================================
     // Viewer
     // =========================================================================================
 
@@ -151,6 +199,14 @@ document.addEventListener('DOMContentLoaded', () => {
             <section class="form-section"><dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3 lg:grid-cols-5">${facts}</dl>
                 ${doc.remarks ? `<p class="mt-4 whitespace-pre-line text-sm text-gray-600 dark:text-gray-300"><span class="text-gray-500">Remarks:</span> ${esc(doc.remarks)}</p>` : ''}
             </section>
+            ${STEP === 'BPO' ? `<section class="form-section">
+                <div class="form-section-head"><h3 class="form-section-title">Booking</h3></div>
+                ${bookingMasterHtml(doc.booking)}
+            </section>
+            <section class="form-section">
+                <div class="form-section-head"><h3 class="form-section-title">Requirements</h3></div>
+                <div class="flex flex-wrap gap-2">${requirementsHtml(doc.requirements)}</div>
+            </section>` : ''}
             <section class="form-section">
                 <div class="form-section-head"><h3 class="form-section-title">Lines</h3></div>
                 <div class="space-y-3">${groups || '<p class="text-sm text-gray-500">No lines.</p>'}</div>
@@ -366,6 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await this.addParent(presetParent, null, false);
                 const select = $('[name="parentId"]', headerEl);
                 if (select) App.RemoteSelect.of(select).setValue(presetParent);
+                if (STEP === 'BPO') await this.loadBooking(presetParent);
             }
             this.renderLines();
         },
@@ -395,6 +452,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 f.push(`<div class="sm:col-span-2"><label class="label" for="ceVendor">Vendor <span class="text-gray-400">(if subcontracted)</span></label>
                     <select id="ceVendor" class="field" name="vendorId" data-remote="/api/parties/lookup?role=SUPPLIER" data-allow-clear data-placeholder="In-house"></select></div>`);
             }
+            if (STEP === 'BPO') {
+                f.push(`<div class="sm:col-span-2"><label class="label" for="ceGarments">Garments</label>
+                    <select id="ceGarments" class="field" name="garmentsId" data-remote="/api/parties/lookup?role=GARMENT_FACTORY" data-allow-clear data-placeholder="Choose the garments…"></select>
+                    <p class="hint" data-garments-hint></p></div>`);
+                f.push(`<div class="sm:col-span-2"><label class="label" for="ceAddress">Delivery address</label><input id="ceAddress" class="field" name="garmentsAddress" maxlength="500" value="${esc(d.garmentsAddress || '')}"></div>`);
+                const req = d.requirements || {};
+                f.push(`<div class="sm:col-span-2 lg:col-span-4"><p class="mb-2 text-[13px] font-medium text-gray-700 dark:text-gray-200">Requirements</p>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">${REQUIREMENTS.map(([key, label]) => key === 'priceInMeter'
+                        ? `<label class="flex items-center gap-2 text-sm text-gray-500" title="From the booking: it says what unit the quantities are in">
+                            <input type="checkbox" class="checkbox" data-req="priceInMeter" disabled${req.priceInMeter ? ' checked' : ''}> ${esc(label)} <span class="text-xs">(booking)</span></label>`
+                        : `<label class="flex items-center gap-2 text-sm"><input type="checkbox" class="checkbox" data-req="${key}"${req[key] ? ' checked' : ''}> ${esc(label)}</label>`).join('')}
+                    </div></div>`);
+                f.push(`<div class="sm:col-span-2 lg:col-span-4 rounded-lg border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                    <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Booking</p>
+                    <div data-booking-master>${bookingMasterHtml(d.booking)}</div></div>`);
+            }
             if (STEP === 'RPI' || STEP === 'DO') {
                 f.push(`<div class="sm:col-span-2"><label class="label" for="ceGarments">Garments</label>
                     <select id="ceGarments" class="field" name="garmentsId" data-remote="/api/parties/lookup?role=GARMENT_FACTORY" data-allow-clear data-placeholder="As on the order"></select></div>`);
@@ -417,11 +490,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (doc && doc.parent) App.RemoteSelect.of(parent).setValue(doc.parent.id, doc.parent.documentNo);
             parent.addEventListener('change', () => {
                 if (!parent.value) return;
+                if (STEP === 'BPO') this.loadBooking(Number(parent.value));
                 this.addParent(Number(parent.value), App.RemoteSelect.of(parent).selected?.text, false).then(() => this.renderLines());
             });
             App.remoteSelects(headerEl);
             if (d.vendorId) App.RemoteSelect.of($('[name="vendorId"]', headerEl)).setValue(d.vendorId, d.vendorName);
             if (d.garmentsId && $('[name="garmentsId"]', headerEl)) App.RemoteSelect.of($('[name="garmentsId"]', headerEl)).setValue(d.garmentsId, d.garmentsName);
+            if (STEP === 'BPO') this.applyBooking(d.booking, doc ? 'keep' : 'fill');
 
             const kind = $('[name="processKind"]', headerEl);
             if (kind) kind.addEventListener('change', async () => {
@@ -447,6 +522,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 store.addEventListener('change', () => this.renderLines());
             }
+        },
+
+        /** The chosen booking's master data, shown read-only; its garments filled in, or left for entry. */
+        async loadBooking(id) {
+            const box = $('[data-booking-master]', headerEl);
+            if (box) box.innerHTML = '<p class="text-sm text-gray-500">Loading the booking…</p>';
+            try {
+                const booking = await api(`/api/bpo/booking-master/${id}`);
+                if (box) box.innerHTML = bookingMasterHtml(booking);
+                this.applyBooking(booking, 'fill');
+            } catch (error) {
+                if (box) box.innerHTML = bookingMasterHtml(null);
+                fail(error);
+            }
+        },
+
+        /**
+         * A booking that names the garments decides it, locked; one that does not leaves it blank for
+         * entry. 'fill' also takes the booking's delivery address; 'keep' leaves the saved one.
+         */
+        applyBooking(booking, mode) {
+            const select = $('[name="garmentsId"]', headerEl);
+            if (!select) return;
+            const hint = $('[data-garments-hint]', headerEl);
+            const address = $('[name="garmentsAddress"]', headerEl);
+            const pim = $('[data-req="priceInMeter"]', headerEl);
+            if (pim && booking) pim.checked = !!booking.priceInMeter;
+            const locked = !!(booking && booking.garmentsId);
+            if (locked) {
+                App.RemoteSelect.of(select).setValue(booking.garmentsId, booking.garmentsName);
+            } else if (mode === 'fill') {
+                App.RemoteSelect.of(select).setValue(null);
+            }
+            select.disabled = locked;              // the RemoteSelect follows its select
+            if (hint) hint.textContent = locked ? 'As on the booking.' : booking ? 'The booking names no garments - enter it here.' : '';
+            if (mode === 'fill' && address) address.value = booking && booking.garmentsAddress ? booking.garmentsAddress : '';
         },
 
         async addParent(id, label, keepPicks) {
@@ -573,6 +684,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 garmentsAddress: $('[name="garmentsAddress"]', headerEl) ? $('[name="garmentsAddress"]', headerEl).value : null,
                 vehicleNo: v('vehicleNo'), driverName: v('driverName'), remarks: v('remarks'),
                 lines,
+                requirements: STEP === 'BPO' ? Object.fromEntries(REQUIREMENTS.filter(([key]) => key !== 'priceInMeter')
+                    .map(([key]) => [key, !!$(`[data-req="${key}"]`, headerEl)?.checked])) : null,
                 groups: [...this.allowances.entries()].map(([id, pct]) => ({ sourceGroupId: Number(id), greigeAllowancePct: pct === '' ? null : Number(pct) }))
             };
         }

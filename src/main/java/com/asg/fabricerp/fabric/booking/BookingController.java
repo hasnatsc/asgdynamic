@@ -78,7 +78,6 @@ public class BookingController {
         model.addAttribute("orderTypes", OrderType.values());
         model.addAttribute("currencies", CURRENCIES);
         model.addAttribute("fabricSources", FABRIC_SOURCES);
-        model.addAttribute("singleColourFabricTypes", ColourStructure.SINGLE_COLOUR_TYPES);
         model.addAttribute("lightSourceTypes", LIGHT_SOURCE_TYPES);
         model.addAttribute("baseMaterials", BASE_MATERIALS);
         model.addAttribute("colorShades", BusinessDocumentColorLine.COLOR_SHADES);

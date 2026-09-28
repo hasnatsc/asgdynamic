@@ -180,6 +180,30 @@ public class BusinessDocument extends BaseOrgEntity {
     @Column(name = "price_in_meter", nullable = false)
     private Boolean priceInMeter = Boolean.FALSE;
 
+    // --- production order requirements (V35): what the buyer wants with the goods ---
+
+    @Column(name = "in_house_test_report", nullable = false)
+    private Boolean inHouseTestReport = Boolean.FALSE;
+
+    @Column(name = "inspection_report", nullable = false)
+    private Boolean inspectionReport = Boolean.FALSE;
+
+    /** Delivered dye lot by dye lot - not the lot itself, which is on each line. */
+    @Column(name = "dye_lot_required", nullable = false)
+    private Boolean dyeLotRequired = Boolean.FALSE;
+
+    @Column(name = "test_fabrics", nullable = false)
+    private Boolean testFabrics = Boolean.FALSE;
+
+    @Column(name = "blanket", nullable = false)
+    private Boolean blanket = Boolean.FALSE;
+
+    @Column(name = "head_cutting", nullable = false)
+    private Boolean headCutting = Boolean.FALSE;
+
+    @Column(name = "packing_list", nullable = false)
+    private Boolean packingList = Boolean.FALSE;
+
     /**
      * Never bound from JSON - a user row is not something a request body gets to describe.
      * The request names {@link #marketingPersonId}; {@link DocumentReferences} resolves it.
@@ -308,6 +332,20 @@ public class BusinessDocument extends BaseOrgEntity {
     public void setPreCostBuyer(String v)       { this.preCostBuyer = v; }
     public boolean isPriceInMeter()             { return Boolean.TRUE.equals(priceInMeter); }
     public void setPriceInMeter(Boolean v)      { this.priceInMeter = Boolean.TRUE.equals(v); }
+    public boolean isInHouseTestReport()        { return Boolean.TRUE.equals(inHouseTestReport); }
+    public void setInHouseTestReport(Boolean v) { this.inHouseTestReport = Boolean.TRUE.equals(v); }
+    public boolean isInspectionReport()         { return Boolean.TRUE.equals(inspectionReport); }
+    public void setInspectionReport(Boolean v)  { this.inspectionReport = Boolean.TRUE.equals(v); }
+    public boolean isDyeLotRequired()           { return Boolean.TRUE.equals(dyeLotRequired); }
+    public void setDyeLotRequired(Boolean v)    { this.dyeLotRequired = Boolean.TRUE.equals(v); }
+    public boolean isTestFabrics()              { return Boolean.TRUE.equals(testFabrics); }
+    public void setTestFabrics(Boolean v)       { this.testFabrics = Boolean.TRUE.equals(v); }
+    public boolean isBlanket()                  { return Boolean.TRUE.equals(blanket); }
+    public void setBlanket(Boolean v)           { this.blanket = Boolean.TRUE.equals(v); }
+    public boolean isHeadCutting()              { return Boolean.TRUE.equals(headCutting); }
+    public void setHeadCutting(Boolean v)       { this.headCutting = Boolean.TRUE.equals(v); }
+    public boolean isPackingList()              { return Boolean.TRUE.equals(packingList); }
+    public void setPackingList(Boolean v)       { this.packingList = Boolean.TRUE.equals(v); }
     public FabricUser getMarketingPerson()      { return marketingPerson; }
     public void setMarketingPerson(FabricUser v) { this.marketingPerson = v; }
     public Long getMarketingPersonId()          { return marketingPersonId; }

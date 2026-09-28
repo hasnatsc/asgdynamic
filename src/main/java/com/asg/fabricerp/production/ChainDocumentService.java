@@ -268,6 +268,9 @@ public class ChainDocumentService {
         } else if (step == ChainStep.GI || step == ChainStep.FFR) {
             doc.setProcessKind(parent.getProcessKind());
         }
+        if (step == ChainStep.BPO) {
+            applyBpoHeader(r, doc, parent);
+        }
         if (step == ChainStep.RPI || step == ChainStep.DO || step == ChainStep.FD) {
             if (r.garmentsId() != null) doc.setGarments(parties.requireHolder(r.garmentsId(), PartyRoleType.GARMENT_FACTORY));
             if (r.garmentsAddress() != null) doc.setGarmentsAddress(blank(r.garmentsAddress()));
@@ -276,6 +279,39 @@ public class ChainDocumentService {
             doc.setVehicleNo(blank(r.vehicleNo()));
             doc.setDriverName(blank(r.driverName()));
         }
+    }
+
+    /**
+     * A production order's garments is the booking's when the booking names one - the order cannot
+     * send the goods elsewhere - and otherwise whatever the planner enters. Its requirements are
+     * the planner's; price in metre stays the booking's (it says what unit the quantities are in).
+     */
+    private void applyBpoHeader(ChainDocumentRequest r, BusinessDocument doc, BusinessDocument booking) {
+        if (booking.getGarments() != null) {
+            doc.setGarments(booking.getGarments());
+        } else {
+            doc.setGarments(r.garmentsId() == null ? null : parties.requireHolder(r.garmentsId(), PartyRoleType.GARMENT_FACTORY));
+        }
+        if (r.garmentsAddress() != null) doc.setGarmentsAddress(blank(r.garmentsAddress()));
+        ChainDocumentRequest.Requirements q = r.requirements();
+        if (q != null) {
+            doc.setInHouseTestReport(q.inHouseTestReport());
+            doc.setInspectionReport(q.inspectionReport());
+            doc.setDyeLotRequired(q.dyeLot());
+            doc.setTestFabrics(q.testFabrics());
+            doc.setBlanket(q.blanket());
+            doc.setHeadCutting(q.headCutting());
+            doc.setPackingList(q.packingList());
+        }
+    }
+
+    /** The booking a production order is raised on, as the order's editor shows it. */
+    @Transactional(readOnly = true)
+    public BusinessDocument bookingForBpo(Long bookingId) {
+        return repository.findScopedWithLines(bookingId, context.requireOrganizationId())
+            .filter(d -> d.getDocumentType() == ChainStep.BPO.parentType())
+            .filter(d -> d.isVisibleTo(context.requireRowScope()))
+            .orElseThrow(() -> new IllegalArgumentException("Booking not found: " + bookingId));
     }
 
     private List<BusinessDocumentLineGroup> buildGroups(ChainStep step, ChainDocumentRequest r, BusinessDocument doc,
