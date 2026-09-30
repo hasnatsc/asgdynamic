@@ -409,6 +409,12 @@
   .kpi-value  { @apply text-2xl font-semibold tabular-nums tracking-tight text-gray-900; }
   .kpi-label  { @apply text-[13px] font-medium text-gray-500; }
   .kpi-meta   { @apply text-xs text-gray-500; }
+  /* A document list's status tiles (App.DocumentScreen): the left rule is the status family's colour. */
+  .kpi[data-tone] { @apply border-l-[3px]; }
+  .kpi[data-tone="gray"]    { @apply border-l-gray-300; }
+  .kpi[data-tone="amber"]   { @apply border-l-amber-400; }
+  .kpi[data-tone="sky"]     { @apply border-l-sky-400; }
+  .kpi[data-tone="emerald"] { @apply border-l-emerald-500; }
 
   /* ---- Document status: the ONE mapping of BusinessDocumentStatus to colour -------------- */
   /* <span class="badge" data-status="APPROVED">, rendered by fragments/ui :: status and      */
@@ -962,6 +968,10 @@
   .dark .an-delta[data-tone="bad"]  { @apply text-red-400; }
   .dark .an-legend          { @apply text-gray-300; }
   .dark .card, .dark .kpi   { @apply border-gray-800 bg-gray-900; }
+  .dark .kpi[data-tone="gray"]    { @apply border-l-gray-600; }
+  .dark .kpi[data-tone="amber"]   { @apply border-l-amber-500; }
+  .dark .kpi[data-tone="sky"]     { @apply border-l-sky-500; }
+  .dark .kpi[data-tone="emerald"] { @apply border-l-emerald-500; }
   .dark .profile-photo      { @apply ring-gray-900; }
   .dark .pd-node, .dark .pd-card { @apply border-gray-700 bg-gray-900; }
   .dark .app-section-title { @apply after:bg-gray-800; }

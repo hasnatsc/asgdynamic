@@ -143,9 +143,12 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
             pageable);
     }
 
-    /** Use {@link #search} — this is its query, with the scope already unpacked. */
-    @Query("""
-           select d from BusinessDocument d
+    /**
+     * The list screens' filter: {@link #searchWithin} pages it and {@link #statusTotalsWithin}
+     * counts it, so a status chip's count is always the number of rows that chip lists.
+     */
+    String LIST_FILTER = """
+           from BusinessDocument d
            where d.organizationId = :orgId
              and d.businessUnit.id = :unitId
              and d.documentType = :type
@@ -161,7 +164,10 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
                   or d.toWarehouse.id in :warehouseIds)
              and (:allTeams = true or d.marketingTeam.id in :teamIds)
              and (:createdBy is null or d.createdBy = :createdBy)
-           """)
+           """;
+
+    /** Use {@link #search} — this is its query, with the scope already unpacked. */
+    @Query("select d " + LIST_FILTER)
     Page<BusinessDocument> searchWithin(@Param("orgId") Long orgId,
                                         @Param("unitId") Long unitId,
                                         @Param("type") DocumentType type,
@@ -177,6 +183,46 @@ public interface BusinessDocumentRepository extends JpaRepository<BusinessDocume
                                         @Param("allTeams") boolean allTeams,
                                         @Param("teamIds") List<Long> teamIds,
                                         Pageable pageable);
+
+    /**
+     * What a list screen holds, by status: the documents {@link #search} would list with every
+     * filter but status applied, counted and totalled. One grouped query, for the screen's KPI
+     * tiles and status chips.
+     */
+    default List<DocumentStatusTotal> statusTotals(Long orgId, Long unitId, DocumentType type,
+                                                   LocalDate from, LocalDate to, String q,
+                                                   RowScope scope, String createdBy, LocalDate today) {
+        return statusTotalsWithin(orgId, unitId, type, null, from, to, q, createdBy,
+            !scope.restricts(ScopeDimension.BUSINESS_UNIT),
+            scope.idsForQuery(ScopeDimension.BUSINESS_UNIT),
+            !scope.restricts(ScopeDimension.WAREHOUSE),
+            scope.idsForQuery(ScopeDimension.WAREHOUSE),
+            !scope.restricts(ScopeDimension.MARKETING_TEAM),
+            scope.idsForQuery(ScopeDimension.MARKETING_TEAM),
+            today);
+    }
+
+    /** Use {@link #statusTotals} — this is its query, with the scope already unpacked. */
+    @Query("""
+           select new com.asg.fabricerp.global.documents.DocumentStatusTotal(
+                    d.status, count(d), sum(d.totalQuantity), sum(d.subtotalAmount * d.exchangeRate),
+                    sum(case when d.requiredDate < :today then 1 else 0 end))
+           """ + LIST_FILTER + " group by d.status")
+    List<DocumentStatusTotal> statusTotalsWithin(@Param("orgId") Long orgId,
+                                                 @Param("unitId") Long unitId,
+                                                 @Param("type") DocumentType type,
+                                                 @Param("status") BusinessDocumentStatus status,
+                                                 @Param("from") LocalDate from,
+                                                 @Param("to") LocalDate to,
+                                                 @Param("q") String q,
+                                                 @Param("createdBy") String createdBy,
+                                                 @Param("allUnits") boolean allUnits,
+                                                 @Param("unitIds") List<Long> unitIds,
+                                                 @Param("allWarehouses") boolean allWarehouses,
+                                                 @Param("warehouseIds") List<Long> warehouseIds,
+                                                 @Param("allTeams") boolean allTeams,
+                                                 @Param("teamIds") List<Long> teamIds,
+                                                 @Param("today") LocalDate today);
 
     /** Revision chain for a document, newest first. */
     @Query("""

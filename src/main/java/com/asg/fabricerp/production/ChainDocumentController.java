@@ -6,6 +6,7 @@ import com.asg.fabricerp.common.Warehouse;
 import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.global.documents.DocumentStatusTotal;
 import com.asg.fabricerp.global.documents.ProcessKind;
 import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
@@ -114,6 +115,18 @@ public class ChainDocumentController {
             row.put("colourCount", f.get("colourCount"));
             return row;
         });
+    }
+
+    /** The grid's documents by status, under the same search and dates: the list's tiles and chips. */
+    @GetMapping("/api/{slug:" + SLUGS + "}/summary")
+    @ResponseBody
+    @PreAuthorize("@chainAccess.can(#slug, 'VIEW')")
+    public List<DocumentStatusTotal> summary(
+            @PathVariable String slug,
+            @RequestParam(name = "search[value]", required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return documents.statusTotals(ChainStep.ofSlug(slug), from, to, DataTableRequest.searchOrNull(search));
     }
 
     @GetMapping("/api/{slug:" + SLUGS + "}/{id:\\d+}")

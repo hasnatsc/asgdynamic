@@ -583,7 +583,8 @@
      *   columns: [row => html, ...],        // one per <th>; return escaped HTML
      *   search, pager,                      // optional <input> and container element
      *   params: () => ({status: 'LOCKED'}), // extra filters, read on each load
-     *   sort: {column, dir}, pageSize, emptyText, onRowClick(row, event)
+     *   sort: {column, dir}, pageSize, emptyText, onRowClick(row, event),
+     *   onReload()                          // each reload: filters, sort or a caller's refresh - not paging
      * })
      *
      * Every response carries the draw it answers, and one that is not the latest is dropped - a
@@ -640,7 +641,16 @@
 
         reload(resetPage) {
             if (resetPage) this.start = 0;
+            if (this.opts.onReload) this.opts.onReload();
             return this.load();
+        }
+
+        /** The query load() sends, less paging - for an export or a summary of the same rows. */
+        query() {
+            return Object.assign({
+                'search[value]': this.opts.search ? this.opts.search.value.trim() : '',
+                sortColumn: this.sort.column, sortDir: this.sort.dir
+            }, this.opts.params ? this.opts.params() : {});
         }
 
         renderSortIndicators() {
@@ -667,13 +677,9 @@
             const draw = ++this.draw;
             this.renderSortIndicators();
             this.renderLoading();
-            const extra = this.opts.params ? this.opts.params() : {};
             try {
-                const data = await api(this.opts.url, { query: Object.assign({
-                    draw, start: this.start, length: this.pageSize,
-                    'search[value]': this.opts.search ? this.opts.search.value.trim() : '',
-                    sortColumn: this.sort.column, sortDir: this.sort.dir
-                }, extra) });
+                const data = await api(this.opts.url, { query: Object.assign(
+                    { draw, start: this.start, length: this.pageSize }, this.query()) });
                 if (draw !== this.draw) return;            // superseded by a newer request
                 this.rows = data.data || [];
                 this.total = data.recordsFiltered || 0;
@@ -1358,8 +1364,12 @@
     function status(value) {
         if (!value) return '';
         const name = String(value);
-        const label = name.charAt(0) + name.slice(1).toLowerCase().replace(/_/g, ' ');
-        return `<span class="badge" data-status="${esc(name)}">${esc(label)}</span>`;
+        return `<span class="badge" data-status="${esc(name)}">${esc(statusLabel(name))}</span>`;
+    }
+
+    /** "READY_TO_POST" -> "Ready to post": BusinessDocumentStatus.label()'s rule. */
+    function statusLabel(name) {
+        return name.charAt(0) + name.slice(1).toLowerCase().replace(/_/g, ' ');
     }
 
     /** status() with a leading dot, for grids and the review drawer. */
@@ -1560,6 +1570,12 @@
      * new App.DocumentScreen({ kind: 'Booking', api: '/api/booking', table: 'bookingTable',
      *                          form: 'bookingForm', revise: true })
      *
+     * Above the table, from {api}/summary under the same search and dates: status tiles, and a
+     * chip per status in use that filters the list (they stand in for the status select, which
+     * keeps the value). valueLabel: 'Value (BDT)' adds the approved documents' value as a tile -
+     * only where every document carries a real rate to taka. summary: false leaves both out.
+     * An Export button downloads every row the filters select as CSV.
+     *
      * Submit / approve / reject call /api/documents/{id}/…; the server decides who may (four-eyes
      * rule included) and its refusal is shown as-is.
      */
@@ -1569,7 +1585,11 @@
             const table = document.getElementById(opts.table);
             const root = table.closest('[data-doc-screen]') || document;
             const cols = [...table.querySelectorAll('thead th')].map(th => ({ key: th.dataset.col, format: th.dataset.format }));
+            this.columns = [...table.querySelectorAll('thead th')]
+                .map(th => ({ key: th.dataset.col, format: th.dataset.format, label: th.textContent.trim() }))
+                .filter(col => col.key);
             const filter = name => root.querySelector(`[data-filter="${name}"]`);
+            this.statusFilter = filter('status');
 
             this.grid = new Grid({
                 url: opts.api, table,
@@ -1580,8 +1600,11 @@
                 emptyIcon: 'document',
                 params: () => ({ status: filter('status')?.value, from: filter('from')?.value, to: filter('to')?.value }),
                 columns: cols.map(col => row => this.cell(row, col)),
-                onRowClick: row => this.open(row.id)
+                onRowClick: row => this.open(row.id),
+                onReload: () => this.loadSummary()
             });
+            if (root !== document && opts.summary !== false && this.statusFilter) this.buildSummary(root);
+            if (root !== document) this.buildExport(root);
             table.addEventListener('click', event => {
                 const btn = event.target.closest('[data-open]');
                 if (btn) this.open(Number(btn.dataset.open));
@@ -1611,6 +1634,124 @@
                     form.hidden = true;
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }));
+            }
+        }
+
+        buildSummary(root) {
+            this.kpis = document.createElement('div');
+            this.kpis.className = 'mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4';
+            root.before(this.kpis);
+            this.chips = document.createElement('div');
+            this.chips.className = 'toolbar';
+            this.chips.setAttribute('role', 'group');
+            this.chips.setAttribute('aria-label', 'Filter by status');
+            (root.querySelector('.toolbar') || root.firstElementChild).before(this.chips);
+            this.statusFilter.hidden = true;
+            this.summaryUrl = `${this.opts.api}/summary`;
+            this.summaryDraw = 0;
+            this.chips.addEventListener('click', event => {
+                const chip = event.target.closest('[data-chip]');
+                if (!chip || chip.getAttribute('aria-pressed') === 'true') return;
+                this.statusFilter.value = chip.dataset.chip;
+                if (this.totals) this.renderSummary(this.totals);   // pressed now, counts when they arrive
+                this.grid.reload(true);
+            });
+        }
+
+        /** Every reload asks again: a search, new dates or an approval all move the counts. */
+        async loadSummary() {
+            if (!this.summaryUrl) return;
+            const draw = ++this.summaryDraw;
+            const query = this.grid.query();
+            ['status', 'sortColumn', 'sortDir'].forEach(key => delete query[key]);
+            try {
+                const totals = await api(this.summaryUrl, { query });
+                if (draw === this.summaryDraw) this.renderSummary(totals || []);
+            } catch (error) {
+                // Without counts the chips would lie; the select still filters.
+                if (draw !== this.summaryDraw) return;
+                this.kpis.hidden = this.chips.hidden = true;
+                this.statusFilter.hidden = false;
+            }
+        }
+
+        renderSummary(totals) {
+            this.totals = totals;
+            const by = Object.fromEntries(totals.map(t => [t.status, t]));
+            const count = (...statuses) => statuses.reduce((n, s) => n + (by[s] ? Number(by[s].documents) : 0), 0);
+            const sumOf = (key, statuses) => statuses.reduce((n, s) => n + (by[s] ? Number(by[s][key]) || 0 : 0), 0);
+            const all = totals.reduce((n, t) => n + Number(t.documents), 0);
+            const current = this.statusFilter.value;
+            this.kpis.hidden = this.chips.hidden = false;
+
+            // A chip per status in use, in lifecycle order - and the chosen one even when it has emptied.
+            const chip = (value, label, n) => `<button type="button" class="chip" data-chip="${esc(value)}"
+                aria-pressed="${value === current}">${esc(label)} <span class="chip-count">${formatNumber(n)}</span></button>`;
+            this.chips.innerHTML = chip('', 'All', all) + [...this.statusFilter.options].map(o => o.value)
+                .filter(s => s && (by[s] || s === current)).map(s => chip(s, statusLabel(s), count(s))).join('');
+
+            const open = ['APPROVED', 'PARTIAL', 'PROCESSING'];
+            const overdue = sumOf('overdue', open);
+            const drafts = count('DRAFT');
+            const ready = count('READY_TO_POST');
+            const tile = (label, value, meta, tone) => `<div class="kpi" data-tone="${tone}">
+                <span class="kpi-label">${esc(label)}</span><span class="kpi-value">${esc(value)}</span>
+                <span class="kpi-meta">${meta}</span></div>`;
+            this.kpis.innerHTML = [
+                tile('Documents', formatNumber(all), `${formatNumber(drafts)} ${drafts === 1 ? 'draft' : 'drafts'} not yet submitted`, 'gray'),
+                tile('Awaiting approval', formatNumber(count('SUBMITTED')),
+                    ready ? `${formatNumber(ready)} approved, waiting to be posted` : 'With their approvers', 'amber'),
+                tile('Open', formatNumber(count(...open)), overdue
+                    ? `<span class="font-medium text-red-700 dark:text-red-400">${formatNumber(overdue)} past the required date</span>`
+                    : 'Approved, not yet completed', 'sky'),
+                this.opts.valueLabel
+                    ? tile(this.opts.valueLabel, fmt.money(sumOf('value', [...open, 'COMPLETED', 'CLOSED'])),
+                        'Approved documents, at their rate to taka', 'emerald')
+                    : tile('Completed', formatNumber(count('COMPLETED', 'CLOSED')),
+                        `${formatNumber(count('CANCELLED', 'REJECTED'))} cancelled or rejected`, 'emerald')
+            ].join('');
+        }
+
+        /** Beside Reset: every row the filters select, sorted as shown, with the columns shown. */
+        buildExport(root) {
+            const bar = root.querySelector('.toolbar:not([role="group"])');
+            if (!bar) return;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn-subtle';
+            button.innerHTML = `${icon('download')}Export`;
+            const reset = bar.querySelector('[data-filter-reset]');
+            if (reset) reset.after(button); else bar.append(button);
+            button.addEventListener('click', () => this.exportCsv(button));
+        }
+
+        async exportCsv(button) {
+            const LIMIT = 5000, PAGE = 500;
+            button.disabled = true;
+            try {
+                const query = this.grid.query();
+                const rows = [];
+                let total = 0;
+                for (let start = 0; start < LIMIT; start += PAGE) {
+                    const page = await api(this.opts.api, { query: Object.assign({ draw: 1, start, length: PAGE }, query) });
+                    const data = page.data || [];
+                    total = page.recordsFiltered || 0;
+                    rows.push(...data);
+                    if (!data.length || rows.length >= total) break;
+                }
+                const value = (row, col) => {
+                    const v = row[col.key];
+                    return col.format === 'status' && v ? statusLabel(String(v)) : v;
+                };
+                const cols = this.columns.filter(col => col.format !== 'actions');
+                downloadCsv(`${this.opts.kind} ${new Date().toISOString().slice(0, 10)}.csv`,
+                    [cols.map(col => col.label), ...rows.map(row => cols.map(col => value(row, col)))]);
+                toast(rows.length < total ? `Exported the first ${formatNumber(rows.length)} of ${formatNumber(total)} rows - narrow the filters for the rest.`
+                    : `Exported ${formatNumber(rows.length)} ${rows.length === 1 ? 'row' : 'rows'}.`, rows.length < total ? 'warn' : undefined);
+            } catch (error) {
+                fail(error);
+            } finally {
+                button.disabled = false;
             }
         }
 

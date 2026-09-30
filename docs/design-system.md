@@ -146,6 +146,19 @@ One page per document type: the **register** (archetype A) wired by `App.Documen
                                  form: 'bookingForm', revise: true })</script>
 ```
 
+`DocumentScreen` adds the rest of the register itself, from `GET {api}/summary` (the list's
+documents by status under the same search and dates - `BusinessDocumentRepository.statusTotals`,
+which shares the list's `LIST_FILTER`, so a count is always the rows it lists):
+- **status tiles** above the card - Documents (drafts), Awaiting approval (ready to post), Open
+  (past the required date, in red), and Completed or, with `valueLabel: 'Value (BDT)'`, the
+  approved value. Pass `valueLabel` only where every document carries a real rate to taka
+  (purchase documents do; bookings don't);
+- **status chips** with counts, one per status in use, which replace the status `<select>` (it
+  stays in the toolbar, hidden, holding the value; it comes back if the summary fails);
+- an **Export** button beside Reset: every row the filters select, up to 5,000, as CSV.
+`summary: false` leaves the tiles and chips out. A new document controller exposes
+`{api}/summary` beside its grid, under the same `@PreAuthorize`.
+
 The **drawer** (`<dialog class="drawer">`) shows the workflow rail, header facts, spec cards with
 their colour lines, the approval history (`/api/documents/{id}/history`) and the actions the status
 allows. It reads the type's `GET {api}/{id}` payload, so a new document type needs no drawer code.
@@ -263,7 +276,7 @@ the only signal** — badges always carry text.
 | Tabs | `.tabs` / `.tab[role=tab]` + `[data-panel]`, `App.tabs(root)` | Count badges in tab labels. |
 | Empty | `.empty` + `.empty-icon` `.empty-title` `.empty-text` (`.empty-state` alias) | Say why it's empty and what to do next. `App.Grid` renders it (`emptyText`, `emptyIcon`). |
 | Loading | `.skeleton` (Grid does this) | No spinners over whole pages. |
-| KPI | `.kpi` `.kpi-icon` `.kpi-label` `.kpi-value` `.kpi-meta` | Always a link. |
+| KPI | `.kpi` `.kpi-icon` `.kpi-label` `.kpi-value` `.kpi-meta`; `.kpi[data-tone=gray\|amber\|sky\|emerald]` | Always a link - except a document list's status tiles (`data-tone`), which sit on the list they count; the chips under them filter. |
 | Menus | `details[data-menu]` + `.menu` `.menu-item` (`-danger`) | Closes on outside click. |
 | View switch | `.segmented` | Inside toolbars, instead of tabs. |
 | Flow | `.flow` `.flow-stage` (`is-live`) | Dashboard process strip. |

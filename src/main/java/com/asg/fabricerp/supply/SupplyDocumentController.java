@@ -5,6 +5,7 @@ import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.WarehouseRepository;
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.global.documents.DocumentStatusTotal;
 import com.asg.fabricerp.global.documents.PurchaseType;
 import com.asg.fabricerp.global.documents.RequisitionType;
 import com.asg.fabricerp.inventory.item.ItemType;
@@ -126,6 +127,18 @@ public class SupplyDocumentController {
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
         var page = documents.search(step, status, from, to, request.searchOrNull(), request.toPageable(SORTABLE, "documentDate"));
         return DataTableResponse.from(draw, page, views::gridRow);
+    }
+
+    /** The grid's documents by status, under the same search and dates: the list's tiles and chips. */
+    @GetMapping("/api/{slug:" + SLUGS + "}/summary")
+    @ResponseBody
+    @PreAuthorize("@supplyAccess.can(#slug, 'VIEW')")
+    public List<DocumentStatusTotal> summary(
+            @PathVariable String slug,
+            @RequestParam(name = "search[value]", required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return documents.statusTotals(SupplyStep.ofSlug(slug), from, to, DataTableRequest.searchOrNull(search));
     }
 
     @GetMapping("/api/{slug:" + SLUGS + "}/{id:\\d+}")

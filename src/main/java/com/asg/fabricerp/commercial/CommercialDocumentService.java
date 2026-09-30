@@ -86,6 +86,13 @@ public class CommercialDocumentService {
             step.type(), status, from, to, query, context.requireRowScope(), pageable);
     }
 
+    /** {@link #search}'s documents by status, for the list's KPI tiles and status chips. */
+    @Transactional(readOnly = true)
+    public List<DocumentStatusTotal> statusTotals(CommercialStep step, LocalDate from, LocalDate to, String query) {
+        return repository.statusTotals(context.requireOrganizationId(), context.requireBusinessUnitId(),
+            step.type(), from, to, query, context.requireRowScope(), null, LocalDate.now());
+    }
+
     @Transactional(readOnly = true)
     public BusinessDocument get(CommercialStep step, Long id) {
         return repository.findScopedWithLines(id, context.requireOrganizationId())

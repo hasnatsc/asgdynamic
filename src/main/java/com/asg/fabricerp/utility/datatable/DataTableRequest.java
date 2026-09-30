@@ -35,7 +35,12 @@ public record DataTableRequest(
 
     /** Null when absent, so a repository can treat it as "no filter". */
     public String searchOrNull() {
-        return hasSearch() ? searchValue.trim() : null;
+        return searchOrNull(searchValue);
+    }
+
+    /** The same, for an endpoint that filters as a grid does without paging (a list's status totals). */
+    public static String searchOrNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

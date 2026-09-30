@@ -6,6 +6,7 @@ import com.asg.fabricerp.global.documents.BookingType;
 import com.asg.fabricerp.global.documents.BusinessDocument;
 import com.asg.fabricerp.global.documents.BusinessDocumentColorLine;
 import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.global.documents.DocumentStatusTotal;
 import com.asg.fabricerp.global.documents.OrderType;
 import com.asg.fabricerp.security.AuthorityChecks;
 import com.asg.fabricerp.utility.datatable.DataTableRequest;
@@ -110,6 +111,17 @@ public class BookingController {
             request.toPageable(SORTABLE, "documentDate"));
 
         return DataTableResponse.from(draw, page, row -> row);
+    }
+
+    /** The grid's bookings by status, under the same search and dates: the list's tiles and chips. */
+    @GetMapping("/api/booking/summary")
+    @ResponseBody
+    @PreAuthorize("hasAuthority('SCREEN_BOOKING_VIEW')")
+    public List<DocumentStatusTotal> summary(
+            @RequestParam(name = "search[value]", required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.statusTotals(from, to, DataTableRequest.searchOrNull(search));
     }
 
     @GetMapping("/api/booking/{id}")

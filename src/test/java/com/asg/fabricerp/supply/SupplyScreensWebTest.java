@@ -3,6 +3,8 @@ package com.asg.fabricerp.supply;
 import com.asg.fabricerp.common.BusinessUnitRepository;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.WarehouseRepository;
+import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
+import com.asg.fabricerp.global.documents.DocumentStatusTotal;
 import com.asg.fabricerp.security.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +35,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -133,6 +138,28 @@ class SupplyScreensWebTest {
         mvc.perform(post("/api/mrr/5/post").with(signedIn(viewer)).with(csrf())).andExpect(status().isForbidden());
         mvc.perform(post("/api/stock/periods/2026-01/reopen").with(signedIn(viewer)).with(csrf())).andExpect(status().isForbidden());
         verifyNoInteractions(documents, posting, periods);
+    }
+
+    @Test
+    void summaryCountsTheListByStatusUnderTheSameFiltersAndItsScreensGuard() throws Exception {
+        when(documents.statusTotals(SupplyStep.PO, LocalDate.of(2026, 9, 1), null, "PO-2026"))
+            .thenReturn(List.of(
+                new DocumentStatusTotal(BusinessDocumentStatus.APPROVED, 3L, new BigDecimal("140"), new BigDecimal("5800.00"), 1L),
+                new DocumentStatusTotal(BusinessDocumentStatus.DRAFT, 2L, null, null, null)));
+
+        mvc.perform(get("/api/purchase-order/summary").with(signedIn(viewer))
+                .param("search[value]", "  PO-2026 ").param("from", "2026-09-01"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].status").value("APPROVED"))
+            .andExpect(jsonPath("$[0].documents").value(3))
+            .andExpect(jsonPath("$[0].value").value(5800.00))
+            .andExpect(jsonPath("$[0].overdue").value(1))
+            // A sum over no values reads as zero, not null.
+            .andExpect(jsonPath("$[1].quantity").value(0))
+            .andExpect(jsonPath("$[1].overdue").value(0));
+
+        mvc.perform(get("/api/purchase-order/summary").with(signedIn(storeKeeper))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/material-issue/summary").with(signedIn(storeKeeper))).andExpect(status().isOk());
     }
 
     private static FabricUser user(Long id, String name, Role role) {

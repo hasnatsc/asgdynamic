@@ -105,6 +105,13 @@ public class BookingService {
             TYPE, status, from, to, query, context.requireRowScope(), currentUsername(), pageable);
     }
 
+    /** {@link #search}'s bookings by status - the same user's, when search narrows to them. */
+    @Transactional(readOnly = true)
+    public List<DocumentStatusTotal> statusTotals(LocalDate from, LocalDate to, String query) {
+        return repository.statusTotals(context.requireOrganizationId(), context.requireBusinessUnitId(),
+            TYPE, from, to, query, context.requireRowScope(), currentUsername(), LocalDate.now());
+    }
+
     /** The grid's rows, mapped inside the transaction because they name the buyer and garments. */
     @Transactional(readOnly = true)
     public Page<Map<String, Object>> searchRows(BusinessDocumentStatus status,

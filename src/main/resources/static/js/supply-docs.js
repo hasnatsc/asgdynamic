@@ -32,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const screen = new App.DocumentScreen({
         kind: CFG.label, api: CFG.api, table: 'supplyTable', revise: false,
+        // A priced purchase document always carries its rate to taka (SupplyDocumentService.save).
+        valueLabel: CFG.priced && STEP !== 'SA' ? 'Value (BDT)' : null,
         canEdit: CFG.canCreate || CFG.canAmend, onEdit: doc => editor.open(doc), onView: view
     });
     // After the screen, which has read ?open= already; the page's address then becomes the list's.
