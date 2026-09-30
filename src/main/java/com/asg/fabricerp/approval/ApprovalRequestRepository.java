@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,22 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     Optional<ApprovalRequest> findFirstByDocumentIdOrderByIdDesc(Long documentId);
 
     boolean existsByMatrixId(Long matrixId);
+
+    /** Pending requests whose level's reminder is due and not yet sent - the deadline job, oldest first. */
+    @Query("""
+           select r.id from ApprovalRequest r
+           where r.pending = true and r.levelReminded = false and r.levelRemindAt <= :now
+           order by r.levelRemindAt
+           """)
+    List<Long> findRemindersDue(@Param("now") LocalDateTime now, Pageable pageable);
+
+    /** Pending requests whose level's time has run out and whose action is not yet taken. */
+    @Query("""
+           select r.id from ApprovalRequest r
+           where r.pending = true and r.levelTimedOut = false and r.levelDueAt <= :now
+           order by r.levelDueAt
+           """)
+    List<Long> findTimeoutsDue(@Param("now") LocalDateTime now, Pageable pageable);
 
     /**
      * The centralised inbox: every pending request in the unit whose CURRENT level waits for this

@@ -9,6 +9,10 @@ public enum ApprovalAction {
     /** Sent back to the maker as a draft to correct - asfl-erp's RETURNED. */
     RETURNED,
     REJECTED,
+    /** A level's time limit ran out and it was handed to its escalation role or person. */
+    ESCALATED,
+    /** A level's time limit ran out; it is still waiting for the same approver. */
+    OVERDUE,
     /** A store document posted to the stock ledger in one step - it is not approved, it happened. */
     POSTED,
     /** Cancelled with a reason; a posted document's stock moves are reversed. */

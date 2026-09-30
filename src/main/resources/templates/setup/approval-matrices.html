@@ -5,8 +5,10 @@
 
   One matrix per document type in this business unit, plus optionally one per marketing team; a
   team's own matrix governs its documents, the unit-wide one everybody else's. Levels are signed in
-  order, each by a role or one named person, optionally only within an amount band. A document type
-  with no matrix is approved as before: one signature, anyone with Approve on its screen.
+  order, each by a role or one named person, optionally only within an amount band, and optionally
+  within a time frame - after which the level is flagged overdue, escalated, or decided by the
+  system (ApprovalDeadlineJob). A document type with no matrix is approved as before: one
+  signature, anyone with Approve on its screen.
 -->
 <head>
     <title>Approval matrices</title>
@@ -46,7 +48,7 @@
                     <th data-sort="documentType">Document</th>
                     <th>Applies to</th>
                     <th data-sort="name">Name</th>
-                    <th>Signatures</th>
+                    <th>Signatures and time frames</th>
                     <th data-sort="active">Status</th>
                     <th class="w-px">Actions</th>
                 </tr>
@@ -103,7 +105,8 @@
                     <div class="form-section-head">
                         <div>
                             <h3 class="form-section-title">Signatures, in order</h3>
-                            <p class="form-section-sub">Each level is a role (anyone holding it) or one named person. A band limits a level to documents whose total falls inside it.</p>
+                            <p class="form-section-sub">Each level is a role (anyone holding it) or one named person. A band limits a level to documents whose total falls inside it.
+                                A time frame says how long the level may wait: its approvers are reminded when three quarters of it has gone, and when it runs out the action you choose is taken and everyone concerned is notified.</p>
                         </div>
                         <button type="button" class="btn-subtle btn-sm text-brand-700" data-action="level-add" data-view-hide>
                             <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>Add level</button>
@@ -120,7 +123,7 @@
                                 <th class="w-px"></th>
                             </tr>
                             </thead>
-                            <tbody></tbody>
+                            <!-- one <tbody data-level> per level: the signature, then its time frame -->
                         </table>
                     </div>
                 </section>

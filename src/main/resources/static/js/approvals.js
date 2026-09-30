@@ -17,9 +17,26 @@
             <span class="text-xs text-gray-500">${esc(r.documentTypeLabel)}</span></div>`;
     const openLink = r => r.screenPath
         ? `<a class="btn-ghost btn-sm" href="${esc(r.screenPath)}?open=${esc(r.documentId)}">${App.icon('eye')}Open</a>` : '';
+    /** The level's time frame: "Due in 5 hours", "Overdue by 2 days", and whether it was escalated. */
+    function dueCell(r) {
+        if (!r.pending || (!r.dueAt && !r.escalated)) return '';
+        const parts = [];
+        if (r.escalated) parts.push(`<span class="badge-amber">${App.icon('escalate', 'h-3 w-3')}Escalated</span>`);
+        if (r.dueAt) {
+            const ms = new Date(r.dueAt).getTime() - Date.now();
+            const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'always' });
+            const abs = Math.abs(ms) / 60000;
+            const [value, unit] = abs >= 2880 ? [abs / 1440, 'day'] : abs >= 120 ? [abs / 60, 'hour'] : [Math.max(1, abs), 'minute'];
+            const rel = rtf.format(Math.round(ms < 0 ? -value : value), unit);
+            parts.push(ms < 0
+                ? `<span class="badge-red" title="Was due ${esc(App.fmt.dateTime(r.dueAt))}">${App.icon('alert', 'h-3 w-3')}Overdue · due ${esc(rel)}</span>`
+                : `<span class="${ms < 3 * 3600000 ? 'badge-amber' : 'badge-gray'}" title="Due ${esc(App.fmt.dateTime(r.dueAt))}">${App.icon('clock', 'h-3 w-3')}Due ${esc(rel)}</span>`);
+        }
+        return `<span class="mt-1 flex flex-wrap gap-1">${parts.join('')}</span>`;
+    }
     const levelCell = r => `<div class="flex flex-col">
             <span class="font-medium tabular-nums">${r.totalLevels > 1 ? `Level ${esc(r.level)} of ${esc(r.totalLevels)}` : 'Single level'}</span>
-            <span class="text-xs text-gray-500">${esc(r.scope)}${r.approver ? ' · ' + esc(r.approver) : ''}</span></div>`;
+            <span class="text-xs text-gray-500">${esc(r.scope)}${r.approver ? ' · ' + esc(r.approver) : ''}</span>${dueCell(r)}</div>`;
     const teamCell = r => r.teamName ? `<span class="badge-gray">${esc(r.teamName)}</span>` : '<span class="text-gray-400">—</span>';
     const when = at => App.fmt.timeTag ? App.fmt.timeTag(at) : esc(at || '');
 

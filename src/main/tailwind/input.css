@@ -899,6 +899,49 @@
   .pr-page      { @apply inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-gray-200 px-2 text-sm
                          text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40; }
   .pr-page[aria-current="page"] { @apply border-brand-600 bg-brand-600 text-white hover:bg-brand-600; }
+
+  /* ---- Notification centre (bell panel, /notifications) --------------------------------- */
+  .notify-badge  { @apply absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full
+                          bg-brand-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white; }
+  .notify-panel  { @apply w-[min(26rem,calc(100vw-2rem))] py-0; }
+  .notify-tabs   { @apply flex gap-1 border-b border-gray-100 px-3; }
+  .notify-tab    { @apply -mb-px inline-flex items-center gap-1.5 border-b-2 border-transparent px-2 py-2 text-sm font-medium
+                          text-gray-500 hover:text-gray-800; }
+  .notify-tab.is-active { @apply border-brand-600 text-brand-700; }
+  .notify-count  { @apply inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand-50 px-1
+                          text-[11px] font-semibold text-brand-700; }
+  .notify-list   { @apply max-h-[min(28rem,65vh)] overflow-y-auto; }
+  .notify-item   { @apply relative flex w-full gap-3 border-b border-gray-50 px-4 py-3 text-left transition-colors
+                          last:border-b-0 hover:bg-gray-50; }
+  .notify-item.is-unread { @apply bg-brand-50/40; }
+  .notify-item.is-unread::before { content: ""; @apply absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-brand-600; }
+  .notify-icon   { @apply mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full; }
+  .notify-icon[data-tone="info"]    { @apply bg-sky-50 text-sky-600; }
+  .notify-icon[data-tone="success"] { @apply bg-emerald-50 text-emerald-600; }
+  .notify-icon[data-tone="warn"]    { @apply bg-amber-50 text-amber-600; }
+  .notify-icon[data-tone="error"]   { @apply bg-red-50 text-red-600; }
+  .notify-title  { @apply text-sm font-medium text-gray-900; }
+  .notify-body   { @apply mt-0.5 line-clamp-2 text-xs text-gray-600; }
+  .notify-meta   { @apply mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-gray-400; }
+  .notify-empty  { @apply flex flex-col items-center gap-2 px-6 py-10 text-center text-sm text-gray-500; }
+
+  /* The full page: filters on the left of the list, conversations beside the thread. */
+  .notify-filter { @apply flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm text-gray-600
+                          hover:bg-gray-50 hover:text-gray-900; }
+  .notify-filter.is-active { @apply bg-brand-50 font-medium text-brand-700; }
+  .chat-shell    { @apply grid min-h-[34rem] grid-cols-1 md:grid-cols-[18rem_1fr]; }
+  .chat-people   { @apply max-h-[40rem] overflow-y-auto border-b border-gray-100 md:border-b-0 md:border-r; }
+  .chat-person   { @apply flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50; }
+  .chat-person.is-active { @apply bg-brand-50/60; }
+  .chat-thread   { @apply flex max-h-[40rem] min-h-[28rem] flex-col; }
+  .chat-scroll   { @apply flex-1 space-y-2 overflow-y-auto bg-gray-50/60 px-4 py-4; }
+  .chat-bubble   { @apply max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm; }
+  .chat-bubble.is-mine   { @apply ml-auto rounded-br-md bg-brand-600 text-white; }
+  .chat-bubble.is-theirs { @apply mr-auto rounded-bl-md bg-white text-gray-800 ring-1 ring-gray-200; }
+  .chat-doc      { @apply mb-1 inline-flex items-center gap-1 rounded-md bg-black/10 px-1.5 py-0.5 text-[11px] font-medium; }
+  .chat-bubble.is-theirs .chat-doc { @apply bg-gray-100 text-gray-700; }
+  .chat-time     { @apply mt-0.5 block text-[10px] opacity-70; }
+  .chat-compose  { @apply flex items-end gap-2 border-t border-gray-100 p-3; }
 }
 
 @layer base {
@@ -961,6 +1004,27 @@
   .dark .form-float div:has(> div > .field[readonly]) > .label {
     background-image: linear-gradient(theme('colors.gray.900') 50%, theme('colors.gray.800') 50%); }
   .dark .field-check        { @apply text-gray-200; }
+  .dark .notify-badge       { @apply ring-gray-900; }
+  .dark .notify-tabs, .dark .notify-item { @apply border-gray-800; }
+  .dark .notify-tab         { @apply text-gray-400 hover:text-gray-100; }
+  .dark .notify-tab.is-active { @apply border-brand-500 text-brand-300; }
+  .dark .notify-count       { @apply bg-brand-500/15 text-brand-300; }
+  .dark .notify-item        { @apply hover:bg-gray-800; }
+  .dark .notify-item.is-unread { @apply bg-brand-500/5; }
+  .dark .notify-icon[data-tone="info"]    { @apply bg-sky-500/10 text-sky-400; }
+  .dark .notify-icon[data-tone="success"] { @apply bg-emerald-500/10 text-emerald-400; }
+  .dark .notify-icon[data-tone="warn"]    { @apply bg-amber-500/10 text-amber-400; }
+  .dark .notify-icon[data-tone="error"]   { @apply bg-red-500/10 text-red-400; }
+  .dark .notify-title       { @apply text-gray-100; }
+  .dark .notify-body        { @apply text-gray-400; }
+  .dark .notify-filter      { @apply text-gray-400 hover:bg-gray-800 hover:text-gray-100; }
+  .dark .notify-filter.is-active { @apply bg-brand-500/10 text-brand-300; }
+  .dark .chat-people, .dark .chat-compose { @apply border-gray-800; }
+  .dark .chat-person        { @apply hover:bg-gray-800; }
+  .dark .chat-person.is-active { @apply bg-brand-500/10; }
+  .dark .chat-scroll        { @apply bg-gray-950/40; }
+  .dark .chat-bubble.is-theirs { @apply bg-gray-800 text-gray-100 ring-gray-700; }
+  .dark .chat-bubble.is-theirs .chat-doc { @apply bg-gray-700 text-gray-200; }
   .dark .rselect-menu       { @apply border-gray-700 bg-gray-900 text-gray-100; }
   .dark .rselect-search     { @apply border-gray-800; }
   .dark .rselect-search > input { @apply text-gray-100; }

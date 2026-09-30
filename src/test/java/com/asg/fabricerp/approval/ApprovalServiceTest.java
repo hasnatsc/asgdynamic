@@ -42,6 +42,7 @@ class ApprovalServiceTest {
     private ApprovalActors actors;
     /** Handles nothing unless a test says so. */
     private ApprovalListener listener;
+    private ApprovalNotifier notifier;
     private ApprovalService service;
 
     /** The saved request, as the fake repository holds it. */
@@ -57,6 +58,7 @@ class ApprovalServiceTest {
         matrices = mock(ApprovalMatrixRepository.class);
         actors = mock(ApprovalActors.class);
         listener = mock(ApprovalListener.class);
+        notifier = mock(ApprovalNotifier.class);
         ApprovalLabels labels = mock(ApprovalLabels.class);
         when(labels.approver(any(), any())).thenAnswer(i -> String.valueOf(i.getArgument(0, Approver.class).kind()));
 
@@ -67,6 +69,7 @@ class ApprovalServiceTest {
             if (live.getId() == null) live.setId(500L);
             return live;
         });
+        when(requests.findById(any())).thenAnswer(i -> Optional.ofNullable(live));
         when(requests.findByDocumentIdAndPendingTrue(DOC_ID))
             .thenAnswer(i -> Optional.ofNullable(live).filter(ApprovalRequest::isPending));
         when(matrices.findTeamWise(any(), any(), any(), any())).thenReturn(Optional.empty());
@@ -81,7 +84,8 @@ class ApprovalServiceTest {
             @Override public RowScope rowScope()       { return scope; }
         };
         service = new ApprovalService(repository, history, requests, matrices, actors, labels, context,
-            List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()), List.of(listener));
+            List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()), List.of(listener),
+            notifier);
     }
 
     @AfterEach
@@ -570,5 +574,184 @@ class ApprovalServiceTest {
 
         assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
         assertThat(live.isPending()).isTrue();
+    }
+
+    // ------------------------------------------------------------------ deadlines
+
+    private static ApprovalLevel timed(Long roleId, Long userId, int minutes, TimeoutAction action, Long escalateUser) {
+        return new ApprovalLevel(roleId, userId, null, null, minutes, action, null, escalateUser);
+    }
+
+    /** Moves one of the live request's clock fields into the past, as though that time had come. */
+    private void backdate(String field) {
+        try {
+            var f = ApprovalRequest.class.getDeclaredField(field);
+            f.setAccessible(true);
+            f.set(live, java.time.LocalDateTime.now().minusSeconds(30));
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private List<ApprovalAction> recordedActions() {
+        ArgumentCaptor<ApprovalHistory> recorded = ArgumentCaptor.forClass(ApprovalHistory.class);
+        verify(history, atLeastOnce()).save(recorded.capture());
+        return recorded.getAllValues().stream().map(ApprovalHistory::getAction).toList();
+    }
+
+    @Test
+    void submittingStartsTheFirstLevelsClockAndTellsItsApprovers() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 60, TimeoutAction.REMIND, null));
+        java.time.LocalDateTime before = java.time.LocalDateTime.now();
+        submitAs("maker");
+
+        assertThat(live.getLevelDueAt()).isBetween(before.plusMinutes(60), before.plusMinutes(61));
+        assertThat(live.getLevelRemindAt()).isBetween(before.plusMinutes(45), before.plusMinutes(46));
+        assertThat(live.isLevelReminded()).isFalse();
+        verify(notifier).awaiting(any(), eq(live), eq(Approver.role(MANAGER_ROLE)));
+    }
+
+    @Test
+    void aLevelWithoutATimeLimitHasNoDeadline() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, role(MANAGER_ROLE, null, null));
+        submitAs("maker");
+
+        assertThat(live.getLevelDueAt()).isNull();
+        assertThat(live.getLevelRemindAt()).isNull();
+    }
+
+    @Test
+    void theReminderGoesOutOnceItIsDueAndOnlyOnce() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 60, TimeoutAction.REMIND, null));
+        submitAs("maker");
+
+        service.remind(live.getId());   // not due yet
+        verify(notifier, never()).reminder(any(), any(), any(), any());
+
+        backdate("levelRemindAt");
+        service.remind(live.getId());
+        service.remind(live.getId());
+        verify(notifier, times(1)).reminder(any(), eq(live), eq(Approver.role(MANAGER_ROLE)), any());
+        assertThat(live.isLevelReminded()).isTrue();
+    }
+
+    @Test
+    void remindOnTimeoutFlagsTheLevelOverdueAndKeepsWaitingOnce() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 60, TimeoutAction.REMIND, null));
+        submitAs("maker");
+        backdate("levelDueAt");
+
+        service.timeOut(live.getId());
+        service.timeOut(live.getId());   // a level times out once
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+        assertThat(live.isPending()).isTrue();
+        assertThat(live.isLevelTimedOut()).isTrue();
+        assertThat(live.getCurrentRoleId()).isEqualTo(MANAGER_ROLE);
+        assertThat(recordedActions()).containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.OVERDUE);
+        verify(notifier, times(1)).overdue(any(), eq(live), eq(Approver.role(MANAGER_ROLE)), contains("still waiting"));
+    }
+
+    @Test
+    void escalatingHandsTheLevelToItsTargetWhoAloneMayThenDecideIt() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 60, TimeoutAction.ESCALATE, DIRECTOR));
+        submitAs("maker");
+        backdate("levelDueAt");
+
+        service.timeOut(live.getId());
+
+        assertThat(live.isEscalated()).isTrue();
+        assertThat(live.getCurrentUserId()).isEqualTo(DIRECTOR);
+        assertThat(live.getCurrentRoleId()).isNull();
+        assertThat(recordedActions()).containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.ESCALATED);
+        verify(notifier).escalated(any(), eq(live), eq(Approver.role(MANAGER_ROLE)), eq(Approver.user(DIRECTOR)), anyString());
+
+        actingAs(2L, "manager", Set.of(MANAGER_ROLE));
+        assertThatThrownBy(() -> service.approve(DOC_ID, null)).isInstanceOf(AccessDeniedException.class);
+        actingAs(DIRECTOR, "director", Set.of());
+        service.approve(DOC_ID, null);
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+    }
+
+    @Test
+    void autoApproveSignsTheLevelAndStartsTheNextLevelsClock() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 60, TimeoutAction.AUTO_APPROVE, null),
+            timed(null, DIRECTOR, 120, TimeoutAction.REMIND, null));
+        submitAs("maker");
+        backdate("levelDueAt");
+
+        service.timeOut(live.getId());
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.SUBMITTED);
+        assertThat(live.getCurrentLevel()).isEqualTo(2);
+        assertThat(live.getCurrentUserId()).isEqualTo(DIRECTOR);
+        assertThat(live.isLevelTimedOut()).isFalse();
+        assertThat(live.getLevelDueAt()).isAfter(java.time.LocalDateTime.now().plusMinutes(119));
+        assertThat(recordedActions()).containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.APPROVED);
+        verify(notifier).awaiting(any(), eq(live), eq(Approver.user(DIRECTOR)));
+    }
+
+    @Test
+    void autoApproveAtTheLastLevelApprovesTheDocumentAndRunsItsConsequences() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 30, TimeoutAction.AUTO_APPROVE, null));
+        when(listener.handles(DocumentType.BOOKING)).thenReturn(true);
+        submitAs("maker");
+        backdate("levelDueAt");
+
+        service.timeOut(live.getId());
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+        assertThat(live.isPending()).isFalse();
+        assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.APPROVED);
+        verify(listener).onApproved(doc);
+        verify(notifier).decided(eq(doc), eq(live), eq(ApprovalDecision.APPROVED), contains("approved it automatically"), eq(true));
+    }
+
+    @Test
+    void autoRejectRefusesTheDocumentWithTheReasonOnItsTimeline() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 1440, TimeoutAction.AUTO_REJECT, null));
+        submitAs("maker");
+        backdate("levelDueAt");
+
+        service.timeOut(live.getId());
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.REJECTED);
+        ArgumentCaptor<ApprovalHistory> recorded = ArgumentCaptor.forClass(ApprovalHistory.class);
+        verify(history, times(2)).save(recorded.capture());
+        assertThat(recorded.getValue().getRemarks()).contains("not decided within 1 day").contains("rejected it automatically");
+    }
+
+    @Test
+    void aTimeoutWhoseDecisionIsRefusedIsMarkedOverdueInstead() {
+        booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        matrix(20L, null, true, timed(MANAGER_ROLE, null, 30, TimeoutAction.AUTO_APPROVE, null));
+        submitAs("maker");
+        backdate("levelDueAt");
+
+        service.timeOutFailed(live.getId(), "The revision draws more than is left.");
+
+        assertThat(live.isPending()).isTrue();
+        assertThat(live.isLevelTimedOut()).isTrue();
+        assertThat(recordedActions()).containsExactly(ApprovalAction.SUBMITTED, ApprovalAction.OVERDUE);
+        verify(notifier).overdue(any(), eq(live), any(), contains("could not be made"));
+    }
+
+    @Test
+    void aLevelEscalatesOnlyToSomeoneAndOnlyWhenEscalating() {
+        assertThatThrownBy(() -> new ApprovalLevel(MANAGER_ROLE, null, null, null, 60, TimeoutAction.ESCALATE, null, null))
+            .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("role or one person");
+        ApprovalLevel remind = new ApprovalLevel(MANAGER_ROLE, null, null, null, 60, TimeoutAction.REMIND, null, DIRECTOR);
+        assertThat(remind.getEscalateUserId()).isNull();
+        assertThat(remind.escalationApprover()).isNull();
+        assertThatThrownBy(() -> new ApprovalLevel(MANAGER_ROLE, null, null, null, 0, TimeoutAction.REMIND, null, null))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 }

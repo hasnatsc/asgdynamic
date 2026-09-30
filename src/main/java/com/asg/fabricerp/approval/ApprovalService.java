@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,16 @@ import java.util.stream.Collectors;
  * Both refusals need a reason, and either way the maker may correct the document and submit it
  * again.
  *
+ * <h2>Deadlines</h2>
+ * A level may carry a time limit. Its clock starts whenever the request reaches the level, and
+ * {@link ApprovalDeadlineJob} calls {@link #remind} at three quarters of it and {@link #timeOut} when it
+ * runs out, which takes the level's {@link TimeoutAction}: remind and keep waiting, escalate to
+ * another role or person, or decide the level as {@code system}, with the reason on the timeline.
+ *
+ * <h2>Notifications</h2>
+ * Everyone concerned hears of every move ({@link ApprovalNotifier}), inside the transaction that made
+ * it: the approvers of the level a document reaches, and its maker once it is decided.
+ *
  * <h2>Why the checks are here and not {@code @PreAuthorize}</h2>
  * The requirement depends on the document - its type, its team, its amount, its current level -
  * which is known only once it is loaded.
@@ -71,6 +82,7 @@ public class ApprovalService {
     private final OrgContext context;
     private final List<SubmissionCheck> checks;
     private final List<ApprovalListener> listeners;
+    private final ApprovalNotifier notifier;
 
     public ApprovalService(BusinessDocumentRepository repository,
                            ApprovalHistoryRepository historyRepository,
@@ -80,7 +92,8 @@ public class ApprovalService {
                            ApprovalLabels labels,
                            OrgContext context,
                            List<SubmissionCheck> checks,
-                           List<ApprovalListener> listeners) {
+                           List<ApprovalListener> listeners,
+                           ApprovalNotifier notifier) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.requests = requests;
@@ -90,6 +103,7 @@ public class ApprovalService {
         this.context = context;
         this.checks = List.copyOf(checks);
         this.listeners = List.copyOf(listeners);
+        this.notifier = notifier;
     }
 
     // ------------------------------------------------------------------------------ submit
@@ -122,10 +136,11 @@ public class ApprovalService {
         doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
         Approver.Actor actor = actors.current();
         ApprovalRequest opened = open(doc, actor.userId(), actor.username());
-        requiredApprover(opened).ifPresent(opened::routeTo);
+        Optional<Approver> first = route(opened);
         ApprovalRequest request = requests.save(opened);
         recordHistory(doc, from == BusinessDocumentStatus.REJECTED ? ApprovalAction.RESUBMITTED : ApprovalAction.SUBMITTED,
             from, null, request, null);
+        first.ifPresent(a -> notifier.awaiting(doc, request, a));
         return repository.save(doc);
     }
 
@@ -180,11 +195,22 @@ public class ApprovalService {
                         + (required.isSatisfiedBy(actor) ? " in the document's own team" : "")));
         }
 
+        return apply(doc, request, decision, remarks, false);
+    }
+
+    /**
+     * Records a decision already checked - an approver's, or the system's when a time limit ran out -
+     * and does what follows: the next level's route and clock, the document's status, the type's own
+     * consequences at the last signature, the timeline, and the notifications.
+     */
+    private BusinessDocument apply(BusinessDocument doc, ApprovalRequest request, ApprovalDecision decision,
+                                   String remarks, boolean automatic) {
         int level = request.getCurrentLevel();
         boolean last = request.isFinalLevel();
         request.decide(decision);
+        Optional<Approver> next = Optional.empty();
         if (request.isPending()) {
-            requiredApprover(request).ifPresentOrElse(request::routeTo, request::clearRoute);
+            next = route(request);
         } else {
             request.clearRoute();
         }
@@ -211,7 +237,109 @@ public class ApprovalService {
             case REJECTED -> ApprovalAction.REJECTED;
         };
         recordHistory(doc, action, from, remarks, request, level);
+        if (request.isPending()) {
+            next.ifPresent(a -> {
+                notifier.awaiting(doc, request, a);
+                notifier.progressed(doc, request, level, a);
+            });
+        } else {
+            notifier.decided(doc, request, decision, remarks, automatic);
+        }
         return repository.save(doc);
+    }
+
+    // ------------------------------------------------------------------------------ deadlines
+
+    /**
+     * Three quarters of the level's time has gone: reminds its approvers, once. Does nothing to a
+     * request that has moved on, been decided or already been reminded since it was picked up.
+     */
+    @Transactional
+    public void remind(Long requestId) {
+        LocalDateTime now = LocalDateTime.now();
+        ApprovalRequest request = requests.findById(requestId).orElse(null);
+        if (request == null || !request.isPending() || request.isLevelReminded() || request.getLevelRemindAt() == null
+                || now.isBefore(request.getLevelRemindAt()) || request.isOverdue(now)) {
+            return;
+        }
+        request.markReminded();
+        requests.save(request);
+        Optional<BusinessDocument> doc = repository.findScopedWithLines(request.getDocumentId(), request.getOrganizationId());
+        Optional<Approver> approver = requiredApprover(request);
+        if (doc.isPresent() && approver.isPresent()) {
+            notifier.reminder(doc.get(), request, approver.get(), now);
+        }
+    }
+
+    /**
+     * The level's time ran out: takes its {@link TimeoutAction}, once, as {@code system}. The caller
+     * runs this under {@link com.asg.fabricerp.security.SystemActor} in the request's organization.
+     */
+    @Transactional
+    public void timeOut(Long requestId) {
+        LocalDateTime now = LocalDateTime.now();
+        ApprovalRequest request = requests.findById(requestId).orElse(null);
+        if (request == null || request.isLevelTimedOut() || !request.isOverdue(now)) return;
+        request.markTimedOut();
+        BusinessDocument doc = repository.findScopedWithLines(request.getDocumentId(), request.getOrganizationId())
+            .orElse(null);
+        Optional<ApprovalLevel> level = currentLevel(request);
+        Optional<Approver> approver = requiredApprover(request);
+        if (doc == null || doc.getStatus() != BusinessDocumentStatus.SUBMITTED || level.isEmpty() || approver.isEmpty()) {
+            requests.save(request);   // nothing to act on - and never tried again
+            return;
+        }
+        int levelNo = request.getCurrentLevel();
+        String late = "Level %d was not decided within %s"
+            .formatted(levelNo, ApprovalNotifier.limit(level.get().getTimeLimitMinutes()));
+        TimeoutAction action = level.get().getTimeoutAction();
+        switch (action) {
+            case ESCALATE -> {
+                Approver target = level.get().escalationApprover();
+                String why = "%s, so it was escalated to %s.".formatted(late, labels.approver(target, doc.getDocumentType()));
+                request.escalateTo(target);
+                requests.save(request);
+                recordHistory(doc, ApprovalAction.ESCALATED, doc.getStatus(), why, request, levelNo);
+                notifier.escalated(doc, request, approver.get(), target, why);
+            }
+            case AUTO_APPROVE, AUTO_RETURN, AUTO_REJECT -> {
+                String outcome = switch (action) {
+                    case AUTO_APPROVE -> "approved";
+                    case AUTO_RETURN -> "returned to the maker";
+                    default -> "rejected";
+                };
+                String why = "%s, so the system %s it automatically.".formatted(late, outcome);
+                notifier.autoDecidedLevel(doc, request, approver.get(), why);
+                apply(doc, request, action.decision(), why, true);
+            }
+            default -> {
+                String why = "%s. It is still waiting for %s."
+                    .formatted(late, labels.approver(approver.get(), doc.getDocumentType()));
+                requests.save(request);
+                recordHistory(doc, ApprovalAction.OVERDUE, doc.getStatus(), why, request, levelNo);
+                notifier.overdue(doc, request, approver.get(), why);
+            }
+        }
+    }
+
+    /**
+     * A timeout's action could not be taken - the last signature's consequences refused it (a
+     * revision drawing more than is left, say). The level is marked overdue instead, the reason
+     * recorded and everyone told; it waits for a person, and is not tried again.
+     */
+    @Transactional
+    public void timeOutFailed(Long requestId, String reason) {
+        ApprovalRequest request = requests.findById(requestId).orElse(null);
+        if (request == null || !request.isPending() || request.isLevelTimedOut()) return;
+        request.markTimedOut();
+        requests.save(request);
+        BusinessDocument doc = repository.findScopedWithLines(request.getDocumentId(), request.getOrganizationId()).orElse(null);
+        Optional<Approver> approver = requiredApprover(request);
+        if (doc == null || approver.isEmpty()) return;
+        String why = "Level %d ran out of time, but its automatic decision could not be made: %s It is waiting for %s."
+            .formatted(request.getCurrentLevel(), reason, labels.approver(approver.get(), doc.getDocumentType()));
+        recordHistory(doc, ApprovalAction.OVERDUE, doc.getStatus(), why, request, request.getCurrentLevel());
+        notifier.overdue(doc, request, approver.get(), why);
     }
 
     // ------------------------------------------------------------------------------ read
@@ -333,7 +461,7 @@ public class ApprovalService {
 
     private ApprovalRequest enrol(BusinessDocument doc) {
         ApprovalRequest request = enrolLegacy(doc);
-        requiredApprover(request).ifPresent(request::routeTo);
+        route(request);
         return requests.save(request);
     }
 
@@ -347,12 +475,33 @@ public class ApprovalService {
 
     /** Who must decide the request's current level, under the matrix it was submitted with. */
     Optional<Approver> requiredApprover(ApprovalRequest request) {
+        if (request.isEscalated() && request.currentRoute() != null) {
+            return Optional.of(request.currentRoute());
+        }
         if (request.getMatrixId() == null) {
             return Optional.of(Approver.authority(request.getDocumentType().approveAuthority()));
         }
         return matrices.findScoped(request.getMatrixId(), request.getOrganizationId())
             .flatMap(m -> m.levelFor(request.getAmount(), request.getCurrentLevel()))
             .map(ApprovalLevel::approver);
+    }
+
+    /** The matrix level the request is at; empty under the default rule. */
+    private Optional<ApprovalLevel> currentLevel(ApprovalRequest request) {
+        if (request.getMatrixId() == null) return Optional.empty();
+        return matrices.findScoped(request.getMatrixId(), request.getOrganizationId())
+            .flatMap(m -> m.levelFor(request.getAmount(), request.getCurrentLevel()));
+    }
+
+    /**
+     * Points the request at its current level's approver and starts that level's clock; clears the
+     * route when the matrix no longer defines the level. Returns who it now waits for.
+     */
+    private Optional<Approver> route(ApprovalRequest request) {
+        request.startClock(currentLevel(request).map(ApprovalLevel::getTimeLimitMinutes).orElse(null), LocalDateTime.now());
+        Optional<Approver> approver = requiredApprover(request);
+        approver.ifPresentOrElse(request::routeTo, request::clearRoute);
+        return approver;
     }
 
     /**
@@ -397,6 +546,7 @@ public class ApprovalService {
             BusinessDocument doc = docs.get(request.getDocumentId());
             if (doc == null) continue;   // deleted since
             Approver required = !request.isPending() ? null
+                : request.isEscalated() && request.currentRoute() != null ? request.currentRoute()
                 : request.getMatrixId() == null ? Approver.authority(request.getDocumentType().approveAuthority())
                 : matrixCache.computeIfAbsent(request.getMatrixId(),
                         id -> matrices.findScoped(id, request.getOrganizationId()))

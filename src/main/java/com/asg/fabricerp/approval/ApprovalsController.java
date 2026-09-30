@@ -180,6 +180,7 @@ public class ApprovalsController {
     public String matricesPage(Model model) {
         model.addAttribute("title", "Approval matrices");
         model.addAttribute("documentTypes", ApprovalMatrixService.approvableTypes());
+        model.addAttribute("timeoutActions", TimeoutAction.values());
         model.addAttribute("content", "setup/approval-matrices :: content");
         return "layout/main";
     }
@@ -218,6 +219,8 @@ public class ApprovalsController {
         Map<String, Object> options = new LinkedHashMap<>();
         options.put("teams", teams.lookup(orgId).stream()
             .map(t -> Map.of("id", t.getId(), "text", t.getName())).toList());
+        options.put("timeoutActions", Arrays.stream(TimeoutAction.values())
+            .map(a -> Map.of("id", a.name(), "text", a.label())).toList());
         // Roles and people are searched and paged on demand - see roleLookup / userLookup.
         return options;
     }
@@ -304,9 +307,30 @@ public class ApprovalsController {
             level.put("minAmount", l.getMinAmount());
             level.put("maxAmount", l.getMaxAmount());
             level.put("band", band(l.getMinAmount(), l.getMaxAmount()));
+            level.put("timeLimitMinutes", l.getTimeLimitMinutes());
+            level.put("timeoutAction", l.getTimeoutAction().name());
+            level.put("escalateRoleId", l.getEscalateRoleId());
+            level.put("escalateUserId", l.getEscalateUserId());
+            level.put("escalateRoleName", l.getEscalateRoleId() == null ? null
+                : roles.findById(l.getEscalateRoleId()).map(Role::getName).orElse("#" + l.getEscalateRoleId()));
+            level.put("escalateUserName", l.getEscalateUserId() == null ? null : labels.userName(l.getEscalateUserId()));
+            level.put("timing", timing(l, m.getDocumentType()));
             return level;
         }).toList());
         return row;
+    }
+
+    /** "Within 1 day, then escalate to role Director"; null with no limit. */
+    private String timing(ApprovalLevel l, DocumentType type) {
+        if (!l.hasTimeLimit()) return null;
+        String within = "Within " + ApprovalNotifier.limit(l.getTimeLimitMinutes());
+        return switch (l.getTimeoutAction()) {
+            case REMIND -> within + ", then flagged overdue";
+            case ESCALATE -> within + ", then escalate to " + labels.approver(l.escalationApprover(), type);
+            case AUTO_APPROVE -> within + ", then approved automatically";
+            case AUTO_RETURN -> within + ", then returned to the maker";
+            case AUTO_REJECT -> within + ", then rejected automatically";
+        };
     }
 
     private static String band(BigDecimal min, BigDecimal max) {

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  The notification centre - everything the bell in the top bar holds, in full.
+
+  Notifications: approvals waiting for you, decisions on your documents, deadlines (due soon,
+  overdue, escalated, decided automatically). Filter, search, mark read or unread, clear.
+  Messages: person-to-person, optionally about a document; conversations beside the open thread.
+  notifications.js drives both (it is loaded by the layout on every page for the bell).
+-->
+<head>
+    <title>Notifications</title>
+</head>
+<body>
+<div th:fragment="content" id="notifyPage">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Notification centre</h1>
+            <p class="page-sub">What needs you, what happened to your documents, and your messages.</p>
+        </div>
+    </div>
+
+    <div class="mb-4 flex gap-1 border-b border-gray-200 dark:border-gray-800" role="tablist">
+        <button type="button" role="tab" class="notify-tab is-active" data-page-tab="notifications" aria-selected="true">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#bell}"/></svg>Notifications
+            <span class="notify-count" data-notify-count="notifications" hidden></span></button>
+        <button type="button" role="tab" class="notify-tab" data-page-tab="messages" aria-selected="false">
+            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#message}"/></svg>Messages
+            <span class="notify-count" data-notify-count="messages" hidden></span></button>
+    </div>
+
+    <!-- ============================================================ notifications -->
+    <div data-view="notifications" class="grid gap-4 lg:grid-cols-[14rem_1fr]">
+        <nav class="card h-fit space-y-0.5 p-2" aria-label="Filter notifications">
+            <button type="button" class="notify-filter is-active" data-n-filter="all">
+                <span class="flex items-center gap-2"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#bell}"/></svg>All</span></button>
+            <button type="button" class="notify-filter" data-n-filter="unread">
+                <span class="flex items-center gap-2"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#eye}"/></svg>Unread</span>
+                <span class="notify-count" data-notify-count="notifications" hidden></span></button>
+            <p class="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Categories</p>
+            <button type="button" class="notify-filter" data-n-filter="APPROVALS">
+                <span class="flex items-center gap-2"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#clipboard-check}"/></svg>Awaiting approval</span></button>
+            <button type="button" class="notify-filter" data-n-filter="DECISIONS">
+                <span class="flex items-center gap-2"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#check-circle}"/></svg>Decisions</span></button>
+            <button type="button" class="notify-filter" data-n-filter="DEADLINES">
+                <span class="flex items-center gap-2"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#clock}"/></svg>Deadlines</span></button>
+            <button type="button" class="notify-filter" data-n-filter="SYSTEM">
+                <span class="flex items-center gap-2"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#info}"/></svg>System</span></button>
+        </nav>
+
+        <div class="card overflow-hidden">
+            <div class="toolbar">
+                <div class="input-icon w-full sm:w-72">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                    <input type="search" class="field pr-8" placeholder="Search notifications" aria-label="Search notifications"
+                           data-n-search data-search autocomplete="off">
+                </div>
+                <span class="text-xs text-gray-500" data-n-total></span>
+                <div class="ml-auto flex gap-2">
+                    <button type="button" class="btn-ghost btn-sm" data-n-read-all>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#check-check}"/></svg>Mark all read</button>
+                    <button type="button" class="btn-ghost btn-sm text-red-700" data-n-clear>
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#trash}"/></svg>Clear read</button>
+                </div>
+            </div>
+            <div data-n-list aria-live="polite"></div>
+            <div class="border-t border-gray-100 p-3 text-center dark:border-gray-800" data-n-more hidden>
+                <button type="button" class="btn-ghost btn-sm">Load more</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ messages -->
+    <div data-view="messages" hidden>
+        <div class="card overflow-hidden">
+            <div class="chat-shell">
+                <aside class="chat-people">
+                    <div class="sticky top-0 z-10 space-y-2 border-b border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+                        <button type="button" class="btn-primary w-full justify-center" data-compose-new>
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#plus}"/></svg>New message</button>
+                        <div data-new-message hidden>
+                            <label class="label sr-only" for="msgTo">To</label>
+                            <select id="msgTo" class="field" data-remote="/api/messages/people"
+                                    data-placeholder="Search a person by name or username…" data-empty-text="Nobody matches"></select>
+                        </div>
+                    </div>
+                    <div data-people></div>
+                </aside>
+
+                <section class="relative">
+                    <div class="flex h-full min-h-[28rem] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-gray-500"
+                         data-thread-empty>
+                        <svg class="icon icon-lg text-gray-300" aria-hidden="true"><use th:href="@{/images/icons.svg#message}"/></svg>
+                        <p>Choose a conversation, or start a new one.</p>
+                        <p class="text-xs">Ask a maker about a document before you sign it, or an approver why it came back.</p>
+                    </div>
+                    <div class="chat-thread" data-thread hidden>
+                        <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-3 dark:border-gray-800" data-thread-head></div>
+                        <div class="chat-scroll" data-thread-scroll aria-live="polite"></div>
+                        <form class="chat-compose" data-compose novalidate autocomplete="off">
+                            <div class="min-w-0 flex-1">
+                                <div class="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-md bg-brand-50 px-2 py-1 text-xs text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
+                                     data-about hidden>
+                                    <svg class="icon h-3 w-3 shrink-0" aria-hidden="true"><use th:href="@{/images/icons.svg#document}"/></svg>
+                                    <span class="truncate">About <span data-about-label></span></span>
+                                    <button type="button" class="ml-1 shrink-0 hover:text-brand-900" data-about-clear aria-label="Do not attach the document">
+                                        <svg class="icon h-3 w-3" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+                                </div>
+                                <label class="sr-only" for="msgBody">Message</label>
+                                <textarea id="msgBody" class="field min-h-[2.75rem] resize-y" rows="2" maxlength="2000"
+                                          placeholder="Write a message… (Ctrl+Enter sends)"></textarea>
+                            </div>
+                            <button type="submit" class="btn-primary shrink-0">
+                                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#send}"/></svg>Send</button>
+                        </form>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

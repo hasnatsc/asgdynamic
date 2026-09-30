@@ -100,7 +100,7 @@ public class FabricUserPrincipal implements UserDetails {
      * Organization grants are left out: they open a tenant, they do not narrow one, so a restricted
      * user holding nothing else is still unconfigured.
      */
-    static RowScope resolveScope(FabricUser user, List<DataScope> scopes, LocalDate on) {
+    public static RowScope resolveScope(FabricUser user, List<DataScope> scopes, LocalDate on) {
         if (user.isUnrestricted()) {
             return RowScope.unrestrictedScope();
         }

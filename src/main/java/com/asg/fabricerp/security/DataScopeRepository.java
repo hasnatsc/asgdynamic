@@ -15,6 +15,9 @@ public interface DataScopeRepository extends JpaRepository<DataScope, Long> {
     /** Every grant, open or closed — the principal filters to those held today. */
     List<DataScope> findByUserIdOrderByGrantedFromDesc(Long userId);
 
+    /** Every grant of a set of users - their row scopes, resolved together (approval notifications). */
+    List<DataScope> findByUserIdIn(Collection<Long> userIds);
+
     /**
      * Which of these users hold at least one grant on {@code on} — the user grid marks the rest
      * of the restricted ones as unable to sign in. One query per page of users, not one per row.

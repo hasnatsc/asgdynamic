@@ -196,6 +196,37 @@
                 <svg class="icon icon-lg nav-top-show" aria-hidden="true"><use th:href="@{/images/icons.svg#panel-left}"/></svg>
             </button>
 
+            <!--
+              Notification centre: approvals waiting, decisions, deadlines, and messages. notifications.js
+              fills the panel when it opens and keeps the badge current; /notifications is the full page.
+            -->
+            <details class="relative" data-menu data-notify th:if="${currentUser != null}">
+                <summary class="btn-icon relative list-none" title="Notifications and messages" aria-label="Notifications and messages">
+                    <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#bell}"/></svg>
+                    <span class="notify-badge" data-notify-badge hidden>0</span>
+                </summary>
+                <div class="menu notify-panel" data-notify-panel>
+                    <div class="flex items-center justify-between gap-2 border-b border-gray-100 px-4 pb-2 pt-3 dark:border-gray-800">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">Notification centre</p>
+                        <button type="button" class="btn-ghost btn-sm" data-notify-read-all title="Mark every notification read">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#check-check}"/></svg>Mark all read</button>
+                    </div>
+                    <div class="notify-tabs" role="tablist">
+                        <button type="button" role="tab" class="notify-tab is-active" data-notify-tab="notifications" aria-selected="true">
+                            Notifications <span class="notify-count" data-notify-count="notifications" hidden></span></button>
+                        <button type="button" role="tab" class="notify-tab" data-notify-tab="messages" aria-selected="false">
+                            Messages <span class="notify-count" data-notify-count="messages" hidden></span></button>
+                    </div>
+                    <div class="notify-list" data-notify-list aria-live="polite"></div>
+                    <div class="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+                        <a th:href="@{/notifications}" class="btn-ghost btn-sm" data-notify-all>Open notification centre
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#arrow-right}"/></svg></a>
+                        <a th:href="@{/notifications(tab='messages',compose='')}" class="btn-ghost btn-sm">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#message}"/></svg>New message</a>
+                    </div>
+                </div>
+            </details>
+
             <button type="button" class="btn-icon" data-theme-toggle title="Switch theme" aria-label="Toggle dark mode">
                 <svg class="icon icon-lg dark:hidden" aria-hidden="true"><use th:href="@{/images/icons.svg#moon}"/></svg>
                 <svg class="icon icon-lg hidden dark:block" aria-hidden="true"><use th:href="@{/images/icons.svg#sun}"/></svg>
@@ -333,6 +364,7 @@
     </form>
 </dialog>
 <script th:if="${operatingContext != null}" th:src="@{/js/workspace.js}" defer></script>
+<script th:if="${currentUser != null}" th:src="@{/js/notifications.js}" defer></script>
 
 </body>
 </html>

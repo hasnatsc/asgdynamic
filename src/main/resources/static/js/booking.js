@@ -148,6 +148,8 @@
             REJECTED: ['Rejected', 'text-red-700 dark:text-red-400', 'x'],
             SUBMITTED: ['Submitted', 'text-gray-600 dark:text-gray-300', 'send'],
             RESUBMITTED: ['Submitted again', 'text-gray-600 dark:text-gray-300', 'send'],
+            ESCALATED: ['Escalated', 'text-amber-700 dark:text-amber-400', 'escalate'],
+            OVERDUE: ['Overdue', 'text-red-700 dark:text-red-400', 'clock'],
             CANCELLED: ['Cancelled', 'text-red-700 dark:text-red-400', 'x-circle'],
             SUPERSEDED: ['Superseded by a revision', 'text-gray-600 dark:text-gray-300', 'refresh']
         };

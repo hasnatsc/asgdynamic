@@ -1404,7 +1404,7 @@
         totalQuantity: 'Total quantity', subtotalAmount: 'Amount', revisionNo: 'Revision',
         bookingId: 'Booking', bpoId: 'Production order', deliveryOrderId: 'Delivery order', scheduleId: 'Schedule'
     };
-    const HISTORY_VERBS = { SUBMITTED: 'submitted it', RESUBMITTED: 'submitted it again', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it',
+    const HISTORY_VERBS = { SUBMITTED: 'submitted it', RESUBMITTED: 'submitted it again', APPROVED: 'approved', RETURNED: 'returned it', REJECTED: 'rejected it', ESCALATED: 'escalated it', OVERDUE: 'flagged it overdue',
                             POSTED: 'posted it to stock', CANCELLED: 'cancelled it', SHORT_CLOSED: 'short-closed a line', CLOSED: 'closed it',
                             SUPERSEDED: 'replaced it with a revision', ACCOUNTED: 'posted it to accounts', REALIZED: 'recorded its final payment',
                             REALIZATION_UNDONE: 'took back its final payment' };

@@ -99,7 +99,8 @@ public class ApprovalLabels {
                 request.getRaisedByUserId() != null
                     ? users.computeIfAbsent(request.getRaisedByUserId(), labels::userName) : request.getRaisedBy(),
                 request.getCreatedAt(), request.isPending(), request.getOutcome(), request.getSettledAt(),
-                screenPath(type));
+                screenPath(type),
+                request.isPending() ? request.getLevelDueAt() : null, request.isPending() && request.isEscalated());
         }
     }
 

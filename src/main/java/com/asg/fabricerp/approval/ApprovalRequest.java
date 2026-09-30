@@ -77,6 +77,31 @@ public class ApprovalRequest extends AuditableEntity {
     @Column(name = "current_user_id")
     private Long currentUserId;
 
+    /*
+     * The clock of the level the request is at, restarted whenever it moves to another level. A
+     * level without a time limit leaves remind/due null; the deadline job never looks at it.
+     */
+    @Column(name = "level_started_at")
+    private LocalDateTime levelStartedAt;
+
+    /** Three quarters of the way to the limit: the approvers are reminded once. */
+    @Column(name = "level_remind_at")
+    private LocalDateTime levelRemindAt;
+
+    @Column(name = "level_due_at")
+    private LocalDateTime levelDueAt;
+
+    @Column(name = "level_reminded", nullable = false)
+    private boolean levelReminded;
+
+    /** The limit ran out and its action was taken; a level times out once. */
+    @Column(name = "level_timed_out", nullable = false)
+    private boolean levelTimedOut;
+
+    /** The route names the level's escalation target, not the matrix's approver. */
+    @Column(nullable = false)
+    private boolean escalated;
+
     protected ApprovalRequest() { }
 
     public ApprovalRequest(Long organizationId, Long documentId, DocumentType documentType, Long businessUnitId,
@@ -127,10 +152,58 @@ public class ApprovalRequest extends AuditableEntity {
         this.currentUserId = approver != null && approver.kind() == Approver.Kind.USER ? approver.userId() : null;
     }
 
-    /** A settled request waits for nobody. */
+    /** A settled request waits for nobody - and has no clock running. */
     public void clearRoute() {
         this.currentRoleId = null;
         this.currentUserId = null;
+        this.levelRemindAt = null;
+        this.levelDueAt = null;
+        this.escalated = false;
+    }
+
+    /**
+     * Starts the clock of the level just reached: {@code limitMinutes} from {@code now}, or no limit.
+     * The reminder falls at three quarters of the limit - on a one-hour limit, after 45 minutes.
+     */
+    public void startClock(Integer limitMinutes, LocalDateTime now) {
+        this.levelStartedAt = now;
+        this.levelReminded = false;
+        this.levelTimedOut = false;
+        this.escalated = false;
+        if (limitMinutes == null) {
+            this.levelRemindAt = null;
+            this.levelDueAt = null;
+        } else {
+            this.levelDueAt = now.plusMinutes(limitMinutes);
+            this.levelRemindAt = now.plusSeconds(limitMinutes * 45L);
+        }
+    }
+
+    public void markReminded() {
+        this.levelReminded = true;
+    }
+
+    /** The limit ran out; whatever the action, it is not taken twice. */
+    public void markTimedOut() {
+        this.levelReminded = true;
+        this.levelTimedOut = true;
+    }
+
+    /** The level now waits for {@code target} instead of the matrix's approver. */
+    public void escalateTo(Approver target) {
+        routeTo(target);
+        this.escalated = true;
+    }
+
+    /** Who the route names now - the escalation target, once escalated. */
+    public Approver currentRoute() {
+        if (currentUserId != null) return Approver.user(currentUserId);
+        if (currentRoleId != null) return Approver.role(currentRoleId);
+        return null;
+    }
+
+    public boolean isOverdue(LocalDateTime now) {
+        return pending && levelDueAt != null && !now.isBefore(levelDueAt);
     }
 
     public boolean isFinalLevel()         { return currentLevel >= totalLevels; }
@@ -150,4 +223,10 @@ public class ApprovalRequest extends AuditableEntity {
     public boolean isPending()            { return pending; }
     public ApprovalDecision getOutcome()  { return outcome; }
     public LocalDateTime getSettledAt()   { return settledAt; }
+    public LocalDateTime getLevelStartedAt() { return levelStartedAt; }
+    public LocalDateTime getLevelRemindAt() { return levelRemindAt; }
+    public LocalDateTime getLevelDueAt()  { return levelDueAt; }
+    public boolean isLevelReminded()      { return levelReminded; }
+    public boolean isLevelTimedOut()      { return levelTimedOut; }
+    public boolean isEscalated()          { return escalated; }
 }

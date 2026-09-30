@@ -48,7 +48,21 @@ public class ApprovalMatrixService {
     public record MatrixRequest(Long id, DocumentType documentType, Long marketingTeamId, String name,
                                 Boolean active, List<LevelRequest> levels) { }
 
-    public record LevelRequest(Long roleId, Long userId, BigDecimal minAmount, BigDecimal maxAmount) { }
+    /**
+     * One level. {@code timeLimitMinutes} null is no limit; {@code timeoutAction} null is
+     * {@link TimeoutAction#REMIND}; the escalation role or user is read only when escalating.
+     */
+    public record LevelRequest(Long roleId, Long userId, BigDecimal minAmount, BigDecimal maxAmount,
+                               Integer timeLimitMinutes, TimeoutAction timeoutAction,
+                               Long escalateRoleId, Long escalateUserId) {
+
+        public LevelRequest(Long roleId, Long userId, BigDecimal minAmount, BigDecimal maxAmount) {
+            this(roleId, userId, minAmount, maxAmount, null, null, null, null);
+        }
+    }
+
+    /** A time limit is at most a year: anything longer is no limit, and should say so. */
+    static final int MAX_LIMIT_MINUTES = 366 * 24 * 60;
 
     /** The document types a matrix can govern: those with a screen to submit them from. */
     public static List<DocumentType> approvableTypes() {
@@ -105,7 +119,11 @@ public class ApprovalMatrixService {
             target.setName(name);
         }
         target.setActive(submitted.active() == null || submitted.active());
-        target.replaceLevels(levels.stream().map(l -> level(orgId, l)).toList());
+        List<ApprovalLevel> built = new java.util.ArrayList<>();
+        for (int i = 0; i < levels.size(); i++) {
+            built.add(level(orgId, i + 1, levels.get(i)));
+        }
+        target.replaceLevels(built);
         return matrices.save(target);
     }
 
@@ -121,16 +139,50 @@ public class ApprovalMatrixService {
         matrices.save(matrix);
     }
 
-    private ApprovalLevel level(Long orgId, LevelRequest l) {
-        if (l.roleId() != null && roles.findById(l.roleId()).filter(r -> !Boolean.FALSE.equals(r.getActive())).isEmpty()) {
-            throw new IllegalArgumentException("No active role with id " + l.roleId());
-        }
-        if (l.userId() != null && users.findScoped(l.userId(), orgId).isEmpty()) {
-            throw new IllegalArgumentException("No user with id " + l.userId());
-        }
+    private ApprovalLevel level(Long orgId, int sequence, LevelRequest l) {
+        requireRole(l.roleId());
+        requireUser(orgId, l.userId());
         if (l.minAmount() != null && l.minAmount().signum() < 0 || l.maxAmount() != null && l.maxAmount().signum() < 0) {
             throw new IllegalArgumentException("Amount bands cannot be negative");
         }
-        return new ApprovalLevel(l.roleId(), l.userId(), l.minAmount(), l.maxAmount());
+        Integer limit = l.timeLimitMinutes();
+        if (limit != null && (limit < 1 || limit > MAX_LIMIT_MINUTES)) {
+            throw new IllegalArgumentException("Level %d: a time limit is between one minute and a year".formatted(sequence));
+        }
+        TimeoutAction action = l.timeoutAction() == null ? TimeoutAction.REMIND : l.timeoutAction();
+        if (limit == null && action != TimeoutAction.REMIND) {
+            throw new IllegalArgumentException(("Level %d: “%s” needs a time limit - without one the level "
+                + "never runs out of time").formatted(sequence, action.label()));
+        }
+        Long escalateRole = null;
+        Long escalateUser = null;
+        if (action == TimeoutAction.ESCALATE) {
+            escalateRole = l.escalateRoleId();
+            escalateUser = l.escalateRoleId() == null ? l.escalateUserId() : null;
+            if (escalateRole == null && escalateUser == null) {
+                throw new IllegalArgumentException("Level %d: choose the role or person it escalates to".formatted(sequence));
+            }
+            requireRole(escalateRole);
+            requireUser(orgId, escalateUser);
+            boolean same = escalateRole != null ? escalateRole.equals(l.roleId()) : escalateUser.equals(l.userId());
+            if (same) {
+                throw new IllegalArgumentException(("Level %d escalates to the approver it already waits for - "
+                    + "choose someone else, or remind instead").formatted(sequence));
+            }
+        }
+        return new ApprovalLevel(l.roleId(), l.userId(), l.minAmount(), l.maxAmount(),
+            limit, action, escalateRole, escalateUser);
+    }
+
+    private void requireRole(Long roleId) {
+        if (roleId != null && roles.findById(roleId).filter(r -> !Boolean.FALSE.equals(r.getActive())).isEmpty()) {
+            throw new IllegalArgumentException("No active role with id " + roleId);
+        }
+    }
+
+    private void requireUser(Long orgId, Long userId) {
+        if (userId != null && users.findScoped(userId, orgId).isEmpty()) {
+            throw new IllegalArgumentException("No user with id " + userId);
+        }
     }
 }
