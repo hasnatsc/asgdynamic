@@ -39,7 +39,7 @@ class ReportTemplatesTest {
         params.put("kpi_pending", "1,779,300");
         params.put("kpi_uom", "m");
 
-        JasperPrint pdfPrint = JasperFillManager.fillReport(ReportService.compile("fabrics-production-report"), params,
+        JasperPrint pdfPrint = JasperFillManager.fillReport(ReportService.load("fabrics-production-report"), params,
             new JRMapCollectionDataSource(rows));
         byte[] pdf = ReportService.pdf(pdfPrint);
         assertThat(new String(pdf, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
@@ -47,7 +47,7 @@ class ReportTemplatesTest {
 
         Map<String, Object> excel = new HashMap<>(params);
         excel.put("for_excel", Boolean.TRUE);
-        byte[] xlsx = ReportService.xlsx(JasperFillManager.fillReport(ReportService.compile("fabrics-production-report"), excel,
+        byte[] xlsx = ReportService.xlsx(JasperFillManager.fillReport(ReportService.load("fabrics-production-report"), excel,
             new JRMapCollectionDataSource(rows)));
         assertThat(xlsx[0]).isEqualTo((byte) 'P');   // a zip: PK
         assertThat(xlsx[1]).isEqualTo((byte) 'K');
@@ -55,7 +55,7 @@ class ReportTemplatesTest {
 
     @Test
     void anEmptyReportStillPrintsItsHeader() throws Exception {
-        JasperPrint print = JasperFillManager.fillReport(ReportService.compile("fabrics-production-report"),
+        JasperPrint print = JasperFillManager.fillReport(ReportService.load("fabrics-production-report"),
             new HashMap<>(Map.of("kpi_orders", "0")), new JRMapCollectionDataSource(List.of()));
         assertThat(print.getPages()).hasSize(1);
     }
