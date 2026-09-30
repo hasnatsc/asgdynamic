@@ -430,6 +430,9 @@
   .fieldset   { @apply rounded-xl border border-gray-200 p-4; }
   .legend     { @apply px-1 text-xs font-semibold uppercase tracking-wide text-gray-500; }
   .num        { @apply whitespace-nowrap text-right tabular-nums; }
+  /* A narrow field (w-24, w-28...) in a right-aligned cell sits at the cell's right edge, under its
+     right-aligned header: .field is a block, and text-align does not move a block. */
+  td.num > .field, td.text-right > .field, td.n > .field { @apply ml-auto; }
   /* Inline-editable line grid (colour breakdown, requisition lines): same as .table-lines. */
   .table-edit thead th { @apply px-2 py-2; }
   .table-edit tbody td { @apply px-2 py-1.5; }

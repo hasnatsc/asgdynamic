@@ -95,10 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${lineTable(doc)}
             </section>
             ${children}
-            <section class="form-section">
-                <div class="form-section-head"><h3 class="form-section-title">History</h3></div>
-                ${screen.historyHtml(history)}
-            </section>`;
+            <section class="form-section">${screen.historySection(history)}</section>`;
 
         const own = [];
         if (doc.postable) own.push(`<button type="button" class="btn-primary" data-supply-action="post">${icon('check')}Post</button>`);

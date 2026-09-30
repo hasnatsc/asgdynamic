@@ -247,8 +247,7 @@
                 ? `<button type="button" class="btn-secondary" data-bpo-create>${App.icon('planning')}Create production order</button>` : '';
             actions.innerHTML = toProduction + screen.actionButtons(d);
             actions.hidden = !actions.innerHTML;
-            form.querySelector('[data-history]').innerHTML =
-                `<h3 class="form-section-title mb-4">Approval history</h3>${screen.historyHtml(history || [])}`;
+            form.querySelector('[data-history]').innerHTML = screen.historySection(history, 'Approval history');
             historyTab.hidden = false;
             cancel.textContent = 'Close';
         }

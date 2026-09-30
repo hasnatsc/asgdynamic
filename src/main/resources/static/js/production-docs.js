@@ -236,10 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${preDeliveryViewHtml(doc)}
             </section>` : ''}
             ${children}
-            <section class="form-section">
-                <div class="form-section-head"><h3 class="form-section-title">History</h3></div>
-                ${screen.historyHtml(history)}
-            </section>`;
+            <section class="form-section">${screen.historySection(history)}</section>`;
 
         if (STEP === 'BPO') App.tabs($('[data-view-body]', viewer));
 

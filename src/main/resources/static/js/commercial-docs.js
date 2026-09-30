@@ -210,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${realizationHtml(doc)}${milestonesHtml(doc)}${recordsHtml(doc)}${backToBackHtml(doc)}
             ${terms ? `<section class="form-section"><div class="form-section-head"><h3 class="form-section-title">Terms &amp; conditions</h3></div><ul class="space-y-1.5 text-sm">${terms}</ul></section>` : ''}
             ${children}
-            <section class="form-section"><div class="form-section-head"><h3 class="form-section-title">History</h3></div>${screen.historyHtml(history)}</section>`;
+            <section class="form-section">${screen.historySection(history)}</section>`;
 
         const own = [];
         if (doc.canRecord && doc.status !== 'DRAFT' && { ELC: 1, ILC: 1, ECI: 1 }[STEP]) {

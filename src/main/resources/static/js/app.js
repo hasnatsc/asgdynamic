@@ -1408,6 +1408,8 @@
                             POSTED: 'posted it to stock', CANCELLED: 'cancelled it', SHORT_CLOSED: 'short-closed a line', CLOSED: 'closed it',
                             SUPERSEDED: 'replaced it with a revision', ACCOUNTED: 'posted it to accounts', REALIZED: 'recorded its final payment',
                             REALIZATION_UNDONE: 'took back its final payment' };
+    /** Ids tying each history toggle to its timeline (aria-controls). */
+    let historySeq = 0;
     const GROUP_FIELDS = {
         itemName: 'Item', costingCode: 'Costing no', fabricType: 'Fabric type', composition: 'Composition',
         declaredConstruction: 'PI construction', weaveType: 'Weave type', weaveStyle: 'Weave style',
@@ -1636,7 +1638,7 @@
 
         async open(id) {
             // A page whose editor is a dialog shows the document in that same form, read-only:
-            // opts.onView(doc, history, screen). actionButtons(), historyHtml() and act() are
+            // opts.onView(doc, history, screen). actionButtons(), historySection() and act() are
             // the review modal's own pieces, for that page to use.
             if (this.opts.onView) {
                 try {
@@ -1756,8 +1758,6 @@
                 </article>`;
             }).join('');
 
-            const timeline = this.historyHtml(history);
-
             d.querySelector('[data-body]').innerHTML = `
                 <section class="form-section">${statusSteps(doc.status)}</section>
                 <section class="form-section"><dl class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">${facts}</dl>
@@ -1776,14 +1776,36 @@
                         <span class="text-gray-800 dark:text-gray-200">${esc(t.bodyText)}</span></li>`).join('')}</ol>`
                         : '<p class="text-sm text-gray-500">No terms on this document.</p>'}
                 </section>` : ''}
-                <section class="form-section">
-                    <div class="form-section-head"><h3 class="form-section-title">Approval history</h3></div>
-                    ${timeline}
-                </section>`;
+                <section class="form-section">${this.historySection(history, 'Approval history')}</section>`;
 
             d.querySelector('[data-foot]').innerHTML = `
                 <button type="button" class="btn-ghost" data-close>Close</button>
                 <div class="flex flex-wrap justify-end gap-2">${this.actionButtons(doc)}</div>`;
+        }
+
+        /**
+         * A document's history as a section closed until asked for - the same toggle as a booking
+         * line's "Item detail": the heading says how much there is and what happened last, and
+         * "Show detail" (aria-expanded) opens the full timeline. Toggled by the listener under Page chrome.
+         */
+        historySection(history, title) {
+            const list = history || [];
+            const heading = `<h3 class="form-section-title">${esc(title || 'History')}</h3>`;
+            if (!list.length) {
+                return `<div class="form-section-head">${heading}</div>
+                    <p class="text-sm text-gray-500">No approval activity yet.</p>`;
+            }
+            const id = `history-${++historySeq}`;
+            const last = list[0];
+            const summary = `${list.length} ${list.length === 1 ? 'event' : 'events'} · last: ${esc(last.actor || 'System')} `
+                + `${esc(HISTORY_VERBS[last.action] || 'moved it to')}${last.at ? ` · ${fmt.timeTag(last.at)}` : ''}`;
+            return `<div class="form-section-head">
+                    <div class="min-w-0">${heading}<p class="form-section-sub">${summary}</p></div>
+                    <button type="button" class="line-toggle shrink-0" data-history-toggle data-view-keep
+                            aria-expanded="false" aria-controls="${id}" title="Every submission, decision and posting">
+                        ${icon('chevron-right', 'transition-transform')}<span data-toggle-label>Show detail</span></button>
+                </div>
+                <div id="${id}" data-history-body hidden>${this.historyHtml(list)}</div>`;
         }
 
         /** The approval timeline, newest first. */
@@ -1899,6 +1921,18 @@
     // ------------------------------------------------------------------------------------------
 
     document.addEventListener('DOMContentLoaded', () => {
+        // A document's history opens and closes in place (DocumentScreen.historySection), on every screen.
+        document.addEventListener('click', event => {
+            const toggle = event.target.closest('[data-history-toggle]');
+            const body = toggle && document.getElementById(toggle.getAttribute('aria-controls'));
+            if (!body) return;
+            const open = toggle.getAttribute('aria-expanded') !== 'true';
+            toggle.setAttribute('aria-expanded', String(open));
+            body.hidden = !open;
+            const label = toggle.querySelector('[data-toggle-label]');
+            if (label) label.textContent = open ? 'Hide detail' : 'Show detail';
+        });
+
         // Mobile sidebar: an off-canvas drawer below lg.
         const sidebar = document.getElementById('sidebar');
         const root = document.documentElement;
