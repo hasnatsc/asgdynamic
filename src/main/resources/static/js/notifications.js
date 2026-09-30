@@ -278,11 +278,12 @@
             } catch (error) { App.fail(error); }
         }
 
+        // Built without whitespace between tags: the text keeps its own line breaks (pre-wrap), not the template's.
         function bubble(m) {
-            return `<div class="chat-bubble ${m.mine ? 'is-mine' : 'is-theirs'}">
-                ${m.documentLabel ? `<a class="chat-doc" href="${esc(m.link || '#')}">${App.icon('document', 'h-3 w-3')}${esc(m.documentLabel)}</a><br>` : ''}${esc(m.body)}
-                <span class="chat-time" title="${esc(App.fmt.dateTime(m.at))}">${esc(App.fmt.relative(m.at))}${m.mine && m.read ? ' · Seen' : ''}</span>
-            </div>`;
+            const doc = m.documentLabel
+                ? `<a class="chat-doc" href="${esc(m.link || '#')}">${App.icon('document', 'h-3 w-3')}${esc(m.documentLabel)}</a>` : '';
+            const time = `<span class="chat-time" title="${esc(App.fmt.dateTime(m.at))}">${esc(App.fmt.relative(m.at))}${m.mine && m.read ? ' · Seen' : ''}</span>`;
+            return `<div class="chat-bubble ${m.mine ? 'is-mine' : 'is-theirs'}">${doc}<span class="chat-text">${esc(m.body)}</span>${time}</div>`;
         }
 
         async function openThread(userId, older) {

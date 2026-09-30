@@ -134,14 +134,14 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> conversations() {
         Long me = me();
-        List<Object[]> rows = messages.conversations(me, PageRequest.of(0, 100));
-        Map<Long, FabricUser> people = people(rows.stream().map(r -> (Long) r[0]).toList());
-        Map<Long, Message> last = messages.findAllById(rows.stream().map(r -> (Long) r[1]).toList()).stream()
+        List<Object[]> rows = messages.conversations(me, 100);
+        Map<Long, FabricUser> people = people(rows.stream().map(r -> ((Number) r[0]).longValue()).toList());
+        Map<Long, Message> last = messages.findAllById(rows.stream().map(r -> ((Number) r[1]).longValue()).toList()).stream()
             .collect(Collectors.toMap(Message::getId, Function.identity()));
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object[] r : rows) {
-            Long otherId = (Long) r[0];
-            Message m = last.get((Long) r[1]);
+            Long otherId = ((Number) r[0]).longValue();
+            Message m = last.get(((Number) r[1]).longValue());
             Map<String, Object> row = person(people.get(otherId), otherId);
             row.put("lastBody", m == null ? null : m.getBody());
             row.put("lastAt", m == null ? null : m.getCreatedAt());

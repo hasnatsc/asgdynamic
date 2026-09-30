@@ -57,7 +57,7 @@ public class ApprovalDeadlineJob {
             inSystem(id, () -> approvals.timeOut(id), error -> approvals.timeOutFailed(id, error));
         }
         if (!reminders.isEmpty() || !timeouts.isEmpty()) {
-            log.info("Approval deadlines: {} reminder(s), {} timeout(s) handled", reminders.size(), timeouts.size());
+            log.info("Approval deadlines: {} reminder(s) and {} timeout(s) due", reminders.size(), timeouts.size());
         }
     }
 

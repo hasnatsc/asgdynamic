@@ -935,10 +935,11 @@
   .chat-person.is-active { @apply bg-brand-50/60; }
   .chat-thread   { @apply flex max-h-[40rem] min-h-[28rem] flex-col; }
   .chat-scroll   { @apply flex-1 space-y-2 overflow-y-auto bg-gray-50/60 px-4 py-4; }
-  .chat-bubble   { @apply max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm; }
+  .chat-bubble   { @apply w-fit max-w-[80%] break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm; }
+  .chat-text     { @apply block whitespace-pre-wrap; }
   .chat-bubble.is-mine   { @apply ml-auto rounded-br-md bg-brand-600 text-white; }
   .chat-bubble.is-theirs { @apply mr-auto rounded-bl-md bg-white text-gray-800 ring-1 ring-gray-200; }
-  .chat-doc      { @apply mb-1 inline-flex items-center gap-1 rounded-md bg-black/10 px-1.5 py-0.5 text-[11px] font-medium; }
+  .chat-doc      { @apply mb-1 flex w-fit items-center gap-1 rounded-md bg-black/10 px-1.5 py-0.5 text-[11px] font-medium hover:underline; }
   .chat-bubble.is-theirs .chat-doc { @apply bg-gray-100 text-gray-700; }
   .chat-time     { @apply mt-0.5 block text-[10px] opacity-70; }
   .chat-compose  { @apply flex items-end gap-2 border-t border-gray-100 p-3; }

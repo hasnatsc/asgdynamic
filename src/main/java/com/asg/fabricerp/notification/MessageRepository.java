@@ -15,18 +15,23 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     /**
      * One row per person this user has exchanged messages with: {@code [otherUserId, lastMessageId,
-     * unreadFromThem]}, most recent conversation first.
+     * unreadFromThem]}, most recent conversation first, at most {@code limit}.
+     *
+     * <p>Native, and the other person worked out once in a subquery: grouping by a CASE that holds a
+     * bind parameter fails on PostgreSQL, which cannot tell the grouped expression is the selected one.
      */
-    @Query("""
-           select case when m.senderUserId = :userId then m.recipientUserId else m.senderUserId end,
-                  max(m.id),
-                  sum(case when m.recipientUserId = :userId and m.readAt is null then 1 else 0 end)
-           from Message m
-           where m.senderUserId = :userId or m.recipientUserId = :userId
-           group by case when m.senderUserId = :userId then m.recipientUserId else m.senderUserId end
-           order by max(m.id) desc
+    @Query(nativeQuery = true, value = """
+           select t.other_id, max(t.id), sum(t.unread)
+           from (select case when m.sender_user_id = :userId then m.recipient_user_id else m.sender_user_id end as other_id,
+                        m.id,
+                        case when m.recipient_user_id = :userId and m.read_at is null then 1 else 0 end as unread
+                 from ntf_messages m
+                 where m.sender_user_id = :userId or m.recipient_user_id = :userId) t
+           group by t.other_id
+           order by max(t.id) desc
+           limit :limit
            """)
-    List<Object[]> conversations(@Param("userId") Long userId, Pageable pageable);
+    List<Object[]> conversations(@Param("userId") Long userId, @Param("limit") int limit);
 
     /** The thread between two people, newest first - the client reverses a page to show it. */
     @Query("""
