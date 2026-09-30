@@ -2,11 +2,11 @@ package com.asg.fabricerp.report;
 
 import com.asg.fabricerp.common.OrgContext;
 import net.sf.jasperreports.engine.JRException;
-import net.sf.jasperreports.engine.JasperCompileManager;
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperFillManager;
 import net.sf.jasperreports.engine.JasperPrint;
 import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.util.JRLoader;
 import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
 import net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter;
 import net.sf.jasperreports.export.SimpleExporterInput;
@@ -35,8 +35,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The JasperReports engine for printed reports - HASSML's {@code ReportPdfService}, on this system.
  *
- * <p>Templates live in {@code src/main/resources/reports/<name>.jrxml}, are compiled on first use
- * and cached. Every template is filled from rows the caller has already read and scoped (a
+ * <p>Templates live in {@code src/main/resources/reports/<name>.jrxml}, are pre-compiled to
+ * {@code <name>.jasper} (see {@link #load}) and loaded once, on first use. Every template is filled
+ * from rows the caller has already read and scoped (a
  * {@link JRMapCollectionDataSource}), never from SQL of its own: a report can then never show a
  * row its screen would not, and the figures are the screen's own.
  *
@@ -64,16 +65,23 @@ public class ReportService {
         this.context = context;
     }
 
-    /** The compiled template {@code reports/<name>.jrxml}, compiled once. */
+    /** The template {@code reports/<name>.jasper}, loaded once. */
     public JasperReport template(String name) {
-        return compiled.computeIfAbsent(name, ReportService::compile);
+        return compiled.computeIfAbsent(name, ReportService::load);
     }
 
-    static JasperReport compile(String name) {
-        try (InputStream in = new ClassPathResource(FOLDER + name + ".jrxml").getInputStream()) {
-            return JasperCompileManager.compileReport(in);
+    /**
+     * Loads the pre-compiled {@code .jasper} binary rather than compiling the {@code .jrxml} source
+     * at runtime: JasperReports' runtime compiler shells out to javac against {@code java.class.path},
+     * which doesn't resolve the engine's own classes when running from a Spring Boot fat jar (nested
+     * jars under {@code BOOT-INF/lib/} aren't plain files on that classpath). Compile the {@code .jrxml}
+     * to {@code .jasper} in Jaspersoft Studio (or {@code JasperCompileManager} offline) after every edit.
+     */
+    static JasperReport load(String name) {
+        try (InputStream in = new ClassPathResource(FOLDER + name + ".jasper").getInputStream()) {
+            return (JasperReport) JRLoader.loadObject(in);
         } catch (IOException | JRException e) {
-            throw new IllegalStateException("Report template " + name + " could not be compiled: " + e.getMessage(), e);
+            throw new IllegalStateException("Report template " + name + " could not be loaded: " + e.getMessage(), e);
         }
     }
 
