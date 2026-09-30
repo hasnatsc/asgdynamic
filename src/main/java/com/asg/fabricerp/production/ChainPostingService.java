@@ -1,8 +1,10 @@
 package com.asg.fabricerp.production;
 
+import com.asg.fabricerp.accounts.CreditService;
 import com.asg.fabricerp.approval.ApprovalAction;
 import com.asg.fabricerp.approval.ApprovalRequestRepository;
 import com.asg.fabricerp.approval.ApprovalService;
+import com.asg.fabricerp.common.AuditableEntity;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.common.Warehouse;
 import com.asg.fabricerp.global.documents.*;
@@ -15,16 +17,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 
 import static com.asg.fabricerp.production.ChainDocumentService.lineName;
 import static com.asg.fabricerp.production.ChainSupport.qty;
 
 /**
- * What happens to a chain document after it is saved: store documents are posted to the stock
- * ledger in one step; anything may be cancelled with a reason (a posted document by exact
- * reversing ledger rows); a committed line's balance may be short-closed; a dyeing batch is
- * closed with its loss measured; a completed order is closed by hand.
+ * What happens to a chain document after it is saved: once approved, store documents are posted to
+ * the stock ledger and delivery orders reserve their lots; anything may be cancelled with a reason
+ * (a posted store document by exact reversing ledger rows); a committed line's balance may be
+ * short-closed; a dyeing batch is closed with its loss measured; a completed order is closed by hand.
  */
 @Service
 public class ChainPostingService {
@@ -37,13 +40,14 @@ public class ChainPostingService {
     private final ApprovalService approvals;
     private final ApprovalRequestRepository requests;
     private final BusinessDocumentRepository repository;
+    private final CreditService credit;
     private final OrgContext context;
     private final EntityManager em;
 
     public ChainPostingService(ChainDocumentService documents, ChainSupport chain, ChainQueries queries,
                                ChainProgress progress, FabricStockService stock, ApprovalService approvals,
                                ApprovalRequestRepository requests, BusinessDocumentRepository repository,
-                               OrgContext context, EntityManager em) {
+                               CreditService credit, OrgContext context, EntityManager em) {
         this.documents = documents;
         this.chain = chain;
         this.queries = queries;
@@ -52,22 +56,31 @@ public class ChainPostingService {
         this.approvals = approvals;
         this.requests = requests;
         this.repository = repository;
+        this.credit = credit;
         this.context = context;
         this.em = em;
     }
 
     // ------------------------------------------------------------------------------------ post
 
-    /** Posts a store document: its stock moves are written and it is final - cancel it to undo. */
+    /**
+     * Posts an approved document: a store document's stock moves are written, a delivery order's
+     * lots are reserved. It is final - cancel it to undo.
+     */
     @Transactional
     public BusinessDocument post(ChainStep step, Long id) {
-        if (!step.isPosting()) throw new IllegalStateException(step.plural() + " are approved, not posted");
+        if (!step.isPosted()) throw new IllegalStateException(step.plural() + " are approved, not posted");
         BusinessDocument doc = documents.get(step, id);
-        if (doc.getStatus() != BusinessDocumentStatus.DRAFT) {
-            throw new IllegalStateException("%s is %s; only a draft is posted".formatted(doc.getDocumentNo(), doc.getStatus().label().toLowerCase()));
+        if (doc.getStatus() != BusinessDocumentStatus.READY_TO_POST) {
+            throw new IllegalStateException("%s is %s; only an approved %s is posted - submit it for approval first"
+                .formatted(doc.getDocumentNo(), doc.getStatus().label().toLowerCase(), step.label().toLowerCase()));
         }
         if (doc.getLineGroups().stream().allMatch(g -> g.getColorLines().isEmpty())) {
             throw new IllegalStateException(doc.getDocumentNo() + " has no lines to post");
+        }
+        if (step == ChainStep.DO) {
+            reserve(doc);
+            return posted(doc);
         }
         if (doc.getWarehouse() == null) doc.setWarehouse(documents.defaultStore(step, doc));
         Warehouse store = doc.getWarehouse();
@@ -123,13 +136,54 @@ public class ChainPostingService {
                 }
             }
         }
+        return posted(doc);
+    }
+
+    private BusinessDocument posted(BusinessDocument doc) {
         BusinessDocumentStatus from = doc.getStatus();
-        doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
         doc.transitionTo(BusinessDocumentStatus.APPROVED);
         repository.save(doc);
         approvals.record(doc, ApprovalAction.POSTED, from, null);
         progress.refreshUpwards(doc);
         return doc;
+    }
+
+    /** A delivery order passes the buyer's credit control and holds its lots, so no other order can promise the same metres. */
+    private void reserve(BusinessDocument order) {
+        if (order.getWarehouse() == null) {
+            throw new IllegalStateException("Choose the delivering store on %s before posting it".formatted(order.getDocumentNo()));
+        }
+        checkCredit(order);
+        for (BusinessDocumentColorLine l : lines(order)) {
+            if (l.getFabricLotId() == null) {
+                throw new IllegalStateException("Pick the lot for %s on %s before posting it".formatted(lineName(l), order.getDocumentNo()));
+            }
+            stock.reserve(context.requireOrganizationId(), l.getId(), order.getWarehouse().getId(), l.getFabricLotId(),
+                l.getQuantity(), order.getDocumentNo() + ", " + lineName(l));
+        }
+    }
+
+    /** The buyer's credit control: a buyer on hold, or this order taking them over their limit, stops it. */
+    private void checkCredit(BusinessDocument order) {
+        Long partyId = AuditableEntity.idOf(order.getParty());
+        if (partyId == null) return;
+        BigDecimal value = order.getSubtotalAmount();
+        CreditService.Exposure probe = credit.exposureOf(partyId, BigDecimal.ZERO, LocalDate.now());
+        if (!probe.hasLimit()) return;
+        if (!Objects.equals(probe.currencyCode(), order.getCurrencyCode())) {
+            value = value.multiply(order.getExchangeRate() == null ? BigDecimal.ONE : order.getExchangeRate());
+        }
+        CreditService.Exposure exposure = credit.exposureOf(partyId, value, LocalDate.now());
+        switch (exposure.verdict()) {
+            case ON_HOLD -> throw new IllegalStateException("%s cannot be posted: %s is on credit hold%s"
+                .formatted(order.getDocumentNo(), order.getParty().getName(),
+                    exposure.holdReason() == null ? "" : " (" + exposure.holdReason() + ")"));
+            case OVER_LIMIT -> throw new IllegalStateException(("%s cannot be posted: it takes %s %s over the credit limit "
+                + "(owes %s, limit %s %s). Raise the limit or collect first.")
+                .formatted(order.getDocumentNo(), order.getParty().getName(), qty(exposure.headroom().negate()),
+                    qty(exposure.receivable()), qty(exposure.limit()), exposure.currencyCode()));
+            default -> { }
+        }
     }
 
     // ---------------------------------------------------------------------------------- cancel
@@ -151,7 +205,7 @@ public class ChainPostingService {
             default -> { }
         }
         boolean committed = from.isCommitted();
-        if (committed && step.isPosting()) {
+        if (committed && step.movesStock()) {
             if (step == ChainStep.GI) refuseIfFinishedAgainstIssue(doc);
             List<FabricStockService.Reversed> reversed = stock.reverseDocument(context.requireOrganizationId(), doc.getId(),
                 "Cancelled: " + reason.strip(), doc.getDocumentNo(), context.username());
@@ -227,7 +281,7 @@ public class ChainPostingService {
      */
     @Transactional
     public BusinessDocument shortClose(ChainStep step, Long lineId, String reason) {
-        if (step.isPosting()) throw new IllegalStateException(step.plural() + " are cancelled, not short-closed");
+        if (step.movesStock()) throw new IllegalStateException(step.plural() + " are cancelled, not short-closed");
         BusinessDocumentColorLine line = em.find(BusinessDocumentColorLine.class, lineId);
         if (line == null) throw new IllegalArgumentException("Line not found: " + lineId);
         BusinessDocument doc = documents.get(step, line.getLineGroup().getDocument().getId());

@@ -80,7 +80,7 @@ public class SupplyDocumentController {
         config.put("api", "/api/" + slug);
         config.put("parentLabel", step.hasParent() ? SupplyStep.of(step.parentType()).map(SupplyStep::label).orElse(step.parentType().label()) : null);
         config.put("parentSlug", step.hasParent() ? SupplyStep.of(step.parentType()).map(SupplyStep::slug).orElse(null) : null);
-        config.put("posting", step.isPosting());
+        config.put("posting", step.movesStock());
         config.put("direct", step.allowsDirect());
         config.put("requiresParent", step.requiresParent());
         config.put("fabricLots", step.lines() == SupplyStep.Lines.FABRIC_LOT);

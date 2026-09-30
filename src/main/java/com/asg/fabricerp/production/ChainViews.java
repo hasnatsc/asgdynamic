@@ -167,12 +167,12 @@ public class ChainViews {
         BusinessDocumentStatus s = d.getStatus();
         out.put("editable", maker && s.isEditable());
         out.put("deletable", s.isEditable() && AuthorityChecks.holds(step.authority("DELETE")));
-        out.put("submittable", !step.isPosting() && s.isEditable() && maker);
-        out.put("postable", step.isPosting() && s == BusinessDocumentStatus.DRAFT && AuthorityChecks.holds(step.authority("CREATE")));
+        out.put("submittable", s.isEditable() && maker);
+        out.put("postable", step.isPosted() && s == BusinessDocumentStatus.READY_TO_POST && AuthorityChecks.holds(step.authority("CREATE")));
         out.put("cancellable", amender && s != BusinessDocumentStatus.SUBMITTED && s != BusinessDocumentStatus.CANCELLED
             && s != BusinessDocumentStatus.CLOSED && s != BusinessDocumentStatus.COMPLETED);
         out.put("closable", amender && s == BusinessDocumentStatus.COMPLETED);
-        out.put("shortClosable", amender && !step.isPosting() && OPEN.contains(s));
+        out.put("shortClosable", amender && !step.movesStock() && OPEN.contains(s));
         out.put("batchClosable", amender && step == ChainStep.PWO && s.isCommitted() && s != BusinessDocumentStatus.CLOSED && !d.isBatchClosed());
         out.put("revisable", amender && step.isRevisable() && s.isCommitted() && s != BusinessDocumentStatus.CLOSED);
 

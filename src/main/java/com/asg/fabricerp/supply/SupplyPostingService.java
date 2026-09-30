@@ -18,8 +18,8 @@ import java.util.*;
 import static com.asg.fabricerp.supply.SupplyDraws.lineName;
 
 /**
- * What happens to a purchase or store document after it is saved: store documents are posted to
- * the stock ledger in one step; anything may be cancelled with a reason (a posted document by
+ * What happens to a purchase or store document after it is saved: MRRs and purchase returns are
+ * posted to the stock ledger in one step, every other store document once it is approved; anything may be cancelled with a reason (a posted document by
  * exact reversing rows, refused if what it brought in has gone on); an approved requisition's or
  * order's line may be short-closed; a completed document is closed by hand.
  */
@@ -61,19 +61,26 @@ public class SupplyPostingService {
 
     // ------------------------------------------------------------------------------------ post
 
-    /** Posts a store document: its stock moves are written and it is final - cancel it to undo. */
+    /**
+     * Posts a store document - an MRR or purchase return as a draft, anything else once its approvers
+     * have signed it: its stock moves are written (a requisition or transfer request is released to
+     * the store) and it is final - cancel it to undo.
+     */
     @Transactional
     public BusinessDocument post(SupplyStep step, Long id) {
-        if (!step.isPosting()) throw new IllegalStateException(step.plural() + " are approved, not posted");
+        if (!step.isPosted()) throw new IllegalStateException(step.plural() + " are approved, not posted");
         BusinessDocument doc = documents.get(step, id);
-        if (doc.getStatus() != BusinessDocumentStatus.DRAFT) {
-            throw new IllegalStateException("%s is %s; only a draft is posted".formatted(doc.getDocumentNo(), doc.getStatus().label().toLowerCase()));
+        if (doc.getStatus() != step.postsFrom()) {
+            throw new IllegalStateException(step.postsFrom() == BusinessDocumentStatus.DRAFT
+                ? "%s is %s; only a draft is posted".formatted(doc.getDocumentNo(), doc.getStatus().label().toLowerCase())
+                : "%s is %s; only an approved %s is posted - submit it for approval first"
+                    .formatted(doc.getDocumentNo(), doc.getStatus().label().toLowerCase(), step.label().toLowerCase()));
         }
         if (SupplyDraws.lines(doc).isEmpty()) throw new IllegalStateException(doc.getDocumentNo() + " has no lines to post");
-        writer.write(step, doc);
+        if (step.movesStock()) writer.write(step, doc);
 
         BusinessDocumentStatus from = doc.getStatus();
-        doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
+        if (from == BusinessDocumentStatus.DRAFT) doc.transitionTo(BusinessDocumentStatus.SUBMITTED);
         doc.transitionTo(BusinessDocumentStatus.APPROVED);
         repository.save(doc);
         approvals.record(doc, ApprovalAction.POSTED, from, accounting.post(step, doc));
@@ -107,7 +114,7 @@ public class SupplyPostingService {
         boolean committed = from.isCommitted();
         if (committed) {
             refuseIfDrawnOn(step, doc);
-            if (step.isPosting() || step == SupplyStep.SA) {
+            if (step.movesStock()) {
                 LocalDate today = LocalDate.now();
                 periods.requireOpen(today);
                 if (step.lines() == SupplyStep.Lines.FABRIC_LOT) {
@@ -134,7 +141,7 @@ public class SupplyPostingService {
             if (q.signum() > 0) taken.add(SupplyStep.of(DocumentType.valueOf(stream)).map(s -> s.plural().toLowerCase()).orElse(stream));
         }));
         if (taken.isEmpty()) return;
-        throw new IllegalStateException(step.isPosting()
+        throw new IllegalStateException(step.movesStock()
             ? "%s has %s raised against it; cancel or delete those first".formatted(doc.getDocumentNo(), String.join(", ", taken))
             : "%s has %s raised against it and cannot be cancelled. Short-close its lines instead."
                 .formatted(doc.getDocumentNo(), String.join(", ", taken)));
@@ -149,7 +156,7 @@ public class SupplyPostingService {
      */
     @Transactional
     public BusinessDocument shortClose(SupplyStep step, Long lineId, String reason) {
-        if (step.isPosting() || step == SupplyStep.SA) throw new IllegalStateException(step.plural() + " are cancelled, not short-closed");
+        if (step.movesStock()) throw new IllegalStateException(step.plural() + " are cancelled, not short-closed");
         if (reason == null || reason.isBlank()) throw new IllegalArgumentException("Say why the line is short-closed");
         BusinessDocumentColorLine line = em.find(BusinessDocumentColorLine.class, lineId);
         if (line == null) throw new IllegalArgumentException("Line not found: " + lineId);

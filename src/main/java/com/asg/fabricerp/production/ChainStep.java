@@ -22,8 +22,9 @@ import java.util.Set;
  *
  * <p>Each step draws its own <em>stream</em> of its parent's lines (the stream is the step's own
  * document type), so the Weaving WO, the Dyeing WO and the delivery schedule of one production
- * order line each see their own balance. Documents that commit the mill go through the approval
- * matrix; store documents record something that physically happened and are posted in one step.
+ * order line each see their own balance. Orders that commit the mill go through the approval
+ * matrix; store documents and delivery orders are approved and then posted - they move (or
+ * reserve) stock only when the store posts them.
  */
 public enum ChainStep {
 
@@ -34,24 +35,28 @@ public enum ChainStep {
     PWO(DocumentType.PROCESSING_WORK_ORDER, DocumentType.BULK_PRODUCTION_ORDER, "processing-wo", Screen.PWO,
         "Dyeing work order", "Dyeing work orders", SignOff.APPROVAL, StockEffect.NONE),
     GR(DocumentType.GREIGE_RECEIVE, DocumentType.WEAVING_WORK_ORDER, "greige-receive", Screen.GR,
-        "Greige receive", "Greige receipts", SignOff.POSTING, StockEffect.GREIGE_IN),
+        "Greige receive", "Greige receipts", SignOff.APPROVAL_THEN_POSTING, StockEffect.GREIGE_IN),
     GI(DocumentType.GREIGE_ISSUE, DocumentType.PROCESSING_WORK_ORDER, "greige-issue", Screen.GI,
-        "Greige issue", "Greige issues", SignOff.POSTING, StockEffect.ISSUE),
+        "Greige issue", "Greige issues", SignOff.APPROVAL_THEN_POSTING, StockEffect.ISSUE),
     FFR(DocumentType.FINISHED_FABRICS_RECEIVE, DocumentType.PROCESSING_WORK_ORDER, "finished-receive", Screen.FFR,
-        "Finished receive", "Finished receipts", SignOff.POSTING, StockEffect.FINISHED_IN),
+        "Finished receive", "Finished receipts", SignOff.APPROVAL_THEN_POSTING, StockEffect.FINISHED_IN),
     RPI(DocumentType.REQUEST_FOR_PI, DocumentType.BULK_PRODUCTION_ORDER, "requestforpi", Screen.RPI,
         "Delivery schedule", "Delivery schedules", SignOff.APPROVAL, StockEffect.NONE),
     DO(DocumentType.DELIVERY_ORDER, DocumentType.REQUEST_FOR_PI, "delivery-order", Screen.DO,
-        "Delivery order", "Delivery orders", SignOff.APPROVAL, StockEffect.RESERVE),
+        "Delivery order", "Delivery orders", SignOff.APPROVAL_THEN_POSTING, StockEffect.RESERVE),
     FD(DocumentType.FABRICS_DELIVERY, DocumentType.DELIVERY_ORDER, "fabrics-delivery", Screen.FD,
-        "Fabrics delivery", "Fabrics deliveries", SignOff.POSTING, StockEffect.DELIVERY_OUT);
+        "Fabrics delivery", "Fabrics deliveries", SignOff.APPROVAL_THEN_POSTING, StockEffect.DELIVERY_OUT);
 
     /** How a document of the step becomes binding. */
     public enum SignOff {
-        /** Submitted and signed through the approval matrix. */
+        /** Submitted and signed through the approval matrix; binding once approved. */
         APPROVAL,
-        /** Posted by the store in one step; cancelled with exact reversing ledger rows. */
-        POSTING
+        /**
+         * Submitted and signed through the approval matrix, then posted by the store: it waits
+         * {@link BusinessDocumentStatus#READY_TO_POST} and takes effect only when posted. A posted
+         * store document is cancelled with exact reversing ledger rows.
+         */
+        APPROVAL_THEN_POSTING
     }
 
     /** What the step does to the fabric stock ledger. */
@@ -92,7 +97,10 @@ public enum ChainStep {
     public String plural()           { return plural; }
     public SignOff signOff()         { return signOff; }
     public StockEffect stock()       { return stock; }
-    public boolean isPosting()       { return signOff == SignOff.POSTING; }
+    /** Posted (after its approval) rather than in effect once approved. */
+    public boolean isPosted()        { return signOff == SignOff.APPROVAL_THEN_POSTING; }
+    /** Writes the fabric stock ledger when posted: a receipt, an issue or a delivery (not a reservation). */
+    public boolean movesStock()      { return stock != StockEffect.NONE && stock != StockEffect.RESERVE; }
     public boolean isRevisable()     { return type.isRevisable(); }
 
     /** The stream this step draws on its parent's lines. */

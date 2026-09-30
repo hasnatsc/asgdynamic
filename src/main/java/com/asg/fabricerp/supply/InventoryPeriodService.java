@@ -18,11 +18,13 @@ import java.util.*;
  *
  * <p>A month with no row is open, so a new organization posts from its first day without
  * setting anything up. Closing is refused while store documents dated in the month are still
- * unposted drafts: a month closed around them could never take them.
+ * unposted - drafts, or awaiting or through approval: a month closed around them could never take them.
  */
 @Service
 public class InventoryPeriodService {
 
+    /** A store document in one of these has not been posted yet. */
+    private static final List<String> UNPOSTED = List.of("DRAFT", "SUBMITTED", "REJECTED", "READY_TO_POST");
     private static final DateTimeFormatter LABEL = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH);
 
     private final NamedParameterJdbcTemplate jdbc;
@@ -88,9 +90,9 @@ public class InventoryPeriodService {
         });
         jdbc.query("""
             SELECT date_trunc('month', document_date)::date, count(*) FROM gbl_business_documents
-            WHERE organization_id = :org AND deleted = FALSE AND status = 'DRAFT'
+            WHERE organization_id = :org AND deleted = FALSE AND status IN (:unposted)
               AND document_type IN (:types) AND document_date BETWEEN :from AND :to GROUP BY 1
-            """, p.addValue("types", postingTypes()), rs -> {
+            """, p.addValue("types", postingTypes()).addValue("unposted", UNPOSTED), rs -> {
             Map<String, Object> row = rows.get(rs.getDate(1).toLocalDate());
             if (row != null) row.put("drafts", rs.getLong(2));
         });
@@ -102,13 +104,13 @@ public class InventoryPeriodService {
         Long org = context.requireOrganizationId();
         List<String> drafts = jdbc.queryForList("""
             SELECT document_no FROM gbl_business_documents
-            WHERE organization_id = :org AND deleted = FALSE AND status = 'DRAFT' AND document_type IN (:types)
+            WHERE organization_id = :org AND deleted = FALSE AND status IN (:unposted) AND document_type IN (:types)
               AND document_date BETWEEN :from AND :to
             ORDER BY document_date, document_no LIMIT 6
-            """, new MapSqlParameterSource("org", org).addValue("types", postingTypes())
+            """, new MapSqlParameterSource("org", org).addValue("types", postingTypes()).addValue("unposted", UNPOSTED)
                 .addValue("from", month.atDay(1)).addValue("to", month.atEndOfMonth()), String.class);
         if (!drafts.isEmpty()) {
-            throw new IllegalStateException("%s still has unposted store documents dated in it (%s%s). Post or delete them first."
+            throw new IllegalStateException("%s still has unposted store documents dated in it (%s%s). Post, delete or cancel them first."
                 .formatted(label(month), String.join(", ", drafts.subList(0, Math.min(5, drafts.size()))), drafts.size() > 5 ? ", …" : ""));
         }
         int updated = jdbc.update("""
@@ -143,7 +145,7 @@ public class InventoryPeriodService {
 
     /** The document types the store posts - the ones a closed month would strand as drafts. */
     static List<String> postingTypes() {
-        return Arrays.stream(SupplyStep.values()).filter(SupplyStep::isPosting).map(s -> s.type().name()).toList();
+        return Arrays.stream(SupplyStep.values()).filter(SupplyStep::movesStock).map(s -> s.type().name()).toList();
     }
 
     static String label(YearMonth month) {

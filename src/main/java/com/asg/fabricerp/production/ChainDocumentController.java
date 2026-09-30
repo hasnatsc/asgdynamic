@@ -69,7 +69,7 @@ public class ChainDocumentController {
         config.put("api", "/api/" + slug);
         config.put("parentLabel", ChainStep.of(step.parentType()).map(ChainStep::label).orElse("Booking"));
         config.put("parentSlug", ChainStep.of(step.parentType()).map(ChainStep::slug).orElse("booking"));
-        config.put("posting", step.isPosting());
+        config.put("posting", step.movesStock());
         config.put("revisable", step.isRevisable());
         config.put("canCreate", AuthorityChecks.holds(step.authority("CREATE")));
         config.put("canAmend", AuthorityChecks.holds(step.authority("AMEND")));

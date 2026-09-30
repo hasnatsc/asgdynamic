@@ -287,6 +287,7 @@ class CommercialDatabaseIT {
         BusinessDocument wwo = chain.save(ChainStep.WWO, chainRequest(null, chainLine("COLOUR", lineOf(bpo, 0), quantity, null)));
         approveChain(wwo);
         BusinessDocument gr = chain.save(ChainStep.GR, chainRequest(weaving, chainLine("COLOUR", lineOf(wwo, 0), quantity, null)));
+        approveChain(gr);
         chainPosting.post(ChainStep.GR, gr.getId());
         long lot = jdbc.queryForObject("SELECT fabric_lot_id FROM gbl_business_document_color_lines WHERE id = ?", Long.class, lineOf(gr, 0));
         BusinessDocument rpi = chain.save(ChainStep.RPI, chainRequest(null, chainLine("COLOUR", lineOf(bpo, 0), quantity, null)));
@@ -294,7 +295,9 @@ class CommercialDatabaseIT {
         if (delivered == null) return new Delivered(lineOf(rpi, 0), 0);
         BusinessDocument order = chain.save(ChainStep.DO, chainRequest(weaving, chainLine("COLOUR", lineOf(rpi, 0), delivered, lot)));
         approveChain(order);
+        chainPosting.post(ChainStep.DO, order.getId());
         BusinessDocument fd = chain.save(ChainStep.FD, chainRequest(null, chainLine("COLOUR", lineOf(order, 0), delivered, null)));
+        approveChain(fd);
         chainPosting.post(ChainStep.FD, fd.getId());
         return new Delivered(lineOf(rpi, 0), lineOf(fd, 0));
     }
@@ -376,8 +379,12 @@ class CommercialDatabaseIT {
         tx.executeWithoutResult(s -> {
             BusinessDocument d = load(doc.getId());
             d.transitionTo(BusinessDocumentStatus.SUBMITTED);
-            d.transitionTo(BusinessDocumentStatus.APPROVED);
-            supplyApprovals.onApproved(d);
+            if (d.getDocumentType().isPostedAfterApproval()) {
+                d.transitionTo(BusinessDocumentStatus.READY_TO_POST);   // in effect only once posted
+            } else {
+                d.transitionTo(BusinessDocumentStatus.APPROVED);
+                supplyApprovals.onApproved(d);
+            }
             repository.save(d);
         });
     }
@@ -386,8 +393,12 @@ class CommercialDatabaseIT {
         tx.executeWithoutResult(s -> {
             BusinessDocument d = load(doc.getId());
             d.transitionTo(BusinessDocumentStatus.SUBMITTED);
-            d.transitionTo(BusinessDocumentStatus.APPROVED);
-            chainApprovals.onApproved(d);
+            if (d.getDocumentType().isPostedAfterApproval()) {
+                d.transitionTo(BusinessDocumentStatus.READY_TO_POST);   // in effect only once posted
+            } else {
+                d.transitionTo(BusinessDocumentStatus.APPROVED);
+                chainApprovals.onApproved(d);
+            }
             repository.save(d);
         });
     }

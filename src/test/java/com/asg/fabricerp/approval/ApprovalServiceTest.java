@@ -40,6 +40,8 @@ class ApprovalServiceTest {
     private ApprovalRequestRepository requests;
     private ApprovalMatrixRepository matrices;
     private ApprovalActors actors;
+    /** Handles nothing unless a test says so. */
+    private ApprovalListener listener;
     private ApprovalService service;
 
     /** The saved request, as the fake repository holds it. */
@@ -54,6 +56,7 @@ class ApprovalServiceTest {
         requests = mock(ApprovalRequestRepository.class);
         matrices = mock(ApprovalMatrixRepository.class);
         actors = mock(ApprovalActors.class);
+        listener = mock(ApprovalListener.class);
         ApprovalLabels labels = mock(ApprovalLabels.class);
         when(labels.approver(any(), any())).thenAnswer(i -> String.valueOf(i.getArgument(0, Approver.class).kind()));
 
@@ -78,7 +81,7 @@ class ApprovalServiceTest {
             @Override public RowScope rowScope()       { return scope; }
         };
         service = new ApprovalService(repository, history, requests, matrices, actors, labels, context,
-            List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()), List.of());
+            List.of(new com.asg.fabricerp.fabric.booking.BookingSubmissionCheck()), List.of(listener));
     }
 
     @AfterEach
@@ -298,6 +301,36 @@ class ApprovalServiceTest {
         assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
         assertThat(live.isPending()).isFalse();
         assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.APPROVED);
+    }
+
+    @Test
+    void aStoreDocumentIsLeftReadyToPostAndActsOnlyWhenPosted() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        doc.setDocumentType(DocumentType.GREIGE_RECEIVE);
+        when(listener.handles(any())).thenReturn(true);
+        actingAs(1L, "maker", Set.of(), "SCREEN_GR_CREATE");
+        service.submit(DOC_ID);
+        actingAs(2L, "checker", Set.of(), "SCREEN_GR_APPROVE");
+
+        service.approve(DOC_ID, null);
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.READY_TO_POST);
+        assertThat(live.getOutcome()).isEqualTo(ApprovalDecision.APPROVED);
+        // Its consequences - stock moved, lots reserved - wait for the posting.
+        verify(listener, never()).onApproved(any());
+    }
+
+    @Test
+    void anOrderRunsItsListenersWhenItsLastLevelSigns() {
+        BusinessDocument doc = booking("maker", BusinessDocumentStatus.DRAFT, "100", null);
+        when(listener.handles(DocumentType.BOOKING)).thenReturn(true);
+        submitAs("maker");
+        actingAs(2L, "checker", Set.of(), "SCREEN_BOOKING_APPROVE");
+
+        service.approve(DOC_ID, null);
+
+        assertThat(doc.getStatus()).isEqualTo(BusinessDocumentStatus.APPROVED);
+        verify(listener).onApproved(doc);
     }
 
     @Test

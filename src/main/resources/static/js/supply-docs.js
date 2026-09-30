@@ -192,9 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (action === 'print') return printDocument(doc);
         if (action === 'post') {
             if (!await App.confirm({ title: `Post ${doc.documentNo}?`,
-                message: 'Its stock moves are written to the ledger. It cannot be edited afterwards - only cancelled, which reverses them.',
+                message: CFG.posting
+                    ? 'Its stock moves are written to the ledger. It cannot be edited afterwards - only cancelled, which reverses them.'
+                    : 'It is released to the store, and documents can then be raised against it. It cannot be edited afterwards.',
                 confirmText: 'Post' })) return;
-            return run(`${CFG.api}/${doc.id}/post`, null, 'Posted to stock.');
+            return run(`${CFG.api}/${doc.id}/post`, null, CFG.posting ? 'Posted to stock.' : 'Posted.');
         }
         if (action === 'delete') {
             if (!await App.confirm({ title: `Delete ${doc.documentNo}?`, message: 'The draft is removed and what it drew is given back.',
@@ -208,9 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const dialogs = {
-            cancel: ['Cancel', doc.status === 'DRAFT' || doc.status === 'REJECTED'
+            cancel: ['Cancel', ['DRAFT', 'REJECTED', 'READY_TO_POST'].includes(doc.status)
                 ? 'The document is cancelled and what it drew is given back.'
-                : CFG.posting || STEP === 'SA' ? 'Its stock moves are reversed with exact reversing entries. Refused if what it brought in has gone on.'
+                : CFG.posting ?'Its stock moves are reversed with exact reversing entries. Refused if what it brought in has gone on.'
                               : 'Refused if anything has been raised against it - short-close its lines instead.', 'reason', true],
             close: ['Close', 'A completed document is closed once it is settled.', 'remarks', false]
         }[action];

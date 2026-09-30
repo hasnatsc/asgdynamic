@@ -37,7 +37,7 @@ public class ProductionDashboardController {
     public String page(Model model) {
         model.addAttribute("title", "Production dashboard");
         model.addAttribute("statuses", List.of(BusinessDocumentStatus.DRAFT, BusinessDocumentStatus.SUBMITTED,
-            BusinessDocumentStatus.APPROVED, BusinessDocumentStatus.PROCESSING, BusinessDocumentStatus.PARTIAL,
+            BusinessDocumentStatus.READY_TO_POST, BusinessDocumentStatus.APPROVED, BusinessDocumentStatus.PROCESSING, BusinessDocumentStatus.PARTIAL,
             BusinessDocumentStatus.COMPLETED, BusinessDocumentStatus.CLOSED));
         model.addAttribute("steps", Arrays.stream(ChainStep.values())
             .map(s -> Map.of("key", s.name(), "label", s.label(), "slug", s.slug())).toList());

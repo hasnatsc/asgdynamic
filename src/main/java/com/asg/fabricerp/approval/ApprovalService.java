@@ -193,7 +193,10 @@ public class ApprovalService {
         BusinessDocumentStatus from = doc.getStatus();
         switch (decision) {
             case APPROVED -> {
-                if (last) {
+                if (last && doc.getDocumentType().isPostedAfterApproval()) {
+                    // Signed, but in effect only once the store posts it - its consequences run then.
+                    doc.transitionTo(BusinessDocumentStatus.READY_TO_POST);
+                } else if (last) {
                     doc.transitionTo(BusinessDocumentStatus.APPROVED);
                     // The type's own consequences - reserve, start, supersede - inside this transaction.
                     listeners.stream().filter(l -> l.handles(doc.getDocumentType())).forEach(l -> l.onApproved(doc));

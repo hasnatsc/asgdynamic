@@ -122,8 +122,8 @@
                 </button>
                 <div class="min-w-0">
                     <h1 id="supplyEditorTitle" class="doc-page-title" data-editor-title th:text="|New ${step.label().toLowerCase()}|">New</h1>
-                    <p class="page-sub mt-0.5" th:text="${step.isPosting()
-                        ? 'Saved as a draft; Post writes it to stock.'
+                    <p class="page-sub mt-0.5" th:text="${!step.needsApproval() ? 'Saved as a draft; Post writes it to stock.'
+                        : step.isPosted() ? 'Saved as a draft; submit it for approval, then post it once approved.'
                         : 'Saved as a draft; submit it for approval from the document once it is complete.'}">Saved as a draft.</p>
                 </div>
             </div>

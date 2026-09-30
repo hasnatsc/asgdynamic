@@ -106,7 +106,7 @@ class SupplyDatabaseIT {
     @Test
     void aRequisitionIsBoughtReceivedReturnedAndIssued() {
         BusinessDocument sr = documents.save(SupplyStep.SR, req().store(processing).item(itemA, "100").item(itemB, "40").build());
-        approve(sr);
+        post(SupplyStep.SR, sr);
 
         // The purchase requisition takes the store requisition's lines, never more than was asked for.
         assertThatThrownBy(() -> documents.save(SupplyStep.SPR, req().from(lineOf(sr, 0), "101").build()))
@@ -126,7 +126,7 @@ class SupplyDatabaseIT {
         // Received in two MRRs, at the order's price; the order is part-received, then complete.
         BusinessDocument mrr1 = documents.save(SupplyStep.MRR, req().store(processing).from(lineOf(po, 0), "60").from(lineOf(po, 1), "40").build());
         assertThat(load(mrr1.getId()).getParty().getId()).isEqualTo(supplierId);
-        posting.post(SupplyStep.MRR, mrr1.getId());
+        post(SupplyStep.MRR, mrr1);
         assertThat(qty(processing, itemA)).isEqualByComparingTo("60");
         assertThat(value(processing, itemA)).isEqualByComparingTo("3000");
         assertThat(value(processing, itemB)).isEqualByComparingTo("800");
@@ -135,14 +135,14 @@ class SupplyDatabaseIT {
         assertThatThrownBy(() -> documents.save(SupplyStep.MRR, req().store(processing).from(lineOf(po, 0), "41").build()))
             .hasMessageContaining("only 40 is left");
         BusinessDocument mrr2 = documents.save(SupplyStep.MRR, req().store(processing).from(lineOf(po, 0), "40").build());
-        posting.post(SupplyStep.MRR, mrr2.getId());
+        post(SupplyStep.MRR, mrr2);
         assertThat(load(po.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.COMPLETED);
         assertThat(qty(processing, itemA)).isEqualByComparingTo("100");
 
         // Ten go back to the supplier, out of the store they were received into.
         BusinessDocument prt = documents.save(SupplyStep.PRT, req().from(lineOf(mrr1, 0), "10").build());
         assertThat(load(prt.getId()).getWarehouse().getId()).isEqualTo(processing);
-        posting.post(SupplyStep.PRT, prt.getId());
+        post(SupplyStep.PRT, prt);
         assertThat(qty(processing, itemA)).isEqualByComparingTo("90");
         assertThat(value(processing, itemA)).isEqualByComparingTo("4500");
         assertThatThrownBy(() -> posting.cancel(SupplyStep.MRR, mrr1.getId(), "wrong supplier"))
@@ -152,7 +152,7 @@ class SupplyDatabaseIT {
         assertThatThrownBy(() -> documents.save(SupplyStep.MI, req().store(processing).from(lineOf(sr, 0), "101").build()))
             .hasMessageContaining("100 allowed");
         BusinessDocument mi = documents.save(SupplyStep.MI, req().store(processing).from(lineOf(sr, 0), "30").build());
-        posting.post(SupplyStep.MI, mi.getId());
+        post(SupplyStep.MI, mi);
         assertThat(qty(processing, itemA)).isEqualByComparingTo("60");
         assertThat(value(processing, itemA)).isEqualByComparingTo("3000");
         assertThat(load(sr.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.PARTIAL);
@@ -183,8 +183,8 @@ class SupplyDatabaseIT {
         assertThat(value(weaving, itemA)).isEqualByComparingTo("300");
 
         BusinessDocument tooMuch = documents.save(SupplyStep.MI, req().store(weaving).item(itemA, "16").build());
-        assertThatThrownBy(() -> posting.post(SupplyStep.MI, tooMuch.getId())).hasMessageContaining("holds only 15");
-        assertThat(load(tooMuch.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.DRAFT);
+        assertThatThrownBy(() -> post(SupplyStep.MI, tooMuch)).hasMessageContaining("holds only 15");
+        assertThat(load(tooMuch.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.READY_TO_POST);
 
         post(SupplyStep.MI, req().store(weaving).item(itemA, "15").build());
         assertThat(qty(weaving, itemA)).isEqualByComparingTo("0");
@@ -197,17 +197,17 @@ class SupplyDatabaseIT {
     void aTransferLeavesOneStoreAndArrivesAtTheOtherAtTheSameCost() {
         post(SupplyStep.MR, req().store(processing).item(itemB, "50", "8").build());
         BusinessDocument st = documents.save(SupplyStep.ST, req().store(processing).toStore(weaving).item(itemB, "20").build());
-        approve(st);
+        post(SupplyStep.ST, st);
 
         BusinessDocument ti = documents.save(SupplyStep.TI, req().from(lineOf(st, 0), "20").build());
         assertThat(load(ti.getId()).getToWarehouse().getId()).isEqualTo(weaving);
-        posting.post(SupplyStep.TI, ti.getId());
+        post(SupplyStep.TI, ti);
         assertThat(qty(processing, itemB)).isEqualByComparingTo("30");
         assertThat(qty(weaving, itemB)).isEqualByComparingTo("0");
         assertThat(load(st.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.COMPLETED);
 
         BusinessDocument trc = documents.save(SupplyStep.TRC, req().from(lineOf(ti, 0), "20").build());
-        posting.post(SupplyStep.TRC, trc.getId());
+        post(SupplyStep.TRC, trc);
         assertThat(qty(weaving, itemB)).isEqualByComparingTo("20");
         assertThat(value(weaving, itemB)).isEqualByComparingTo("160");
         assertThat(load(ti.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.COMPLETED);
@@ -222,14 +222,14 @@ class SupplyDatabaseIT {
     }
 
     @Test
-    void anAdjustmentIsWrittenToStockWhenApproved() {
+    void anAdjustmentIsWrittenToStockWhenPosted() {
         BusinessDocument refused = documents.save(SupplyStep.SA, req().store(processing)
             .adjust(itemA, "IN", "5", "12").adjust(itemB, "OUT", "3", null).build());
-        assertThatThrownBy(() -> approve(refused)).hasMessageContaining("holds only 0");
+        assertThatThrownBy(() -> post(SupplyStep.SA, refused)).hasMessageContaining("holds only 0");
         assertThat(qty(processing, itemA)).isEqualByComparingTo("0");
 
         BusinessDocument sa = documents.save(SupplyStep.SA, req().store(processing).adjust(itemA, "IN", "5", "12").build());
-        approve(sa);
+        post(SupplyStep.SA, sa);
         assertThat(qty(processing, itemA)).isEqualByComparingTo("5");
         assertThat(value(processing, itemA)).isEqualByComparingTo("60");
         posting.cancel(SupplyStep.SA, sa.getId(), "count was wrong");
@@ -242,13 +242,13 @@ class SupplyDatabaseIT {
         try {
             BusinessDocument draft = documents.save(SupplyStep.MR, req().store(processing).date(month.atDay(15)).item(itemA, "4", "5").build());
             assertThatThrownBy(() -> periods.close(month, null)).hasMessageContaining(draft.getDocumentNo());
-            posting.post(SupplyStep.MR, draft.getId());
+            post(SupplyStep.MR, draft);
             periods.close(month, "counted");
 
             BusinessDocument late = documents.save(SupplyStep.MR, req().store(processing).date(month.atDay(20)).item(itemA, "1", "5").build());
-            assertThatThrownBy(() -> posting.post(SupplyStep.MR, late.getId())).hasMessageContaining("January 2024 is closed");
+            assertThatThrownBy(() -> post(SupplyStep.MR, late)).hasMessageContaining("January 2024 is closed");
             periods.reopen(month, "late receipt found");
-            posting.post(SupplyStep.MR, late.getId());
+            post(SupplyStep.MR, late);
             assertThat(qty(processing, itemA)).isEqualByComparingTo("5");
 
             // The monthly report reads the month straight from the ledger.
@@ -268,15 +268,15 @@ class SupplyDatabaseIT {
         long lot = greigeLotInWeavingStore("900");
         assertThat(fabric(weaving, lot)).isEqualByComparingTo("900");
 
-        assertThatThrownBy(() -> posting.post(SupplyStep.FTI, documents.save(SupplyStep.FTI,
-            req().store(weaving).toStore(processing).lot(lot, "901").build()).getId())).hasMessageContaining("900 free");
+        assertThatThrownBy(() -> post(SupplyStep.FTI, documents.save(SupplyStep.FTI,
+            req().store(weaving).toStore(processing).lot(lot, "901").build()))).hasMessageContaining("900 free");
         BusinessDocument fti = documents.save(SupplyStep.FTI, req().store(weaving).toStore(processing).lot(lot, "600").build());
-        posting.post(SupplyStep.FTI, fti.getId());
+        post(SupplyStep.FTI, fti);
         assertThat(fabric(weaving, lot)).isEqualByComparingTo("300");
         assertThat(fabric(processing, lot)).isEqualByComparingTo("0");
 
         BusinessDocument ftr = documents.save(SupplyStep.FTR, req().from(lineOf(fti, 0), "600").build());
-        posting.post(SupplyStep.FTR, ftr.getId());
+        post(SupplyStep.FTR, ftr);
         assertThat(fabric(processing, lot)).isEqualByComparingTo("600");
         assertThat(load(fti.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.COMPLETED);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM inv_fabric_moves WHERE document_id IN (?, ?)",
@@ -294,7 +294,7 @@ class SupplyDatabaseIT {
         BusinessDocument po = documents.save(SupplyStep.PO, req().supplier(supplierId).item(itemA, "10", "25").build());
         approve(po);
         BusinessDocument mrr = documents.save(SupplyStep.MRR, req().store(processing).from(lineOf(po, 0), "10").build());
-        posting.post(SupplyStep.MRR, mrr.getId());
+        post(SupplyStep.MRR, mrr);
         List<Map<String, Object>> entries = jdbc.queryForList("""
             SELECT e.id, l.side, l.account_code, l.amount FROM acc_gl_entries e JOIN acc_gl_entry_lines l ON l.entry_id = e.id
             WHERE e.doc_type_code = 'GOODS_RECEIPT_NOTE' AND e.document_id = ? ORDER BY l.side
@@ -316,14 +316,23 @@ class SupplyDatabaseIT {
         tx.executeWithoutResult(s -> {
             BusinessDocument d = load(doc.getId());
             d.transitionTo(BusinessDocumentStatus.SUBMITTED);
-            d.transitionTo(BusinessDocumentStatus.APPROVED);
-            approvals.onApproved(d);
+            if (d.getDocumentType().isPostedAfterApproval()) {
+                d.transitionTo(BusinessDocumentStatus.READY_TO_POST);   // in effect only once posted
+            } else {
+                d.transitionTo(BusinessDocumentStatus.APPROVED);
+                approvals.onApproved(d);
+            }
             repository.save(d);
         });
     }
 
     private BusinessDocument post(SupplyStep step, SupplyDocumentRequest request) {
-        BusinessDocument doc = documents.save(step, request);
+        return post(step, documents.save(step, request));
+    }
+
+    /** Approves a draft store document if its step needs it, then posts it. */
+    private BusinessDocument post(SupplyStep step, BusinessDocument doc) {
+        if (step.needsApproval() && load(doc.getId()).getStatus() == BusinessDocumentStatus.DRAFT) approve(doc);
         return posting.post(step, doc.getId());
     }
 
@@ -446,6 +455,7 @@ class SupplyDatabaseIT {
         approveChain(wwo);
         BusinessDocument gr = chainDocuments.save(ChainStep.GR, chainRequest(weaving,
             new ChainDocumentRequest.Line("COLOUR", lineOf(wwo, 0), new BigDecimal(quantity), null, 20, null, null, null, null, null, null)));
+        approveChain(gr);
         chainPosting.post(ChainStep.GR, gr.getId());
         return jdbc.queryForObject("SELECT fabric_lot_id FROM gbl_business_document_color_lines WHERE id = ?", Long.class, lineOf(gr, 0));
     }
@@ -454,8 +464,12 @@ class SupplyDatabaseIT {
         tx.executeWithoutResult(s -> {
             BusinessDocument d = load(doc.getId());
             d.transitionTo(BusinessDocumentStatus.SUBMITTED);
-            d.transitionTo(BusinessDocumentStatus.APPROVED);
-            chainApprovals.onApproved(d);
+            if (d.getDocumentType().isPostedAfterApproval()) {
+                d.transitionTo(BusinessDocumentStatus.READY_TO_POST);   // in effect only once posted
+            } else {
+                d.transitionTo(BusinessDocumentStatus.APPROVED);
+                chainApprovals.onApproved(d);
+            }
             repository.save(d);
         });
     }

@@ -417,6 +417,7 @@
   [data-status="DRAFT"]      { @apply bg-gray-50 text-gray-600 ring-gray-500/20; }
   [data-status="SUBMITTED"]  { @apply bg-amber-50 text-amber-800 ring-amber-600/25; }
   [data-status="REJECTED"]   { @apply bg-red-50 text-red-700 ring-red-600/20; }
+  [data-status="READY_TO_POST"] { @apply bg-teal-50 text-teal-800 ring-teal-600/25; }
   [data-status="APPROVED"]   { @apply bg-emerald-50 text-emerald-700 ring-emerald-600/20; }
   [data-status="PARTIAL"]    { @apply bg-sky-50 text-sky-700 ring-sky-600/20; }
   [data-status="PROCESSING"] { @apply bg-violet-50 text-violet-700 ring-violet-600/20; }
@@ -966,6 +967,7 @@
   .dark .action-bar         { @apply border-gray-800 bg-gray-900/95; }
   .dark .badge-gray, .dark [data-status="DRAFT"], .dark [data-status="CANCELLED"] { @apply bg-gray-700/40 text-gray-300 ring-gray-500/30; }
   .dark .badge-green, .dark [data-status="APPROVED"]   { @apply bg-emerald-500/10 text-emerald-300 ring-emerald-500/30; }
+  .dark [data-status="READY_TO_POST"]                  { @apply bg-teal-500/10 text-teal-300 ring-teal-500/30; }
   .dark .badge-amber, .dark [data-status="SUBMITTED"]  { @apply bg-amber-500/10 text-amber-300 ring-amber-500/30; }
   .dark .badge-red, .dark [data-status="REJECTED"]     { @apply bg-red-500/10 text-red-300 ring-red-500/30; }
   .dark .badge-blue, .dark [data-status="PARTIAL"]     { @apply bg-sky-500/10 text-sky-300 ring-sky-500/30; }

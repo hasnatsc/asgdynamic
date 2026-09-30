@@ -33,30 +33,44 @@ public class SupplySubmissionChecks {
         };
     }
 
-    /** Store documents record what happened and are posted; they never enter approval. */
+    /** MRRs and purchase returns record what happened and are posted in one step; they never enter approval. */
     @Bean
     SubmissionCheck mrrIsPosted() { return posted(SupplyStep.MRR); }
 
     @Bean
     SubmissionCheck purchaseReturnIsPosted() { return posted(SupplyStep.PRT); }
 
-    @Bean
-    SubmissionCheck materialIssueIsPosted() { return posted(SupplyStep.MI); }
+    /** Every other store document is approved and then posted: it names the store its stock moves in. */
+    @Bean SubmissionCheck materialIssueCheck()         { return storeDocument(SupplyStep.MI); }
+    @Bean SubmissionCheck directReceiveCheck()         { return storeDocument(SupplyStep.MR); }
+    @Bean SubmissionCheck transferIssueCheck()         { return storeDocument(SupplyStep.TI); }
+    @Bean SubmissionCheck transferReceiveCheck()       { return storeDocument(SupplyStep.TRC); }
+    @Bean SubmissionCheck stockAdjustmentCheck()       { return storeDocument(SupplyStep.SA); }
+    @Bean SubmissionCheck fabricTransferIssueCheck()   { return storeDocument(SupplyStep.FTI); }
+    @Bean SubmissionCheck fabricTransferReceiveCheck() { return storeDocument(SupplyStep.FTR); }
 
-    @Bean
-    SubmissionCheck directReceiveIsPosted() { return posted(SupplyStep.MR); }
+    private static SubmissionCheck storeDocument(SupplyStep step) {
+        return new SubmissionCheck() {
+            @Override public DocumentType type() { return step.type(); }
 
-    @Bean
-    SubmissionCheck transferIssueIsPosted() { return posted(SupplyStep.TI); }
-
-    @Bean
-    SubmissionCheck transferReceiveIsPosted() { return posted(SupplyStep.TRC); }
-
-    @Bean
-    SubmissionCheck fabricTransferIssueIsPosted() { return posted(SupplyStep.FTI); }
-
-    @Bean
-    SubmissionCheck fabricTransferReceiveIsPosted() { return posted(SupplyStep.FTR); }
+            @Override public void check(BusinessDocument doc) {
+                if (doc.getWarehouse() == null) {
+                    throw new IllegalStateException("Choose the store on %s before submitting it".formatted(doc.getDocumentNo()));
+                }
+                if (step.isTransfer() && doc.getToWarehouse() == null) {
+                    throw new IllegalStateException("Choose the store %s goes to before submitting it".formatted(doc.getDocumentNo()));
+                }
+                for (BusinessDocumentColorLine l : SupplyDraws.lines(doc)) {
+                    if (l.getQuantity() == null || l.getQuantity().signum() <= 0) {
+                        throw new IllegalStateException("%s on %s has no quantity".formatted(SupplyDraws.lineName(l), doc.getDocumentNo()));
+                    }
+                    if (step.lines() == SupplyStep.Lines.FABRIC_LOT && l.getFabricLotId() == null) {
+                        throw new IllegalStateException("Pick the lot for %s on %s".formatted(SupplyDraws.lineName(l), doc.getDocumentNo()));
+                    }
+                }
+            }
+        };
+    }
 
     private static SubmissionCheck posted(SupplyStep step) {
         return new SubmissionCheck() {

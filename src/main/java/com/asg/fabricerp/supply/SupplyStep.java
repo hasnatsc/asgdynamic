@@ -23,14 +23,16 @@ import java.util.Set;
  *
  * <p>A line raised against a parent draws that parent line's own stream (the stream is the
  * step's document type), capped at the parent line's quantity - an MRR cannot receive more than
- * was ordered, and an issue cannot give out more than was asked for. Requisitions, orders,
- * transfer requests and adjustments go through the approval matrix; what physically moves stock
- * is posted by the store in one step, as the fabric chain's store documents are.
+ * was ordered, and an issue cannot give out more than was asked for. Purchase requisitions and
+ * orders go through the approval matrix; MRRs and purchase returns are posted by the store in one
+ * step. Every store document - requisition, issue, direct receive, transfer, adjustment - is
+ * approved and then posted, as the fabric chain's store documents are: it moves stock (or, for a
+ * requisition or transfer request, is released to the store) only when posted.
  */
 public enum SupplyStep {
 
     SR(DocumentType.STORE_REQUISITION, null, false, "store-requisition", Screen.SR,
-        "Store requisition", "Store requisitions", SignOff.APPROVAL, Stock.NONE, Lines.ITEM),
+        "Store requisition", "Store requisitions", SignOff.APPROVAL_THEN_POSTING, Stock.NONE, Lines.ITEM),
     SPR(DocumentType.PURCHASE_REQUISITION, DocumentType.STORE_REQUISITION, true, "purchase-requisition", Screen.SPR,
         "Purchase requisition", "Purchase requisitions", SignOff.APPROVAL, Stock.NONE, Lines.ITEM),
     PO(DocumentType.PURCHASE_ORDER, DocumentType.PURCHASE_REQUISITION, true, "purchase-order", Screen.PO,
@@ -40,28 +42,33 @@ public enum SupplyStep {
     PRT(DocumentType.PURCHASE_RETURN, DocumentType.GOODS_RECEIPT_NOTE, false, "purchase-return", Screen.PRT,
         "Purchase return", "Purchase returns", SignOff.POSTING, Stock.OUT, Lines.ITEM),
     MI(DocumentType.MATERIAL_ISSUE, DocumentType.STORE_REQUISITION, true, "material-issue", Screen.MI,
-        "Material issue", "Material issues", SignOff.POSTING, Stock.OUT, Lines.ITEM),
+        "Material issue", "Material issues", SignOff.APPROVAL_THEN_POSTING, Stock.OUT, Lines.ITEM),
     MR(DocumentType.MATERIAL_RECEIVE, null, true, "direct-receive", Screen.MR,
-        "Direct receive", "Direct receives", SignOff.POSTING, Stock.IN, Lines.ITEM),
+        "Direct receive", "Direct receives", SignOff.APPROVAL_THEN_POSTING, Stock.IN, Lines.ITEM),
     ST(DocumentType.STOCK_TRANSFER, null, true, "transfer-request", Screen.ST,
-        "Transfer request", "Transfer requests", SignOff.APPROVAL, Stock.NONE, Lines.ITEM),
+        "Transfer request", "Transfer requests", SignOff.APPROVAL_THEN_POSTING, Stock.NONE, Lines.ITEM),
     TI(DocumentType.TRANSFER_ISSUE, DocumentType.STOCK_TRANSFER, true, "transfer-issue", Screen.TI,
-        "Transfer issue", "Transfer issues", SignOff.POSTING, Stock.TRANSFER_OUT, Lines.ITEM),
+        "Transfer issue", "Transfer issues", SignOff.APPROVAL_THEN_POSTING, Stock.TRANSFER_OUT, Lines.ITEM),
     TRC(DocumentType.TRANSFER_RECEIVE, DocumentType.TRANSFER_ISSUE, false, "transfer-receive", Screen.TRC,
-        "Transfer receive", "Transfer receives", SignOff.POSTING, Stock.TRANSFER_IN, Lines.ITEM),
+        "Transfer receive", "Transfer receives", SignOff.APPROVAL_THEN_POSTING, Stock.TRANSFER_IN, Lines.ITEM),
     SA(DocumentType.STOCK_ADJUSTMENT, null, true, "stock-adjustment", Screen.SA,
-        "Stock adjustment", "Stock adjustments", SignOff.APPROVAL, Stock.ADJUST, Lines.ITEM),
+        "Stock adjustment", "Stock adjustments", SignOff.APPROVAL_THEN_POSTING, Stock.ADJUST, Lines.ITEM),
     FTI(DocumentType.FABRIC_TRANSFER_ISSUE, null, true, "fabric-transfer-issue", Screen.FTI,
-        "Fabric transfer issue", "Fabric transfer issues", SignOff.POSTING, Stock.TRANSFER_OUT, Lines.FABRIC_LOT),
+        "Fabric transfer issue", "Fabric transfer issues", SignOff.APPROVAL_THEN_POSTING, Stock.TRANSFER_OUT, Lines.FABRIC_LOT),
     FTR(DocumentType.FABRIC_TRANSFER_RECEIVE, DocumentType.FABRIC_TRANSFER_ISSUE, false, "fabric-transfer-receive", Screen.FTR,
-        "Fabric transfer receive", "Fabric transfer receives", SignOff.POSTING, Stock.TRANSFER_IN, Lines.FABRIC_LOT);
+        "Fabric transfer receive", "Fabric transfer receives", SignOff.APPROVAL_THEN_POSTING, Stock.TRANSFER_IN, Lines.FABRIC_LOT);
 
     /** How a document of the step becomes binding. */
     public enum SignOff {
-        /** Submitted and signed through the approval matrix. */
+        /** Submitted and signed through the approval matrix; binding once approved. */
         APPROVAL,
         /** Posted by the store in one step; cancelled with exact reversing ledger rows. */
-        POSTING
+        POSTING,
+        /**
+         * Submitted and signed through the approval matrix, then posted by the store: it waits
+         * {@link BusinessDocumentStatus#READY_TO_POST} and takes effect only when posted.
+         */
+        APPROVAL_THEN_POSTING
     }
 
     /** What the step does to stock. */
@@ -117,7 +124,17 @@ public enum SupplyStep {
     public SignOff signOff()         { return signOff; }
     public Stock stock()             { return stock; }
     public Lines lines()             { return lines; }
-    public boolean isPosting()       { return signOff == SignOff.POSTING; }
+    /** Has a Post action: posted in one step, or posted once approved. */
+    public boolean isPosted()        { return signOff != SignOff.APPROVAL; }
+    /** Goes through the approval matrix before it is binding (or before it may be posted). */
+    public boolean needsApproval()   { return signOff != SignOff.POSTING; }
+    /** Writes the stock ledger when posted. */
+    public boolean movesStock()      { return stock != Stock.NONE; }
+
+    /** The status a document of the step is posted from: a draft, or one its approvers have signed. */
+    public BusinessDocumentStatus postsFrom() {
+        return signOff == SignOff.POSTING ? BusinessDocumentStatus.DRAFT : BusinessDocumentStatus.READY_TO_POST;
+    }
     public boolean hasParent()       { return parentType != null; }
 
     /** Lines may name an item (or lot) straight away rather than a parent line. */

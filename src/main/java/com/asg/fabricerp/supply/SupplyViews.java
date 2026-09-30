@@ -175,12 +175,12 @@ public class SupplyViews {
         BusinessDocumentStatus s = d.getStatus();
         out.put("editable", maker && s.isEditable());
         out.put("deletable", s.isEditable() && AuthorityChecks.holds(step.authority("DELETE")));
-        out.put("submittable", !step.isPosting() && s.isEditable() && maker);
-        out.put("postable", step.isPosting() && s == BusinessDocumentStatus.DRAFT && AuthorityChecks.holds(step.authority("CREATE")));
+        out.put("submittable", step.needsApproval() && s.isEditable() && maker);
+        out.put("postable", step.isPosted() && s == step.postsFrom() && AuthorityChecks.holds(step.authority("CREATE")));
         out.put("cancellable", amender && s != BusinessDocumentStatus.SUBMITTED && s != BusinessDocumentStatus.CANCELLED
             && s != BusinessDocumentStatus.CLOSED && s != BusinessDocumentStatus.COMPLETED);
         out.put("closable", amender && s == BusinessDocumentStatus.COMPLETED);
-        out.put("shortClosable", amender && !step.isPosting() && step != SupplyStep.SA && OPEN.contains(s)
+        out.put("shortClosable", amender && !step.movesStock() && OPEN.contains(s)
             && step.type().fulfilledBy() != null);
 
         List<BusinessDocumentColorLine> lines = SupplyDraws.lines(d);
@@ -192,7 +192,7 @@ public class SupplyViews {
         if (step == SupplyStep.SPR) downstream.put(DocumentType.IMPORT_PROFORMA_INVOICE,
             queries.committed(DocumentType.IMPORT_PROFORMA_INVOICE, lineIds));
         DocumentType principal = step.type().fulfilledBy();
-        boolean moves = step.isPosting() || step == SupplyStep.SA;
+        boolean moves = step.movesStock();
         Map<Long, BigDecimal[]> posted = moves && step.lines() == SupplyStep.Lines.ITEM ? queries.postedByLine(d.getId()) : Map.of();
         Map<Long, String> lots = new HashMap<>();
         for (BusinessDocumentColorLine l : lines) {

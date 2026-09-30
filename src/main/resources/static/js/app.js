@@ -1358,7 +1358,7 @@
     function status(value) {
         if (!value) return '';
         const name = String(value);
-        const label = name.charAt(0) + name.slice(1).toLowerCase();
+        const label = name.charAt(0) + name.slice(1).toLowerCase().replace(/_/g, ' ');
         return `<span class="badge" data-status="${esc(name)}">${esc(label)}</span>`;
     }
 
@@ -1373,13 +1373,13 @@
      * fragments/ui :: workflow, positioned by the same rule as BusinessDocumentStatus.workflowStep():
      * the current stage's index, 4 once past the end, -1 (badge only) when cancelled.
      */
-    const WORKFLOW_STEP = { DRAFT: 0, SUBMITTED: 1, REJECTED: 1, APPROVED: 2, PARTIAL: 3, PROCESSING: 3,
+    const WORKFLOW_STEP = { DRAFT: 0, SUBMITTED: 1, REJECTED: 1, READY_TO_POST: 2, APPROVED: 2, PARTIAL: 3, PROCESSING: 3,
                             COMPLETED: 4, CLOSED: 4, CANCELLED: -1 };
 
     function statusSteps(docStatus) {
         const step = WORKFLOW_STEP[docStatus] ?? 0;
         if (step < 0) return statusBadge(docStatus);
-        const label = docStatus.charAt(0) + docStatus.slice(1).toLowerCase();
+        const label = docStatus.charAt(0) + docStatus.slice(1).toLowerCase().replace(/_/g, ' ');
         return `<ol class="steps" aria-label="Document workflow">${['Draft', 'Submitted', 'Approved', 'Completed'].map((stage, i) => {
             const failed = i === step && docStatus === 'REJECTED';
             const state = i < step ? 'is-done' : i === step ? (failed ? 'is-failed' : 'is-current') : '';

@@ -76,16 +76,21 @@ public class ChainSubmissionChecks {
         });
     }
 
-    /** Store documents record what happened; they are posted by the store, never sent for approval. */
-    @Bean SubmissionCheck greigeReceiveIsPosted()   { return posted(DocumentType.GREIGE_RECEIVE); }
-    @Bean SubmissionCheck greigeIssueIsPosted()     { return posted(DocumentType.GREIGE_ISSUE); }
-    @Bean SubmissionCheck finishedReceiveIsPosted() { return posted(DocumentType.FINISHED_FABRICS_RECEIVE); }
-    @Bean SubmissionCheck fabricsDeliveryIsPosted() { return posted(DocumentType.FABRICS_DELIVERY); }
+    /** Store documents are approved, then posted by the store; what posting itself needs is checked when it is posted. */
+    @Bean SubmissionCheck greigeReceiveCheck()   { return check(DocumentType.GREIGE_RECEIVE, doc -> { }); }
+    @Bean SubmissionCheck finishedReceiveCheck() { return check(DocumentType.FINISHED_FABRICS_RECEIVE, doc -> { }); }
+    @Bean SubmissionCheck fabricsDeliveryCheck() { return check(DocumentType.FABRICS_DELIVERY, doc -> { }); }
 
-    private static SubmissionCheck posted(DocumentType type) {
-        return check(type, doc -> {
-            throw new IllegalStateException("%s is a store document: post it from its screen instead of submitting it"
-                .formatted(doc.getDocumentNo()));
+    @Bean
+    SubmissionCheck greigeIssueCheck() {
+        return check(DocumentType.GREIGE_ISSUE, doc -> {
+            for (BusinessDocumentLineGroup g : doc.getLineGroups()) {
+                for (BusinessDocumentColorLine l : g.getColorLines()) {
+                    if (l.getFabricLotId() == null) {
+                        throw new IllegalStateException("Pick the lot to issue for %s on %s".formatted(lineName(l), doc.getDocumentNo()));
+                    }
+                }
+            }
         });
     }
 

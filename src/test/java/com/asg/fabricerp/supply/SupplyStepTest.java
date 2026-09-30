@@ -1,5 +1,6 @@
 package com.asg.fabricerp.supply;
 
+import com.asg.fabricerp.global.documents.BusinessDocumentStatus;
 import com.asg.fabricerp.global.documents.DocumentType;
 import com.asg.fabricerp.production.ChainStep;
 import org.junit.jupiter.api.Test;
@@ -53,10 +54,21 @@ class SupplyStepTest {
     }
 
     @Test
-    void storeDocumentsArePostedAndRequestsApproved() {
-        assertThat(Arrays.stream(SupplyStep.values()).filter(SupplyStep::isPosting))
-            .containsExactlyInAnyOrder(SupplyStep.MRR, SupplyStep.PRT, SupplyStep.MI, SupplyStep.MR, SupplyStep.TI,
-                SupplyStep.TRC, SupplyStep.FTI, SupplyStep.FTR);
+    void storeDocumentsAreApprovedThenPostedAndPurchasesApproved() {
+        // MRRs and purchase returns are posted in one step; purchase requisitions and orders are only approved.
+        assertThat(Arrays.stream(SupplyStep.values()).filter(s -> !s.needsApproval()))
+            .containsExactlyInAnyOrder(SupplyStep.MRR, SupplyStep.PRT);
+        assertThat(Arrays.stream(SupplyStep.values()).filter(s -> !s.isPosted()))
+            .containsExactlyInAnyOrder(SupplyStep.SPR, SupplyStep.PO);
+        // Every store document is approved, then posted - and the approval engine agrees which those are.
+        assertThat(Arrays.stream(SupplyStep.values()).filter(s -> s.type().isPostedAfterApproval()))
+            .containsExactlyInAnyOrder(SupplyStep.SR, SupplyStep.MI, SupplyStep.MR, SupplyStep.ST, SupplyStep.TI,
+                SupplyStep.TRC, SupplyStep.SA, SupplyStep.FTI, SupplyStep.FTR);
+        for (SupplyStep s : SupplyStep.values()) {
+            assertThat(s.type().isPostedAfterApproval()).as(s.name()).isEqualTo(s.needsApproval() && s.isPosted());
+        }
+        assertThat(SupplyStep.MRR.postsFrom()).isEqualTo(BusinessDocumentStatus.DRAFT);
+        assertThat(SupplyStep.MI.postsFrom()).isEqualTo(BusinessDocumentStatus.READY_TO_POST);
         assertThat(SupplyStep.MRR.requiresParent()).isTrue();
         assertThat(SupplyStep.PO.allowsDirect()).isTrue();
         assertThat(SupplyStep.childrenOf(DocumentType.STORE_REQUISITION)).containsExactly(SupplyStep.SPR, SupplyStep.MI);

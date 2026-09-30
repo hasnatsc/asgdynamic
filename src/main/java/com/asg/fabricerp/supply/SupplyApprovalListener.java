@@ -9,23 +9,19 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * What the purchase and store documents do the moment their last approval level signs: a stock
- * adjustment writes its moves (refused, and not signed, if the store no longer holds what it takes
- * away, or its month is closed); an approved purchase requisition, order or transfer request moves
- * the progress of what it was raised against.
+ * What a purchase requisition or order does the moment its last approval level signs: it moves the
+ * progress of what it was raised against. Store documents - requisitions, transfer requests,
+ * adjustments and the rest - are approved and then posted, and act when posted
+ * ({@link SupplyPostingService#post}).
  */
 @Component
 public class SupplyApprovalListener implements ApprovalListener {
 
-    private static final Set<DocumentType> HANDLED = EnumSet.of(DocumentType.STORE_REQUISITION,
-        DocumentType.PURCHASE_REQUISITION, DocumentType.PURCHASE_ORDER, DocumentType.STOCK_TRANSFER,
-        DocumentType.STOCK_ADJUSTMENT);
+    private static final Set<DocumentType> HANDLED = EnumSet.of(DocumentType.PURCHASE_REQUISITION, DocumentType.PURCHASE_ORDER);
 
-    private final SupplyStockWriter writer;
     private final SupplyProgress progress;
 
-    public SupplyApprovalListener(SupplyStockWriter writer, SupplyProgress progress) {
-        this.writer = writer;
+    public SupplyApprovalListener(SupplyProgress progress) {
         this.progress = progress;
     }
 
@@ -36,7 +32,6 @@ public class SupplyApprovalListener implements ApprovalListener {
 
     @Override
     public void onApproved(BusinessDocument document) {
-        if (document.getDocumentType() == DocumentType.STOCK_ADJUSTMENT) writer.write(SupplyStep.SA, document);
         progress.refreshUpwards(document);
     }
 }

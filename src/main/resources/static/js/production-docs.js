@@ -336,9 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (action === 'print') return printDocument(doc);
         if (action === 'post') {
             if (!await App.confirm({ title: `Post ${doc.documentNo}?`,
-                message: 'Its stock moves are written to the ledger. It cannot be edited afterwards - only cancelled, which reverses them.',
+                message: STEP === 'DO'
+                    ? 'The buyer\'s credit is checked and its lots are reserved, so no other order can promise the same metres. It cannot be edited afterwards.'
+                    : 'Its stock moves are written to the ledger. It cannot be edited afterwards - only cancelled, which reverses them.',
                 confirmText: 'Post' })) return;
-            return run(`${CFG.api}/${doc.id}/post`, null, 'Posted to stock.');
+            return run(`${CFG.api}/${doc.id}/post`, null, STEP === 'DO' ? 'Posted: lots reserved.' : 'Posted to stock.');
         }
         if (action === 'delete') {
             if (!await App.confirm({ title: `Delete ${doc.documentNo}?`, message: 'The draft is removed and what it drew is given back.',
@@ -352,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const dialogs = {
-            cancel: ['Cancel', doc.status === 'DRAFT' || doc.status === 'REJECTED'
+            cancel: ['Cancel', ['DRAFT', 'REJECTED', 'READY_TO_POST'].includes(doc.status)
                 ? 'The document is cancelled and what it drew is given back.'
                 : CFG.posting ? 'Its stock moves are reversed with exact reversing entries. Refused if the stock has already gone on.'
                               : 'Refused if anything has been raised against it - short-close its lines instead.', 'reason', true],

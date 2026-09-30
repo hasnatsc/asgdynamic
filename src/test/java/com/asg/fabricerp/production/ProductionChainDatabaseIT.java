@@ -128,7 +128,7 @@ class ProductionChainDatabaseIT {
         // Greige receive into a greige store, posted.
         BusinessDocument gr = documents.save(ChainStep.GR, store(request(null,
             line("COLOUR", lineOf(wwo, 0), "1600", 40)), greigeStore));
-        posting.post(ChainStep.GR, gr.getId());
+        post(ChainStep.GR, gr);
         long greigeLot = jdbc.queryForObject("SELECT fabric_lot_id FROM gbl_business_document_color_lines WHERE id = ?",
             Long.class, lineOf(load(gr.getId()), 0));
         assertThat(balance(greigeStore, greigeLot)).isEqualByComparingTo("1600");
@@ -144,7 +144,7 @@ class ProductionChainDatabaseIT {
         // Greige issue: out of the greige store to the batch.
         BusinessDocument gi = documents.save(ChainStep.GI, store(request(null,
             lotLine(lineOf(pwo, 0), "1100", greigeLot), lotLine(lineOf(pwo, 1), "500", greigeLot)), greigeStore));
-        posting.post(ChainStep.GI, gi.getId());
+        post(ChainStep.GI, gi);
         assertThat(balance(greigeStore, greigeLot)).isEqualByComparingTo("0");
         // The greige receive can no longer be cancelled: its greige has gone to dyeing.
         assertThatThrownBy(() -> posting.cancel(ChainStep.GR, gr.getId(), "keyed twice"))
@@ -153,15 +153,15 @@ class ProductionChainDatabaseIT {
         // Finished receive by dye lot, shade and grade - capped at what was issued.
         BusinessDocument ffr = documents.save(ChainStep.FFR, store(request(null,
             finished(lineOf(pwo, 0), "980", "D1", "S1", "A"), finished(lineOf(pwo, 1), "490", "D2", "S1", "A")), processingStore));
-        posting.post(ChainStep.FFR, ffr.getId());
+        post(ChainStep.FFR, ffr);
         BusinessDocument ffrB = documents.save(ChainStep.FFR, store(request(null,
             finished(lineOf(pwo, 0), "60", "D1", "S1", "B")), processingStore));
-        posting.post(ChainStep.FFR, ffrB.getId());
+        post(ChainStep.FFR, ffrB);
         assertThatThrownBy(() -> documents.save(ChainStep.FFR, store(request(null,
             finished(lineOf(pwo, 0), "100", "D1", "S1", "A")), processingStore)))
             .hasMessageContaining("only 60 is left");
 
-        // Delivery order: picks the A lots; approval reserves them.
+        // Delivery order: picks the A lots; posting it (once approved) reserves them.
         Map<Long, Long> finishedLots = new HashMap<>();
         for (int i = 0; i < 2; i++) {
             long bpoLine = lineOf(bpo, i);
@@ -171,18 +171,18 @@ class ProductionChainDatabaseIT {
         BusinessDocument order = documents.save(ChainStep.DO, store(request(null,
             lotLine(lineOf(rpi, 0), "980", finishedLots.get(lineOf(bpo, 0))),
             lotLine(lineOf(rpi, 1), "490", finishedLots.get(lineOf(bpo, 1)))), processingStore));
-        approve(order);
+        post(ChainStep.DO, order);
         assertThat(reserved(processingStore, finishedLots.get(lineOf(bpo, 0)))).isEqualByComparingTo("980");
 
         // A second delivery order cannot promise the same metres.
         BusinessDocument greedy = documents.save(ChainStep.DO, store(request(null,
             lotLine(lineOf(rpi, 0), "20", finishedLots.get(lineOf(bpo, 0)))), processingStore));
-        assertThatThrownBy(() -> approve(greedy)).hasMessageContaining("free in the store");
+        assertThatThrownBy(() -> post(ChainStep.DO, greedy)).hasMessageContaining("free in the store");
 
         // Fabrics delivery: out of stock against the reservation; everything moves forward.
         BusinessDocument fd = documents.save(ChainStep.FD, request(null,
             line("COLOUR", lineOf(order, 0), "980", 25), line("COLOUR", lineOf(order, 1), "490", 12)));
-        posting.post(ChainStep.FD, fd.getId());
+        post(ChainStep.FD, fd);
         assertThat(balance(processingStore, finishedLots.get(lineOf(bpo, 0)))).isEqualByComparingTo("0");
         assertThat(reserved(processingStore, finishedLots.get(lineOf(bpo, 0)))).isEqualByComparingTo("0");
         assertThat(load(order.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.COMPLETED);
@@ -306,7 +306,7 @@ class ProductionChainDatabaseIT {
         BusinessDocument wwo = documents.save(ChainStep.WWO, request(null, line("GROUP", bpo.getLineGroups().get(0).getId(), "1650")));
         approve(wwo);
         BusinessDocument gr = documents.save(ChainStep.GR, store(request(null, line("COLOUR", lineOf(wwo, 0), "1600", 40)), greigeStore));
-        posting.post(ChainStep.GR, gr.getId());
+        post(ChainStep.GR, gr);
 
         var one = new ProductionDashboardService.Filter(null, null, null, null, null, bpo.getId(), null);
         Map<String, Object> d = dashboard.dashboard(one, null);
@@ -463,7 +463,7 @@ class ProductionChainDatabaseIT {
         BusinessDocument wwo = documents.save(ChainStep.WWO, request(null, line("COLOUR", line, "1020")));
         approve(wwo);
         BusinessDocument gr = documents.save(ChainStep.GR, store(request(null, line("COLOUR", lineOf(wwo, 0), "600")), greigeStore));
-        posting.post(ChainStep.GR, gr.getId());
+        post(ChainStep.GR, gr);
         assertThat(load(wwo.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.PARTIAL);
 
         posting.shortClose(ChainStep.WWO, lineOf(wwo, 0), "Loom breakdown, re-planned");
@@ -523,16 +523,16 @@ class ProductionChainDatabaseIT {
         BusinessDocument wwo = documents.save(ChainStep.WWO, request(null, line("GROUP", bpo.getLineGroups().get(0).getId(), "550")));
         approve(wwo);
         BusinessDocument gr = documents.save(ChainStep.GR, store(request(null, line("COLOUR", lineOf(wwo, 0), "550")), processingStore));
-        posting.post(ChainStep.GR, gr.getId());
+        post(ChainStep.GR, gr);
         long lot = jdbc.queryForObject("SELECT fabric_lot_id FROM gbl_business_document_color_lines WHERE id = ?", Long.class,
             lineOf(load(gr.getId()), 0));
         BusinessDocument pwo = documents.save(ChainStep.PWO, request(null, line("COLOUR", lineOf(bpo, 0), "500")));
         approve(pwo);
         assertThat(load(pwo.getId()).getProcessKind()).isEqualTo(ProcessKind.PRINT);
         BusinessDocument gi = documents.save(ChainStep.GI, store(request(null, lotLine(lineOf(pwo, 0), "550", lot)), processingStore));
-        posting.post(ChainStep.GI, gi.getId());
+        post(ChainStep.GI, gi);
         BusinessDocument ffr = documents.save(ChainStep.FFR, store(request(null, finished(lineOf(pwo, 0), "470", "P1", "S1", "A")), processingStore));
-        posting.post(ChainStep.FFR, ffr.getId());
+        post(ChainStep.FFR, ffr);
 
         posting.closeBatch(pwo.getId(), null);
         BusinessDocument closed = load(pwo.getId());
@@ -555,11 +555,11 @@ class ProductionChainDatabaseIT {
         BusinessDocument gr = documents.save(ChainStep.GR, request(null, line("COLOUR", lineOf(wwo, 0), "250")));
         assertThat(jdbc.queryForObject("SELECT warehouse_id FROM gbl_business_documents WHERE id = ?", Long.class, gr.getId()))
             .isEqualTo(greigeStore);
-        posting.post(ChainStep.GR, gr.getId());
+        post(ChainStep.GR, gr);
         // A draft saved before the default existed is posted into it as well.
         BusinessDocument gr2 = documents.save(ChainStep.GR, store(request(null, line("COLOUR", lineOf(wwo, 0), "5")), greigeStore));
         jdbc.update("UPDATE gbl_business_documents SET warehouse_id = NULL WHERE id = ?", gr2.getId());
-        posting.post(ChainStep.GR, gr2.getId());
+        post(ChainStep.GR, gr2);
         assertThat(jdbc.queryForObject("SELECT warehouse_id FROM gbl_business_documents WHERE id = ?", Long.class, gr2.getId()))
             .isEqualTo(greigeStore);
     }
@@ -597,13 +597,23 @@ class ProductionChainDatabaseIT {
         });
     }
 
+    /** Approves a draft store document or delivery order if need be, then posts it. */
+    private BusinessDocument post(ChainStep step, BusinessDocument doc) {
+        if (load(doc.getId()).getStatus() == BusinessDocumentStatus.DRAFT) approve(doc);
+        return posting.post(step, doc.getId());
+    }
+
     /** Signs a document's last level: what ApprovalService.decide does once the matrix is satisfied. */
     private void approve(BusinessDocument doc) {
         tx.executeWithoutResult(s -> {
             BusinessDocument d = load(doc.getId());
             d.transitionTo(BusinessDocumentStatus.SUBMITTED);
-            d.transitionTo(BusinessDocumentStatus.APPROVED);
-            approvals.onApproved(d);
+            if (d.getDocumentType().isPostedAfterApproval()) {
+                d.transitionTo(BusinessDocumentStatus.READY_TO_POST);   // in effect only once posted
+            } else {
+                d.transitionTo(BusinessDocumentStatus.APPROVED);
+                approvals.onApproved(d);
+            }
             repository.save(d);
         });
     }

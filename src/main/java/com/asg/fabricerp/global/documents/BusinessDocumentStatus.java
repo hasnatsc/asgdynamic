@@ -20,6 +20,12 @@ public enum BusinessDocumentStatus {
     DRAFT,
     /** Submitted by the maker, awaiting check/approval. */
     SUBMITTED,
+    /**
+     * Signed by its last approver but not yet in effect: a document that is approved and then
+     * posted ({@link DocumentType#isPostedAfterApproval()}) waits here for the store to post it.
+     * Posting moves it to {@link #APPROVED} - for such a document, Approved means posted.
+     */
+    READY_TO_POST,
     APPROVED,
     /** Downstream consumption has started but is incomplete (e.g. partially received SPR). */
     PARTIAL,
@@ -36,7 +42,9 @@ public enum BusinessDocumentStatus {
         return switch (this) {
             case DRAFT      -> EnumSet.of(SUBMITTED, CANCELLED);
             // DRAFT: returned to the maker to correct (the approval engine's Return).
-            case SUBMITTED  -> EnumSet.of(APPROVED, REJECTED, DRAFT, CANCELLED);
+            case SUBMITTED  -> EnumSet.of(APPROVED, READY_TO_POST, REJECTED, DRAFT, CANCELLED);
+            // APPROVED: posted.
+            case READY_TO_POST -> EnumSet.of(APPROVED, CANCELLED);
             case REJECTED   -> EnumSet.of(DRAFT, CANCELLED);
             case APPROVED   -> EnumSet.of(PARTIAL, PROCESSING, COMPLETED, CANCELLED);
             case PARTIAL    -> EnumSet.of(PARTIAL, COMPLETED, CANCELLED);
@@ -61,9 +69,9 @@ public enum BusinessDocumentStatus {
             || this == COMPLETED || this == CLOSED;
     }
 
-    /** "Draft", "Submitted" - the badge text. App.status() in app.js derives it the same way. */
+    /** "Draft", "Submitted", "Ready to post" - the badge text. App.status() in app.js derives it the same way. */
     public String label() {
-        return name().charAt(0) + name().substring(1).toLowerCase();
+        return name().charAt(0) + name().substring(1).toLowerCase().replace('_', ' ');
     }
 
     /**
@@ -75,7 +83,7 @@ public enum BusinessDocumentStatus {
         return switch (this) {
             case DRAFT                -> 0;
             case SUBMITTED, REJECTED  -> 1;
-            case APPROVED             -> 2;
+            case READY_TO_POST, APPROVED -> 2;
             case PARTIAL, PROCESSING  -> 3;
             case COMPLETED, CLOSED    -> 4;
             case CANCELLED            -> -1;

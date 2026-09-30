@@ -55,8 +55,13 @@ class DrawCapsTest {
         assertThat(ChainStep.ofSlug("greige-issue")).isEqualTo(ChainStep.GI);
         assertThat(ChainStep.GI.parentType()).isEqualTo(DocumentType.PROCESSING_WORK_ORDER);
         assertThat(ChainStep.GR.parentType()).isEqualTo(DocumentType.WEAVING_WORK_ORDER);
-        assertThat(ChainStep.FD.isPosting()).isTrue();
-        assertThat(ChainStep.DO.isPosting()).isFalse();
+        // Store documents and delivery orders are approved, then posted; orders are in effect once approved.
+        assertThat(ChainStep.FD.isPosted()).isTrue();
+        assertThat(ChainStep.DO.isPosted()).isTrue();
+        assertThat(ChainStep.BPO.isPosted()).isFalse();
+        assertThat(ChainStep.FD.movesStock()).isTrue();
+        assertThat(ChainStep.DO.movesStock()).isFalse();
+        for (ChainStep s : ChainStep.values()) assertThat(s.type().isPostedAfterApproval()).as(s.name()).isEqualTo(s.isPosted());
         assertThat(ChainStep.GI.authority("CREATE")).isEqualTo("SCREEN_GI_CREATE");
         assertThat(ChainStep.principalChildOf(DocumentType.BOOKING)).contains(ChainStep.BPO);
         assertThat(ChainStep.principalChildOf(DocumentType.WEAVING_WORK_ORDER)).contains(ChainStep.GR);

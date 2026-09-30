@@ -213,6 +213,21 @@ public enum DocumentType implements NumberSeries {
         };
     }
 
+    /**
+     * Types that are approved and then posted. Created, edited and deleted as drafts, submitted
+     * through the approval matrix, and left {@link BusinessDocumentStatus#READY_TO_POST} by the last
+     * approver; they take effect only when posted - stock received, issued, transferred or adjusted,
+     * a delivery order's lots reserved, a requisition or transfer request released to the store.
+     */
+    public boolean isPostedAfterApproval() {
+        return switch (this) {
+            case GREIGE_RECEIVE, GREIGE_ISSUE, FINISHED_FABRICS_RECEIVE, DELIVERY_ORDER, FABRICS_DELIVERY,
+                 STORE_REQUISITION, MATERIAL_ISSUE, MATERIAL_RECEIVE, STOCK_TRANSFER, TRANSFER_ISSUE, TRANSFER_RECEIVE,
+                 STOCK_ADJUSTMENT, FABRIC_TRANSFER_ISSUE, FABRIC_TRANSFER_RECEIVE -> true;
+            default -> false;
+        };
+    }
+
     /** Types that carry a revision lineage. Fabric sales documents are revised, not edited. */
     public boolean isRevisable() {
         return this == BOOKING

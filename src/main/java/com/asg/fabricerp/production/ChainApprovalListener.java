@@ -1,11 +1,9 @@
 package com.asg.fabricerp.production;
 
-import com.asg.fabricerp.accounts.CreditService;
 import com.asg.fabricerp.approval.ApprovalAction;
 import com.asg.fabricerp.approval.ApprovalHistory;
 import com.asg.fabricerp.approval.ApprovalHistoryRepository;
 import com.asg.fabricerp.approval.ApprovalListener;
-import com.asg.fabricerp.common.AuditableEntity;
 import com.asg.fabricerp.common.OrgContext;
 import com.asg.fabricerp.global.documents.*;
 import com.asg.fabricerp.production.LineDrawLedger.SourceKind;
@@ -15,7 +13,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.*;
 
 import static com.asg.fabricerp.production.ChainDocumentService.lineName;
@@ -25,38 +22,33 @@ import static com.asg.fabricerp.production.ChainSupport.qty;
  * What the chain does the moment a document's last approval level signs:
  * <ul>
  *   <li>a <b>Weaving WO</b> starts its production order (Processing);</li>
- *   <li>a <b>delivery order</b> passes the buyer's credit control and reserves its lots, so no
- *       other order can promise the same metres;</li>
  *   <li>an approved <b>revision</b> of a Booking, production order or delivery schedule takes over
  *       from the version it replaces: its draws move across, everything raised against the old
  *       lines is re-pointed to the new ones, and the old version is superseded. A revision may not
  *       bring a line below what later documents have already drawn on it.</li>
  * </ul>
- * Any refusal throws, and the approval is not signed.
+ * Any refusal throws, and the approval is not signed. A delivery order reserves its lots when it is
+ * posted, not here ({@link ChainPostingService#post}).
  */
 @Component
 public class ChainApprovalListener implements ApprovalListener {
 
     private static final Set<DocumentType> HANDLED = EnumSet.of(DocumentType.BOOKING, DocumentType.BULK_PRODUCTION_ORDER,
-        DocumentType.REQUEST_FOR_PI, DocumentType.WEAVING_WORK_ORDER, DocumentType.DELIVERY_ORDER);
+        DocumentType.REQUEST_FOR_PI, DocumentType.WEAVING_WORK_ORDER);
 
     private final ChainSupport chain;
     private final ChainProgress progress;
-    private final FabricStockService stock;
-    private final CreditService credit;
     private final BusinessDocumentRepository repository;
     private final ApprovalHistoryRepository history;
     private final NamedParameterJdbcTemplate jdbc;
     private final OrgContext context;
     private final EntityManager em;
 
-    public ChainApprovalListener(ChainSupport chain, ChainProgress progress, FabricStockService stock, CreditService credit,
+    public ChainApprovalListener(ChainSupport chain, ChainProgress progress,
                                  BusinessDocumentRepository repository, ApprovalHistoryRepository history,
                                  NamedParameterJdbcTemplate jdbc, OrgContext context, EntityManager em) {
         this.chain = chain;
         this.progress = progress;
-        this.stock = stock;
-        this.credit = credit;
         this.repository = repository;
         this.history = history;
         this.jdbc = jdbc;
@@ -79,48 +71,6 @@ public class ChainApprovalListener implements ApprovalListener {
             case WEAVING_WORK_ORDER -> {
                 if (doc.getParentDocument() != null) progress.refresh(doc.getParentDocument());
             }
-            case DELIVERY_ORDER -> reserve(doc);
-            default -> { }
-        }
-    }
-
-    // ---------------------------------------------------------------------------- delivery order
-
-    private void reserve(BusinessDocument order) {
-        if (order.getWarehouse() == null) {
-            throw new IllegalStateException("Choose the delivering store on %s before approving it".formatted(order.getDocumentNo()));
-        }
-        checkCredit(order);
-        for (BusinessDocumentLineGroup g : order.getLineGroups()) {
-            for (BusinessDocumentColorLine l : g.getColorLines()) {
-                if (l.getFabricLotId() == null) {
-                    throw new IllegalStateException("Pick the lot for %s on %s before approving it".formatted(lineName(l), order.getDocumentNo()));
-                }
-                stock.reserve(context.requireOrganizationId(), l.getId(), order.getWarehouse().getId(), l.getFabricLotId(),
-                    l.getQuantity(), order.getDocumentNo() + ", " + lineName(l));
-            }
-        }
-    }
-
-    /** The buyer's credit control: a buyer on hold, or this order taking them over their limit, stops it. */
-    private void checkCredit(BusinessDocument order) {
-        Long partyId = AuditableEntity.idOf(order.getParty());
-        if (partyId == null) return;
-        BigDecimal value = order.getSubtotalAmount();
-        CreditService.Exposure probe = credit.exposureOf(partyId, BigDecimal.ZERO, LocalDate.now());
-        if (!probe.hasLimit()) return;
-        if (!Objects.equals(probe.currencyCode(), order.getCurrencyCode())) {
-            value = value.multiply(order.getExchangeRate() == null ? BigDecimal.ONE : order.getExchangeRate());
-        }
-        CreditService.Exposure exposure = credit.exposureOf(partyId, value, LocalDate.now());
-        switch (exposure.verdict()) {
-            case ON_HOLD -> throw new IllegalStateException("%s cannot be approved: %s is on credit hold%s"
-                .formatted(order.getDocumentNo(), order.getParty().getName(),
-                    exposure.holdReason() == null ? "" : " (" + exposure.holdReason() + ")"));
-            case OVER_LIMIT -> throw new IllegalStateException(("%s cannot be approved: it takes %s %s over the credit limit "
-                + "(owes %s, limit %s %s). Raise the limit or collect first.")
-                .formatted(order.getDocumentNo(), order.getParty().getName(), qty(exposure.headroom().negate()),
-                    qty(exposure.receivable()), qty(exposure.limit()), exposure.currencyCode()));
             default -> { }
         }
     }

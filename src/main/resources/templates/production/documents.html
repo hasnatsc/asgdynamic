@@ -74,8 +74,8 @@
                     <th data-col="documentDate" data-format="date" data-sort="documentDate">Date</th>
                     <th data-col="parentNo" th:text="${config.parentLabel}">Parent</th>
                     <th data-col="partyName">Buyer</th>
-                    <th th:if="${!step.isPosting()}" data-col="marketingTeamName">Team</th>
-                    <th th:if="${step.isPosting() or step.name() == 'DO'}" data-col="warehouseName">Store</th>
+                    <th th:if="${!step.movesStock()}" data-col="marketingTeamName">Team</th>
+                    <th th:if="${step.movesStock() or step.name() == 'DO'}" data-col="warehouseName">Store</th>
                     <th th:if="${step.name() == 'PWO'}" data-col="processKind">Process</th>
                     <th th:if="${step.name() == 'BPO' or step.name() == 'WWO' or step.name() == 'PWO' or step.name() == 'RPI'}"
                         data-col="requiredDate" data-format="date" data-sort="requiredDate">Required</th>
@@ -117,8 +117,8 @@
                 </button>
                 <div class="min-w-0">
                     <h1 id="chainEditorTitle" class="doc-page-title" data-editor-title th:text="|New ${step.label().toLowerCase()}|">New</h1>
-                    <p class="page-sub mt-0.5" th:text="${step.isPosting()
-                        ? 'Saved as a draft; Post writes it to the stock ledger.'
+                    <p class="page-sub mt-0.5" th:text="${step.isPosted()
+                        ? 'Saved as a draft; submit it for approval, then post it once approved.'
                         : 'Saved as a draft; submit it for approval from the document once it is complete.'}">Saved as a draft.</p>
                 </div>
             </div>
