@@ -22,6 +22,7 @@
     <properties>
         <java.version>21</java.version>
         <mockwebserver.version>4.12.0</mockwebserver.version>
+        <jasperreports.version>7.0.3</jasperreports.version>
     </properties>
 
     <dependencies>
@@ -84,6 +85,24 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- JasperReports: printed reports (com.asg.fabricerp.report.ReportService), as in HASSML.
+             -fonts ships DejaVu Sans, the one family templates may use; -pdf is the PDF exporter. -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports</artifactId>
+            <version>${jasperreports.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports-fonts</artifactId>
+            <version>${jasperreports.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports-pdf</artifactId>
+            <version>${jasperreports.version}</version>
         </dependency>
 
         <!-- Test -->

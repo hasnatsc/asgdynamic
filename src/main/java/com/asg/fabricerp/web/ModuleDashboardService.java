@@ -56,8 +56,8 @@ public class ModuleDashboardService {
 
     /** Dashboards kept in another app that belong on this one's page too. */
     private static final Map<Screen.Section, List<Screen>> RELATED = Map.of(
-        Screen.Section.SALES, List.of(Screen.BOOKING_ANALYTICS, Screen.PROD_DASHBOARD),
-        Screen.Section.PRODUCTION, List.of(Screen.PROD_DASHBOARD, Screen.FABRIC_STOCK),
+        Screen.Section.SALES, List.of(Screen.BOOKING_ANALYTICS, Screen.PROD_DASHBOARD, Screen.PROD_REPORT),
+        Screen.Section.PRODUCTION, List.of(Screen.PROD_DASHBOARD, Screen.PROD_REPORT, Screen.FABRIC_STOCK),
         Screen.Section.STORES, List.of(Screen.PROD_DASHBOARD, Screen.ITEM_STOCK),
         Screen.Section.INVENTORY, List.of(Screen.FABRIC_STOCK),
         Screen.Section.PURCHASE, List.of(Screen.ITEM_STOCK),

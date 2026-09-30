@@ -854,6 +854,51 @@
   .k-good { background: var(--viz-good); } .k-warning { background: var(--viz-warning); }
   .k-critical { background: var(--viz-critical); } .k-neutral { background: var(--viz-neutral); }
   .k-mutedfill { background: var(--viz-muted-fill); }
+
+  /* ---- Fabrics production report (production/report.html) -------------------------------- */
+  .pr-kpis      { @apply mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6; }
+  .pr-kpi       { @apply card flex min-w-0 items-start gap-3 p-4; }
+  .pr-kpi-icon  { @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600; }
+  .pr-kpi-icon .icon { @apply h-5 w-5; }
+  .pr-kpi-icon[data-tone="rose"]   { @apply bg-rose-50 text-rose-600; }
+  .pr-kpi-icon[data-tone="green"]  { @apply bg-emerald-50 text-emerald-600; }
+  .pr-kpi-icon[data-tone="amber"]  { @apply bg-amber-50 text-amber-600; }
+  .pr-kpi-icon[data-tone="blue"]   { @apply bg-sky-50 text-sky-600; }
+  .pr-kpi-icon[data-tone="violet"] { @apply bg-violet-50 text-violet-600; }
+  .pr-kpi-label { @apply text-[13px] font-medium text-gray-500; }
+  .pr-kpi-value { @apply truncate text-[22px] font-semibold tabular-nums tracking-tight text-gray-900; }
+  .pr-kpi-unit  { @apply text-sm font-medium text-gray-500; }
+  .pr-kpi-meta  { @apply text-xs text-gray-500; }
+  .pr-table thead th { @apply whitespace-nowrap align-middle; }
+  .pr-table thead .icon { @apply mr-1 inline h-4 w-4 align-[-3px] text-brand-600; }
+  .pr-group     { @apply bg-brand-50/60 text-center text-brand-800; }
+  .pr-stage     { @apply min-w-[8.5rem] text-[12px] normal-case; }
+  .pr-sort      { @apply inline-flex items-center gap-1 text-left font-semibold hover:text-gray-900; }
+  .pr-sort::after { content: '↕'; @apply text-[10px] text-gray-300; }
+  .pr-sort[data-dir="asc"]::after  { content: '↑'; @apply text-brand-600; }
+  .pr-sort[data-dir="desc"]::after { content: '↓'; @apply text-brand-600; }
+  .pr-cell      { @apply min-w-[8.5rem] align-middle; }
+  .pr-progress  { @apply flex items-center gap-2; }
+  .pr-progress b { @apply w-10 shrink-0 text-right text-xs font-semibold tabular-nums; }
+  .pr-track     { @apply block h-2 flex-1 overflow-hidden rounded-full bg-gray-100; }
+  .pr-fill      { @apply block h-full rounded-full; }
+  .pr-progress[data-band="done"] .pr-fill { @apply bg-emerald-500; }
+  .pr-progress[data-band="done"] b        { @apply text-emerald-700; }
+  .pr-progress[data-band="good"] .pr-fill { @apply bg-blue-600; }
+  .pr-progress[data-band="good"] b        { @apply text-blue-700; }
+  .pr-progress[data-band="mid"] .pr-fill  { @apply bg-amber-500; }
+  .pr-progress[data-band="mid"] b         { @apply text-amber-700; }
+  .pr-progress[data-band="low"] .pr-fill  { @apply bg-red-500; }
+  .pr-progress[data-band="low"] b         { @apply text-red-700; }
+  .pr-figure    { @apply mt-0.5 text-[11px] tabular-nums text-gray-500; }
+  .pr-due       { @apply mt-1 flex w-max items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset; }
+  .pr-due[data-tone="green"] { @apply bg-emerald-50 text-emerald-700 ring-emerald-600/20; }
+  .pr-due[data-tone="red"]   { @apply bg-red-50 text-red-700 ring-red-600/20; }
+  .pr-due[data-tone="amber"] { @apply bg-amber-50 text-amber-800 ring-amber-600/25; }
+  .pr-due[data-tone="gray"]  { @apply bg-gray-50 text-gray-600 ring-gray-500/20; }
+  .pr-page      { @apply inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-gray-200 px-2 text-sm
+                         text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40; }
+  .pr-page[aria-current="page"] { @apply border-brand-600 bg-brand-600 text-white hover:bg-brand-600; }
 }
 
 @layer base {
@@ -984,6 +1029,12 @@
   .dark .chip-count         { @apply bg-gray-800 text-gray-300; }
   .dark .hint               { @apply text-gray-400; }
   .dark [data-view-mode] .field[data-view-locked] { @apply border-gray-800 bg-gray-800/60 text-gray-100; }
+  .dark .pr-kpi-value       { @apply text-white; }
+  .dark .pr-kpi-icon        { @apply bg-gray-800; }
+  .dark .pr-group           { @apply bg-brand-500/10 text-brand-200; }
+  .dark .pr-track           { @apply bg-gray-800; }
+  .dark .pr-due             { @apply bg-transparent; }
+  .dark .pr-page            { @apply border-gray-700 text-gray-200 hover:bg-gray-800; }
 }
 
 /* ---- Responsive table stacking (opt-in: add .table-stack to .table-grid) -------------- */

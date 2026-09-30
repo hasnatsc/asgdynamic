@@ -55,6 +55,7 @@ class ProductionChainDatabaseIT {
     @Autowired private ProductionDashboardService dashboard;
     @Autowired private com.asg.fabricerp.web.ModuleDashboardService modules;
     @Autowired private ProductionBoardService boards;
+    @Autowired private ProductionReportService report;
     @Autowired private FabricStockQueries stockQueries;
     @Autowired private BusinessDocumentRepository repository;
     @Autowired private BusinessUnitRepository units;
@@ -189,6 +190,21 @@ class ProductionChainDatabaseIT {
         assertThat(load(rpi.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.PARTIAL);
         assertThat(load(bpo.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.COMPLETED);
         assertThat(load(booking.getId()).getStatus()).isEqualTo(BusinessDocumentStatus.COMPLETED);
+
+        // The Fabrics production report reads the same figures, one row for the order, stage by stage.
+        Map<String, Object> row = report.report(new ProductionReportService.Filter(null, null, null, null, null, bpo.getId()),
+            null, null, 0, 10).rows().get(0);
+        assertThat(row).containsEntry("bpoNo", bpo.getDocumentNo()).containsEntry("dueState", "COMPLETED")
+            .containsEntry("dueText", "Completed");
+        assertThat(stage(row, "weaving")).containsExactly(bd("1650"), bd("1650"), 100);
+        assertThat(stage(row, "greigeReceived")).containsExactly(bd("1600"), bd("1650"), 97);
+        assertThat(stage(row, "processing")).containsExactly(bd("1500"), bd("1500"), 100);
+        assertThat(stage(row, "greigeIssued")).containsExactly(bd("1600"), bd("1650"), 97);
+        assertThat(stage(row, "finished")).containsExactly(bd("1530"), bd("1500"), 102);
+        // Against every delivery order still standing - the refused greedy one holds its 20, as on the board.
+        assertThat(stage(row, "delivery")).containsExactly(bd("1470"), bd("1490"), 99);
+        assertThat(stage(row, "lc")).containsExactly(bd("0"), bd("1500"), 0);   // no export LC in this scenario
+        assertThat(report.lines(bpo.getId())).hasSize(2);
 
         // The ledger agrees with the balances, lot by lot.
         assertThat(jdbc.queryForObject("""
@@ -595,6 +611,15 @@ class ProductionChainDatabaseIT {
             b.transitionTo(BusinessDocumentStatus.APPROVED);
             return repository.save(b);
         });
+    }
+
+    /** A report row's done / of / percent for one stage, quantities stripped of trailing zeros. */
+    private static List<Object> stage(Map<String, Object> row, String name) {
+        return java.util.Arrays.asList(strip(row.get(name + "Done")), strip(row.get(name + "Of")), row.get(name + "Pct"));
+    }
+
+    private static Object strip(Object v) {
+        return v instanceof BigDecimal b ? b.stripTrailingZeros() : v;   // as bd() does
     }
 
     /** Approves a draft store document or delivery order if need be, then posts it. */

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<!--
+  Fabrics production report: one row per production order and how far its fabric has gone - LC,
+  weaving, dyeing, greige received and issued, finished, delivered against its delivery orders -
+  with its due date. Read from the Production board's figures (ProductionReportService); printed
+  through JasperReports (reports/fabrics-production-report.jrxml) as PDF or Excel.
+-->
+<head><title>Fabrics production report</title></head>
+<body>
+<div th:fragment="content" data-production-report
+     th:attr="data-due-soon=${dueSoonDays},data-print-limit=${printLimit}">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Fabrics production report</h1>
+            <p class="page-sub">Production progress from greige to finished goods, with LC and delivery status - one row per production order.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn-ghost" href="/production/board"><svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#planning}"/></svg>Production board</a>
+            <button type="button" class="btn-primary" data-export="pdf" title="The report as filtered below, as a PDF">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#document}"/></svg>Print report (PDF)</button>
+        </div>
+    </div>
+
+    <div class="pr-kpis" data-kpis aria-live="polite"></div>
+
+    <div class="card overflow-hidden">
+        <div class="toolbar flex-wrap">
+            <div class="input-icon w-full sm:w-72">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input type="search" class="field" placeholder="BPO no, marketing person, garments, dispo no" aria-label="Search" data-q autocomplete="off">
+            </div>
+            <div class="min-w-[12rem]">
+                <select class="field" aria-label="Marketing person" data-person data-remote="/api/production/report/marketing-persons"
+                        data-allow-clear data-placeholder="Any marketing person"></select>
+            </div>
+            <div class="min-w-[12rem]">
+                <select class="field" aria-label="Garments" data-garments data-remote="/api/production/report/garments"
+                        data-allow-clear data-placeholder="Any garments"></select>
+            </div>
+            <div class="flex items-center gap-1.5 text-sm text-gray-600" role="group" aria-label="BPO date range">
+                <span class="whitespace-nowrap">BPO date</span>
+                <input type="date" class="field w-auto" aria-label="BPO date from" data-from>
+                <span class="text-gray-400">–</span>
+                <input type="date" class="field w-auto" aria-label="BPO date to" data-to>
+            </div>
+            <div class="toolbar-spacer flex items-center gap-2">
+                <button type="button" class="btn-subtle" data-reset>
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Reset</button>
+                <details class="relative" data-menu>
+                    <summary class="btn-ghost list-none" aria-haspopup="menu">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#download}"/></svg>Export</summary>
+                    <div class="menu w-56" role="menu">
+                        <button type="button" class="menu-item" role="menuitem" data-export="pdf">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#document}"/></svg>PDF (print)</button>
+                        <button type="button" class="menu-item" role="menuitem" data-export="xlsx">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#ledger}"/></svg>Excel workbook</button>
+                    </div>
+                </details>
+                <details class="relative" data-menu>
+                    <summary class="btn-ghost list-none" aria-haspopup="true">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#panel-top}"/></svg>Columns</summary>
+                    <div class="menu w-60 p-2" data-columns></div>
+                </details>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table-grid pr-table" data-rows>
+                <thead>
+                <tr>
+                    <th rowspan="2" class="w-10" data-col="sl">SL</th>
+                    <th rowspan="2" data-col="bpoNo"><button type="button" class="pr-sort" data-sort="bpoNo">BPO no</button></th>
+                    <th rowspan="2" data-col="bpoDate"><button type="button" class="pr-sort" data-sort="bpoDate">BPO date</button></th>
+                    <th rowspan="2" data-col="marketingPerson"><button type="button" class="pr-sort" data-sort="marketingPerson">Marketing person</button></th>
+                    <th rowspan="2" data-col="garments"><button type="button" class="pr-sort" data-sort="garments">Garments</button></th>
+                    <th rowspan="2" data-col="dispoNo"><button type="button" class="pr-sort" data-sort="dispoNo">Dispo no</button></th>
+                    <th colspan="6" class="pr-group" data-group="production">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#activity}"/></svg>Production progress</th>
+                    <th rowspan="2" class="pr-group" data-col="delivery">
+                        <button type="button" class="pr-sort" data-sort="deliveryPct">
+                            <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#truck}"/></svg>Delivery progress
+                            <span class="block text-[11px] font-normal normal-case text-gray-500">against delivery orders</span></button></th>
+                    <th rowspan="2" data-col="due"><button type="button" class="pr-sort" data-sort="dueDate">Due date</button></th>
+                    <th rowspan="2" class="w-px text-right">Actions</th>
+                </tr>
+                <tr>
+                    <th class="pr-stage" data-col="lc" title="Quantity on export LCs, of the order">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#credit-card}"/></svg>LC progress</th>
+                    <th class="pr-stage" data-col="weaving" title="Greige on weaving work orders, of the greige the order needs">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#loom}"/></svg>Weaving</th>
+                    <th class="pr-stage" data-col="processing" title="On dyeing work orders, of the part of the order that is dyed or finished">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#dyeing}"/></svg>Processing</th>
+                    <th class="pr-stage" data-col="greigeReceived" title="Greige received into store, of the greige the order needs">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#receive}"/></svg>Greige received</th>
+                    <th class="pr-stage" data-col="greigeIssued" title="Greige issued for dyeing, of the greige the dyed part needs">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#transfer}"/></svg>Issue for processing</th>
+                    <th class="pr-stage" data-col="finished" title="Finished fabric received (A and B grade), of the dyed part">
+                        <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#packing}"/></svg>Finished goods</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="pager flex-wrap gap-3">
+            <label class="flex items-center gap-2 text-sm text-gray-600">Show
+                <select class="field field-sm w-20" data-size aria-label="Rows per page">
+                    <option>10</option><option>25</option><option>50</option><option>100</option>
+                </select> entries</label>
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-sm text-gray-600" data-showing></span>
+                <nav class="flex items-center gap-1" aria-label="Pages" data-pages></nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- One order's colour lines, stage by stage. -->
+    <dialog class="drawer max-w-4xl" data-breakdown aria-labelledby="prBreakdownTitle">
+        <div class="modal-head">
+            <div><h2 id="prBreakdownTitle" class="modal-title" data-breakdown-title>Colour lines</h2>
+                <p class="mt-0.5 text-sm text-gray-500" data-breakdown-sub></p></div>
+            <button type="button" class="btn-icon -mr-2" data-close aria-label="Close">
+                <svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#x}"/></svg></button>
+        </div>
+        <div class="modal-body" data-breakdown-body></div>
+    </dialog>
+
+    <script th:src="@{/js/production-report.js}" defer></script>
+</div>
+</body>
+</html>

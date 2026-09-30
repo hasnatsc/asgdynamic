@@ -92,7 +92,12 @@ public enum Screen {
      * Management's view of the production chain, Booking to the buyer's gate: KPIs, pipeline, status
      * board, work-order progress, stock, deliveries and alerts - read-only, drilling into the documents.
      */
-    PROD_DASHBOARD("Production dashboard", Section.ANALYTICS, "/production/dashboard");
+    PROD_DASHBOARD("Production dashboard", Section.ANALYTICS, "/production/dashboard"),
+    /**
+     * Every production order and how far its fabric has gone - LC, weaving, dyeing, greige received and
+     * issued, finished, delivered - with its due date; printed through JasperReports as PDF or Excel.
+     */
+    PROD_REPORT("Fabrics production report", Section.ANALYTICS, "/production/report");
 
     /** Declaration order is menu order: reference data first, then the order-to-delivery modules. */
     public enum Section {

@@ -86,6 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ======================================================================== production board
     if (root.dataset.board === 'production') {
+        // ?q=BPO-... (the production report's "On the production board"): that order, completed or not.
+        const asked = new URLSearchParams(location.search).get('q');
+        if (asked) {
+            $('[data-q]').value = asked;
+            $('[data-completed]').checked = true;
+        }
         const table = pagedTable({
             url: '/api/production/board',
             params: () => ({ q: $('[data-q]').value, buyerId: $('[data-buyer]').value || undefined,

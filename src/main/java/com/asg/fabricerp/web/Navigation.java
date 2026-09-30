@@ -113,6 +113,7 @@ public final class Navigation {
             case BOOKING_ANALYTICS -> "chart-bar";
             case PROD_BOARD     -> "activity";
             case PROD_DASHBOARD -> "chart-bar";
+            case PROD_REPORT    -> "activity";
             case GI             -> "transfer";
             case FFR            -> "packing";
             case FABRIC_STOCK   -> "inventory";
