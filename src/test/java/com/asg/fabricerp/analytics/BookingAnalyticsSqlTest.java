@@ -67,9 +67,9 @@ class BookingAnalyticsSqlTest {
     }
 
     @Test
-    void anUnknownSortColumnFallsBackToTheBookingDate() {
+    void anUnknownSortColumnFallsBackToTheBookingNumber() {
         Query q = BookingAnalyticsSql.register(criteria(AnalyticsView.ALL, List.of(), null, null), "1; DROP TABLE x", true, 25, 0);
-        assertTrue(q.sql().contains("ORDER BY b.document_date ASC"));
+        assertTrue(q.sql().contains("ORDER BY b.document_no ASC"));
         assertFalse(q.sql().contains("DROP TABLE"));
     }
 

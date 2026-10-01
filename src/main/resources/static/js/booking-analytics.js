@@ -417,7 +417,7 @@
             url: `${API}/register`,
             table: document.getElementById('anRegister'),
             pager: document.getElementById('anRegisterPager'),
-            sort: { column: 'documentDate', dir: 'desc' },
+            sort: { column: 'documentNo', dir: 'desc' },
             params: () => params({ search: document.getElementById('anRegisterSearch').value.trim() }),
             emptyText: 'No bookings match these filters.',
             columns: [

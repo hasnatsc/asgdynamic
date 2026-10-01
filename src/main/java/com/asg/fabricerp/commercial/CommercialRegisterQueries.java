@@ -197,7 +197,7 @@ public class CommercialRegisterQueries {
               AND (:q = '%%' OR lower(d.document_no) LIKE :q OR lower(COALESCE(d.reference_no, '')) LIKE :q
                    OR d.party_id IN (SELECT id FROM pty_parties WHERE lower(name) LIKE :q)
                    OR d.id IN (SELECT document_id FROM com_document_details WHERE lower(COALESCE(lc_no, '')) LIKE :q))
-            ORDER BY d.document_date DESC, d.id DESC
+            ORDER BY d.document_no DESC, d.id DESC
             LIMIT 500
             """.formatted(LIVE.replace("NOT IN ('CANCELLED')", "<> 'CANCELLED'"));
     }

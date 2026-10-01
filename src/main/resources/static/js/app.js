@@ -463,8 +463,11 @@
     }
 
     // ------------------------------------------------------------------------------------------
-    // Command palette (Ctrl+K)
+    // Command palette (Ctrl+K): screens, and records through central search
     // ------------------------------------------------------------------------------------------
+
+    /** The icon a central-search result is shown with, by its kind. */
+    const SEARCH_ICONS = { DOCUMENT: 'document', VOUCHER: 'journal', PARTY: 'users', ITEM: 'package' };
 
     function openCommandPalette() {
         const existing = document.getElementById('cmd-palette');
@@ -487,7 +490,8 @@
         dialog.innerHTML = `
             <div class="relative">
                 ${icon('search', 'icon-lg pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400')}
-                <input class="cmd-input" placeholder="Search screens…" autocomplete="off" spellcheck="false">
+                <input class="cmd-input" placeholder="Search screens, documents, parties, items…" autocomplete="off" spellcheck="false"
+                       aria-label="Search screens and records">
             </div>
             <div class="cmd-list" id="cmd-list"></div>
             <div class="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-2 text-xs text-gray-400">
@@ -499,52 +503,95 @@
         const input = dialog.querySelector('.cmd-input');
         const list = dialog.querySelector('#cmd-list');
         let activeIndex = 0;
+        // Central-search results for the text in `recordsFor`; null while a search is on its way.
+        let records = [];
+        let recordsFor = '';
+        let draw = 0;
 
-        function render(query) {
-            const q = (query || '').toLowerCase();
-            const filtered = q ? items.filter(i =>
+        function render() {
+            const raw = input.value.trim();
+            const q = raw.toLowerCase();
+            const screens = q ? items.filter(i =>
                 i.label.toLowerCase().includes(q) ||
                 (i.section && i.section.toLowerCase().includes(q)) ||
                 (i.group && i.group.toLowerCase().includes(q))
             ) : items;
 
-            if (!filtered.length) {
-                list.innerHTML = '<div class="px-4 py-6 text-center text-sm text-gray-500">No screens found.</div>';
-                return;
-            }
             let html = '';
+            let n = 0;
+            const item = (href, inner) => {
+                const active = n === activeIndex ? ' is-active' : '';
+                return `<a href="${esc(href)}" class="cmd-item${active}" data-cmd="${n++}">${inner}</a>`;
+            };
             let lastSection = null;
-            filtered.forEach((item, i) => {
-                const sec = item.section || '';
+            screens.forEach(s => {
+                const sec = s.section || '';
                 if (sec !== lastSection) {
                     html += `<div class="cmd-section">${esc(sec || 'Navigation')}</div>`;
                     lastSection = sec;
                 }
-                const active = i === activeIndex ? ' is-active' : '';
-                const sub = item.group ? `<span class="text-xs text-gray-400">${esc(item.group)}</span>` : '';
-                html += `<a href="${esc(item.path)}" class="cmd-item${active}" data-cmd="${i}">
-                    ${icon(item.icon, 'text-gray-400')}
-                    <span class="flex-1">${esc(item.label)}</span>${sub}
-                </a>`;
+                const sub = s.group ? `<span class="text-xs text-gray-400">${esc(s.group)}</span>` : '';
+                html += item(s.path, `${icon(s.icon, 'text-gray-400')}<span class="flex-1">${esc(s.label)}</span>${sub}`);
             });
-            list.innerHTML = html;
+
+            // Two characters before asking the server: one matches half the codes in the system.
+            if (raw.length >= 2) {
+                html += '<div class="cmd-section">Records</div>';
+                if (records === null || recordsFor !== raw) {
+                    html += '<div class="px-4 py-2 text-sm text-gray-400">Searching…</div>';
+                } else if (!records.length) {
+                    html += `<div class="px-4 py-2 text-sm text-gray-500">No documents, vouchers, parties or items match “${esc(raw)}”.</div>`;
+                } else {
+                    records.forEach(r => {
+                        html += item(r.url, `${icon(SEARCH_ICONS[r.kind] || 'document', 'text-gray-400')}
+                            <span class="min-w-0 flex-1 truncate"><span class="font-mono text-xs font-semibold">${esc(r.code)}</span>${r.title ? `<span class="text-gray-500"> · ${esc(r.title)}</span>` : ''}</span>
+                            <span class="shrink-0 text-xs text-gray-400">${esc(r.typeLabel)}</span>`);
+                    });
+                }
+                html += item(`/search?q=${encodeURIComponent(raw)}`,
+                    `${icon('arrow-right', 'text-gray-400')}<span class="flex-1">See all results for “${esc(raw)}”</span>`);
+            }
+
+            list.innerHTML = html || '<div class="px-4 py-6 text-center text-sm text-gray-500">No screens found.</div>';
         }
+
+        const searchRecords = debounce(async () => {
+            const raw = input.value.trim();
+            if (raw.length < 2) return;
+            const mine = ++draw;
+            let found = [];
+            try {
+                const result = await api('/api/search', { query: { q: raw, size: 8 } });
+                found = (result.hits || []).filter(h => h.url);
+            } catch (error) {
+                // The screens still work; the records section just says nothing matched.
+            }
+            if (mine !== draw) return;
+            records = found;
+            recordsFor = raw;
+            render();
+        }, 200);
 
         function navigate() {
             const active = list.querySelector('.cmd-item.is-active');
             if (active) { dialog.close(); window.location.href = active.getAttribute('href'); }
         }
 
-        function clampIndex(filtered) {
+        function clampIndex() {
             const count = list.querySelectorAll('.cmd-item').length;
             if (activeIndex < 0) activeIndex = count - 1;
             if (activeIndex >= count) activeIndex = 0;
         }
 
-        input.addEventListener('input', () => { activeIndex = 0; render(input.value); });
+        input.addEventListener('input', () => {
+            activeIndex = 0;
+            if (input.value.trim() !== recordsFor) records = null;
+            render();
+            searchRecords();
+        });
         dialog.addEventListener('keydown', e => {
-            if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex++; clampIndex(); render(input.value); }
-            else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex--; clampIndex(); render(input.value); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex++; clampIndex(); render(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex--; clampIndex(); render(); }
             else if (e.key === 'Enter') { e.preventDefault(); navigate(); }
         });
         list.addEventListener('click', e => {
@@ -552,7 +599,7 @@
             if (item) { e.preventDefault(); dialog.close(); window.location.href = item.getAttribute('href'); }
         });
 
-        render('');
+        render();
         dialog.showModal();
         input.focus();
     }
@@ -1595,7 +1642,7 @@
                 url: opts.api, table,
                 search: filter('search'),
                 pager: root.querySelector('[data-pager]'),
-                sort: { column: 'documentDate', dir: 'desc' },
+                sort: { column: 'documentNo', dir: 'desc' },
                 emptyText: `No ${opts.kind.toLowerCase()} documents match these filters.`,
                 emptyIcon: 'document',
                 params: () => ({ status: filter('status')?.value, from: filter('from')?.value, to: filter('to')?.value }),

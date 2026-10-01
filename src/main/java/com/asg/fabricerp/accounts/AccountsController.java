@@ -201,7 +201,7 @@ public class AccountsController {
         String pattern = request.searchOrNull() == null ? "" : "%" + request.searchOrNull().toLowerCase() + "%";
         var page = entries.search(context.requireOrganizationId(),
             from == null ? LocalDate.of(1900, 1, 1) : from, to == null ? LocalDate.of(2999, 12, 31) : to,
-            event == null ? "" : event, voucher, pattern, request.toPageable(ENTRY_SORT, "postingDate"));
+            event == null ? "" : event, voucher, pattern, request.toPageableCodeDesc(ENTRY_SORT, "entryNo"));
         return DataTableResponse.from(draw, page, this::entryRow);
     }
 

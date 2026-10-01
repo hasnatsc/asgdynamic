@@ -108,7 +108,7 @@ public class BookingController {
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
         Page<Map<String, Object>> page = service.searchRows(
             status, from, to, request.searchOrNull(),
-            request.toPageable(SORTABLE, "documentDate"));
+            request.toPageableCodeDesc(SORTABLE, "documentNo"));
 
         return DataTableResponse.from(draw, page, row -> row);
     }

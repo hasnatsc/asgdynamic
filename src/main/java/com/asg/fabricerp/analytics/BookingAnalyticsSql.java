@@ -413,7 +413,7 @@ public final class BookingAnalyticsSql {
     /** One row per booking, with its buyer, team, person, delivered quantity and live approval. */
     public static Query register(Criteria c, String sortKey, boolean ascending, int limit, int offset) {
         Map<String, Object> p = new LinkedHashMap<>();
-        String sort = REGISTER_SORT.getOrDefault(sortKey, "b.document_date");
+        String sort = REGISTER_SORT.getOrDefault(sortKey, "b.document_no");
         p.put("limit", limit);
         p.put("offset", offset);
         String sql = base(c, true, p) + """
@@ -431,7 +431,7 @@ public final class BookingAnalyticsSql {
             LEFT JOIN org_marketing_teams t ON t.id = b.marketing_team_id
             LEFT JOIN sec_fabric_users u ON u.id = b.marketing_person_id
             LEFT JOIN apr_requests r ON r.document_id = b.id AND r.pending
-            ORDER BY %s %s NULLS LAST, b.id DESC
+            ORDER BY %s %s NULLS LAST, b.document_no DESC, b.id DESC
             LIMIT :limit OFFSET :offset
             """.formatted(sort, ascending ? "ASC" : "DESC");
         return new Query(sql, p);
@@ -455,7 +455,7 @@ public final class BookingAnalyticsSql {
             LEFT JOIN org_marketing_teams t ON t.id = b.marketing_team_id
             LEFT JOIN sec_fabric_users u ON u.id = b.marketing_person_id
             WHERE b.grp <> 'CANCELLED'
-            ORDER BY b.document_date DESC, b.id DESC
+            ORDER BY b.document_no DESC, b.id DESC
             LIMIT :limit
             """;
         return new Query(sql, p);

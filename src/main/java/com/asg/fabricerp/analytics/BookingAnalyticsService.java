@@ -505,7 +505,7 @@ public class BookingAnalyticsService {
         out.write('﻿');   // Excel reads UTF-8
         out.write(csvLine(List.of("Booking No", "Reference", "Booking date", "Delivery date", "Status", "Revision",
             "Buyer", "Team", "Marketing person", "Currency", "Quantity", "Drawn qty", "Value", "Approval level")));
-        for (Map<String, Object> m : rows(BookingAnalyticsSql.register(c, "documentDate", false, EXPORT_LIMIT, 0))) {
+        for (Map<String, Object> m : rows(BookingAnalyticsSql.register(c, "documentNo", false, EXPORT_LIMIT, 0))) {
             Map<String, Object> row = registerRow(m);
             out.write(csvLine(Arrays.asList(row.get("documentNo"), row.get("referenceNo"), row.get("documentDate"),
                 row.get("requiredDate"), row.get("status"), row.get("revisionNo"), row.get("buyer"), row.get("team"),

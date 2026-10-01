@@ -274,7 +274,7 @@ public class ProductionDashboardService {
         return jdbc.queryForList("""
             SELECT d.id, d.document_no, d.document_date, d.required_date, d.status, d.total_quantity, pty.name AS buyer,
                    'booking' AS slug
-            """ + BOOKINGS + " ORDER BY d.document_date DESC, d.document_no DESC LIMIT 500", bookingParams(f))
+            """ + BOOKINGS + " ORDER BY d.document_no DESC, d.id DESC LIMIT 500", bookingParams(f))
             .stream().map(ProductionBoardService::camel).toList();
     }
 
@@ -800,7 +800,7 @@ public class ProductionDashboardService {
               AND d.document_type = :type AND d.status IN (:statuses)
               AND """ + ROOT + """
              IN (:bpoIds)
-            ORDER BY d.document_date DESC, d.document_no DESC LIMIT 500
+            ORDER BY d.document_no DESC, d.id DESC LIMIT 500
             """, p).stream().map(r -> {
             Map<String, Object> m = ProductionBoardService.camel(r);
             m.put("slug", step.slug());

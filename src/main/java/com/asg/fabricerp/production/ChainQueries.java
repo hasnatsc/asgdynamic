@@ -42,7 +42,7 @@ public class ChainQueries {
                        or lower(coalesce(p.name, '')) like :q)
                   and (:allTeams = true or d.marketingTeam.id in :teams)
                   and (:batchOpen = false or d.batchClosed = false)
-                order by d.documentDate desc, d.id desc
+                order by d.documentNo desc, d.id desc
                 """, BusinessDocument.class)
             .setParameter("org", context.requireOrganizationId())
             .setParameter("unit", context.requireBusinessUnitId())

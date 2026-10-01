@@ -599,7 +599,7 @@ public class CommercialDocumentService {
                 where d.organizationId = :org and d.businessUnit.id = :unit and d.documentType = :type
                   and d.deleted = false and d.status in :statuses
                   and (lower(d.documentNo) like :q or lower(coalesce(d.referenceNo, '')) like :q or lower(coalesce(p.name, '')) like :q)
-                order by d.documentDate desc, d.id desc
+                order by d.documentNo desc, d.id desc
                 """, BusinessDocument.class)
             .setParameter("org", context.requireOrganizationId())
             .setParameter("unit", context.requireBusinessUnitId())

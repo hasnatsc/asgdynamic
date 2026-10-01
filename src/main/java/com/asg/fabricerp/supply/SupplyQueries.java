@@ -48,7 +48,7 @@ public class SupplyQueries {
                   and (lower(d.documentNo) like :q or lower(coalesce(d.referenceNo, '')) like :q
                        or lower(coalesce(p.name, '')) like :q)
                   and (:allStores = true or w is null or w.id in :stores or tw.id in :stores)
-                order by d.documentDate desc, d.id desc
+                order by d.documentNo desc, d.id desc
                 """, BusinessDocument.class)
             .setParameter("org", context.requireOrganizationId())
             .setParameter("unit", context.requireBusinessUnitId())

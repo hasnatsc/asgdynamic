@@ -145,7 +145,7 @@ public class CommercialDocumentController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         CommercialStep step = CommercialStep.ofSlug(slug);
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
-        var page = documents.search(step, status, from, to, request.searchOrNull(), request.toPageable(SORTABLE, "documentDate"));
+        var page = documents.search(step, status, from, to, request.searchOrNull(), request.toPageableCodeDesc(SORTABLE, "documentNo"));
         return DataTableResponse.from(draw, page, views::gridRow);
     }
 
@@ -376,7 +376,7 @@ public class CommercialDocumentController {
               AND d.status IN ('APPROVED', 'PARTIAL', 'COMPLETED')
               AND (CAST(:id AS BIGINT) IS NULL OR d.id = :id)
               AND (lower(d.document_no) LIKE :q OR lower(COALESCE(c.lc_no, '')) LIKE :q OR lower(COALESCE(pt.name, '')) LIKE :q)
-            ORDER BY d.document_date DESC, d.id DESC LIMIT 21 OFFSET :offset
+            ORDER BY d.document_no DESC, d.id DESC LIMIT 21 OFFSET :offset
             """, new MapSqlParameterSource("org", context.requireOrganizationId()).addValue("q", like).addValue("id", id)
                 .addValue("offset", p * 20));
         return LookupPage.of(rows.stream().limit(20).map(r -> new LookupPage.Option(((Number) r.get("id")).longValue(),

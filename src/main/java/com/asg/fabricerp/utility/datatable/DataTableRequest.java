@@ -54,4 +54,28 @@ public record DataTableRequest(
             "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
         return PageRequest.of(start / length, length, Sort.by(direction, property));
     }
+
+    /**
+     * A document list's paging: newest code first. Codes are issued serially by
+     * {@link com.asg.fabricerp.global.numbering.BusinessNumberService}, so code order is the order
+     * documents were raised in - a back-dated document still sits where it was keyed in, which a
+     * date sort cannot promise. A column the user sorts by comes first, with the code (newest first)
+     * breaking its ties.
+     *
+     * @param codeProperty the entity property holding the code, e.g. {@code documentNo}
+     */
+    public Pageable toPageableCodeDesc(SortWhitelist allowed, String codeProperty) {
+        Sort newestCode = Sort.by(Sort.Direction.DESC, codeProperty);
+        String property = allowed.resolve(sortColumn).orElse(null);
+        Sort sort;
+        if (property == null) {
+            sort = newestCode;
+        } else if (property.equals(codeProperty)) {
+            sort = "asc".equalsIgnoreCase(sortDir) ? Sort.by(Sort.Direction.ASC, codeProperty) : newestCode;
+        } else {
+            Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+            sort = Sort.by(direction, property).and(newestCode);
+        }
+        return PageRequest.of(start / length, length, sort);
+    }
 }

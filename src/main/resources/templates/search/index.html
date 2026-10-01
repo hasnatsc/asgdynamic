@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
+<!--
+  Central search (com.asg.fabricerp.search): every document, voucher, party and item the user's own
+  screens would list, by code, buyer or supplier, reference, LC number or narration. The header's
+  search box (Ctrl+K) shows the first few; "See all results" lands here. Answered by Elasticsearch
+  when it is configured and current, by PostgreSQL otherwise - the badge says which.
+-->
+<head>
+    <title>Search</title>
+</head>
+<body>
+<div th:fragment="content" id="searchPage">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Search</h1>
+            <p class="page-sub">Documents, vouchers, parties and items you may open - by code, buyer or supplier, reference, LC number or narration.</p>
+        </div>
+        <div class="page-actions">
+            <span class="badge-gray" data-engine hidden></span>
+            <button type="button" class="btn-ghost" data-reindex hidden
+                    sec:authorize="hasAuthority('SCREEN_SECURITY_ADMIN_VIEW')">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#refresh}"/></svg>Rebuild index
+            </button>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden">
+        <form class="toolbar" data-search-form role="search" action="/search" method="get">
+            <div class="input-icon w-full sm:w-96">
+                <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg>
+                <input type="search" name="q" class="field pr-8" placeholder="e.g. BPO-2026-000012, a buyer, an LC number"
+                       aria-label="Search" data-search th:value="${q}" autocomplete="off" autofocus>
+                <span class="kbd pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">/</span>
+            </div>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="What to search">
+                <button type="button" class="chip" data-kind="" aria-pressed="true">All</button>
+                <button type="button" class="chip" th:each="k : ${kinds}" th:attr="data-kind=${k.name()}"
+                        aria-pressed="false" th:text="${k.label()}">Documents</button>
+            </div>
+        </form>
+        <div class="table-wrap">
+            <table class="table-grid table-stack" id="searchTable">
+                <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Reference</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th class="text-right">Amount</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="empty" data-empty hidden>
+            <span class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use th:href="@{/images/icons.svg#search}"/></svg></span>
+            <p class="empty-title" data-empty-title>Type to search</p>
+            <p class="empty-text" data-empty-text>A document number, part of one, a buyer, a supplier, an item or an LC number.</p>
+        </div>
+        <div class="pager" data-pager hidden>
+            <span data-range></span>
+            <div class="flex gap-2">
+                <button type="button" class="btn-ghost btn-sm" data-page="-1">
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-left}"/></svg>Previous</button>
+                <button type="button" class="btn-ghost btn-sm" data-page="1">Next
+                    <svg class="icon" aria-hidden="true"><use th:href="@{/images/icons.svg#chevron-right}"/></svg></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const { api, esc, fmt, statusBadge, toast, fail, debounce } = App;
+        const root = document.getElementById('searchPage');
+        const $ = sel => root.querySelector(sel);
+        const input = $('[data-search]');
+        const body = $('#searchTable tbody');
+        const SIZE = 25;
+        const params = new URLSearchParams(location.search);
+        const state = { q: input.value.trim(), kind: params.get('kind') || '', page: Math.max(0, Number(params.get('page')) || 0), draw: 0 };
+
+        // A kind the user has no chip for (a link from someone with other screens) means all of theirs.
+        if (!root.querySelector(`[data-kind="${CSS.escape(state.kind)}"]`)) state.kind = '';
+        root.querySelectorAll('[data-kind]').forEach(chip =>
+            chip.setAttribute('aria-pressed', String(chip.dataset.kind === state.kind)));
+
+        function empty(title, text) {
+            body.innerHTML = '';
+            $('[data-empty]').hidden = false;
+            $('[data-empty-title]').textContent = title;
+            $('[data-empty-text]').textContent = text;
+            $('[data-pager]').hidden = true;
+        }
+
+        /** The address holds the search, so Back, a refresh or a shared link shows the same results. */
+        function syncUrl() {
+            const qs = new URLSearchParams();
+            if (state.q) qs.set('q', state.q);
+            if (state.kind) qs.set('kind', state.kind);
+            if (state.page) qs.set('page', state.page);
+            history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
+        }
+
+        async function load() {
+            syncUrl();
+            if (state.q.length < 1) {
+                empty('Type to search', 'A document number, part of one, a buyer, a supplier, an item or an LC number.');
+                return;
+            }
+            const mine = ++state.draw;
+            let result;
+            try {
+                result = await api('/api/search', { query: { q: state.q, kind: state.kind, page: state.page, size: SIZE } });
+            } catch (error) {
+                if (mine === state.draw) fail(error);
+                return;
+            }
+            if (mine !== state.draw) return;
+            const engine = $('[data-engine]');
+            engine.hidden = false;
+            engine.textContent = result.engine === 'elasticsearch' ? 'Elasticsearch' : 'PostgreSQL';
+            engine.title = result.engine === 'elasticsearch'
+                ? 'Answered from the search index' : 'Answered from the database directly';
+            if (!result.hits.length) {
+                empty(`Nothing matches “${state.q}”`,
+                    'Only what your own screens list is searched: your business unit, your teams and stores, your bookings.');
+                return;
+            }
+            $('[data-empty]').hidden = true;
+            body.innerHTML = result.hits.map(h => `
+                <tr>
+                    <td data-label="Code" class="whitespace-nowrap">${h.url
+                        ? `<a class="doc-no hover:underline" href="${esc(h.url)}">${esc(h.code)}</a>`
+                        : `<span class="doc-no">${esc(h.code)}</span>`}</td>
+                    <td data-label="Type" class="whitespace-nowrap text-gray-600">${esc(h.typeLabel)}</td>
+                    <td data-label="Name">${esc(h.title || '')}</td>
+                    <td data-label="Reference" class="text-gray-600">${esc(h.subtitle || '')}</td>
+                    <td data-label="Date" class="whitespace-nowrap">${esc(fmt.date(h.date))}</td>
+                    <td data-label="Status">${statusBadge(h.status)}</td>
+                    <td data-label="Amount" class="whitespace-nowrap text-right tabular-nums">${h.amount == null ? ''
+                        : `${esc(fmt.money(h.amount))} <span class="text-xs text-gray-400">${esc(h.currency || '')}</span>`}</td>
+                </tr>`).join('');
+            const from = state.page * SIZE + 1;
+            const to = state.page * SIZE + result.hits.length;
+            $('[data-pager]').hidden = false;
+            $('[data-range]').textContent = `${from}–${to} of ${result.total}`;
+            $('[data-page="-1"]').disabled = state.page === 0;
+            $('[data-page="1"]').disabled = to >= result.total;
+        }
+
+        const typed = debounce(() => { state.q = input.value.trim(); state.page = 0; load(); }, 250);
+        input.addEventListener('input', typed);
+        $('[data-search-form]').addEventListener('submit', event => {
+            event.preventDefault();
+            state.q = input.value.trim();
+            state.page = 0;
+            load();
+        });
+        root.querySelectorAll('[data-kind]').forEach(chip => chip.addEventListener('click', () => {
+            state.kind = chip.dataset.kind;
+            state.page = 0;
+            root.querySelectorAll('[data-kind]').forEach(c => c.setAttribute('aria-pressed', String(c === chip)));
+            load();
+        }));
+        root.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => {
+            state.page = Math.max(0, state.page + Number(btn.dataset.page));
+            load();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }));
+
+        // Administrators: rebuild the Elasticsearch index - offered only when one is configured.
+        const reindex = $('[data-reindex]');
+        if (reindex) {
+            api('/api/search/status').then(status => {
+                reindex.hidden = !status.configured;
+                reindex.title = status.lastError ? `Last sync failed: ${status.lastError}`
+                    : status.lastSync ? `Index '${status.index}', last synced ${fmt.dateTime(status.lastSync)}` : `Index '${status.index}'`;
+            }).catch(() => {});
+            reindex.addEventListener('click', async () => {
+                reindex.disabled = true;
+                try {
+                    const done = await api('/api/search/reindex', { method: 'POST' });
+                    toast(`Search index rebuilt: ${done.indexed} records`, 'success');
+                    load();
+                } catch (error) {
+                    fail(error);
+                } finally {
+                    reindex.disabled = false;
+                }
+            });
+        }
+
+        load();
+    });
+    </script>
+</div>
+</body>
+</html>

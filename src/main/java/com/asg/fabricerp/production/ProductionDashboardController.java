@@ -116,7 +116,7 @@ public class ProductionDashboardController {
               AND (:allTeams OR d.marketing_team_id IN (:teams))
               AND (CAST(:id AS BIGINT) IS NULL OR d.id = :id)
               AND (:q = '%' OR lower(d.document_no) LIKE :q OR lower(COALESCE(pty.name, '')) LIKE :q)
-            ORDER BY d.document_date DESC, d.id DESC LIMIT :limit OFFSET :offset
+            ORDER BY d.document_no DESC, d.id DESC LIMIT :limit OFFSET :offset
             """, p);
         boolean more = rows.size() > size;
         return LookupPage.of(rows.stream().limit(size).map(r -> new LookupPage.Option(((Number) r.get("id")).longValue(),

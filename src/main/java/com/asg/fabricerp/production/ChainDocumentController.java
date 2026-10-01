@@ -105,7 +105,7 @@ public class ChainDocumentController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         ChainStep step = ChainStep.ofSlug(slug);
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
-        var page = documents.search(step, status, from, to, request.searchOrNull(), request.toPageable(SORTABLE, "documentDate"));
+        var page = documents.search(step, status, from, to, request.searchOrNull(), request.toPageableCodeDesc(SORTABLE, "documentNo"));
         Map<Long, Map<String, Object>> fabric = views.fabricSummaries(page.getContent().stream().map(BusinessDocument::getId).toList());
         return DataTableResponse.from(draw, page, d -> {
             Map<String, Object> row = views.gridRow(d);

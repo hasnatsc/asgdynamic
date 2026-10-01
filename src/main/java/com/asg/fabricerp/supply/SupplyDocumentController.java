@@ -125,7 +125,7 @@ public class SupplyDocumentController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         SupplyStep step = SupplyStep.ofSlug(slug);
         var request = new DataTableRequest(draw, start, length, search, sortColumn, sortDir);
-        var page = documents.search(step, status, from, to, request.searchOrNull(), request.toPageable(SORTABLE, "documentDate"));
+        var page = documents.search(step, status, from, to, request.searchOrNull(), request.toPageableCodeDesc(SORTABLE, "documentNo"));
         return DataTableResponse.from(draw, page, views::gridRow);
     }
 
